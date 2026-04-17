@@ -141,6 +141,8 @@ achievement_resource!(HagsDefeatedAchievement, AchievementId::HagsDefeated);
 achievement_resource!(OgreDefeatedAchievement, AchievementId::OgreDefeated);
 achievement_resource!(LichDefeatedAchievement, AchievementId::LichDefeated);
 achievement_resource!(DarkMageDefeatedAchievement, AchievementId::DarkMageDefeated);
+achievement_resource!(RayEncounterAchievement, AchievementId::RayEncounter);
+achievement_resource!(RayDefeatedAchievement, AchievementId::RayDefeated);
 
 /// Tracks which bosses appeared during the current battle for defeat achievements.
 #[derive(Resource, Default)]
@@ -149,6 +151,7 @@ pub(crate) struct BossesSeenThisBattle {
     pub ogre: bool,
     pub lich: bool,
     pub dark_mage: bool,
+    pub ray: bool,
 }
 
 /// Run condition: returns true when the achievement resource is still locked.
@@ -270,6 +273,8 @@ pub(crate) fn reset_all_achievements(
     commands.insert_resource(OgreDefeatedAchievement(false));
     commands.insert_resource(LichDefeatedAchievement(false));
     commands.insert_resource(DarkMageDefeatedAchievement(false));
+    commands.insert_resource(RayEncounterAchievement(false));
+    commands.insert_resource(RayDefeatedAchievement(false));
 }
 
 /// Initializes all achievement resources from the save file at startup.
@@ -356,4 +361,6 @@ pub(crate) fn init_achievements(mut commands: Commands) {
     init!(OgreDefeatedAchievement);
     init!(LichDefeatedAchievement);
     init!(DarkMageDefeatedAchievement);
+    init!(RayEncounterAchievement);
+    init!(RayDefeatedAchievement);
 }

@@ -378,6 +378,7 @@ pub fn ogre_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
             ),
         ),
         With<Boss>,
@@ -397,7 +398,7 @@ pub fn ogre_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, petrified),
     ) in &mut bosses
     {
         // Freeze normal movement during charge phases; also zero acceleration
@@ -419,6 +420,7 @@ pub fn ogre_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             velocity.x = 0.0;
             velocity.z = 0.0;
@@ -561,6 +563,7 @@ pub fn ogre_charge_system(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
             ),
         ),
         (With<Boss>, Without<Corpse>),
@@ -600,7 +603,7 @@ pub fn ogre_charge_system(
         mut boss_transform,
         boss_team,
         mut charge_state,
-        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned),
+        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned, petrified),
     ) in &mut bosses
     {
         match charge_state.as_mut() {
@@ -745,6 +748,7 @@ pub fn ogre_charge_system(
                     sickened,
                     frozen,
                     stunned,
+                    petrified,
                 ) {
                     despawn_indicators(&mut commands, &indicators.all());
                     *charge_state = OgreChargeState::Idle {
@@ -1148,6 +1152,7 @@ pub fn ogre_rock_throw(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
                 Option<&PolymorphedModifier>,
             ),
         ),
@@ -1175,7 +1180,7 @@ pub fn ogre_rock_throw(
         boss_team,
         charge_state,
         mut cooldown,
-        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned, polymorphed),
+        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned, petrified, polymorphed),
     ) in &mut bosses
     {
         if charge_state.is_movement_locked() {
@@ -1189,6 +1194,7 @@ pub fn ogre_rock_throw(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) || polymorphed.is_some()
         {
             continue;

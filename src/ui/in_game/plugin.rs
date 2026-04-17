@@ -72,11 +72,14 @@ impl Plugin for InGamePlugin {
             // Boss health bar: spawn when boss appears, update each frame
             .add_systems(
                 Update,
-                (
-                    systems::spawn_boss_health_bar,
-                    systems::update_boss_health_bar,
-                )
+                (systems::spawn_boss_health_bar, systems::update_boss_health_bar)
                     .run_if(is_gameplay_running),
+            )
+            .add_systems(
+                Update,
+                systems::update_ray_eye_health_bar
+                    .run_if(is_gameplay_running)
+                    .run_if(any_with_component::<crate::game::units::boss::ray::RayEye>),
             )
             // Buff tracker: SP only (CauldronBuffs only exists in SP)
             .add_systems(

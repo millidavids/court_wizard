@@ -69,10 +69,17 @@ pub fn combat(
                     Has<super::units::infantry::Infantry>,
                     Has<super::units::assassin::Assassin>,
                     Option<&super::units::components::MeleeRangeBonus>,
+                    Option<&super::units::components::Petrified>,
+                    Has<super::units::components::FearModifier>,
                 ),
             ),
         ),
-        (Without<Corpse>, Without<Boss>, Without<Flying>),
+        (
+            Without<Corpse>,
+            Without<Boss>,
+            Without<Flying>,
+            Without<super::units::components::MindControlled>,
+        ),
     >,
     boss_units: Query<(Entity, &Transform, &Hitbox, &Team), (With<Boss>, Without<Corpse>)>,
     flying_units: Query<Entity, With<Flying>>,
@@ -182,7 +189,7 @@ pub fn combat(
             bloodlust,
             has_contagious_rage,
             elite_attack_speed,
-            (attacker_is_archer, attacker_is_infantry, attacker_is_assassin, melee_range_bonus),
+            (attacker_is_archer, attacker_is_infantry, attacker_is_assassin, melee_range_bonus, petrified, has_fear),
         ),
     ) in &mut all_units
     {
@@ -191,6 +198,8 @@ pub fn combat(
             || banished.is_some()
             || frozen_solid.is_some()
             || stunned.is_some()
+            || petrified.is_some()
+            || has_fear
             || is_retreating
         {
             continue;

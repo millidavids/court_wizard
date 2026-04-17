@@ -157,6 +157,7 @@ pub(super) fn teleporter_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&Stunned>,
+                Option<&crate::game::units::components::Petrified>,
             ),
         ),
         (With<Teleporter>, Without<Corpse>),
@@ -173,7 +174,7 @@ pub(super) fn teleporter_movement(
         aura_mod,
         terrain_mod,
         slow_mod,
-        (rooted, haste, elite_speed, sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
+        (rooted, haste, elite_speed, sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, petrified),
     ) in &mut teleporters
     {
         if matches!(state, TeleporterState::Channeling { .. }) {
@@ -190,6 +191,7 @@ pub(super) fn teleporter_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             velocity.x = 0.0;
             velocity.z = 0.0;

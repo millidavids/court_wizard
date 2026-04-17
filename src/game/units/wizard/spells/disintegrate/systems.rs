@@ -703,7 +703,7 @@ fn spawn_beam_core(
         .spawn((
             beam,
             UniqueHitTracker::default(),
-            Mesh3d(assets.cross_plane_triangle.clone()),
+            Mesh3d(assets.disintegrate_cone.clone()),
             MeshMaterial3d(assets.disintegrate_beam.clone()),
             Transform::from_translation(midpoint),
             OnGameplayScreen,
@@ -721,19 +721,19 @@ fn spawn_beam_visuals(
     let midpoint = beam.origin + beam.direction * (beam.length / 2.0);
     let beam_entity = spawn_beam_core(commands, assets, beam);
 
-    // Glow triangle sibling (wider, semi-transparent)
+    // Glow cone sibling (wider, semi-transparent)
     commands.spawn((
         BeamGlow { beam_entity },
-        Mesh3d(assets.cross_plane_triangle.clone()),
+        Mesh3d(assets.disintegrate_cone.clone()),
         MeshMaterial3d(assets.disintegrate_glow.clone()),
         Transform::from_translation(midpoint),
         OnGameplayScreen,
     ));
 
-    // Origin flare circle sibling (uses cross-plane sphere for visibility from all angles)
+    // Origin flare sphere
     commands.spawn((
         BeamOriginFlare { beam_entity },
-        Mesh3d(assets.cross_plane_sphere.clone()),
+        Mesh3d(assets.explosion_sphere.clone()),
         MeshMaterial3d(assets.disintegrate_flare.clone()),
         Transform::from_translation(midpoint),
         OnGameplayScreen,
@@ -801,14 +801,14 @@ pub fn update_beam_visuals(
         };
         let visual_len = current_len + overshoot;
 
-        transform.translation = beam.origin;
         transform.rotation = Quat::from_rotation_arc(Vec3::Y, beam.direction);
+        transform.translation = beam.origin + beam.direction * visual_len / 2.0;
 
         // Pulsing width — use beam.beam_width() which includes talent multipliers
         let pulse = 1.0
             + constants::BEAM_PULSE_AMPLITUDE
                 * (t * constants::BEAM_PULSE_FREQUENCY * std::f32::consts::TAU).sin();
-        let beam_width = beam.beam_width() * pulse;
+        let beam_width = beam.beam_width() * pulse * 0.7;
         transform.scale = Vec3::new(beam_width, visual_len, beam_width);
 
         // Color cycling: orange -> yellow -> white -> yellow -> orange
@@ -845,8 +845,8 @@ pub fn update_beam_glow(
         let current_len = beam.current_length();
         let visual_len = current_len + constants::BEAM_VISUAL_OVERSHOOT;
 
-        transform.translation = beam.origin;
         transform.rotation = Quat::from_rotation_arc(Vec3::Y, beam.direction);
+        transform.translation = beam.origin + beam.direction * visual_len / 2.0;
 
         // Glow pulse + shimmer jitter from incommensurate frequencies
         let pulse = 1.0
@@ -854,7 +854,7 @@ pub fn update_beam_glow(
                 * (t * constants::GLOW_PULSE_FREQUENCY * std::f32::consts::TAU).sin();
         let shimmer = constants::SHIMMER_AMPLITUDE
             * ((t * constants::SHIMMER_FREQ_A).sin() + (t * constants::SHIMMER_FREQ_B).cos());
-        let glow_width = beam.beam_width() * constants::GLOW_WIDTH_MULTIPLIER * (pulse + shimmer);
+        let glow_width = beam.beam_width() * constants::GLOW_WIDTH_MULTIPLIER * (pulse + shimmer) * 0.7;
         transform.scale = Vec3::new(glow_width, visual_len, glow_width);
     }
 }

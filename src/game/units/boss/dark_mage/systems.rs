@@ -216,6 +216,7 @@ pub fn dark_mage_ai(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
             ),
         ),
         (With<DarkMage>, Without<Corpse>),
@@ -239,7 +240,7 @@ pub fn dark_mage_ai(
         mut queue,
         enrage,
         boss_team,
-        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned),
+        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned, petrified),
     ) in &mut bosses
     {
         // CC'd bosses can't cast
@@ -251,6 +252,7 @@ pub fn dark_mage_ai(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             // If telegraphing, cancel and go back to idle
             if let DarkMageState::Telegraphing { indicators, .. } = state.as_ref() {
@@ -414,6 +416,7 @@ pub fn dark_mage_teleport(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
             ),
         ),
         (With<DarkMage>, Without<Corpse>),
@@ -435,7 +438,7 @@ pub fn dark_mage_teleport(
         state,
         hitbox,
         boss_team,
-        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned),
+        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned, petrified),
     ) in &mut bosses
     {
         // Don't teleport while approaching
@@ -450,6 +453,7 @@ pub fn dark_mage_teleport(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             continue;
         }

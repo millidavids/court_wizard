@@ -357,10 +357,9 @@ fn update_debug_hitboxes(
     for (marker, mut cyl_transform) in &mut cylinders {
         if let Ok((_, unit_transform, hitbox)) = units.get(marker.0) {
             has_cylinder.insert(marker.0);
-            // Position cylinder at ground-center, scaled to hitbox.
+            // Position cylinder centered on the unit's position, scaled to hitbox.
             // Cylinder primitive has half_height=1 (total height=2), so Y scale = height/2.
-            cyl_transform.translation =
-                Vec3::new(unit_transform.translation.x, hitbox.height / 2.0, unit_transform.translation.z);
+            cyl_transform.translation = unit_transform.translation;
             cyl_transform.scale = Vec3::new(hitbox.radius, hitbox.height / 2.0, hitbox.radius);
         } else {
             // Unit despawned — will be cleaned up below

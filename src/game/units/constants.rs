@@ -49,19 +49,19 @@ pub const ELECTRIC_ARC_LIFETIME: f32 = 0.2;
 
 // ===== Persistent Effect Visual Tinting =====
 
-/// Color overlay for fire DoT effect (orange-red).
+#[allow(dead_code)]
 pub const FIRE_EFFECT_COLOR: Color = Color::srgb(1.0, 0.35, 0.05);
 /// Color overlay for frost slow effect (icy blue).
 pub const FROST_EFFECT_COLOR: Color = Color::srgb(0.3, 0.55, 1.0);
 /// Color overlay for electric charge effect (yellow-white).
 pub const ELECTRIC_EFFECT_COLOR: Color = Color::srgb(1.0, 0.95, 0.5);
-/// Speed of fire effect pulsing (radians per second).
+#[allow(dead_code)]
 pub const FIRE_EFFECT_PULSE_SPEED: f32 = 4.0;
 /// Speed of electric effect flickering (radians per second).
 pub const ELECTRIC_EFFECT_FLICKER_SPEED: f32 = 12.0;
-/// Maximum blend strength for fire tint.
+#[allow(dead_code)]
 pub const FIRE_EFFECT_MAX_INTENSITY: f32 = 0.45;
-/// Minimum blend strength for fire tint.
+#[allow(dead_code)]
 pub const FIRE_EFFECT_MIN_INTENSITY: f32 = 0.15;
 /// Max frost tint intensity at full accumulation (scales with frost level).
 pub const FROST_EFFECT_MAX_INTENSITY: f32 = 0.6;

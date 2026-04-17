@@ -412,6 +412,7 @@ pub fn hag_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
             ),
         ),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
@@ -433,7 +434,7 @@ pub fn hag_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, petrified),
     ) in &mut hags
     {
         // CC'd units cannot move
@@ -445,6 +446,7 @@ pub fn hag_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             velocity.x = 0.0;
             velocity.z = 0.0;

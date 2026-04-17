@@ -615,6 +615,7 @@ pub(crate) fn check_friendly_thorns(
 
 use crate::game::units::UnitType;
 use crate::game::units::boss::dark_mage::components::DarkMage;
+use crate::game::units::boss::ray::Ray;
 use crate::game::units::boss::hags::components::Hag;
 use crate::game::units::boss::lich::components::Lich;
 use crate::game::units::boss::ogre::components::OgreEnrageState;
@@ -698,6 +699,16 @@ pub(crate) fn check_dark_mage_encounter(
     }
 }
 
+pub(crate) fn check_ray_encounter(
+    query: Query<(), With<Ray>>,
+    mut res: ResMut<RayEncounterAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if !query.is_empty() {
+        do_unlock(&mut res, &mut events);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Boss mark-seen (tracks presence for defeat achievements)
 // ---------------------------------------------------------------------------
@@ -707,9 +718,10 @@ pub(crate) fn mark_bosses_seen(
     ogres: Query<(), With<OgreEnrageState>>,
     liches: Query<(), With<Lich>>,
     dark_mages: Query<(), With<DarkMage>>,
+    rays: Query<(), With<Ray>>,
     mut seen: ResMut<BossesSeenThisBattle>,
 ) {
-    if seen.hag && seen.ogre && seen.lich && seen.dark_mage {
+    if seen.hag && seen.ogre && seen.lich && seen.dark_mage && seen.ray {
         return;
     }
     if !seen.hag && !hags.is_empty() {
@@ -723,6 +735,9 @@ pub(crate) fn mark_bosses_seen(
     }
     if !seen.dark_mage && !dark_mages.is_empty() {
         seen.dark_mage = true;
+    }
+    if !seen.ray && !rays.is_empty() {
+        seen.ray = true;
     }
 }
 
@@ -755,6 +770,7 @@ boss_defeat_system!(check_hags_defeated, hag, HagsDefeatedAchievement);
 boss_defeat_system!(check_ogre_defeated, ogre, OgreDefeatedAchievement);
 boss_defeat_system!(check_lich_defeated, lich, LichDefeatedAchievement);
 boss_defeat_system!(check_dark_mage_defeated, dark_mage, DarkMageDefeatedAchievement);
+boss_defeat_system!(check_ray_defeated, ray, RayDefeatedAchievement);
 
 // ---------------------------------------------------------------------------
 // Soiled Surprise — triggered by UnitSickenedMessage (first sickened event)

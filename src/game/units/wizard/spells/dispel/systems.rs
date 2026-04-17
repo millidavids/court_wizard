@@ -385,6 +385,7 @@ pub fn update_dispel_impacts(
             Has<BattleHymnModifier>,
             Has<FogEvasionModifier>,
             Has<MindControlled>,
+            Has<crate::game::units::components::Petrified>,
         ),
         (Without<Corpse>, Without<DispelImpact>),
     >,
@@ -466,7 +467,7 @@ pub fn update_dispel_impacts(
             // Spell Reflection: find nearest enemy target for reflected damage
             let reflection_target = if has_reflection && is_offensive_effect(effect_kind) {
                 let mut best: Option<(f32, Vec3)> = None;
-                for (_, tf, team, _, _, _, _, _, _, _, _) in unit_query.iter() {
+                for (_, tf, team, _, _, _, _, _, _, _, _, _) in unit_query.iter() {
                     if !Team::Defenders.is_enemy(team) {
                         continue;
                     }
@@ -485,7 +486,7 @@ pub fn update_dispel_impacts(
             // Explosive Nullification: damage enemies near the dispelled effect + VFX
             if has_explosive {
                 spawn_dispel_explosion(&mut commands, &visual_assets, effect_pos, time_secs);
-                for (entity, tf, team, _, _, has_shield, _, _, _, _, _) in unit_query.iter() {
+                for (entity, tf, team, _, _, has_shield, _, _, _, _, _, _) in unit_query.iter() {
                     if !Team::Defenders.is_enemy(team) {
                         continue;
                     }
@@ -503,7 +504,7 @@ pub fn update_dispel_impacts(
 
             // Spell Reflection: damage enemies near the reflected target
             if let Some(target_pos) = reflection_target {
-                for (entity, tf, team, _, _, has_shield, _, _, _, _, _) in unit_query.iter() {
+                for (entity, tf, team, _, _, has_shield, _, _, _, _, _, _) in unit_query.iter() {
                     if !Team::Defenders.is_enemy(team) {
                         continue;
                     }
@@ -520,7 +521,7 @@ pub fn update_dispel_impacts(
 
             // Apply collected damage
             for &(target_entity, damage, has_shield) in &damage_targets {
-                if let Ok((_, _, _, mut health, mut temp_hp, _, _, _, _, _, _)) =
+                if let Ok((_, _, _, mut health, mut temp_hp, _, _, _, _, _, _, _)) =
                     unit_query.get_mut(target_entity)
                 {
                     apply_spell_damage(
@@ -543,7 +544,7 @@ pub fn update_dispel_impacts(
             radius,
             unit_query
                 .iter()
-                .filter_map(|(entity, tf, _, _, _, _, _, _, _, _, has_mc)| {
+                .filter_map(|(entity, tf, _, _, _, _, _, _, _, _, has_mc, _)| {
                     has_mc.then_some((entity, tf.translation))
                 }),
         );
@@ -556,7 +557,7 @@ pub fn update_dispel_impacts(
             radius,
             unit_query
                 .iter()
-                .filter_map(|(entity, tf, team, _, _, has_shield, _, _, _, _, _)| {
+                .filter_map(|(entity, tf, team, _, _, has_shield, _, _, _, _, _, _)| {
                     (has_shield && Team::Defenders.is_enemy(team))
                         .then_some((entity, tf.translation))
                 }),
@@ -577,10 +578,16 @@ pub fn update_dispel_impacts(
                 has_hymn,
                 has_fog,
                 _has_mind_control,
+                has_petrified,
             ) in &unit_query
             {
                 if xz_distance(unit_tf.translation, impact_center) > radius {
                     continue;
+                }
+
+                // Dispel cures petrified allies
+                if *team == Team::Defenders && has_petrified {
+                    commands.entity(unit_entity).remove::<crate::game::units::components::Petrified>();
                 }
 
                 if Team::Defenders.is_enemy(team) {

@@ -16,7 +16,7 @@ use crate::game::units::wizard::spells::vfx::channel::{
 };
 use crate::game::units::components::{
     BanishedModifier, CombatAnimation, CommanderAuraSpeedModifier, Corpse, EliteSpeedBonus,
-    FlockingVelocity, FrozenSolidModifier, HasteModifier, Hitbox, MovementSpeed,
+    FlockingVelocity, FrozenSolidModifier, HasteModifier, Hitbox, MindControlled, MovementSpeed,
     PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
     Sleepwalking, SlowMovementModifier, TargetingVelocity, Team,
 };
@@ -39,7 +39,7 @@ pub fn update_dispeller_targeting(
     mut commands: Commands,
     mut dispellers: Query<
         (Entity, &Transform, &Team, &mut TargetingVelocity),
-        (With<Dispeller>, Without<Corpse>),
+        (With<Dispeller>, Without<Corpse>, Without<MindControlled>),
     >,
     spell_effects: Query<(Entity, &Transform, &NetworkedSpellEffect)>,
     all_units: Query<
@@ -210,6 +210,7 @@ pub fn dispeller_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
                 &Team,
                 Has<StagingAttacker>,
                 Has<WaveGroup>,
@@ -238,6 +239,7 @@ pub fn dispeller_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
             team,
             has_staging,
             has_wave_group,
@@ -253,6 +255,7 @@ pub fn dispeller_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             velocity.x = 0.0;
             velocity.z = 0.0;

@@ -49,6 +49,7 @@ pub enum SpawnTask {
     Ogre,
     Hags,
     DarkMage,
+    Ray,
     Battlefield,
     Castle,
     Wizard,

@@ -86,9 +86,11 @@ pub(super) fn steam_api_name(id: AchievementId) -> &'static str {
         AchievementId::PeakWizard => "ACH_PEAK_WIZARD",
         AchievementId::LichEncounter => "ACH_LICH_ENCOUNTER",
         AchievementId::DarkMageEncounter => "ACH_DARK_MAGE_ENCOUNTER",
+        AchievementId::RayEncounter => "ACH_RAY_ENCOUNTER",
         AchievementId::HagsDefeated => "ACH_HAGS_DEFEATED",
         AchievementId::OgreDefeated => "ACH_OGRE_DEFEATED",
         AchievementId::LichDefeated => "ACH_LICH_DEFEATED",
         AchievementId::DarkMageDefeated => "ACH_DARK_MAGE_DEFEATED",
+        AchievementId::RayDefeated => "ACH_RAY_DEFEATED",
     }
 }

@@ -195,8 +195,11 @@ pub fn init_loading_progress(
                 queue.tasks.push_back(SpawnTask::DarkMage);
                 kill_stats.total_attackers_spawned = 1;
             }
+            4 => {
+                queue.tasks.push_back(SpawnTask::Ray);
+                kill_stats.total_attackers_spawned = 1;
+            }
             _ => {
-                // Fallback: Ogre
                 queue.tasks.push_back(SpawnTask::Ogre);
                 kill_stats.total_attackers_spawned = 1;
             }
@@ -383,6 +386,7 @@ pub fn process_spawn_queue(
         Res<crate::game::units::boss::ogre::resources::OgreAssets>,
         Res<crate::game::units::boss::hags::resources::HagAssets>,
         Res<crate::game::units::boss::dark_mage::resources::DarkMageAssets>,
+        Res<crate::game::units::boss::ray::resources::RayAssets>,
     ),
     current_level: Res<CurrentLevel>,
     asset_stores: (
@@ -431,7 +435,7 @@ pub fn process_spawn_queue(
         healer_assets,
         teleporter_assets,
     ) = &unit_assets;
-    let (ogre_assets, hag_assets, dark_mage_assets) = &boss_assets;
+    let (ogre_assets, hag_assets, dark_mage_assets, ray_assets) = &boss_assets;
     let (mut meshes, mut materials, mut ground_materials, mut stone_materials) = asset_stores;
     let (ref wizard_assets_opt, ref cauldron_assets_opt, mut images) = optional_assets;
     let (
@@ -605,6 +609,13 @@ pub fn process_spawn_queue(
                     &mut game_rng.0,
                     commands.reborrow(),
                     Res::clone(dark_mage_assets),
+                );
+            }
+            SpawnTask::Ray => {
+                crate::game::units::boss::ray::systems::spawn_ray(
+                    &mut game_rng.0,
+                    commands.reborrow(),
+                    Res::clone(ray_assets),
                 );
             }
             SpawnTask::Battlefield => {

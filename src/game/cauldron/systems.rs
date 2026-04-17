@@ -176,7 +176,7 @@ pub fn handle_brew_complete(
         );
 
         commands.spawn((
-            Mesh3d(spell_assets.cross_plane_sphere.clone()),
+            Mesh3d(spell_assets.explosion_sphere.clone()),
             MeshMaterial3d(materials.add(StandardMaterial {
                 base_color: bubble_color.with_alpha(constants::BREW_BUBBLE_INITIAL_ALPHA),
                 alpha_mode: AlphaMode::Blend,

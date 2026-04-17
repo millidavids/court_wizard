@@ -192,6 +192,7 @@ pub fn update_infantry_targeting(
         (
             With<Infantry>,
             Without<crate::game::units::components::Corpse>,
+            Without<crate::game::units::components::MindControlled>,
         ),
     >,
     all_units: Query<
@@ -270,6 +271,7 @@ pub fn infantry_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
             ),
         ),
         With<Infantry>,
@@ -288,7 +290,7 @@ pub fn infantry_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (has_sleep, has_sleepwalking, banished, polymorphed, sickened, frozen, stunned),
+        (has_sleep, has_sleepwalking, banished, polymorphed, sickened, frozen, stunned, petrified),
     ) in &mut infantry_units
     {
         // CC'd units cannot move
@@ -300,6 +302,7 @@ pub fn infantry_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             velocity.x = 0.0;
             velocity.z = 0.0;

@@ -208,6 +208,8 @@ impl Plugin for AchievementsPlugin {
                         .run_if(achievement_locked::<LichEncounterAchievement>),
                     systems::check_dark_mage_encounter
                         .run_if(achievement_locked::<DarkMageEncounterAchievement>),
+                    systems::check_ray_encounter
+                        .run_if(achievement_locked::<RayEncounterAchievement>),
                     systems::mark_bosses_seen,
                 )
                     .run_if(is_gameplay_active),
@@ -228,6 +230,9 @@ impl Plugin for AchievementsPlugin {
                     systems::check_dark_mage_defeated
                         .run_if(on_message::<BattleEndedMessage>)
                         .run_if(achievement_locked::<DarkMageDefeatedAchievement>),
+                    systems::check_ray_defeated
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<RayDefeatedAchievement>),
                 ),
             )
             // Reset boss-seen flags on level load

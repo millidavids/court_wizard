@@ -630,7 +630,11 @@ pub fn update_archer_targeting(
             &AttackRange,
             &mut crate::game::units::components::TargetingVelocity,
         ),
-        (With<Archer>, Without<Corpse>),
+        (
+            With<Archer>,
+            Without<Corpse>,
+            Without<crate::game::units::components::MindControlled>,
+        ),
     >,
     all_units: Query<
         (Entity, &Transform, &Team),
@@ -799,6 +803,7 @@ pub fn archer_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
                 &Team,
                 Has<StagingAttacker>,
                 Has<WaveGroup>,
@@ -828,6 +833,7 @@ pub fn archer_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
             team,
             has_staging,
             has_wave_group,
@@ -843,6 +849,7 @@ pub fn archer_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             velocity.x = 0.0;
             velocity.z = 0.0;

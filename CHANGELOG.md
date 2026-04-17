@@ -2,7 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v0.6.207] - 2026-04-15
+## [v0.6.274] - 2026-04-17
+
+### Added
+- **A new final boss awaits at level 25** — a floating, many-eyed horror has joined the roguelite boss rotation as your capstone challenge, with five distinct eye beams that each inflict a different ordeal on your defenders
+- **Five-part eye health bar** — the new boss's health is split into five sections, one per eye, each with its own color to match the beam it fires
+- **Stone-cold stares and mass panic** — two brand-new status effects let the new boss petrify units in place or make them flee in terror
+- **Bigger, brighter eye glow** — the new boss's eyes now shine in more vivid, saturated colors (warm gray, orange, purple, pink, and cyan) so you can instantly tell which ability is coming
+- **Implosion sound effect** — a satisfying audio cue plays each time you destroy one of the boss's eyes
+- **Encounter and defeat achievements** for reaching and surviving the new final boss
+
+### Changed
+- **Mind-controlled units actually fight their own side now** — previously, units hit by mind control would still try to attack enemies normally because their old targeting was overriding the mind control behavior. Mind-controlled defenders now properly switch to the attacker's path and attack their former allies
+- **Each eye has its own health pool** — damaging a single eye only hurts that eye. Damage to the boss's body is split evenly across all five eyes. The boss falls only when every eye is destroyed
+- **Eyes implode with style** — when an eye's health runs out, it stops pulling in magical particles and shrinks rapidly before despawning instead of just disappearing
+
+### Fixed
+- **Smoother performance during the new boss fight** — the new boss's health bar no longer does unnecessary work when the boss isn't on the field, and only updates on screen when a health value actually changes
 
 ### Added
 - **9 new achievements** — completionist goals for unlocking all wizards, researching every spell, and maxing out all permanent bonuses, plus encounter and defeat achievements for the Lich and Dark Mage bosses, and defeat achievements for the Hags and Ogre Warlord

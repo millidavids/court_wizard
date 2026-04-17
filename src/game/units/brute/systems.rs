@@ -18,7 +18,7 @@ use crate::game::units::components::{
     Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrozenSolidModifier,
     HasteModifier, Health, Hitbox, InMelee, MovementSpeed, PolymorphedModifier, RetaliationTarget,
     RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier, Sleepwalking,
-    SlowMovementModifier, TargetingVelocity, Team, Teleportable, UnitTypeGlow,
+    MindControlled, SlowMovementModifier, TargetingVelocity, Team, Teleportable, UnitTypeGlow,
 };
 use crate::game::units::infantry::constants::ATTACKER_SPRITE_TINT;
 use crate::game::units::infantry::resources::InfantryAssets;
@@ -112,7 +112,7 @@ pub fn update_brute_targeting(
             &mut TargetingVelocity,
             Option<&RetaliationTarget>,
         ),
-        With<Brute>,
+        (With<Brute>, Without<MindControlled>),
     >,
     all_units: Query<
         (Entity, &Transform, &Team),
@@ -172,6 +172,7 @@ pub fn brute_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
             ),
         ),
         With<Brute>,
@@ -189,7 +190,7 @@ pub fn brute_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, petrified),
     ) in &mut brutes
     {
         // CC'd units cannot move
@@ -201,6 +202,7 @@ pub fn brute_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             velocity.x = 0.0;
             velocity.z = 0.0;
@@ -254,6 +256,7 @@ pub fn brute_rock_throw(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
                 Option<&PolymorphedModifier>,
             ),
         ),
@@ -274,7 +277,7 @@ pub fn brute_rock_throw(
         brute_transform,
         brute_team,
         mut cooldown,
-        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned, polymorphed),
+        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned, petrified, polymorphed),
     ) in &mut brutes
     {
         if crate::game::units::systems::is_cc_immobilized(
@@ -285,6 +288,7 @@ pub fn brute_rock_throw(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) || polymorphed.is_some()
         {
             continue;

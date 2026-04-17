@@ -8,12 +8,12 @@ use super::components::{
     SPRITE_FRAME_SIZE, SPRITE_SHEET_IMAGE_HEIGHT, WalkingAnimation,
 };
 use super::components::{
-    Airborne, BanishedModifier, Corpse, Effectiveness, ElectricCharge, FALL_DAMAGE_SCALE, FireDoT,
-    FlockingVelocity, FrostAccumulation, FrozenSolidModifier, Health, InMelee, MindControlled,
-    OriginalMaterial, PendingDamageEffect, PoisonedModifier, RemoteElectricEffect,
-    RemoteFireEffect, RemoteFrostEffect, RootedModifier, SickenedModifier, SlowMovementModifier,
-    SmellyModifier, Stunned, TargetingVelocity, Team, TemporaryHitPoints, TimedModifier,
-    apply_damage_to_unit,
+    Airborne, BanishedModifier, Corpse, Effectiveness, ElectricCharge, FALL_DAMAGE_SCALE,
+    FearModifier, FireDoT, FlockingVelocity, FrostAccumulation, FrozenSolidModifier, Health, Hitbox,
+    InMelee, MindControlled, OriginalMaterial, PendingDamageEffect, Petrified, PoisonedModifier,
+    RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, RootedModifier, SickenedModifier,
+    SlowMovementModifier, SmellyModifier, Stunned, TargetingVelocity, Team, TemporaryHitPoints,
+    TimedModifier, apply_damage_to_unit,
 };
 use super::constants::{
     BERSERKER_RAGE_EFFECT_COLOR, BERSERKER_RAGE_EFFECT_INTENSITY, ELECTRIC_ARC_COLOR,
@@ -21,8 +21,7 @@ use super::constants::{
     ELECTRIC_ARC_WIDTH, ELECTRIC_EFFECT_COLOR, ELECTRIC_EFFECT_FLICKER_SPEED,
     ELECTRIC_EFFECT_MAX_INTENSITY, ELECTRIC_EFFECT_MIN_INTENSITY, ELITE_EFFECT_COLOR,
     ELITE_EFFECT_MAX_INTENSITY, ELITE_EFFECT_MIN_INTENSITY, ELITE_EFFECT_PULSE_SPEED,
-    FIRE_EFFECT_COLOR, FIRE_EFFECT_MAX_INTENSITY, FIRE_EFFECT_MIN_INTENSITY,
-    FIRE_EFFECT_PULSE_SPEED, FROST_ACCUMULATION_PER_HIT, FROST_EFFECT_COLOR,
+    FROST_ACCUMULATION_PER_HIT, FROST_EFFECT_COLOR,
     FROST_EFFECT_MAX_INTENSITY, FROST_GENERIC_DECAY_DELAY, MIND_CONTROL_EFFECT_COLOR,
     MIND_CONTROL_EFFECT_INTENSITY,
     POISON_DURATION, POISON_EFFECT_COLOR, POISON_EFFECT_INTENSITY, POISON_EFFECTIVENESS_CAP,
@@ -67,6 +66,7 @@ pub fn is_cc_immobilized(
     sickened: Option<&SickenedModifier>,
     frozen: Option<&FrozenSolidModifier>,
     stunned: Option<&Stunned>,
+    petrified: Option<&Petrified>,
 ) -> bool {
     rooted.is_some()
         || (has_sleep && !has_sleepwalking)
@@ -74,6 +74,7 @@ pub fn is_cc_immobilized(
         || sickened.is_some()
         || frozen.is_some()
         || stunned.is_some()
+        || petrified.is_some()
 }
 
 /// Returns true if the unit is a staging attacker (not yet activated).
@@ -591,6 +592,66 @@ pub fn update_fire_dot(
     }
 }
 
+/// Spawn fire VFX (smoke, sparks, embers) on units with an active FireDoT.
+pub fn emit_burning_unit_vfx(
+    mut commands: Commands,
+    burning_units: Query<(&Transform, &Hitbox), With<FireDoT>>,
+    visual_assets: Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
+    time: Res<Time>,
+    mut smoke_timer: Local<f32>,
+    mut spark_timer: Local<f32>,
+) {
+    let delta = time.delta_secs();
+    let t = time.elapsed_secs();
+
+    *smoke_timer += delta;
+    *spark_timer += delta;
+
+    let emit_smoke = *smoke_timer >= 0.5;
+    let emit_sparks = *spark_timer >= 1.5;
+
+    if emit_smoke {
+        *smoke_timer -= 0.5;
+    }
+    if emit_sparks {
+        *spark_timer -= 1.5;
+    }
+
+    if !emit_smoke && !emit_sparks {
+        return;
+    }
+
+    for (transform, hitbox) in &burning_units {
+        let pos = transform.translation;
+        let half_height = hitbox.height * 0.5;
+        let radius = hitbox.radius * 0.5;
+
+        if emit_smoke {
+            let seed = pos.x * 0.1 + t;
+            let y_offset = ((seed * 7.3).sin() * 0.5) * half_height;
+            crate::game::units::wizard::spells::vfx::systems::spawn_fire_orange_smoke(
+                &mut commands,
+                &visual_assets,
+                Vec3::new(pos.x, pos.y + y_offset, pos.z),
+                radius,
+                1,
+                t + seed,
+            );
+        }
+        if emit_sparks {
+            let seed = pos.z * 0.1 + t;
+            let y_offset = ((seed * 11.1).sin() * 0.5) * half_height;
+            crate::game::units::wizard::spells::vfx::systems::spawn_fire_sparks(
+                &mut commands,
+                &visual_assets,
+                Vec3::new(pos.x, pos.y + y_offset, pos.z),
+                1,
+                t + seed,
+            );
+        }
+    }
+}
+
 /// Visual marker for electric arc effects (auto-despawns after lifetime).
 #[derive(Component)]
 pub struct ElectricArcVisual {
@@ -869,6 +930,8 @@ pub fn update_persistent_effect_visuals(
                 Has<super::elite::EliteHealthBonus>,
                 Option<&super::components::UnitTypeGlow>,
                 Has<WetModifier>,
+                Has<Petrified>,
+                Has<FearModifier>,
             ),
         ),
         Or<(
@@ -890,6 +953,8 @@ pub fn update_persistent_effect_visuals(
                 With<super::elite::EliteHealthBonus>,
                 With<super::components::UnitTypeGlow>,
                 With<WetModifier>,
+                With<Petrified>,
+                With<FearModifier>,
             )>,
         )>,
     >,
@@ -897,7 +962,6 @@ pub fn update_persistent_effect_visuals(
     let elapsed = time.elapsed_secs();
 
     // Pre-compute linear versions of constant effect colors (avoid per-entity conversion)
-    let fire_linear = FIRE_EFFECT_COLOR.to_linear();
     let frost_linear = FROST_EFFECT_COLOR.to_linear();
     let wet_linear = WET_EFFECT_COLOR.to_linear();
     let electric_linear = ELECTRIC_EFFECT_COLOR.to_linear();
@@ -930,6 +994,8 @@ pub fn update_persistent_effect_visuals(
             has_elite,
             unit_type_glow,
             has_wet,
+            has_petrified,
+            has_fear,
         ),
     ) in &query
     {
@@ -939,6 +1005,8 @@ pub fn update_persistent_effect_visuals(
         let has_mc_visual = has_mind_control || has_mass_hysteria;
         let has_any_effect = has_fire
             || has_frost
+            || has_petrified
+            || has_fear
             || has_electric
             || has_mc_visual
             || has_poisoned
@@ -976,16 +1044,7 @@ pub fn update_persistent_effect_visuals(
 
             let mut result_linear = base_linear;
 
-            if has_fire {
-                blend_pulsing_effect(
-                    &mut result_linear,
-                    &fire_linear,
-                    elapsed,
-                    FIRE_EFFECT_PULSE_SPEED,
-                    FIRE_EFFECT_MIN_INTENSITY,
-                    FIRE_EFFECT_MAX_INTENSITY,
-                );
-            }
+            // Fire tint removed — burning is shown via particle VFX only.
 
             if has_frost {
                 let frost_intensity = frost
@@ -1061,6 +1120,16 @@ pub fn update_persistent_effect_visuals(
                     UNIT_TYPE_GLOW_MIN_INTENSITY,
                     UNIT_TYPE_GLOW_MAX_INTENSITY,
                 );
+            }
+
+            if has_fear {
+                let purple = LinearRgba::new(0.5, 0.1, 0.6, 1.0);
+                result_linear = result_linear.mix(&purple, 0.3);
+            }
+
+            if has_petrified {
+                let gray = LinearRgba::new(0.4, 0.4, 0.4, 1.0);
+                result_linear = result_linear.mix(&gray, 0.85);
             }
 
             if let Some(cloned_material) = materials.get_mut(material_handle) {

@@ -12,7 +12,8 @@ use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::archer::Archer;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, Corpse, Effectiveness, FacingDirection, FlockingVelocity,
-    Health, Hitbox, MovementSpeed, TargetingVelocity, Team, Teleportable, WalkingAnimation,
+    Health, Hitbox, MindControlled, MovementSpeed, TargetingVelocity, Team, Teleportable,
+    WalkingAnimation,
 };
 use crate::game::units::king::components::King;
 use crate::game::units::random_position_in_cell;
@@ -25,7 +26,7 @@ use crate::game::units::random_position_in_cell;
 pub fn update_assassin_targeting(
     mut assassins: Query<
         (&Transform, &Team, &mut TargetingVelocity),
-        (With<Assassin>, Without<Corpse>),
+        (With<Assassin>, Without<Corpse>, Without<MindControlled>),
     >,
     archers: Query<
         (Entity, &Transform, &Team),
@@ -111,6 +112,7 @@ pub fn assassin_movement(
                 Option<&crate::game::units::components::SickenedModifier>,
                 Option<&crate::game::units::components::FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
             ),
         ),
         With<Assassin>,
@@ -127,7 +129,7 @@ pub fn assassin_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, petrified),
     ) in &mut assassin_units
     {
         // CC'd units cannot move
@@ -139,6 +141,7 @@ pub fn assassin_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             velocity.x = 0.0;
             velocity.z = 0.0;

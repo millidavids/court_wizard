@@ -240,10 +240,12 @@ pub(crate) enum AchievementId {
     // Boss encounters & defeats
     LichEncounter,
     DarkMageEncounter,
+    RayEncounter,
     HagsDefeated,
     OgreDefeated,
     LichDefeated,
     DarkMageDefeated,
+    RayDefeated,
 }
 
 impl AchievementId {
@@ -316,10 +318,12 @@ impl AchievementId {
             AchievementId::PeakWizard,
             AchievementId::LichEncounter,
             AchievementId::DarkMageEncounter,
+            AchievementId::RayEncounter,
             AchievementId::HagsDefeated,
             AchievementId::OgreDefeated,
             AchievementId::LichDefeated,
             AchievementId::DarkMageDefeated,
+            AchievementId::RayDefeated,
         ]
     }
 
@@ -391,10 +395,12 @@ impl AchievementId {
             AchievementId::PeakWizard => "all_bonuses_maxed",
             AchievementId::LichEncounter => "lich_encounter",
             AchievementId::DarkMageEncounter => "dark_mage_encounter",
+            AchievementId::RayEncounter => "ray_encounter",
             AchievementId::HagsDefeated => "hags_defeated",
             AchievementId::OgreDefeated => "ogre_defeated",
             AchievementId::LichDefeated => "lich_defeated",
             AchievementId::DarkMageDefeated => "dark_mage_defeated",
+            AchievementId::RayDefeated => "ray_defeated",
         }
     }
 
@@ -466,10 +472,12 @@ impl AchievementId {
             AchievementId::PeakWizard => "Peak Wizard",
             AchievementId::LichEncounter => "Beyond the Grave",
             AchievementId::DarkMageEncounter => "Arcane Rival",
+            AchievementId::RayEncounter => "Under Scrutiny",
             AchievementId::HagsDefeated => "Family Reunion Cancelled",
             AchievementId::OgreDefeated => "Brought Down to Size",
             AchievementId::LichDefeated => "Final Death",
             AchievementId::DarkMageDefeated => "Tenure Denied",
+            AchievementId::RayDefeated => "Blind Justice",
         }
     }
 
@@ -663,6 +671,9 @@ impl AchievementId {
             AchievementId::DarkMageEncounter => {
                 "A wizard who chose the other side. How embarrassing for them."
             }
+            AchievementId::RayEncounter => {
+                "Six eyes, one body, and a very bad attitude. It sees everything."
+            }
             AchievementId::HagsDefeated => "Three sisters walked in. None walked out.",
             AchievementId::OgreDefeated => {
                 "The bigger they are, the more satisfying the thud."
@@ -672,6 +683,9 @@ impl AchievementId {
             }
             AchievementId::DarkMageDefeated => {
                 "The dark mage's application has been rejected. Permanently."
+            }
+            AchievementId::RayDefeated => {
+                "Every last eye, shut. Nothing left to see here."
             }
         }
     }

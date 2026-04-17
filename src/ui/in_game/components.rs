@@ -75,6 +75,18 @@ pub(super) struct HagHealthBarText {
     pub identity: crate::game::units::boss::hags::components::HagIdentity,
 }
 
+/// Marker for a Ray eye health bar section fill.
+#[derive(Component)]
+pub(super) struct RayEyeHealthBarFill {
+    pub eye_type: crate::game::units::boss::ray::RayEyeType,
+}
+
+/// Marker for a Ray eye health bar section text.
+#[derive(Component)]
+pub(super) struct RayEyeHealthBarText {
+    pub eye_type: crate::game::units::boss::ray::RayEyeType,
+}
+
 /// Marker component for the Lich soul power / health bar label text.
 #[derive(Component)]
 pub(super) struct LichBarLabel;

@@ -17,9 +17,9 @@ use crate::game::units::brute::components::Brute;
 use crate::game::units::commander::components::Commander;
 use crate::game::units::components::{
     BanishedModifier, CommanderAuraSpeedModifier, Corpse, EliteSpeedBonus,
-    FlockingVelocity, FrozenSolidModifier, HasteModifier, Health, Hitbox, MovementSpeed,
-    PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
-    Sleepwalking, SlowMovementModifier, TargetingVelocity, Team,
+    FlockingVelocity, FrozenSolidModifier, HasteModifier, Health, Hitbox, MindControlled,
+    MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier,
+    SleepModifier, Sleepwalking, SlowMovementModifier, TargetingVelocity, Team,
 };
 use crate::game::units::dispeller::components::Dispeller;
 use crate::game::units::infantry::components::DefendersActivated;
@@ -31,7 +31,7 @@ pub fn update_healer_targeting(
     mut commands: Commands,
     mut healers: Query<
         (Entity, &Transform, &Team, &mut TargetingVelocity),
-        (With<Healer>, Without<Corpse>),
+        (With<Healer>, Without<Corpse>, Without<MindControlled>),
     >,
     potential_targets: Query<
         (
@@ -190,6 +190,7 @@ pub fn healer_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
                 &Team,
                 Has<StagingAttacker>,
                 Has<WaveGroup>,
@@ -218,6 +219,7 @@ pub fn healer_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
             team,
             has_staging,
             has_wave_group,
@@ -233,6 +235,7 @@ pub fn healer_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             velocity.x = 0.0;
             velocity.z = 0.0;

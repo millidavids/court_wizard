@@ -6,6 +6,7 @@
 
 use std::collections::HashMap;
 
+use bevy::math::primitives::ConicalFrustum;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 use bevy::prelude::*;
 use bevy::render::alpha::AlphaMode;
@@ -145,6 +146,8 @@ pub struct SpellVisualAssets {
     pub cross_plane_cylinder: Handle<Mesh>,
     /// 2-plane cross triangle (tapers from point at Y=0 to full width at Y=height, double-sided).
     pub cross_plane_triangle: Handle<Mesh>,
+    /// Cone mesh for disintegration beams (tip at Y=0, base at Y=1).
+    pub disintegrate_cone: Handle<Mesh>,
     /// Unit-radius icosphere for the black hole core.
     pub black_hole_sphere: Handle<Mesh>,
     /// Unit-scale torus for psychic shockwave ring.
@@ -874,6 +877,16 @@ pub fn init_spell_visual_assets(
         cross_plane_cylinder: meshes.add(build_cross_plane_cylinder(0.5, 1.0)),
         // Cross-plane triangle: 2 intersecting triangles (point at Y=0, widens to radius at Y=height)
         cross_plane_triangle: meshes.add(build_cross_plane_triangle(0.5, 1.0)),
+        disintegrate_cone: meshes.add(
+            ConicalFrustum {
+                radius_top: 0.15,
+                radius_bottom: 0.0,
+                height: 1.0,
+            }
+            .mesh()
+            .resolution(12)
+            .build(),
+        ),
         // Icosphere for the black hole core (unit radius, scaled by Transform)
         black_hole_sphere: meshes.add(
             Sphere::new(1.0)

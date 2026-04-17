@@ -208,6 +208,7 @@ pub fn king_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
             ),
         ),
         With<King>,
@@ -226,7 +227,7 @@ pub fn king_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, _polymorphed, sickened, frozen, stunned),
+        (sleeping, sleepwalking, banished, _polymorphed, sickened, frozen, stunned, petrified),
     ) in &mut king_units
     {
         // CC'd units cannot move
@@ -238,6 +239,7 @@ pub fn king_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             velocity.x = 0.0;
             velocity.z = 0.0;

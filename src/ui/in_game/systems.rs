@@ -764,6 +764,13 @@ pub(super) fn spawn_boss_health_bar(
             Without<Corpse>,
         ),
     >,
+    ray_query: Query<
+        Entity,
+        (
+            With<crate::game::units::boss::ray::Ray>,
+            Without<Corpse>,
+        ),
+    >,
     bar_query: Query<Entity, With<BossHealthBarRoot>>,
 ) {
     let boss_exists = boss_query.iter().next().is_some();
@@ -771,6 +778,7 @@ pub(super) fn spawn_boss_health_bar(
     let is_hags = hag_query.iter().next().is_some();
     let is_lich = lich_query.iter().next().is_some();
     let is_dark_mage = dark_mage_query.iter().next().is_some();
+    let is_ray = ray_query.iter().next().is_some();
 
     if boss_exists && !bar_exists {
         // Top-center absolute container
@@ -841,6 +849,35 @@ pub(super) fn spawn_boss_health_bar(
                         100.0,
                         "100%",
                     );
+                } else if is_ray {
+                    use crate::game::units::boss::ray::RayEyeType;
+
+                    parent.spawn((
+                        Text::new("Ray"),
+                        TextFont::from_font_size(BOSS_NAME_FONT_SIZE),
+                        TextColor(Color::WHITE),
+                    ));
+
+                    parent
+                        .spawn(Node {
+                            width: BOSS_HEALTH_BAR_WIDTH,
+                            height: BOSS_HEALTH_BAR_HEIGHT,
+                            flex_direction: FlexDirection::Row,
+                            column_gap: Val::Px(HAG_BAR_SECTION_GAP),
+                            ..default()
+                        })
+                        .with_children(|bar_row| {
+                            let sections = [
+                                (RayEyeType::Petrification, "Pet", Color::srgb(0.7, 0.7, 0.7)),
+                                (RayEyeType::Disintegration, "Dis", Color::srgb(1.0, 0.6, 0.1)),
+                                (RayEyeType::Fear, "Fear", Color::srgb(0.6, 0.0, 0.8)),
+                                (RayEyeType::MindControl, "MC", Color::srgb(1.0, 0.3, 0.6)),
+                                (RayEyeType::Teleportation, "Tele", Color::srgb(0.0, 1.0, 0.7)),
+                            ];
+                            for (eye_type, name, color) in sections {
+                                spawn_ray_eye_bar_section(bar_row, eye_type, name, color);
+                            }
+                        });
                 } else {
                     spawn_simple_boss_bar(
                         parent,
@@ -981,6 +1018,115 @@ fn spawn_hag_bar_section(
                         });
                 });
         });
+}
+
+fn spawn_ray_eye_bar_section(
+    parent: &mut ChildSpawnerCommands,
+    eye_type: crate::game::units::boss::ray::RayEyeType,
+    name: &str,
+    fill_color: Color,
+) {
+    parent
+        .spawn((Node {
+            flex_direction: FlexDirection::Column,
+            flex_grow: 1.0,
+            align_items: AlignItems::Center,
+            ..default()
+        },))
+        .with_children(|section| {
+            section.spawn((
+                Text::new(name.to_string()),
+                TextFont::from_font_size(BOSS_HEALTH_TEXT_FONT_SIZE),
+                TextColor(Color::WHITE),
+            ));
+
+            section
+                .spawn((
+                    Node {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        border: UiRect::all(Val::Px(1.0)),
+                        ..default()
+                    },
+                    BackgroundColor(BOSS_HEALTH_BAR_BG_COLOR),
+                    BorderColor::all(BOSS_HEALTH_BAR_BORDER_COLOR),
+                    BorderRadius::all(Val::Px(2.0)),
+                ))
+                .with_children(|bar| {
+                    bar.spawn((
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            ..default()
+                        },
+                        BackgroundColor(fill_color),
+                        BorderRadius::all(Val::Px(1.0)),
+                        RayEyeHealthBarFill { eye_type },
+                    ));
+
+                    bar.spawn((Node {
+                        position_type: PositionType::Absolute,
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },))
+                        .with_children(|overlay| {
+                            overlay.spawn((
+                                Text::new("100%"),
+                                TextFont::from_font_size(BOSS_HEALTH_TEXT_FONT_SIZE),
+                                TextColor(Color::WHITE),
+                                RayEyeHealthBarText { eye_type },
+                            ));
+                        });
+                });
+        });
+}
+
+pub(super) fn update_ray_eye_health_bar(
+    ray_eyes: Query<
+        (&crate::game::units::boss::ray::RayEye, &Health),
+        Without<crate::game::units::boss::ray::RayEyeDying>,
+    >,
+    mut fill_query: Query<(&mut Node, &mut BackgroundColor, &RayEyeHealthBarFill)>,
+    mut text_query: Query<(&mut Text, &RayEyeHealthBarText)>,
+    mut last_pct: Local<[i16; 5]>,
+) {
+    let mut health_by_eye: [Option<(f32, f32)>; 5] = [None; 5];
+    for (eye, health) in ray_eyes.iter() {
+        health_by_eye[eye.eye_type.index()] = Some((health.current, health.max));
+    }
+
+    let pct_int: [i16; 5] = std::array::from_fn(|i| match health_by_eye[i] {
+        Some((current, max)) => ((current / max).clamp(0.0, 1.0) * 100.0) as i16,
+        None => -1,
+    });
+
+    for (mut node, mut bg, marker) in fill_query.iter_mut() {
+        let idx = marker.eye_type.index();
+        if pct_int[idx] == last_pct[idx] {
+            continue;
+        }
+        if pct_int[idx] < 0 {
+            node.width = Val::Percent(0.0);
+        } else {
+            node.width = Val::Percent(pct_int[idx] as f32);
+            if bg.0.alpha() < 0.5 {
+                bg.0 = bg.0.with_alpha(1.0);
+            }
+        }
+    }
+
+    for (mut text, marker) in text_query.iter_mut() {
+        let idx = marker.eye_type.index();
+        if pct_int[idx] == last_pct[idx] {
+            continue;
+        }
+        text.0 = format!("{}%", pct_int[idx].max(0));
+    }
+
+    *last_pct = pct_int;
 }
 
 /// Updates the boss health bar fill and text. Despawns the bar when the boss dies.

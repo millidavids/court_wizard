@@ -12,7 +12,7 @@ use crate::game::units::wizard::spells::vfx::channel::{
 };
 use crate::game::units::components::{
     BanishedModifier, CombatAnimation, CommanderAuraSpeedModifier, Corpse, EliteSpeedBonus,
-    FlockingVelocity, FrozenSolidModifier, HasteModifier, Hitbox, MovementSpeed,
+    FlockingVelocity, FrozenSolidModifier, HasteModifier, Hitbox, MindControlled, MovementSpeed,
     PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
     Sleepwalking, SlowMovementModifier, TargetingVelocity, Team,
 };
@@ -28,7 +28,7 @@ pub fn update_shielder_targeting(
     mut commands: Commands,
     mut shielders: Query<
         (Entity, &Transform, &Team, &mut TargetingVelocity),
-        (With<Shielder>, Without<Corpse>),
+        (With<Shielder>, Without<Corpse>, Without<MindControlled>),
     >,
     potential_targets: Query<
         (Entity, &Transform, &Team, Has<SpellShield>),
@@ -177,6 +177,7 @@ pub fn shielder_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
                 &Team,
                 Has<StagingAttacker>,
                 Has<WaveGroup>,
@@ -205,6 +206,7 @@ pub fn shielder_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
             team,
             has_staging,
             has_wave_group,
@@ -220,6 +222,7 @@ pub fn shielder_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             velocity.x = 0.0;
             velocity.z = 0.0;

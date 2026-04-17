@@ -54,6 +54,7 @@ pub const fn dim(base: Color, gray_strength: f32, alpha: f32) -> Color {
 pub const TINT_RED: Color = Color::srgb(1.0, 0.2, 0.2);
 pub const TINT_ORANGE: Color = Color::srgb(1.0, 0.6, 0.0);
 pub const TINT_PURPLE: Color = Color::srgb(0.5, 0.1, 0.8);
+pub const TINT_GREEN: Color = Color::srgb(0.3, 0.8, 0.2);
 // ===== Undead Color =====
 
 /// Base color for undead units (purple).
@@ -458,19 +459,24 @@ pub const fn is_lich_level(level: u32) -> bool {
 }
 
 /// Number of unique boss types in the rotation cycle.
-pub const BOSS_CYCLE_LENGTH: u32 = 4;
+pub const BOSS_CYCLE_LENGTH: u32 = 5;
+
+#[allow(dead_code)]
+pub const fn is_ray_level(level: u32) -> bool {
+    is_boss_level(level) && get_tier(level) % BOSS_CYCLE_LENGTH == 4
+}
 
 /// Returns the boss name for a given boss level, or None if not a boss level.
 pub fn boss_name_for_level(level: u32) -> Option<&'static str> {
     if !is_boss_level(level) {
         return None;
     }
-    // Cycle through bosses: Ogre (0), Lich (1), Hags (2), Dark Mage (3), repeat
     Some(match get_tier(level) % BOSS_CYCLE_LENGTH {
         0 => "Ogre",
         1 => "The Lich",
         2 => "Hags",
         3 => "Dark Mage",
+        4 => "Ray",
         _ => unreachable!(),
     })
 }

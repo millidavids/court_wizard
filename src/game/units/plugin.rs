@@ -14,9 +14,10 @@ use super::wizard::spells::vfx::channel::{
 };
 use super::components::{
     Airborne, BerserkerRageModifier, CombatAnimation, DeathAnimationFinished, DyingAnimation,
-    FacingDirection, FogEvasionModifier, FrozenSolidModifier, HasteModifier,
-    Knockback, MarkedForDeathModifier, PoisonedModifier, RootedModifier, SickenedModifier,
-    SlowMovementModifier, SmellyModifier, Stunned, TemporaryHitPoints, WalkingAnimation,
+    FacingDirection, FearModifier, FireDoT, FogEvasionModifier, FrozenSolidModifier, HasteModifier,
+    Knockback, MarkedForDeathModifier, Petrified, PoisonedModifier, RootedModifier,
+    SickenedModifier, SlowMovementModifier, SmellyModifier, Stunned, TemporaryHitPoints,
+    WalkingAnimation,
 };
 use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
@@ -87,11 +88,15 @@ impl Plugin for UnitsPlugin {
                     systems::update_timed_modifier::<RootedModifier>,
                     systems::update_timed_modifier::<HasteModifier>,
                     systems::update_timed_modifier::<Stunned>.run_if(any_with_component::<Stunned>),
-                    movement::zero_stunned_velocity
+                    movement::zero_velocity_for::<Stunned>
                         .after(MovementCalculationSet)
                         .before(ApplyTransformsSet)
                         .run_if(any_with_component::<Stunned>),
-                    movement::zero_channeling_velocity
+                    movement::zero_velocity_for::<Petrified>
+                        .after(MovementCalculationSet)
+                        .before(ApplyTransformsSet)
+                        .run_if(any_with_component::<Petrified>),
+                    movement::zero_velocity_for::<ChannelingCast>
                         .after(MovementCalculationSet)
                         .before(ApplyTransformsSet)
                         .run_if(any_with_component::<ChannelingCast>),
@@ -134,6 +139,7 @@ impl Plugin for UnitsPlugin {
                     systems::update_timed_modifier::<SmellyModifier>
                         .run_if(any_with_component::<SmellyModifier>),
                     systems::update_persistent_effect_visuals,
+                    systems::emit_burning_unit_vfx.run_if(any_with_component::<FireDoT>),
                 )
                     .run_if(is_spell_effects_active),
             )
@@ -159,6 +165,10 @@ impl Plugin for UnitsPlugin {
                         .run_if(any_with_component::<FogEvasionModifier>),
                     systems::update_timed_modifier::<FrozenSolidModifier>
                         .run_if(any_with_component::<FrozenSolidModifier>),
+                    systems::update_timed_modifier::<Petrified>
+                        .run_if(any_with_component::<Petrified>),
+                    systems::update_timed_modifier::<FearModifier>
+                        .run_if(any_with_component::<FearModifier>),
                 )
                     .run_if(is_gameplay_running),
             );

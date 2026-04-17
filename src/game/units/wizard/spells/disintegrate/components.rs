@@ -239,7 +239,13 @@ impl DisintegrateBeam {
         let closest = origin + direction * clamped_proj;
         let distance = check_point.distance(closest);
 
-        distance <= self.beam_width() + unit_radius
+        // Cone width at this point (0 at origin, full at tip)
+        let cone_t = if current_len > 0.001 {
+            clamped_proj / current_len
+        } else {
+            0.0
+        };
+        distance <= self.beam_width() * cone_t + unit_radius
     }
 
     /// Checks if the beam cylinder intersects a vertical hitbox cylinder.
@@ -249,59 +255,35 @@ impl DisintegrateBeam {
     /// - Vertically: beam's Y range at closest approach overlaps the hitbox [0, hitbox_height]
     pub fn intersects_hitbox_cylinder(
         &self,
-        unit_xz: Vec3,
+        unit_pos: Vec3,
         hitbox_radius: f32,
-        hitbox_height: f32,
+        _hitbox_height: f32,
     ) -> bool {
         let current_len = self.current_length();
         if current_len < 0.001 {
             return false;
         }
 
-        let beam_end = self.origin + self.direction * current_len;
-        let beam_vec = beam_end - self.origin;
-        let unit_x = unit_xz.x;
-        let unit_z = unit_xz.z;
+        // Full 3D cone-cylinder intersection.
+        // Project unit center onto the beam axis and check perpendicular distance
+        // against the cone radius at that depth.
+        let beam_dir = self.direction;
+        let to_unit = unit_pos - self.origin;
+        let forward_dist = to_unit.dot(beam_dir);
 
-        // Find the beam parameter t where it's closest to the unit's XZ position.
-        // For near-vertical beams (XZ projection collapses), use 3D closest-point
-        // to the unit's vertical axis midpoint instead.
-        let dx = beam_vec.x;
-        let dz = beam_vec.z;
-        let xz_len_sq = dx * dx + dz * dz;
-
-        let t = if xz_len_sq > 0.001 {
-            // Normal beam: project in XZ plane
-            let to_unit_x = unit_x - self.origin.x;
-            let to_unit_z = unit_z - self.origin.z;
-            ((to_unit_x * dx + to_unit_z * dz) / xz_len_sq).clamp(0.0, 1.0)
-        } else {
-            // Near-vertical beam: find closest point to unit's vertical axis midpoint
-            let mid = Vec3::new(unit_x, hitbox_height * 0.5, unit_z);
-            let to_mid = mid - self.origin;
-            let full_len_sq = beam_vec.dot(beam_vec);
-            if full_len_sq > 0.001 {
-                (to_mid.dot(beam_vec) / full_len_sq).clamp(0.0, 1.0)
-            } else {
-                0.0
-            }
-        };
-
-        // Closest beam point
-        let beam_point = self.origin + beam_vec * t;
-
-        // Horizontal (XZ) distance check
-        let xz_dx = beam_point.x - unit_x;
-        let xz_dz = beam_point.z - unit_z;
-        let xz_dist = (xz_dx * xz_dx + xz_dz * xz_dz).sqrt();
-        let bw = self.beam_width();
-        if xz_dist > bw + hitbox_radius {
+        if forward_dist < -hitbox_radius || forward_dist > current_len + hitbox_radius {
             return false;
         }
 
-        // Vertical overlap: beam Y ± beam_width must overlap [0, hitbox_height]
-        let beam_y = beam_point.y;
-        beam_y + bw >= 0.0 && beam_y - bw <= hitbox_height
+        let clamped = forward_dist.clamp(0.0, current_len);
+        let closest_on_axis = self.origin + beam_dir * clamped;
+        let perp_dist = (unit_pos - closest_on_axis).length();
+
+        // Cone radius widens linearly from 0 at origin to beam_width at tip
+        let cone_t = clamped / current_len;
+        let cone_radius = self.beam_width() * cone_t;
+
+        perp_dist <= cone_radius + hitbox_radius
     }
 
     /// Computes the eclipse ellipse radii at the beam tip, clipped by spell range.

@@ -12,9 +12,9 @@ use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAtt
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, Corpse, Effectiveness, FacingDirection, FlockingVelocity,
-    Flying, FrozenSolidModifier, HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
-    RootedModifier, SickenedModifier, SleepModifier, Sleepwalking, SlowMovementModifier,
-    TargetingVelocity, Team, Teleportable, WalkingAnimation,
+    Flying, FrozenSolidModifier, HasteModifier, Health, Hitbox, MindControlled, MovementSpeed,
+    PolymorphedModifier, RootedModifier, SickenedModifier, SleepModifier, Sleepwalking,
+    SlowMovementModifier, TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::random_position_in_cell;
 
@@ -24,7 +24,7 @@ use crate::game::units::random_position_in_cell;
 pub fn update_aerialist_targeting(
     mut aerialists: Query<
         (Entity, &Transform, &Team, &mut TargetingVelocity),
-        (With<Aerialist>, Without<Corpse>),
+        (With<Aerialist>, Without<Corpse>, Without<MindControlled>),
     >,
     all_units: Query<
         (Entity, &Transform, &Team),
@@ -178,6 +178,7 @@ pub fn aerialist_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                Option<&crate::game::units::components::Petrified>,
                 &Team,
                 Has<StagingAttacker>,
                 Has<WaveGroup>,
@@ -205,6 +206,7 @@ pub fn aerialist_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
             team,
             has_staging,
             has_wave_group,
@@ -220,6 +222,7 @@ pub fn aerialist_movement(
             sickened,
             frozen,
             stunned,
+            petrified,
         ) {
             velocity.x = 0.0;
             velocity.z = 0.0;

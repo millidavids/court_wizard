@@ -56,6 +56,7 @@ pub(crate) struct SpellSfxAssets {
     pub shotgun_shot: Handle<AudioSource>,
     // Boulder impact (thrown rock landing)
     pub boulder_impact: Handle<AudioSource>,
+    pub ray_eye_death: Handle<AudioSource>,
 }
 
 /// Loads all spell sound effect assets at startup.
@@ -105,6 +106,7 @@ pub(super) fn load_spell_sfx_assets(mut commands: Commands, asset_server: Res<As
         rocket_launcher_shot: asset_server.load("audio/sound_effects/rocket_launcher_shot.ogg"),
         shotgun_shot: asset_server.load("audio/sound_effects/shotgun_shot.ogg"),
         boulder_impact: asset_server.load("audio/sound_effects/boulder_impact.ogg"),
+        ray_eye_death: asset_server.load("audio/sound_effects/ray_eye_death.ogg"),
     });
 }
 

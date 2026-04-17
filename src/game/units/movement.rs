@@ -6,8 +6,7 @@
 use bevy::prelude::*;
 
 use crate::game::components::{Acceleration, Velocity};
-use crate::game::units::wizard::spells::vfx::channel::ChannelingCast;
-use crate::game::units::components::{Corpse, Stunned};
+use crate::game::units::components::Corpse;
 
 /// Applies velocity to position for all units.
 ///
@@ -53,22 +52,10 @@ pub fn apply_unit_movement(
 ///
 /// Runs after movement calculations but before `apply_unit_movement` so that
 /// any residual velocity or acceleration from external forces is also cleared.
-pub fn zero_stunned_velocity(
-    mut stunned_units: Query<(&mut Velocity, &mut Acceleration), With<Stunned>>,
+pub fn zero_velocity_for<T: Component>(
+    mut units: Query<(&mut Velocity, &mut Acceleration), With<T>>,
 ) {
-    for (mut velocity, mut acceleration) in stunned_units.iter_mut() {
-        velocity.x = 0.0;
-        velocity.z = 0.0;
-        acceleration.reset();
-    }
-}
-
-/// Zeroes velocity and acceleration for units channeling a cast, locking them
-/// in place for the full channel duration.
-pub fn zero_channeling_velocity(
-    mut channelers: Query<(&mut Velocity, &mut Acceleration), With<ChannelingCast>>,
-) {
-    for (mut velocity, mut acceleration) in channelers.iter_mut() {
+    for (mut velocity, mut acceleration) in units.iter_mut() {
         velocity.x = 0.0;
         velocity.z = 0.0;
         acceleration.reset();
