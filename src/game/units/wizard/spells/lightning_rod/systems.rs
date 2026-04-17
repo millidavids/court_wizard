@@ -11,6 +11,8 @@ use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::game::terrain::messages::TerrainDamageMessage;
+use crate::game::terrain::pond::components::Pond;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, Health, SlowMovementModifier, TemporaryHitPoints, apply_spell_damage,
@@ -23,7 +25,7 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     clamp_to_spell_range_ground, cleanup_spell_caster, handle_spell_release,
-    spawn_circle_indicator, update_indicator_position,
+    spawn_circle_indicator, update_indicator_position, xz_distance,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -434,7 +436,9 @@ pub(super) fn update_lightning_strikes(
         ),
         (Without<Corpse>, Without<LightningStrike>),
     >,
+    ponds: Query<&Pond>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    mut terrain_damage: MessageWriter<TerrainDamageMessage>,
 ) {
     let delta = time.delta_secs();
 
@@ -444,6 +448,12 @@ pub(super) fn update_lightning_strikes(
 
         // Check if bolt has reached the rod
         if transform.translation.y <= strike.target_pos.y {
+            terrain_damage.write(TerrainDamageMessage {
+                position: strike.target_pos,
+                radius: strike.arc_radius,
+                damage: strike.arc_damage,
+                damage_type: DamageType::Electric,
+            });
             screen_flash.write(crate::game::crt_effect::ScreenFlashMessage {
                 color: [1.0, 1.0, 1.0],
                 duration: 0.15,
@@ -463,6 +473,19 @@ pub(super) fn update_lightning_strikes(
                 &mut units,
                 &mut talent_progress,
             );
+
+            // Also arc to nearby ponds (shock already applied via TerrainDamageMessage above).
+            for pond in ponds.iter() {
+                if xz_distance(pond.center, strike.target_pos) <= strike.arc_radius + pond.radius {
+                    spawn_arc(
+                        &mut commands,
+                        &visual_assets,
+                        strike.target_pos,
+                        pond.center,
+                        strike.empowerment,
+                    );
+                }
+            }
 
             // T3-2 Lightning Nexus: kills trigger a bonus strike with compounding falloff
             if strike.talent_params.lightning_nexus && kills > 0 {

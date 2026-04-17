@@ -14,6 +14,7 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::OBSTACLE_BUFFER;
 use crate::game::pathfinding::resources::PathfindingGrid;
+use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Health, Knockback, Team, TemporaryHitPoints, apply_spell_damage,
@@ -912,6 +913,7 @@ pub(super) fn update_meteor_explosions(
         Without<MeteorExplosion>,
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    mut terrain_damage: MessageWriter<TerrainDamageMessage>,
 ) {
     for (explosion_entity, mut explosion, mut transform, material_handle) in explosions.iter_mut() {
         explosion.time_alive += time.delta_secs();
@@ -931,6 +933,13 @@ pub(super) fn update_meteor_explosions(
         // Apply damage once when explosion spawns
         if !explosion.damage_applied {
             explosion.damage_applied = true;
+
+            terrain_damage.write(TerrainDamageMessage {
+                position: explosion.origin,
+                radius: explosion.max_radius,
+                damage: explosion.damage,
+                damage_type: DamageType::Fire,
+            });
 
             let mut hit_count = 0u32;
 

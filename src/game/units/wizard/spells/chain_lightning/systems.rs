@@ -13,6 +13,8 @@ use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::terrain::messages::TerrainDamageMessage;
+use crate::game::terrain::pond::components::Pond;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, Health, Knockback, SlowMovementModifier, Team, TemporaryHitPoints, apply_spell_damage,
@@ -491,11 +493,13 @@ pub fn process_chain_lightning_bounces(
     >,
     mut rods: Query<(Entity, &Transform, &mut LightningRod)>,
     crystals: Query<(Entity, &Transform), With<ArcaneCrystal>>,
+    ponds: Query<(Entity, &Pond)>,
     walls: Query<&WallOfStone>,
     rocks_query: Query<&crate::game::terrain::boulder::components::Boulder>,
     trees_query: Query<&crate::game::terrain::tree::components::Tree>,
     mut slow_query: Query<&mut SlowMovementModifier>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    mut terrain_damage: MessageWriter<TerrainDamageMessage>,
 ) {
     // Collect bolt data to avoid borrow conflicts when spawning child bolts
     let mut bolts_to_process: Vec<(Entity, ChainLightningBoltSnapshot)> = Vec::new();
@@ -554,6 +558,7 @@ pub fn process_chain_lightning_bounces(
             &enemies,
             &rods,
             &crystals,
+            &ponds,
             bounce_range,
             snapshot.split_count,
             &wall_snapshot,
@@ -562,12 +567,19 @@ pub fn process_chain_lightning_bounces(
         );
 
         for (target_entity, target_pos) in &targets {
+            terrain_damage.write(TerrainDamageMessage {
+                position: *target_pos,
+                radius: 0.0,
+                damage: snapshot.current_damage,
+                damage_type: snapshot.damage_type,
+            });
+            let is_pond = ponds.get(*target_entity).is_ok();
             // Check if this target is a lightning rod
             if let Ok((_, _, mut rod)) = rods.get_mut(*target_entity) {
                 // Trigger an immediate lightning strike on the rod
                 rod.time_since_strike = f32::MAX;
-            } else {
-                // Apply damage to unit
+            } else if !is_pond {
+                // Ponds are bounce nodes only; their shock is handled via TerrainDamageMessage.
                 let target_killed;
                 if let Ok((_, _, _, mut health, mut temp_hp, has_spell_shield)) =
                     enemies.get_mut(*target_entity)
@@ -759,9 +771,9 @@ fn spawn_child_bolt(
     ));
 }
 
-/// Finds up to `max_targets` enemies, lightning rods, or arcane crystals within bounce range
-/// that haven't been hit yet. Targets all living units (defenders, attackers, and undead),
-/// lightning rods, and arcane crystals, but excludes corpses.
+/// Finds up to `max_targets` enemies, lightning rods, arcane crystals, or ponds within bounce
+/// range that haven't been hit yet. Targets all living units (defenders, attackers, and undead),
+/// lightning rods, arcane crystals, and ponds — but excludes corpses.
 /// Filters out targets blocked by WallOfStone line of sight.
 #[allow(clippy::too_many_arguments)]
 fn find_next_bounce_targets(
@@ -780,6 +792,7 @@ fn find_next_bounce_targets(
     >,
     rods: &Query<(Entity, &Transform, &mut LightningRod)>,
     crystals: &Query<(Entity, &Transform), With<ArcaneCrystal>>,
+    ponds: &Query<(Entity, &Pond)>,
     bounce_range: f32,
     max_targets: usize,
     walls: &[&WallOfStone],
@@ -789,55 +802,37 @@ fn find_next_bounce_targets(
     use crate::game::terrain::boulder::components::Boulder;
     use crate::game::terrain::tree::components::Tree;
 
+    use crate::game::units::wizard::spells::utils::xz_distance;
+
     let los_blocked = |from: Vec3, to: Vec3| -> bool {
         WallOfStone::any_blocks_los(walls, from, to)
             || Boulder::any_blocks_los(rocks, from, to)
             || Tree::any_blocks_los(trees, from, to)
     };
 
-    let mut candidates: Vec<(Entity, Vec3, f32)> = enemies
-        .iter()
-        // No team filter - spell damages ALL units indiscriminately
-        .filter(|(entity, _, _, _, _, _)| !hit_entities.contains(entity))
-        .filter_map(|(entity, transform, _, _, _, _)| {
-            let distance = crate::game::units::wizard::spells::utils::xz_distance(
-                origin,
-                transform.translation,
-            );
-            if distance <= bounce_range && !los_blocked(origin, transform.translation) {
-                Some((entity, transform.translation, distance))
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    // Also consider lightning rods as valid targets
-    for (entity, transform, _) in rods.iter() {
+    let mut candidates: Vec<(Entity, Vec3, f32)> = Vec::new();
+    let try_push = |entity: Entity, pos: Vec3, candidates: &mut Vec<(Entity, Vec3, f32)>| {
         if hit_entities.contains(&entity) {
-            continue;
+            return;
         }
-        let distance = crate::game::units::wizard::spells::utils::xz_distance(
-            origin,
-            transform.translation,
-        );
-        if distance <= bounce_range && !los_blocked(origin, transform.translation) {
-            candidates.push((entity, transform.translation, distance));
+        let distance = xz_distance(origin, pos);
+        if distance <= bounce_range && !los_blocked(origin, pos) {
+            candidates.push((entity, pos, distance));
         }
+    };
+
+    // No team filter — spell damages ALL units indiscriminately.
+    for (entity, transform, _, _, _, _) in enemies.iter() {
+        try_push(entity, transform.translation, &mut candidates);
     }
-
-    // Also consider arcane crystals as valid targets
+    for (entity, transform, _) in rods.iter() {
+        try_push(entity, transform.translation, &mut candidates);
+    }
     for (entity, transform) in crystals.iter() {
-        if hit_entities.contains(&entity) {
-            continue;
-        }
-        let distance = crate::game::units::wizard::spells::utils::xz_distance(
-            origin,
-            transform.translation,
-        );
-        if distance <= bounce_range && !los_blocked(origin, transform.translation) {
-            candidates.push((entity, transform.translation, distance));
-        }
+        try_push(entity, transform.translation, &mut candidates);
+    }
+    for (entity, pond) in ponds.iter() {
+        try_push(entity, pond.center, &mut candidates);
     }
 
     // Sort by distance (closest first)

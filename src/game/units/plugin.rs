@@ -31,12 +31,7 @@ use super::systems;
 use super::teleporter::TeleporterPlugin;
 use super::wizard::WizardPlugin;
 use super::{ApplyTransformsSet, MovementCalculationSet};
-use crate::game::terrain::boulder::BoulderPlugin;
-use crate::game::terrain::bush::BushPlugin;
-use crate::game::terrain::flora::FloraPlugin;
-use crate::game::terrain::pond::PondPlugin;
-use crate::game::terrain::tree::TreePlugin;
-use crate::game::terrain::wind_sway::WindSwayPlugin;
+use crate::game::terrain::TerrainPlugin;
 
 /// Plugin that coordinates all unit-related sub-plugins.
 ///
@@ -67,11 +62,10 @@ impl Plugin for UnitsPlugin {
                 ShielderPlugin,
                 BrutePlugin,
                 TeleporterPlugin,
-                BoulderPlugin,
                 BossPlugin,
                 KingPlugin,
             ))
-            .add_plugins((BushPlugin, FloraPlugin, PondPlugin, TreePlugin, WindSwayPlugin))
+            .add_plugins(TerrainPlugin)
             .configure_sets(
                 Update,
                 (MovementCalculationSet, ApplyTransformsSet)

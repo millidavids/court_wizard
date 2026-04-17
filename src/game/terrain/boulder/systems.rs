@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::components::{Boulder, BoulderProjectile, BoulderShadow, ClonedMaterial};
+use super::components::{Boulder, BoulderHeat, BoulderProjectile, BoulderShadow, ClonedMaterial};
 use super::constants::*;
 use super::messages::*;
 use super::resources::BoulderAssets;
@@ -377,6 +377,26 @@ pub fn apply_spell_damage_to_rocks(
             {
                 health.take_damage(explosion.damage);
             }
+        }
+    }
+}
+
+/// Bleeds off accumulated fire heat after `BOULDER_HEAT_DECAY_DELAY` seconds of no fire contribution.
+/// Removes the `BoulderHeat` component when heat reaches zero.
+pub fn tick_boulder_heat(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut boulders: Query<(Entity, &mut BoulderHeat)>,
+) {
+    let delta = time.delta_secs();
+    for (entity, mut heat) in &mut boulders {
+        if heat.decay_delay > 0.0 {
+            heat.decay_delay = (heat.decay_delay - delta).max(0.0);
+            continue;
+        }
+        heat.heat = (heat.heat - BOULDER_HEAT_DECAY_RATE * delta).max(0.0);
+        if heat.heat <= 0.0 {
+            commands.entity(entity).remove::<BoulderHeat>();
         }
     }
 }

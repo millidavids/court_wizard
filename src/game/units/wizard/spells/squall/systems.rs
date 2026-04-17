@@ -15,6 +15,7 @@ use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     FogEvasionModifier, FrostAccumulation, Health, Hitbox, SlowMovementModifier, Team,
@@ -599,6 +600,7 @@ pub(super) fn update_ice_explosions(
     >,
     storms: Query<&SquallStorm>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    mut terrain_damage: MessageWriter<TerrainDamageMessage>,
 ) {
     // Get the active storm's talent params for permafrost tracking
     let storm_has_permafrost = storms
@@ -651,6 +653,13 @@ pub(super) fn update_ice_explosions(
         if !explosion.damage_applied {
             explosion.damage_applied = true;
             let mut units_hit: u32 = 0;
+
+            terrain_damage.write(TerrainDamageMessage {
+                position: explosion.origin,
+                radius: explosion.max_radius,
+                damage: explosion.damage,
+                damage_type: DamageType::Frost,
+            });
 
             // Permafrost talent doubles frost accumulation per hit
             let frost_per_hit = if storm_has_permafrost {

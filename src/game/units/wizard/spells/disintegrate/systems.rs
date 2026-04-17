@@ -11,6 +11,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::units::components::{Health, Hitbox, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
@@ -465,6 +466,7 @@ fn disintegrate_casting_logic(
 ///
 /// This is a high-risk spell that damages both attackers and defenders,
 /// but not the wizard.
+#[allow(clippy::too_many_arguments)]
 pub fn apply_disintegrate_damage(
     mut commands: Commands,
     mut beam_query: Query<(&mut DisintegrateBeam, &mut UniqueHitTracker)>,
@@ -484,6 +486,7 @@ pub fn apply_disintegrate_damage(
     mut talent_progress: Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
+    mut terrain_damage: MessageWriter<TerrainDamageMessage>,
 ) {
     for (mut beam, mut hit_tracker) in beam_query.iter_mut() {
         beam.update_damage_timer(time.delta_secs());
@@ -541,6 +544,16 @@ pub fn apply_disintegrate_damage(
         if beam.should_damage() {
             let mut hit_count = 0_u32;
             let damage = beam.damage_per_tick();
+
+            if !(beam.annihilation && beam.origin.y > 50.0) {
+                let tip = beam.origin + beam.direction * beam.current_length();
+                terrain_damage.write(TerrainDamageMessage {
+                    position: tip,
+                    radius: 0.0,
+                    damage,
+                    damage_type: constants::DAMAGE_TYPE,
+                });
+            }
 
             for (entity, transform, hitbox, mut health, mut temp_hp, has_spell_shield) in
                 target_query.iter_mut()

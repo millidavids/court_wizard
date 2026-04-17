@@ -10,6 +10,7 @@ use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Health, MarkedForDeathModifier, Team, TemporaryHitPoints, apply_spell_damage,
@@ -750,6 +751,7 @@ pub fn apply_explosion_damage(
     mut talent_progress: Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
+    mut terrain_damage: MessageWriter<TerrainDamageMessage>,
 ) {
     for mut explosion in &mut explosions {
         if explosion.time_since_last_tick >= constants::DAMAGE_TICK_INTERVAL {
@@ -762,6 +764,13 @@ pub fn apply_explosion_damage(
 
             let current_radius = explosion.current_radius();
             let mut hit_count = 0u32;
+
+            terrain_damage.write(TerrainDamageMessage {
+                position: explosion.origin,
+                radius: current_radius,
+                damage: explosion.damage_per_tick,
+                damage_type: explosion.damage_type,
+            });
 
             for (entity, transform, mut health, mut temp_hp, has_spell_shield, existing_mark) in
                 &mut targets

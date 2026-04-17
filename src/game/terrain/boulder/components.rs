@@ -4,6 +4,16 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct ClonedMaterial;
 
+/// Tracks accumulated fire damage for a boulder. When `heat >= BOULDER_HEAT_THRESHOLD`
+/// the boulder explodes. Heat bleeds off after `decay_delay` of no fire contribution.
+#[derive(Component, Default)]
+pub struct BoulderHeat {
+    /// Accumulated fire damage.
+    pub heat: f32,
+    /// Countdown before heat starts decaying; reset on each fire contribution.
+    pub decay_delay: f32,
+}
+
 /// A landed boulder obstacle on the battlefield. Blocks movement and pathfinding.
 #[derive(Component)]
 pub struct Boulder {

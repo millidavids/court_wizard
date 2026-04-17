@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.283] - 2026-04-17
+
+### Added
+- **Ponds react to your magic** — throwing fire, frost, or lightning at a pond now has real consequences on the battlefield instead of splashing harmlessly
+- **Fire evaporates water into a fog cloud** — shoot a Disintegrate beam or land a Fireball on a pond and a pale fog cloud grows above it. The more fire damage you pump in, the bigger the cloud, up to roughly three pond-widths across. Single beam drips it in slowly; a full Fireball adds a big chunk all at once. The cloud lingers for ten seconds after your last shot before it dissipates
+- **Frost freezes ponds solid** — repeated Squall hits turn a pond lighter blue and make it behave as ice. Units crossing a frozen pond move noticeably slower, and your defenders and attackers alike will route around it more aggressively. Ponds thaw naturally a few seconds after the cold stops
+- **Electric damage supercharges a pond** — any lightning-based hit near a pond charges the water, and a charged pond then arcs lightning of its own to nearby units in a radius much larger than a normal shocked unit would reach. Pond shock lasts around six seconds after the last hit
+- **Chain Lightning can jump to ponds** — ponds are now valid bounce points for Chain Lightning, letting you rope them into your chains and then use their much-larger shock radius to zap distant targets
+- **Lightning Rod arcs to nearby ponds** — when your Lightning Rod fires, visible lightning arcs also jump to any ponds in range, triggering their pond shock and turning them into secondary damage emitters
+- **Boulders catch fire and explode** — sustained fire damage heats a boulder up, and once it absorbs enough heat it detonates with an explosion twice the size and damage of a regular Fireball, then vanishes from the battlefield instantly instead of sinking. Heat slowly bleeds off if you stop pouring fire on it
+- **Frozen ponds still take electric damage bonuses** — wet units in unfrozen ponds continue to take extra damage from electric arcs; a pond that's currently frozen stops making units wet until it thaws
+
 ## [v0.6.274] - 2026-04-17
 
 ### Added

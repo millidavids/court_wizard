@@ -1,7 +1,7 @@
 use bevy::ecs::schedule::common_conditions::on_message;
 use bevy::prelude::*;
 
-use super::components::{Boulder, BoulderProjectile, BoulderShadow};
+use super::components::{Boulder, BoulderHeat, BoulderProjectile, BoulderShadow};
 use super::messages::*;
 use super::resources;
 use super::systems::*;
@@ -30,6 +30,7 @@ impl Plugin for BoulderPlugin {
                     update_rock_damage_tint.run_if(any_with_component::<Boulder>),
                     cleanup_rock_shadows.run_if(any_with_component::<BoulderShadow>),
                     sync_teleported_rocks.run_if(any_with_component::<Boulder>),
+                    tick_boulder_heat.run_if(any_with_component::<BoulderHeat>),
                 )
                     .run_if(is_gameplay_running),
             );

@@ -16,6 +16,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
+use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, Health, ResidualFireDamaged, SlowMovementModifier, TemporaryHitPoints,
@@ -565,6 +566,7 @@ pub fn handle_wall_of_fire_cancel(
 
 /// Applies periodic fire damage to all units within the wall's rectangular area.
 /// Also marks units as InsideWallOfFire for talent tracking and applies Searing Heat.
+#[allow(clippy::too_many_arguments)]
 pub fn apply_wall_of_fire_damage(
     mut commands: Commands,
     time: Res<Time>,
@@ -579,6 +581,7 @@ pub fn apply_wall_of_fire_damage(
         Option<&SearingHeatDebuff>,
     )>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    mut terrain_damage: MessageWriter<TerrainDamageMessage>,
 ) {
     let delta = time.delta_secs();
 
@@ -591,6 +594,16 @@ pub fn apply_wall_of_fire_damage(
 
             let tick_damage = effect.effective_damage();
             let mut units_hit = 0u32;
+
+            // Broadcast terrain damage covering the wall's footprint (bounding circle at midpoint).
+            let midpoint = (effect.start + effect.end) * 0.5;
+            let half_length = effect.start.distance(effect.end) * 0.5;
+            terrain_damage.write(TerrainDamageMessage {
+                position: midpoint,
+                radius: half_length + effect.half_width,
+                damage: tick_damage,
+                damage_type: DamageType::Fire,
+            });
 
             for (
                 entity,

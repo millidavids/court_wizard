@@ -59,3 +59,15 @@ pub const ROCK_MIN_SEPARATION: f32 = ROCK_RADIUS * 2.0 + 5.0;
 pub const ROCK_SHADOW_Y: f32 = 1.5;
 /// Shadow scale relative to boulder visual radius.
 pub const ROCK_SHADOW_SCALE: f32 = 1.8;
+
+// Fire-heat explosion
+/// Cumulative fire damage a boulder absorbs before it explodes. ~4 fireball-worth.
+pub const BOULDER_HEAT_THRESHOLD: f32 = 200.0;
+/// Seconds of no fire contribution before heat starts bleeding off.
+pub const BOULDER_HEAT_DECAY_DELAY: f32 = 2.0;
+/// Heat removed per second after the decay delay has elapsed.
+pub const BOULDER_HEAT_DECAY_RATE: f32 = 10.0;
+/// Radius multiplier for the resulting explosion (vs. fireball default).
+pub const BOULDER_EXPLOSION_RADIUS_MULT: f32 = 2.0;
+/// Damage multiplier for the resulting explosion (vs. fireball default).
+pub const BOULDER_EXPLOSION_DAMAGE_MULT: f32 = 2.0;
