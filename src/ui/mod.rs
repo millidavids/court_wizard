@@ -31,3 +31,4 @@ mod weather_bar;
 mod wizard_tower;
 
 pub use plugin::UiPlugin;
+pub(crate) use game_over::accumulate_mode_level_stats;

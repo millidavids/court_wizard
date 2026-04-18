@@ -6,6 +6,7 @@ use crate::state::AppState;
 use super::achievements::sync_achievements_to_steam;
 use super::cloud_save::{restore_save_from_steam_cloud, sync_save_to_steam_cloud};
 use super::constants::APP_ID;
+use super::leaderboards::LeaderboardsPlugin;
 
 /// Bevy plugin that integrates Steam features (achievements, cloud saves, overlay).
 ///
@@ -19,6 +20,7 @@ impl Plugin for SteamPlugin {
             Ok(steamworks_plugin) => {
                 info!("Steam initialized successfully (App ID: {APP_ID})");
                 app.add_plugins(steamworks_plugin);
+                app.add_plugins(LeaderboardsPlugin);
 
                 // Restore cloud saves before the game loads save data.
                 app.add_systems(Startup, restore_save_from_steam_cloud);

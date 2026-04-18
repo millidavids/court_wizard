@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.284] - 2026-04-17
+
+### Added
+- **Steam Leaderboards for Endless runs** — die in Endless mode and your final level lands on a global leaderboard. Your best run is always kept, so a worse run later won't knock you down
+- **Steam Leaderboards for Roguelite runs** — every roguelite run submits to one of two boards when it ends. Runs with all modifier sliders at 100% and no toggles active go to a "pure" leaderboard for fair head-to-head competition; any modified run goes to a separate "modified" leaderboard where your slider and toggle choices factor into the score
+- **Steam Leaderboards for Roguelite clear times** — beat the level 25 boss and your total time from level 1 through the finale lands on one of two clear-time boards (pure or modified). Faster times rank higher
+- **Run conditions attached to each leaderboard entry** — every roguelite submission carries along the exact modifier slider values and toggle combination used for that run
+
 ## [v0.6.283] - 2026-04-17
 
 ### Added

@@ -724,7 +724,7 @@ pub(super) fn handle_button_actions(
 
 /// Accumulates level stats into the roguelite run state after each battle.
 /// Also saves endless best stats when in Endless mode.
-pub(super) fn accumulate_mode_level_stats(
+pub(crate) fn accumulate_mode_level_stats(
     game_mode: Option<Res<GameMode>>,
     mut roguelite_run: Option<ResMut<RogueliteRunState>>,
     kill_stats: Res<KillStats>,

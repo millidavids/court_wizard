@@ -154,20 +154,6 @@ pub enum ColorblindType {
     Tritanopia,
 }
 
-/// Game difficulty levels.
-///
-/// Controls the overall challenge level of the game.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub enum Difficulty {
-    /// Easy difficulty - relaxed gameplay
-    Easy,
-    /// Normal difficulty - balanced gameplay (default)
-    #[default]
-    Normal,
-    /// Hard difficulty - challenging gameplay
-    Hard,
-}
-
 /// Wizard class types available for selection.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
 pub enum WizardType {
@@ -396,22 +382,9 @@ where
 /// This IS a runtime Bevy resource that holds all user-configurable settings:
 /// - VSync mode
 /// - Audio volumes (master, music, SFX)
-/// - Game difficulty
 /// - Global brightness
 ///
 /// Changes to this resource are automatically persisted to disk.
-///
-/// # Examples
-///
-/// ```
-/// use bevy::prelude::*;
-/// use court_wizard::config::{GameConfig, Difficulty};
-///
-/// fn change_difficulty(mut config: ResMut<GameConfig>) {
-///     config.difficulty = Difficulty::Hard;
-///     // Automatically persists to disk
-/// }
-/// ```
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GameConfig {
     /// VSync mode (on, off, or adaptive)
@@ -425,8 +398,6 @@ pub struct GameConfig {
     pub music_volume: f32,
     /// Sound effects volume level (0.0 = muted, 1.0 = full volume)
     pub sfx_volume: f32,
-    /// Game difficulty setting
-    pub difficulty: Difficulty,
     /// Global brightness multiplier (0.1 = darkest to prevent soft-lock, 1.0 = normal, 2.0 = brightest)
     pub brightness: f32,
     /// Current level - restored on game start after page reload
@@ -527,7 +498,6 @@ impl Default for GameConfig {
             master_volume: 1.0,
             music_volume: 0.3,
             sfx_volume: 0.8,
-            difficulty: Difficulty::default(),
             brightness: 1.0,
             current_level: 1,
             highest_level_achieved: 1,
