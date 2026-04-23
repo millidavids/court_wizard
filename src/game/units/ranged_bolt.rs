@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::units::components::{
-    apply_damage_to_unit, BanishedModifier, Corpse, Health, Hitbox, Team, TemporaryHitPoints,
+    BanishedModifier, Corpse, Health, Hitbox, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::shielder::components::ShielderDamageReduction;
 use crate::game::units::shielder::constants::SHIELDER_DAMAGE_REDUCTION;

@@ -10,6 +10,7 @@ use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -33,7 +34,6 @@ use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
-use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
@@ -132,7 +132,8 @@ pub fn handle_grease_casting(
     ),
 ) {
     let (active_talents, _talent_progress, active_toggles) = talent_resources;
-    let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
+    let scorched_mult =
+        crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let (corrected_cursor, target_assist) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -696,13 +697,7 @@ pub fn spawn_grease_fire_smoke(
             9,
             t,
         );
-        vfx::systems::spawn_heat_shimmer(
-            &mut commands,
-            &visual_assets,
-            fire_pos,
-            2,
-            t,
-        );
+        vfx::systems::spawn_heat_shimmer(&mut commands, &visual_assets, fire_pos, 2, t);
     }
 }
 

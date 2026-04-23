@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 /// The master seed for the current run. Persisted in GameConfig (in-memory).
 /// A random seed is generated at run start; players can override with a custom seed.

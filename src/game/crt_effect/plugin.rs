@@ -78,8 +78,7 @@ impl Plugin for CrtEffectPlugin {
         // Flash/flicker effects — skipped when reduce_flashes is enabled
         app.add_systems(
             Update,
-            handle_channel_change_message
-                .run_if(|config: Res<GameConfig>| !config.reduce_flashes),
+            handle_channel_change_message.run_if(|config: Res<GameConfig>| !config.reduce_flashes),
         );
         app.add_systems(
             Update,
@@ -87,8 +86,7 @@ impl Plugin for CrtEffectPlugin {
         );
         app.add_systems(
             Update,
-            handle_desaturation_message
-                .run_if(|config: Res<GameConfig>| !config.reduce_flashes),
+            handle_desaturation_message.run_if(|config: Res<GameConfig>| !config.reduce_flashes),
         );
         app.add_systems(
             Update,
@@ -96,8 +94,7 @@ impl Plugin for CrtEffectPlugin {
         );
         app.add_systems(
             Update,
-            handle_screen_flash_message
-                .run_if(|config: Res<GameConfig>| !config.reduce_flashes),
+            handle_screen_flash_message.run_if(|config: Res<GameConfig>| !config.reduce_flashes),
         );
         app.add_systems(
             Update,
@@ -105,8 +102,7 @@ impl Plugin for CrtEffectPlugin {
         );
         app.add_systems(
             Update,
-            handle_vignette_pulse_message
-                .run_if(|config: Res<GameConfig>| !config.reduce_flashes),
+            handle_vignette_pulse_message.run_if(|config: Res<GameConfig>| !config.reduce_flashes),
         );
         app.add_systems(
             Update,
@@ -179,10 +175,7 @@ impl Plugin for CrtEffectPlugin {
                 HeatDistortionLabel,
             )
             .add_render_graph_node::<ViewNodeRunner<CrtEffectNode>>(Core3d, CrtEffectLabel)
-            .add_render_graph_node::<ViewNodeRunner<HighContrastNode>>(
-                Core3d,
-                HighContrastLabel,
-            )
+            .add_render_graph_node::<ViewNodeRunner<HighContrastNode>>(Core3d, HighContrastLabel)
             .add_render_graph_node::<ViewNodeRunner<ColorblindCorrectionNode>>(
                 Core3d,
                 ColorblindCorrectionLabel,
@@ -733,14 +726,12 @@ impl ViewNode for ColorblindCorrectionNode {
         let colorblind_pipeline = world.resource::<ColorblindCorrectionPipeline>();
         let pipeline_cache = world.resource::<PipelineCache>();
 
-        let Some(pipeline) =
-            pipeline_cache.get_render_pipeline(colorblind_pipeline.pipeline_id)
+        let Some(pipeline) = pipeline_cache.get_render_pipeline(colorblind_pipeline.pipeline_id)
         else {
             return Ok(());
         };
 
-        let settings_uniforms =
-            world.resource::<ComponentUniforms<ColorblindCorrectionSettings>>();
+        let settings_uniforms = world.resource::<ComponentUniforms<ColorblindCorrectionSettings>>();
         let Some(settings_binding) = settings_uniforms.uniforms().binding() else {
             return Ok(());
         };

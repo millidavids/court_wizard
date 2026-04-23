@@ -34,27 +34,29 @@ const LOCKED_CARD_BG: Color = Color::hsla(20.0, 0.08, 0.06, 0.6);
 const LOCKED_CARD_BORDER: Color = Color::hsla(25.0, 0.10, 0.12, 0.5);
 const LOCKED_TEXT_COLOR: Color = Color::hsla(30.0, 0.06, 0.45, 1.0);
 
-const SELECT_BUTTON_STYLE: crate::ui::components::ButtonStyle = crate::ui::components::ButtonStyle {
-    width: 80.0,
-    height: 30.0,
-    border_width: 2.0,
-    font_size: 12.0,
-    background: crate::ui::constants::BUTTON_BG,
-    border: crate::ui::constants::BUTTON_BORDER,
-    text_color: TEXT_PRIMARY,
-    text_shadow: true,
-};
+const SELECT_BUTTON_STYLE: crate::ui::components::ButtonStyle =
+    crate::ui::components::ButtonStyle {
+        width: 80.0,
+        height: 30.0,
+        border_width: 2.0,
+        font_size: 12.0,
+        background: crate::ui::constants::BUTTON_BG,
+        border: crate::ui::constants::BUTTON_BORDER,
+        text_color: TEXT_PRIMARY,
+        text_shadow: true,
+    };
 
-const EXPAND_BUTTON_STYLE: crate::ui::components::ButtonStyle = crate::ui::components::ButtonStyle {
-    width: 80.0,
-    height: 30.0,
-    border_width: 2.0,
-    font_size: 12.0,
-    background: Color::hsla(220.0, 0.08, 0.15, 0.75),
-    border: Color::hsla(0.0, 0.0, 0.30, 0.6),
-    text_color: TEXT_MUTED,
-    text_shadow: true,
-};
+const EXPAND_BUTTON_STYLE: crate::ui::components::ButtonStyle =
+    crate::ui::components::ButtonStyle {
+        width: 80.0,
+        height: 30.0,
+        border_width: 2.0,
+        font_size: 12.0,
+        background: Color::hsla(220.0, 0.08, 0.15, 0.75),
+        border: Color::hsla(0.0, 0.0, 0.30, 0.6),
+        text_color: TEXT_MUTED,
+        text_shadow: true,
+    };
 
 /// Height for the expand animation (pixels per second).
 const EXPAND_ANIM_SPEED: f32 = 800.0;
@@ -67,13 +69,10 @@ const EXPAND_ANIM_SPEED: f32 = 800.0;
 #[derive(Component)]
 pub(super) struct WizardCardContainer(pub WizardType);
 
-/// Marker for the currently expanded wizard card.
+/// Marker for each currently-expanded wizard card. Multiple cards can
+/// carry this marker simultaneously — expansions are independent per card.
 #[derive(Component)]
 pub(super) struct ExpandedWizardCard;
-
-/// Resource tracking which wizard is expanded in the card grid.
-#[derive(Resource, Default)]
-pub(super) struct ExpandedWizard(pub Option<WizardType>);
 
 /// Resource tracking which wizard is currently selected.
 #[derive(Resource)]
@@ -178,6 +177,7 @@ fn spawn_compact_card(parent: &mut ChildSpawnerCommands, wizard_type: WizardType
             BorderColor::all(CARD_BORDER),
             BorderRadius::all(Val::Px(CARD_BORDER_RADIUS)),
             WizardCardContainer(wizard_type),
+            crate::ui::focus::ScrollRevealBounds,
         ))
         .with_children(|card| {
             // Wizard name (always visible)
@@ -250,13 +250,19 @@ fn spawn_compact_card(parent: &mut ChildSpawnerCommands, wizard_type: WizardType
                 spawn_button(
                     row,
                     "Select",
-                    WizardCardAction::Select(wizard_type),
+                    (
+                        WizardCardAction::Select(wizard_type),
+                        crate::ui::focus::CrossRowHorizontalNav,
+                    ),
                     &SELECT_BUTTON_STYLE,
                 );
                 spawn_button(
                     row,
                     "Expand",
-                    WizardCardAction::ToggleExpand(wizard_type),
+                    (
+                        WizardCardAction::ToggleExpand(wizard_type),
+                        crate::ui::focus::CrossRowHorizontalNav,
+                    ),
                     &EXPAND_BUTTON_STYLE,
                 );
             });
@@ -296,18 +302,23 @@ fn spawn_locked_card(parent: &mut ChildSpawnerCommands, wizard_type: WizardType)
 // Card interaction systems
 // ---------------------------------------------------------------------------
 
-/// Handles wizard card button actions (Select, ToggleExpand).
+/// Handles wizard card button actions (Select, ToggleExpand). Expansions
+/// are per-card: toggling a card's Expand button never collapses sibling
+/// cards, so multiple can be open at once.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_wizard_card_actions(
     mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<(Entity, &WizardCardAction)>,
-    mut expanded: ResMut<ExpandedWizard>,
     mut selected: ResMut<SelectedWizard>,
     mut right_panel_view: ResMut<RightPanelView>,
     mut config: ResMut<crate::config::GameConfig>,
     mut active_save: ResMut<crate::config::ActiveSave>,
-    mut card_containers: Query<(Entity, &WizardCardContainer, &mut Node), Without<CardExpandSection>>,
+    expanded_check: Query<&WizardCardContainer, With<ExpandedWizardCard>>,
+    mut card_containers: Query<
+        (Entity, &WizardCardContainer, &mut Node),
+        Without<CardExpandSection>,
+    >,
 ) {
     for event in button_clicked.read() {
         let Ok((btn_entity, action)) = button_query.get(event.button) else {
@@ -324,26 +335,12 @@ pub(super) fn handle_wizard_card_actions(
                 *right_panel_view = RightPanelView::TabContent;
             }
             WizardCardAction::ToggleExpand(wizard_type) => {
-                let was_expanded = expanded.0 == Some(*wizard_type);
-
-                // Collapse previously expanded card (if different)
-                if let Some(prev) = expanded.0
-                    && prev != *wizard_type
-                {
-                    collapse_card(&mut commands, &mut card_containers, prev);
-                }
-
+                let was_expanded = expanded_check.iter().any(|c| c.0 == *wizard_type);
                 if was_expanded {
-                    // Collapse this card
-                    expanded.0 = None;
                     collapse_card(&mut commands, &mut card_containers, *wizard_type);
-                    // Remove ButtonActive from the expand button
                     commands.entity(btn_entity).remove::<ButtonActive>();
                 } else {
-                    // Expand this card
-                    expanded.0 = Some(*wizard_type);
                     expand_card(&mut commands, &mut card_containers, *wizard_type);
-                    // Set ButtonActive on the expand button
                     commands.entity(btn_entity).insert(ButtonActive);
                 }
             }
@@ -354,15 +351,17 @@ pub(super) fn handle_wizard_card_actions(
 /// Starts expanding a card's expandable section.
 fn expand_card(
     commands: &mut Commands,
-    card_containers: &mut Query<(Entity, &WizardCardContainer, &mut Node), Without<CardExpandSection>>,
+    card_containers: &mut Query<
+        (Entity, &WizardCardContainer, &mut Node),
+        Without<CardExpandSection>,
+    >,
     wizard_type: WizardType,
 ) {
     for (entity, container, _node) in card_containers.iter_mut() {
         if container.0 == wizard_type {
-            commands.entity(entity).insert((
-                ExpandedWizardCard,
-                BorderColor::all(CARD_BORDER_SELECTED),
-            ));
+            commands
+                .entity(entity)
+                .insert((ExpandedWizardCard, BorderColor::all(CARD_BORDER_SELECTED)));
         }
     }
 }
@@ -370,13 +369,18 @@ fn expand_card(
 /// Starts collapsing a card's expandable section.
 fn collapse_card(
     commands: &mut Commands,
-    card_containers: &mut Query<(Entity, &WizardCardContainer, &mut Node), Without<CardExpandSection>>,
+    card_containers: &mut Query<
+        (Entity, &WizardCardContainer, &mut Node),
+        Without<CardExpandSection>,
+    >,
     wizard_type: WizardType,
 ) {
     for (entity, container, _node) in card_containers.iter_mut() {
         if container.0 == wizard_type {
             commands.entity(entity).remove::<ExpandedWizardCard>();
-            commands.entity(entity).insert(BorderColor::all(CARD_BORDER));
+            commands
+                .entity(entity)
+                .insert(BorderColor::all(CARD_BORDER));
         }
     }
 }

@@ -11,6 +11,7 @@ use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -27,7 +28,6 @@ use crate::game::units::wizard::spells::utils::{
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
@@ -91,7 +91,8 @@ pub fn handle_fog_cloud_casting(
     active_toggles: Option<Res<ActiveToggles>>,
     target_assist: Res<TargetAssistWorldPos>,
 ) {
-    let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
+    let scorched_mult =
+        crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 

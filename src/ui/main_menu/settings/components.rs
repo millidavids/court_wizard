@@ -37,6 +37,8 @@ pub enum OptionButtonValue {
     AutoPauseOnFocusLoss(bool),
     /// Aim assist toggle
     AimAssist(bool),
+    /// Controller rumble toggle
+    RumbleEnabled(bool),
 }
 
 impl OptionButtonValue {
@@ -54,6 +56,7 @@ impl OptionButtonValue {
             OptionButtonValue::CrtEnabled(v) => config.crt_enabled == *v,
             OptionButtonValue::AutoPauseOnFocusLoss(v) => config.auto_pause_on_focus_loss == *v,
             OptionButtonValue::AimAssist(v) => config.aim_assist == *v,
+            OptionButtonValue::RumbleEnabled(v) => config.rumble_enabled == *v,
         }
     }
 
@@ -71,6 +74,7 @@ impl OptionButtonValue {
             OptionButtonValue::CrtEnabled(v) => config.crt_enabled = *v,
             OptionButtonValue::AutoPauseOnFocusLoss(v) => config.auto_pause_on_focus_loss = *v,
             OptionButtonValue::AimAssist(v) => config.aim_assist = *v,
+            OptionButtonValue::RumbleEnabled(v) => config.rumble_enabled = *v,
         }
     }
 }
@@ -115,6 +119,14 @@ pub enum SliderValue {
     GameSpeed,
     /// High contrast effect strength (0.0-1.0)
     HighContrast,
+    /// Gamepad horizontal cursor sensitivity (0.3-2.5)
+    GamepadSensitivityX,
+    /// Gamepad vertical cursor sensitivity (0.3-2.5)
+    GamepadSensitivityY,
+    /// Gamepad stick deadzone (0.05-0.30)
+    GamepadDeadzone,
+    /// Gamepad response curve exponent (1.0-3.5)
+    GamepadResponseCurve,
 }
 
 impl SliderValue {
@@ -128,6 +140,10 @@ impl SliderValue {
             SliderValue::ColorblindStrength => config.colorblind_strength,
             SliderValue::GameSpeed => config.game_speed,
             SliderValue::HighContrast => config.high_contrast_strength,
+            SliderValue::GamepadSensitivityX => config.gamepad_sensitivity_x,
+            SliderValue::GamepadSensitivityY => config.gamepad_sensitivity_y,
+            SliderValue::GamepadDeadzone => config.gamepad_deadzone,
+            SliderValue::GamepadResponseCurve => config.gamepad_response_curve,
         }
     }
 
@@ -141,6 +157,10 @@ impl SliderValue {
             SliderValue::ColorblindStrength => config.colorblind_strength = value,
             SliderValue::GameSpeed => config.game_speed = value,
             SliderValue::HighContrast => config.high_contrast_strength = value,
+            SliderValue::GamepadSensitivityX => config.gamepad_sensitivity_x = value,
+            SliderValue::GamepadSensitivityY => config.gamepad_sensitivity_y = value,
+            SliderValue::GamepadDeadzone => config.gamepad_deadzone = value,
+            SliderValue::GamepadResponseCurve => config.gamepad_response_curve = value,
         }
     }
 
@@ -151,6 +171,9 @@ impl SliderValue {
             SliderValue::UiBrightness => 0.1,
             SliderValue::ColorblindStrength | SliderValue::HighContrast => 0.0,
             SliderValue::GameSpeed => 0.5,
+            SliderValue::GamepadSensitivityX | SliderValue::GamepadSensitivityY => 0.3,
+            SliderValue::GamepadDeadzone => 0.05,
+            SliderValue::GamepadResponseCurve => 1.0,
         }
     }
 
@@ -161,6 +184,9 @@ impl SliderValue {
             SliderValue::UiBrightness => 2.0,
             SliderValue::ColorblindStrength | SliderValue::HighContrast => 1.0,
             SliderValue::GameSpeed => 2.0,
+            SliderValue::GamepadSensitivityX | SliderValue::GamepadSensitivityY => 2.5,
+            SliderValue::GamepadDeadzone => 0.30,
+            SliderValue::GamepadResponseCurve => 3.5,
         }
     }
 
@@ -171,6 +197,9 @@ impl SliderValue {
             SliderValue::UiBrightness => 0.1,
             SliderValue::ColorblindStrength | SliderValue::HighContrast => 0.1,
             SliderValue::GameSpeed => 0.25,
+            SliderValue::GamepadSensitivityX | SliderValue::GamepadSensitivityY => 0.1,
+            SliderValue::GamepadDeadzone => 0.01,
+            SliderValue::GamepadResponseCurve => 0.1,
         }
     }
 }
@@ -239,27 +268,36 @@ pub struct SliderAdjusted;
 /// Settings tab categories.
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SettingsTab {
-    #[default]
     Graphics,
     Audio,
+    #[default]
     Game,
     Controls,
+    Controller,
     Accessibility,
 }
 
 impl SettingsTab {
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Graphics => "Graphics",
+            Self::Graphics => "Video",
             Self::Audio => "Audio",
-            Self::Game => "Game",
-            Self::Controls => "Controls",
+            Self::Game => "Gameplay",
+            Self::Controls => "Keybinds",
+            Self::Controller => "Controls",
             Self::Accessibility => "Accessibility",
         }
     }
 
     pub fn all() -> &'static [SettingsTab] {
-        &[Self::Graphics, Self::Audio, Self::Game, Self::Controls, Self::Accessibility]
+        &[
+            Self::Game,
+            Self::Graphics,
+            Self::Audio,
+            Self::Controller,
+            Self::Controls,
+            Self::Accessibility,
+        ]
     }
 }
 

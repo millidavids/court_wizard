@@ -47,17 +47,22 @@ impl Plugin for PathfindingPlugin {
                     .run_if(resource_exists::<PathfindingGrid>)
                     .run_if(is_gameplay_running),
             )
-            // Wave activation: tag new attackers, check wave thresholds, manage speedup
+            // Wave activation: tag new attackers, check wave thresholds.
             .add_systems(
                 Update,
-                (
-                    tag_new_attackers,
-                    check_wave_activation,
-                    manage_staging_speedup,
-                )
+                (tag_new_attackers, check_wave_activation)
                     .chain()
                     .run_if(resource_exists::<PathfindingGrid>)
                     .run_if(is_gameplay_running),
+            )
+            // Game-speed management runs whenever a game is in progress —
+            // NOT gated on `is_gameplay_running` so it can actively DROP the
+            // clock back to baseline when the player opens the spell book or
+            // cauldron menu (which take us out of Running). Without this it
+            // stayed stuck at 3x.
+            .add_systems(
+                Update,
+                manage_staging_speedup.run_if(resource_exists::<PathfindingGrid>),
             )
             .add_systems(
                 Update,

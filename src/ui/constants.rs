@@ -131,7 +131,8 @@ pub const FRAME_OUTER_RING_COLOR: Color = Color::hsla(42.0, 0.30, 0.20, 0.5);
 pub const FRAME_OUTER_RING_WIDTH: f32 = 3.0;
 
 /// Base spread for page container shadows (accounts for outline + outer ring).
-pub const FRAME_SHADOW_SPREAD_BASE: f32 = FRAME_OUTER_RING_WIDTH + FRAME_OUTLINE_WIDTH + FRAME_OUTLINE_OFFSET;
+pub const FRAME_SHADOW_SPREAD_BASE: f32 =
+    FRAME_OUTER_RING_WIDTH + FRAME_OUTLINE_WIDTH + FRAME_OUTLINE_OFFSET;
 
 // ── Button Interaction States ───────────────────────────────────────────
 
@@ -145,13 +146,18 @@ pub const BUTTON_SHADOW_COLOR: Color = Color::hsla(25.0, 0.20, 0.05, 0.3);
 pub const BUTTON_PRESSED_OUTLINE: Color = Color::hsla(270.0, 0.85, 0.65, 1.0);
 
 /// Outline color when button is hovered (vibrant purple glow).
-pub const BUTTON_HOVERED_OUTLINE: Color = Color::hsla(270.0, 0.70, 0.55, 0.85);
+pub const BUTTON_HOVERED_OUTLINE: Color = Color::hsla(270.0, 0.90, 0.72, 1.0);
 
 /// Inner glow color on button hover.
-pub const BUTTON_GLOW_INNER: Color = Color::hsla(270.0, 0.65, 0.50, 0.30);
+pub const BUTTON_GLOW_INNER: Color = Color::hsla(270.0, 0.80, 0.60, 0.55);
 
 /// Outer glow color on button hover.
-pub const BUTTON_GLOW_OUTER: Color = Color::hsla(270.0, 0.55, 0.40, 0.15);
+pub const BUTTON_GLOW_OUTER: Color = Color::hsla(270.0, 0.70, 0.50, 0.30);
+
+/// Subtle purple tint laid over the 3D front-face background when a button is
+/// gamepad-focused. Alpha keeps the original charcoal partly visible.
+/// Not applied for mouse hover/press — strictly a controller-focus indicator.
+pub const BUTTON_HOVER_BG_TINT: Color = Color::hsla(270.0, 0.60, 0.35, 0.35);
 
 /// Inner glow color on button press (brighter than hover).
 pub const BUTTON_PRESS_GLOW_INNER: Color = Color::hsla(270.0, 0.60, 0.50, 0.35);

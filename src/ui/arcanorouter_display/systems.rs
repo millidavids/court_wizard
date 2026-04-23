@@ -132,58 +132,32 @@ pub(super) fn update_slider_visuals(
     }
 }
 
-/// Handles mouse and keyboard input for slider adjustment
+/// Handles keyboard input for slider adjustment.
+///
+/// Only increment keys exist — sliders are reactive, so pushing one up pulls
+/// the others down proportionally.
 pub(super) fn handle_slider_interaction(
     keyboard: Res<ButtonInput<KeyCode>>,
     bindings: Res<InputBindings>,
     mut writer: MessageWriter<SliderAdjustMessage>,
 ) {
-    let sensitivity = 10.0; // Change by 10% per key press
+    let sensitivity = 10.0;
 
-    let slider_keys: [(Option<KeyCode>, SliderType, f32); 8] = [
-        (
-            bindings.arcanorouter.range_up,
-            SliderType::Range,
-            sensitivity,
-        ),
-        (
-            bindings.arcanorouter.range_down,
-            SliderType::Range,
-            -sensitivity,
-        ),
-        (bindings.arcanorouter.mana_up, SliderType::Mana, sensitivity),
-        (
-            bindings.arcanorouter.mana_down,
-            SliderType::Mana,
-            -sensitivity,
-        ),
-        (
-            bindings.arcanorouter.power_up,
-            SliderType::Power,
-            sensitivity,
-        ),
-        (
-            bindings.arcanorouter.power_down,
-            SliderType::Power,
-            -sensitivity,
-        ),
-        (
-            bindings.arcanorouter.speed_up,
-            SliderType::Speed,
-            sensitivity,
-        ),
-        (
-            bindings.arcanorouter.speed_down,
-            SliderType::Speed,
-            -sensitivity,
-        ),
+    let slider_keys: [(Option<KeyCode>, SliderType); 4] = [
+        (bindings.arcanorouter.range_up, SliderType::Range),
+        (bindings.arcanorouter.mana_up, SliderType::Mana),
+        (bindings.arcanorouter.power_up, SliderType::Power),
+        (bindings.arcanorouter.speed_up, SliderType::Speed),
     ];
 
-    for (key_opt, slider, delta) in slider_keys {
+    for (key_opt, slider) in slider_keys {
         if let Some(key) = key_opt
             && keyboard.just_pressed(key)
         {
-            writer.write(SliderAdjustMessage { slider, delta });
+            writer.write(SliderAdjustMessage {
+                slider,
+                delta: sensitivity,
+            });
         }
     }
 }

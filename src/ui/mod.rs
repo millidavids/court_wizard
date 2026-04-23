@@ -11,6 +11,8 @@ mod compendium;
 pub(crate) mod components;
 mod concentration;
 pub(crate) mod constants;
+pub(crate) mod focus;
+pub(crate) mod gamepad_glyphs;
 mod game_over;
 mod in_game;
 mod loading;
@@ -30,5 +32,5 @@ mod version;
 mod weather_bar;
 mod wizard_tower;
 
-pub use plugin::UiPlugin;
 pub(crate) use game_over::accumulate_mode_level_stats;
+pub use plugin::UiPlugin;

@@ -493,12 +493,7 @@ pub fn init_spell_visual_assets(
             let dark = STONE_COLOR_DARK.to_srgba();
             let light = STONE_COLOR_LIGHT.to_srgba();
             wall_of_stone_materials.add(WallOfStoneMaterial {
-                tile_params: Vec4::new(
-                    TILE_WORLD_SIZE,
-                    TILE_COUNT as f32,
-                    0.0,
-                    GROUND_NOISE_BASE,
-                ),
+                tile_params: Vec4::new(TILE_WORLD_SIZE, TILE_COUNT as f32, 0.0, GROUND_NOISE_BASE),
                 damage_tint: Vec4::ZERO,
                 side_dark: Vec4::new(dark.red, dark.green, dark.blue, 1.0),
                 side_light: Vec4::new(light.red, light.green, light.blue, 1.0),
@@ -522,28 +517,65 @@ pub fn init_spell_visual_assets(
                 opacity: 1.0,
             },
         ),
-        ice_explosion_sphere: fire_explosion_sphere_materials.add(
-            FireExplosionSphereMaterial {
-                inner_color: ICE_EXPLOSION_INNER_COLOR,
-                outer_color: ICE_EXPLOSION_OUTER_COLOR,
-                opacity: 1.0,
-            },
-        ),
+        ice_explosion_sphere: fire_explosion_sphere_materials.add(FireExplosionSphereMaterial {
+            inner_color: ICE_EXPLOSION_INNER_COLOR,
+            outer_color: ICE_EXPLOSION_OUTER_COLOR,
+            opacity: 1.0,
+        }),
         ice_explosion: materials.add(unlit(Color::srgb(0.3, 0.8, 1.0))),
 
         // Aura sphere materials (swirling energy)
         king_aura_sphere: aura_mat(&mut aura_sphere_materials, KING_AURA_INNER, KING_AURA_OUTER),
-        healing_aura_sphere: aura_mat(&mut aura_sphere_materials, HEALING_AURA_INNER, HEALING_AURA_OUTER),
-        guardian_aura_sphere: aura_mat(&mut aura_sphere_materials, GUARDIAN_AURA_INNER, GUARDIAN_AURA_OUTER),
-        battle_hymn_aura_sphere: aura_mat(&mut aura_sphere_materials, BATTLE_HYMN_AURA_INNER, BATTLE_HYMN_AURA_OUTER),
-        haste_aura_sphere: aura_mat(&mut aura_sphere_materials, HASTE_AURA_INNER, HASTE_AURA_OUTER),
-        berserker_aura_sphere: aura_mat(&mut aura_sphere_materials, BERSERKER_AURA_INNER, BERSERKER_AURA_OUTER),
-        sleep_aura_sphere: aura_mat(&mut aura_sphere_materials, SLEEP_AURA_INNER, SLEEP_AURA_OUTER),
-        raise_dead_aura_sphere: aura_mat(&mut aura_sphere_materials, RAISE_DEAD_AURA_INNER, RAISE_DEAD_AURA_OUTER),
-        commander_aura_sphere: aura_mat(&mut aura_sphere_materials, COMMANDER_AURA_INNER, COMMANDER_AURA_OUTER),
-        crystal_aura_sphere: aura_mat(&mut aura_sphere_materials, CRYSTAL_AURA_INNER, CRYSTAL_AURA_OUTER),
+        healing_aura_sphere: aura_mat(
+            &mut aura_sphere_materials,
+            HEALING_AURA_INNER,
+            HEALING_AURA_OUTER,
+        ),
+        guardian_aura_sphere: aura_mat(
+            &mut aura_sphere_materials,
+            GUARDIAN_AURA_INNER,
+            GUARDIAN_AURA_OUTER,
+        ),
+        battle_hymn_aura_sphere: aura_mat(
+            &mut aura_sphere_materials,
+            BATTLE_HYMN_AURA_INNER,
+            BATTLE_HYMN_AURA_OUTER,
+        ),
+        haste_aura_sphere: aura_mat(
+            &mut aura_sphere_materials,
+            HASTE_AURA_INNER,
+            HASTE_AURA_OUTER,
+        ),
+        berserker_aura_sphere: aura_mat(
+            &mut aura_sphere_materials,
+            BERSERKER_AURA_INNER,
+            BERSERKER_AURA_OUTER,
+        ),
+        sleep_aura_sphere: aura_mat(
+            &mut aura_sphere_materials,
+            SLEEP_AURA_INNER,
+            SLEEP_AURA_OUTER,
+        ),
+        raise_dead_aura_sphere: aura_mat(
+            &mut aura_sphere_materials,
+            RAISE_DEAD_AURA_INNER,
+            RAISE_DEAD_AURA_OUTER,
+        ),
+        commander_aura_sphere: aura_mat(
+            &mut aura_sphere_materials,
+            COMMANDER_AURA_INNER,
+            COMMANDER_AURA_OUTER,
+        ),
+        crystal_aura_sphere: aura_mat(
+            &mut aura_sphere_materials,
+            CRYSTAL_AURA_INNER,
+            CRYSTAL_AURA_OUTER,
+        ),
         teleport_aura_sphere: aura_sphere_materials.add(AuraSphereMaterial {
-            inner_color: TELEPORT_AURA_INNER, outer_color: TELEPORT_AURA_OUTER, opacity: 1.0, time: 0.0,
+            inner_color: TELEPORT_AURA_INNER,
+            outer_color: TELEPORT_AURA_OUTER,
+            opacity: 1.0,
+            time: 0.0,
         }),
 
         // Projectile materials
@@ -679,9 +711,8 @@ pub fn init_spell_visual_assets(
             cull_mode: None,
             ..default()
         }),
-        fire_particle: fire_particle_materials.add(
-            super::vfx::fire_material::FireParticleMaterial { time: 0.0 },
-        ),
+        fire_particle: fire_particle_materials
+            .add(super::vfx::fire_material::FireParticleMaterial { time: 0.0 }),
         smoke_particle: smoke_particle_materials.add(
             super::vfx::fire_material::SmokeParticleMaterial {
                 color: bevy::color::LinearRgba::new(0.02, 0.02, 0.02, 0.55),

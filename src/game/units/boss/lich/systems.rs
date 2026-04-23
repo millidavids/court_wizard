@@ -62,12 +62,22 @@ pub fn check_lich_spawn(
         return;
     }
 
-    spawn_lich(&mut game_rng.0, &mut commands, &lich_assets, wave_state.current_wave);
+    spawn_lich(
+        &mut game_rng.0,
+        &mut commands,
+        &lich_assets,
+        wave_state.current_wave,
+    );
     commands.remove_resource::<LichSpawnPending>();
 }
 
 /// Spawns the Lich at one of the tunnel spawn points.
-fn spawn_lich(rng: &mut impl Rng, commands: &mut Commands, lich_assets: &LichAssets, current_wave: u32) {
+fn spawn_lich(
+    rng: &mut impl Rng,
+    commands: &mut Commands,
+    lich_assets: &LichAssets,
+    current_wave: u32,
+) {
     let (spawn_x, spawn_z) = attacker_spawn_position(0, 0.0);
     let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 

@@ -3,6 +3,7 @@ use rand::Rng;
 
 use super::components::*;
 use super::constants::*;
+use super::resources::TeleporterAssets;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker, WaveGroup};
@@ -17,14 +18,13 @@ use crate::game::units::components::{
     Stunned, TargetingVelocity, Team, Teleportable, TemporaryHitPoints, UnitTypeGlow,
     WalkingAnimation,
 };
-use crate::game::units::ranged_bolt::RangedAttackTimer;
 use crate::game::units::infantry::Infantry;
 use crate::game::units::king::components::King;
 use crate::game::units::random_position_in_cell;
+use crate::game::units::ranged_bolt::RangedAttackTimer;
 use crate::game::units::wizard::spells::teleport::vfx_components::TeleportWarpEffect;
 use crate::game::units::wizard::spells::teleport::vfx_systems::spawn_teleport_vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use super::resources::TeleporterAssets;
 
 /// Spawns a single teleporter attacker.
 pub(in crate::game) fn spawn_single_teleporter(
@@ -174,7 +174,19 @@ pub(super) fn teleporter_movement(
         aura_mod,
         terrain_mod,
         slow_mod,
-        (rooted, haste, elite_speed, sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, petrified),
+        (
+            rooted,
+            haste,
+            elite_speed,
+            sleeping,
+            sleepwalking,
+            banished,
+            polymorphed,
+            sickened,
+            frozen,
+            stunned,
+            petrified,
+        ),
     ) in &mut teleporters
     {
         if matches!(state, TeleporterState::Channeling { .. }) {
@@ -341,21 +353,21 @@ pub(super) fn update_channel_state(
                 // Each candidate is (entity, distance_sq_to_teleporter, max_hp).
                 let mut picks: Vec<(Entity, f32)> = Vec::with_capacity(TELEPORT_GRAB_COUNT);
 
-                let push_sorted = |mut candidates: Vec<(Entity, f32, f32)>,
-                                   picks: &mut Vec<(Entity, f32)>| {
-                    if picks.len() >= TELEPORT_GRAB_COUNT {
-                        return;
-                    }
-                    candidates.sort_by(|a, b| {
-                        a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
-                    });
-                    for (e, _, max_hp) in candidates {
+                let push_sorted =
+                    |mut candidates: Vec<(Entity, f32, f32)>, picks: &mut Vec<(Entity, f32)>| {
                         if picks.len() >= TELEPORT_GRAB_COUNT {
-                            break;
+                            return;
                         }
-                        picks.push((e, max_hp));
-                    }
-                };
+                        candidates.sort_by(|a, b| {
+                            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
+                        });
+                        for (e, _, max_hp) in candidates {
+                            if picks.len() >= TELEPORT_GRAB_COUNT {
+                                break;
+                            }
+                            picks.push((e, max_hp));
+                        }
+                    };
 
                 let infantry_candidates: Vec<(Entity, f32, f32)> = infantry_allies
                     .iter()
@@ -455,7 +467,10 @@ pub(super) fn refresh_teleporter_casting_animation(
 /// each channeling teleporter.
 pub(super) fn spawn_channel_particles(
     mut commands: Commands,
-    teleporters: Query<(&Transform, &TeleporterState, &Hitbox), (With<Teleporter>, Without<Corpse>)>,
+    teleporters: Query<
+        (&Transform, &TeleporterState, &Hitbox),
+        (With<Teleporter>, Without<Corpse>),
+    >,
     teleporter_assets: Res<TeleporterAssets>,
     visual_assets: Res<SpellVisualAssets>,
     time: Res<Time>,

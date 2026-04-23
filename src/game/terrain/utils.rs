@@ -1,15 +1,17 @@
 use bevy::prelude::*;
 
 use super::wind_sway::material::WindSwayMaterial;
-use crate::game::units::systems::create_sprite_material;
 use crate::game::units::components::FireDoT;
+use crate::game::units::systems::create_sprite_material;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
-use crate::game::units::wizard::spells::meteor_fall::components::{MeteorExplosion, MeteorGroundFire};
+use crate::game::units::wizard::spells::meteor_fall::components::{
+    MeteorExplosion, MeteorGroundFire,
+};
 use crate::game::units::wizard::spells::utils::{distance_to_line_segment_xz, xz_distance};
-use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 
 /// Tint color applied to burning vegetation (trees, bushes).
 pub(crate) const BURNING_VEGETATION_TINT: Color = Color::srgba(1.0, 0.55, 0.25, 1.0);
@@ -69,10 +71,10 @@ pub(crate) fn preload_wind_sway_sprite_sheet<const N: usize>(
             base_color: LinearRgba::WHITE,
             uv_params: Vec4::new(u_width, 1.0, u_offset, 0.0),
             sway_params: Vec4::new(
-                0.0,                  // time (updated each frame)
+                0.0, // time (updated each frame)
                 sway_amplitude,
                 sway_speed,
-                i as f32 * 1.37,      // phase offset per variant
+                i as f32 * 1.37, // phase offset per variant
             ),
             base_texture: texture.clone(),
         })
@@ -171,7 +173,9 @@ pub(crate) fn emit_burning_vfx(
     if emit_smoke {
         for i in 0..smoke_count {
             let seed = center_x * 0.1 + t + i as f32 * 1.37;
-            let y = ((seed * 7.3).sin() * 0.5 + 0.5) * sprite_height * vfx::constants::BURNING_VFX_HEIGHT_FRACTION;
+            let y = ((seed * 7.3).sin() * 0.5 + 0.5)
+                * sprite_height
+                * vfx::constants::BURNING_VFX_HEIGHT_FRACTION;
             vfx::systems::spawn_fire_orange_smoke(
                 commands,
                 visual_assets,
@@ -185,7 +189,9 @@ pub(crate) fn emit_burning_vfx(
     if emit_sparks {
         for i in 0..spark_count {
             let seed = center_z * 0.1 + t + i as f32 * 2.13;
-            let y = ((seed * 11.1).sin() * 0.5 + 0.5) * sprite_height * vfx::constants::BURNING_VFX_HEIGHT_FRACTION;
+            let y = ((seed * 11.1).sin() * 0.5 + 0.5)
+                * sprite_height
+                * vfx::constants::BURNING_VFX_HEIGHT_FRACTION;
             vfx::systems::spawn_fire_sparks(
                 commands,
                 visual_assets,

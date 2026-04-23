@@ -435,7 +435,9 @@ pub fn apply_remote_spell_snapshot(
     mut effect_map: ResMut<SpellEffectEntityMap>,
     assets: Option<Res<SpellVisualAssets>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut sphere_materials: ResMut<Assets<crate::game::units::wizard::spells::visual_assets::FireExplosionSphereMaterial>>,
+    mut sphere_materials: ResMut<
+        Assets<crate::game::units::wizard::spells::visual_assets::FireExplosionSphereMaterial>,
+    >,
     mut effect_transforms: Query<&mut Transform>,
     ghost_projectiles: Query<Entity, With<GhostSpellProjectile>>,
     ghost_arcs: Query<Entity, With<GhostSpellArc>>,
@@ -461,9 +463,13 @@ pub fn apply_remote_spell_snapshot(
             continue;
         }
 
-        if let Some(entity) =
-            super::guest_systems::spawn_spell_effect(&mut commands, effect, &assets, &mut materials, &mut sphere_materials)
-        {
+        if let Some(entity) = super::guest_systems::spawn_spell_effect(
+            &mut commands,
+            effect,
+            &assets,
+            &mut materials,
+            &mut sphere_materials,
+        ) {
             effect_map.insert(effect.net_id, entity);
         }
     }

@@ -4,6 +4,19 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct BattlemageAvatar;
 
+/// Tracks the avatar's last non-zero facing direction on the XZ plane.
+/// Attack direction (missile + sword) reads this — the archetype no longer
+/// separates aim from movement; both share the left stick / WASD input.
+#[derive(Component, Debug, Clone, Copy)]
+pub struct BattlemageFacing(pub Vec2);
+
+impl Default for BattlemageFacing {
+    fn default() -> Self {
+        // Default facing away from the castle toward the battlefield (-X direction).
+        Self(Vec2::new(-1.0, 0.0))
+    }
+}
+
 /// Sword swing arc visual effect entity.
 #[derive(Component)]
 pub struct SwordArc {

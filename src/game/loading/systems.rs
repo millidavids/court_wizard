@@ -13,6 +13,7 @@ use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::resources::{
     CurrentLevel, InitialDefenderCount, KillStats, TimeTravelState, WaveState,
 };
+use crate::game::seeded_rng::resources::GameRng;
 use crate::game::units::aerialist::AerialistAssets;
 use crate::game::units::aerialist::systems as aerialist_systems;
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
@@ -23,7 +24,6 @@ use crate::game::units::assassin::systems as assassin_systems;
 use crate::game::units::components::{Hitbox, Team};
 use crate::game::units::infantry::Infantry;
 use crate::game::units::infantry::resources::InfantryAssets;
-use crate::game::seeded_rng::resources::GameRng;
 use crate::game::units::infantry::systems as infantry_systems;
 use crate::state::AppState;
 

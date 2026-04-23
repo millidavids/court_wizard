@@ -68,7 +68,9 @@ pub fn ignite_trees_from_fire(
     >,
     beams: Query<&crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam>,
     walls: Query<&crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect>,
-    ground_fires: Query<&crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire>,
+    ground_fires: Query<
+        &crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire,
+    >,
     tree_assets: Res<TreeAssets>,
     mut materials: ResMut<Assets<WindSwayMaterial>>,
 ) {
@@ -104,10 +106,7 @@ pub fn apply_burning_tree_damage(
     mut commands: Commands,
     time: Res<Time>,
     mut burning_trees: Query<(&Tree, &mut BurningTree)>,
-    mut units: Query<
-        (Entity, &Transform, Option<&mut FireDoT>, Has<SpellShield>),
-        Without<Corpse>,
-    >,
+    mut units: Query<(Entity, &Transform, Option<&mut FireDoT>, Has<SpellShield>), Without<Corpse>>,
 ) {
     let delta = time.delta_secs();
 

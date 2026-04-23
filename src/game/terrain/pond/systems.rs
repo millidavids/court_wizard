@@ -353,7 +353,10 @@ pub fn restore_pond_material_on_thaw(
     mut commands: Commands,
     mut removed: RemovedComponents<PondFrozen>,
     mut ponds: Query<
-        (&mut MeshMaterial3d<StandardMaterial>, Has<ClonedPondMaterial>),
+        (
+            &mut MeshMaterial3d<StandardMaterial>,
+            Has<ClonedPondMaterial>,
+        ),
         With<Pond>,
     >,
     pond_assets: Res<PondAssets>,
@@ -378,7 +381,11 @@ pub fn tick_pond_shocked(
     mut ponds: Query<(Entity, &Pond, &mut PondShocked)>,
     target_query: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     mut health_query: Query<
-        (&mut Health, Option<&mut TemporaryHitPoints>, Has<WetModifier>),
+        (
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<WetModifier>,
+        ),
         Without<Corpse>,
     >,
 ) {

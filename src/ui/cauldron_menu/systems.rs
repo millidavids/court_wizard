@@ -83,7 +83,8 @@ fn build_menu(
         .map(|s| s.player.unlocked_content.combos.clone())
         .unwrap_or_default();
 
-    // Page container (standard overlay with content box)
+    // Page container (standard overlay with content box). `ModalOverlay`
+    // scopes focus to this menu so HUD buttons behind it aren't reachable.
     let content = spawn_page_container(
         commands,
         OnCauldronMenuScreen,
@@ -99,6 +100,9 @@ fn build_menu(
             ..default()
         },
     );
+    commands
+        .entity(content)
+        .insert(crate::ui::focus::ModalOverlay);
 
     commands.entity(content).with_children(|root| {
         // Header row: title left, Back button right
@@ -116,7 +120,10 @@ fn build_menu(
                 TITLE_COLOR,
                 Node::default(),
             );
-            header.spawn(Node { flex_grow: 1.0, ..default() });
+            header.spawn(Node {
+                flex_grow: 1.0,
+                ..default()
+            });
             if is_brewing {
                 spawn_button(
                     header,
@@ -128,7 +135,10 @@ fn build_menu(
             spawn_button(
                 header,
                 "Back",
-                CauldronMenuButtonAction::Close,
+                (
+                    CauldronMenuButtonAction::Close,
+                    crate::ui::focus::NoGamepadFocus,
+                ),
                 &crate::ui::main_menu::BACK_BUTTON_STYLE,
             );
         });
@@ -362,7 +372,10 @@ fn spawn_detail_panel(
                 spawn_button(
                     left,
                     "Brew",
-                    CauldronMenuButtonAction::StartBrew,
+                    (
+                        CauldronMenuButtonAction::StartBrew,
+                        crate::ui::focus::CrossRowHorizontalNav,
+                    ),
                     &BREW_BUTTON_STYLE,
                 );
             }
@@ -436,7 +449,10 @@ fn spawn_ingredient_list(
                             spawn_button(
                                 card,
                                 "Philosopher's Stone",
-                                CauldronMenuButtonAction::TogglePhilosophersStone,
+                                (
+                                    CauldronMenuButtonAction::TogglePhilosophersStone,
+                                    crate::ui::focus::CrossRowHorizontalNav,
+                                ),
                                 stone_style,
                             );
 
@@ -543,7 +559,10 @@ fn spawn_ingredient_card(
             spawn_button(
                 card,
                 ingredient.name(),
-                CauldronMenuButtonAction::ToggleIngredient(ingredient),
+                (
+                    CauldronMenuButtonAction::ToggleIngredient(ingredient),
+                    crate::ui::focus::CrossRowHorizontalNav,
+                ),
                 button_style,
             );
 
@@ -585,11 +604,15 @@ pub(super) fn button_action(
 
                     // Toggle ButtonActive + colors on the clicked button in-place
                     if was_selected {
-                        commands.entity(event.button).remove::<crate::ui::components::ButtonActive>();
-                        commands.entity(event.button).insert(crate::ui::components::ButtonColors {
-                            background: INGREDIENT_BUTTON_STYLE.background,
-                            border: INGREDIENT_BUTTON_STYLE.border,
-                        });
+                        commands
+                            .entity(event.button)
+                            .remove::<crate::ui::components::ButtonActive>();
+                        commands
+                            .entity(event.button)
+                            .insert(crate::ui::components::ButtonColors {
+                                background: INGREDIENT_BUTTON_STYLE.background,
+                                border: INGREDIENT_BUTTON_STYLE.border,
+                            });
                     } else {
                         commands.entity(event.button).insert((
                             crate::ui::components::ButtonActive,
@@ -606,11 +629,15 @@ pub(super) fn button_action(
                     selection.toggle_stone();
 
                     if was_selected {
-                        commands.entity(event.button).remove::<crate::ui::components::ButtonActive>();
-                        commands.entity(event.button).insert(crate::ui::components::ButtonColors {
-                            background: INGREDIENT_BUTTON_STYLE.background,
-                            border: INGREDIENT_BUTTON_STYLE.border,
-                        });
+                        commands
+                            .entity(event.button)
+                            .remove::<crate::ui::components::ButtonActive>();
+                        commands
+                            .entity(event.button)
+                            .insert(crate::ui::components::ButtonColors {
+                                background: INGREDIENT_BUTTON_STYLE.background,
+                                border: INGREDIENT_BUTTON_STYLE.border,
+                            });
                     } else {
                         commands.entity(event.button).insert((
                             crate::ui::components::ButtonActive,
@@ -664,9 +691,7 @@ pub(super) fn update_detail_panel_on_selection_change(
     }
 
     // Despawn existing panel children and rebuild
-    commands
-        .entity(panel_entity)
-        .despawn_related::<Children>();
+    commands.entity(panel_entity).despawn_related::<Children>();
 
     let unlocked_combos = load_unified_save()
         .map(|s| s.player.unlocked_content.combos)

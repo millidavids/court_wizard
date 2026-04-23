@@ -10,6 +10,12 @@ pub struct BossPlugin;
 
 impl Plugin for BossPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((OgrePlugin, HagsPlugin, LichPlugin, DarkMagePlugin, RayPlugin));
+        app.add_plugins((
+            OgrePlugin,
+            HagsPlugin,
+            LichPlugin,
+            DarkMagePlugin,
+            RayPlugin,
+        ));
     }
 }

@@ -665,9 +665,7 @@ impl AchievementId {
             AchievementId::PeakWizard => {
                 "Every permanent upgrade, fully mastered. The court whispers of a wizard without ceiling."
             }
-            AchievementId::LichEncounter => {
-                "Death was supposed to be the end. Someone disagrees."
-            }
+            AchievementId::LichEncounter => "Death was supposed to be the end. Someone disagrees.",
             AchievementId::DarkMageEncounter => {
                 "A wizard who chose the other side. How embarrassing for them."
             }
@@ -675,18 +673,14 @@ impl AchievementId {
                 "Six eyes, one body, and a very bad attitude. It sees everything."
             }
             AchievementId::HagsDefeated => "Three sisters walked in. None walked out.",
-            AchievementId::OgreDefeated => {
-                "The bigger they are, the more satisfying the thud."
-            }
+            AchievementId::OgreDefeated => "The bigger they are, the more satisfying the thud.",
             AchievementId::LichDefeated => {
                 "You'd think dying once would be enough. This time, stay dead."
             }
             AchievementId::DarkMageDefeated => {
                 "The dark mage's application has been rejected. Permanently."
             }
-            AchievementId::RayDefeated => {
-                "Every last eye, shut. Nothing left to see here."
-            }
+            AchievementId::RayDefeated => "Every last eye, shut. Nothing left to see here.",
         }
     }
 }
@@ -1400,11 +1394,7 @@ pub(crate) fn save_config_to_active_wizard(
 
 /// Saves the current terrain state as a per-level snapshot for Endless time travel.
 /// Called on victory in Endless mode (non-time-travel).
-pub(crate) fn save_level_terrain(
-    active_save: &ActiveSave,
-    level: u32,
-    config: &GameConfig,
-) {
+pub(crate) fn save_level_terrain(active_save: &ActiveSave, level: u32, config: &GameConfig) {
     let Some(wizard_id) = &active_save.0 else {
         return;
     };
@@ -1540,9 +1530,7 @@ pub(crate) fn save_current_roguelite_run(
             level_stats: run.level_stats.clone(),
             modifiers: modifiers.cloned(),
             seed,
-            active_toggles: toggles
-                .map(|t| t.to_ids())
-                .unwrap_or_default(),
+            active_toggles: toggles.map(|t| t.to_ids()).unwrap_or_default(),
             accessibility_assists: config.has_accessibility_assists(),
         });
     }
@@ -1567,9 +1555,7 @@ pub(crate) fn clear_current_roguelite_run(active_save: &ActiveSave) {
 }
 
 /// Loads the current in-progress roguelite run from disk, if one exists.
-pub(crate) fn load_current_roguelite_run(
-    active_save: &ActiveSave,
-) -> Option<SavedRogueliteRun> {
+pub(crate) fn load_current_roguelite_run(active_save: &ActiveSave) -> Option<SavedRogueliteRun> {
     let wizard_id = active_save.0.as_ref()?;
     let save_file = load_unified_save()?;
     let wizard = save_file.wizards.iter().find(|w| &w.id == wizard_id)?;
@@ -1604,7 +1590,11 @@ pub(crate) fn get_endless_best_stats(level: u32) -> Option<EndlessLevelBest> {
         .wizards
         .iter()
         .filter_map(|w| w.endless_best_stats.get(&key).cloned())
-        .max_by(|a, b| a.best_efficiency.partial_cmp(&b.best_efficiency).unwrap_or(std::cmp::Ordering::Equal))
+        .max_by(|a, b| {
+            a.best_efficiency
+                .partial_cmp(&b.best_efficiency)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
 }
 
 /// Update the best stats for an endless level if the current efficiency beats the stored best.
@@ -1729,9 +1719,7 @@ pub(crate) fn get_unlocked_toggles() -> Vec<String> {
 }
 
 /// Unlock a toggle modifier by spending Insight. Returns true if successful.
-pub(crate) fn unlock_toggle(
-    toggle: crate::game::game_mode::components::ToggleModifier,
-) -> bool {
+pub(crate) fn unlock_toggle(toggle: crate::game::game_mode::components::ToggleModifier) -> bool {
     let id = toggle.id().to_string();
     let cost = toggle.insight_cost();
 

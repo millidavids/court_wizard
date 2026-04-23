@@ -2,9 +2,9 @@ use bevy::prelude::*;
 
 use crate::ui::components::ButtonStyle;
 use crate::ui::constants::{
-    DETAIL_BG as GLOBAL_DETAIL_BG,
-    DETAIL_BORDER as GLOBAL_DETAIL_BORDER, LIST_BG as GLOBAL_LIST_BG,
-    LIST_BORDER as GLOBAL_LIST_BORDER, TEXT_BODY, TEXT_DISABLED, TEXT_MUTED, TEXT_PLACEHOLDER,
+    DETAIL_BG as GLOBAL_DETAIL_BG, DETAIL_BORDER as GLOBAL_DETAIL_BORDER,
+    LIST_BG as GLOBAL_LIST_BG, LIST_BORDER as GLOBAL_LIST_BORDER, TEXT_BODY, TEXT_DISABLED,
+    TEXT_MUTED, TEXT_PLACEHOLDER,
 };
 
 // ---------------------------------------------------------------------------

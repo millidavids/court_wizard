@@ -126,20 +126,16 @@ Systems are grouped into sets with explicit ordering:
 
 ## Build Instructions
 
-### Development (Native)
-**IMPORTANT**: After completing ANY task that modifies Rust code, you MUST run (except changelog changes):
-```bash
-./build_native.sh
-```
-
-### Cross-compile for Windows (from WSL2)
+### Development (Windows from WSL2 — default)
+**IMPORTANT**: This machine is WSL2 — the user runs the game on Windows. Always default to the Windows cross-compile after completing ANY task that modifies Rust code (except changelog changes):
 ```bash
 ./build_native.sh windows
 ```
 
+Do NOT run `./build_native.sh` without `windows` on this machine — the Linux build requires system dev packages (libasound2-dev, libwayland-dev, libxkbcommon-dev, libudev-dev) that are not installed, and the user tests natively on Windows anyway.
+
 ### Release Build
 ```bash
-./build_native.sh --release
 ./build_native.sh windows --release
 ```
 

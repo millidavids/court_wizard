@@ -2,8 +2,8 @@
 //!
 //! Aggregates all UI sub-plugins (main menu, pause menu, etc.)
 
-use bevy::prelude::*;
 use bevy::prelude::UiMaterialPlugin;
+use bevy::prelude::*;
 use bevy::ui::UiScale as BevyUiScale;
 use bevy::window::PrimaryWindow;
 
@@ -15,6 +15,8 @@ use super::arcanorouter_display::ArcanoRouterDisplayPlugin;
 use super::cauldron_menu::CauldronMenuPlugin;
 use super::components::{load_spell_icon_assets, set_default_font};
 use super::concentration::ConcentrationUIPlugin;
+use super::focus::FocusPlugin;
+use super::gamepad_glyphs::GamepadGlyphsPlugin;
 use super::game_over::GameOverPlugin;
 use super::in_game::plugin::InGamePlugin;
 use super::loading::LoadingUiPlugin;
@@ -46,6 +48,7 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            FocusPlugin,
             AchievementPopupPlugin,
             SplashScreenPlugin,
             MainMenuPlugin,
@@ -61,6 +64,7 @@ impl Plugin for UiPlugin {
             ArcanoRouterDisplayPlugin,
             GameOverPlugin,
         ))
+        .add_plugins(GamepadGlyphsPlugin)
         .add_plugins((
             WizardTowerPlugin,
             VersionPlugin,
@@ -82,12 +86,13 @@ impl Plugin for UiPlugin {
                 systems::button_interaction,
                 systems::reset_deactivated_buttons,
                 systems::sync_front_face_colors,
+                systems::apply_gamepad_focus_tint.after(systems::sync_front_face_colors),
+                systems::apply_flat_gamepad_focus_tint.after(systems::sync_front_face_colors),
                 systems::animate_button_3d,
                 systems::apply_parchment_backgrounds,
                 systems::apply_frosted_glass_overlays,
                 systems::apply_3d_button_structure,
-                systems::enforce_active_button_state
-                    .after(systems::apply_3d_button_structure),
+                systems::enforce_active_button_state.after(systems::apply_3d_button_structure),
             ),
         );
     }

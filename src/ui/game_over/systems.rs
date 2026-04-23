@@ -217,11 +217,7 @@ pub(super) fn save_terrain_on_victory(
 
     // In Endless mode, also save a per-level terrain snapshot for time travel.
     if crate::game::game_mode::components::is_endless_mode(game_mode.as_deref()) {
-        crate::config::save_data::save_level_terrain(
-            &active_save,
-            current_level.0,
-            &config,
-        );
+        crate::config::save_data::save_level_terrain(&active_save, current_level.0, &config);
     }
 }
 
@@ -280,6 +276,13 @@ pub(super) fn setup_game_over_screen(
         },
     );
 
+    // Trap gamepad focus to the score-screen buttons. Without this marker
+    // the focus system keeps whatever focus target was active behind the
+    // overlay (usually the in-game HUD buttons), so controller nav would
+    // interact with the gameplay screen through the score screen.
+    commands
+        .entity(content)
+        .insert(crate::ui::focus::ModalOverlay);
     commands.entity(content).with_children(|parent| {
         // Left column - Buttons
         parent
@@ -653,8 +656,12 @@ pub(super) fn handle_button_actions(
                     } else {
                         // Save roguelite run to disk for resume
                         save_dormant_roguelite_run(
-                            &active_save, &roguelite_run, &config,
-                            &roguelite_modifiers, &active_toggles, &game_seed,
+                            &active_save,
+                            &roguelite_run,
+                            &config,
+                            &roguelite_modifiers,
+                            &active_toggles,
+                            &game_seed,
                         );
                         insert_wizard_tower_tab(&mut commands, game_mode.as_deref());
                         next_app_state.set(AppState::MetaGame);
@@ -668,8 +675,12 @@ pub(super) fn handle_button_actions(
                     }
                     // Save roguelite run to disk for resume
                     save_dormant_roguelite_run(
-                        &active_save, &roguelite_run, &config,
-                        &roguelite_modifiers, &active_toggles, &game_seed,
+                        &active_save,
+                        &roguelite_run,
+                        &config,
+                        &roguelite_modifiers,
+                        &active_toggles,
+                        &game_seed,
                     );
                     insert_wizard_tower_tab(&mut commands, game_mode.as_deref());
                     next_app_state.set(AppState::MetaGame);

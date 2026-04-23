@@ -118,9 +118,7 @@ impl InsightBonuses {
         let bonus = InsightBonusStat::bonus_per_level();
         let max = InsightBonusStat::max_level();
 
-        let level = |id: &str| -> f32 {
-            bonuses.get(id).copied().unwrap_or(0).min(max) as f32
-        };
+        let level = |id: &str| -> f32 { bonuses.get(id).copied().unwrap_or(0).min(max) as f32 };
 
         Self {
             spell_damage_mult: 1.0 + bonus * level(InsightBonusStat::SpellDamage.id()),

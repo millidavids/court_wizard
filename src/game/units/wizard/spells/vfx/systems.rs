@@ -923,11 +923,25 @@ pub fn spawn_fire_orange_smoke(
 
     // Spawn flickering embers at the base
     let ember_count = (count * 2).max(2);
-    spawn_fire_embers(commands, assets, position, half_width, ember_count, time_secs);
+    spawn_fire_embers(
+        commands,
+        assets,
+        position,
+        half_width,
+        ember_count,
+        time_secs,
+    );
 
     // Spawn rising dark smoke above the fire (plague-wind style billowing)
     let smoke_count = count.max(1);
-    spawn_fire_rising_smoke(commands, assets, position, half_width, smoke_count, time_secs);
+    spawn_fire_rising_smoke(
+        commands,
+        assets,
+        position,
+        half_width,
+        smoke_count,
+        time_secs,
+    );
 }
 
 /// Spawns flickering ember particles at the base of a fire effect.
@@ -1065,8 +1079,7 @@ pub fn update_plague_smoke(
 
         // Fire puffs also get Z-axis sway for 3D billowing
         if is_fire {
-            let sway_z = (t * constants::PLAGUE_SMOKE_SWAY_FREQUENCY * 0.7
-                * std::f32::consts::TAU
+            let sway_z = (t * constants::PLAGUE_SMOKE_SWAY_FREQUENCY * 0.7 * std::f32::consts::TAU
                 + smoke.phase
                 + 1.5)
                 .cos()
@@ -1470,7 +1483,9 @@ pub fn spawn_aura_bubble(
     max_radius: f32,
     duration: f32,
 ) {
-    spawn_aura_bubble_inner(commands, assets, material, position, max_radius, duration, false);
+    spawn_aura_bubble_inner(
+        commands, assets, material, position, max_radius, duration, false,
+    );
 }
 
 /// Spawns a contracting aura bubble that fades in at full size and shrinks to a point.
@@ -1482,7 +1497,9 @@ pub fn spawn_aura_bubble_contracting(
     max_radius: f32,
     duration: f32,
 ) {
-    spawn_aura_bubble_inner(commands, assets, material, position, max_radius, duration, true);
+    spawn_aura_bubble_inner(
+        commands, assets, material, position, max_radius, duration, true,
+    );
 }
 
 fn spawn_aura_bubble_inner(
@@ -1494,11 +1511,7 @@ fn spawn_aura_bubble_inner(
     duration: f32,
     contracting: bool,
 ) {
-    let initial_scale = if contracting {
-        max_radius
-    } else {
-        0.1
-    };
+    let initial_scale = if contracting { max_radius } else { 0.1 };
     commands.spawn((
         AuraBubbleVfx {
             max_radius,

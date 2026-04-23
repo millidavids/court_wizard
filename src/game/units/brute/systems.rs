@@ -16,9 +16,9 @@ use crate::game::terrain::boulder::messages::BoulderThrownMessage;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrozenSolidModifier,
-    HasteModifier, Health, Hitbox, InMelee, MovementSpeed, PolymorphedModifier, RetaliationTarget,
-    RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier, Sleepwalking,
-    MindControlled, SlowMovementModifier, TargetingVelocity, Team, Teleportable, UnitTypeGlow,
+    HasteModifier, Health, Hitbox, InMelee, MindControlled, MovementSpeed, PolymorphedModifier,
+    RetaliationTarget, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
+    Sleepwalking, SlowMovementModifier, TargetingVelocity, Team, Teleportable, UnitTypeGlow,
 };
 use crate::game::units::infantry::constants::ATTACKER_SPRITE_TINT;
 use crate::game::units::infantry::resources::InfantryAssets;
@@ -277,7 +277,17 @@ pub fn brute_rock_throw(
         brute_transform,
         brute_team,
         mut cooldown,
-        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned, petrified, polymorphed),
+        (
+            rooted,
+            sleeping,
+            sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
+            petrified,
+            polymorphed,
+        ),
     ) in &mut brutes
     {
         if crate::game::units::systems::is_cc_immobilized(

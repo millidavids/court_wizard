@@ -136,7 +136,10 @@ achievement_resource!(PeakWizardAchievement, AchievementId::PeakWizard);
 
 // Boss encounters & defeats
 achievement_resource!(LichEncounterAchievement, AchievementId::LichEncounter);
-achievement_resource!(DarkMageEncounterAchievement, AchievementId::DarkMageEncounter);
+achievement_resource!(
+    DarkMageEncounterAchievement,
+    AchievementId::DarkMageEncounter
+);
 achievement_resource!(HagsDefeatedAchievement, AchievementId::HagsDefeated);
 achievement_resource!(OgreDefeatedAchievement, AchievementId::OgreDefeated);
 achievement_resource!(LichDefeatedAchievement, AchievementId::LichDefeated);

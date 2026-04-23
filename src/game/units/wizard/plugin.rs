@@ -5,6 +5,7 @@ use crate::game::run_conditions::{
 };
 use crate::state::InGameState;
 
+use super::aim_line::AimLinePlugin;
 use super::archetypes::ArchetypesPlugin;
 use super::messages::PrimeSpellMessage;
 use super::spell_range_indicator::SpellRangeIndicatorPlugin;
@@ -26,13 +27,20 @@ pub struct WizardPlugin;
 impl Plugin for WizardPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<PrimeSpellMessage>()
-            .add_plugins((SpellsPlugin, SpellRangeIndicatorPlugin, ArchetypesPlugin))
+            .add_plugins((
+                SpellsPlugin,
+                SpellRangeIndicatorPlugin,
+                ArchetypesPlugin,
+                AimLinePlugin,
+            ))
             .add_systems(
                 Update,
                 (
                     systems::regenerate_mana.run_if(is_not_warglock),
                     systems::mana_on_kill.run_if(
-                        |toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>| {
+                        |toggles: Option<
+                            Res<crate::game::game_mode::components::ActiveToggles>,
+                        >| {
                             toggles.as_ref().is_some_and(|t| {
                                 t.is_active(
                                     crate::game::game_mode::components::ToggleModifier::ManaDrought,

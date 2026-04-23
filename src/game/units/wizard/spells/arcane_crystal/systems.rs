@@ -143,7 +143,6 @@ fn find_random_targets_in_range(
     count: usize,
     units: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
 ) -> Vec<(Entity, Vec3)> {
-
     let mut candidates: Vec<(Entity, Vec3)> = units
         .iter()
         .filter(|(_, transform)| xz_distance(crystal_pos, transform.translation) <= range)
@@ -169,7 +168,6 @@ fn find_random_enemies_in_range(
     count: usize,
     units: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
 ) -> Vec<(Entity, Vec3)> {
-
     let mut candidates: Vec<(Entity, Vec3)> = units
         .iter()
         .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
@@ -772,8 +770,13 @@ pub(super) fn detect_fireball_hits(
 
                 // Emit mini fireballs at random targets
                 let count = scaled_count(MINI_FB_COUNT, crystal.count_mult) * echo_mult;
-                let enemies =
-                    find_random_targets_in_range(rng, crystal.position, crystal.range, count, &targets);
+                let enemies = find_random_targets_in_range(
+                    rng,
+                    crystal.position,
+                    crystal.range,
+                    count,
+                    &targets,
+                );
 
                 let mini_radius =
                     fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
@@ -1005,8 +1008,12 @@ pub(super) fn detect_beam_hits(
                 let rng = &mut game_rng.0;
                 let echo_mult = spell_echo_multiplier(rng, crystal.spell_echo);
                 let fod_beam_count = scaled_count(BEAM_COUNT, crystal.count_mult) * echo_mult;
-                let enemies = find_random_targets_in_range(rng,
-                    crystal.position, crystal.range, fod_beam_count, &targets,
+                let enemies = find_random_targets_in_range(
+                    rng,
+                    crystal.position,
+                    crystal.range,
+                    fod_beam_count,
+                    &targets,
                 );
                 let damage_scale = BEAM_DAMAGE_SCALE * crystal.damage_mult;
                 let fod_damage_per_tick = finger_of_death_constants::DAMAGE * damage_scale
@@ -1095,8 +1102,13 @@ pub(super) fn detect_meteor_hits(
                 let damage_scale = DAMAGE_SCALE * crystal.damage_mult;
 
                 // Emit mini meteors at random targets
-                let enemies =
-                    find_random_targets_in_range(rng, crystal.position, crystal.range, count, &targets);
+                let enemies = find_random_targets_in_range(
+                    rng,
+                    crystal.position,
+                    crystal.range,
+                    count,
+                    &targets,
+                );
 
                 for (_, target_pos) in &enemies {
                     let spawn_pos = Vec3::new(target_pos.x, MINI_METEOR_SPAWN_HEIGHT, target_pos.z);
@@ -1165,8 +1177,13 @@ pub(super) fn detect_magic_missile_hits(
                 let count = scaled_count(MINI_MISSILE_COUNT, crystal.count_mult) * echo_mult;
 
                 // Emit mini missiles at random enemy targets (not defenders)
-                let targets =
-                    find_random_enemies_in_range(rng, crystal.position, crystal.range, count, &enemies);
+                let targets = find_random_enemies_in_range(
+                    rng,
+                    crystal.position,
+                    crystal.range,
+                    count,
+                    &enemies,
+                );
 
                 let mini_radius = magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE;
 
@@ -1425,10 +1442,22 @@ pub(super) fn auto_cast_remembered_spell(
 
             match remembered {
                 RememberedSpell::MagicMissile => {
-                    auto_cast_magic_missiles(&mut game_rng.0, &autocast, &mut commands, &visual_assets, &enemies);
+                    auto_cast_magic_missiles(
+                        &mut game_rng.0,
+                        &autocast,
+                        &mut commands,
+                        &visual_assets,
+                        &enemies,
+                    );
                 }
                 RememberedSpell::Fireball => {
-                    auto_cast_fireballs(&mut game_rng.0, &autocast, &mut commands, &visual_assets, &targets);
+                    auto_cast_fireballs(
+                        &mut game_rng.0,
+                        &autocast,
+                        &mut commands,
+                        &visual_assets,
+                        &targets,
+                    );
                 }
                 RememberedSpell::ChainLightning => {
                     auto_cast_chain_lightning(
@@ -1441,7 +1470,13 @@ pub(super) fn auto_cast_remembered_spell(
                     );
                 }
                 RememberedSpell::Meteor => {
-                    auto_cast_meteors(&mut game_rng.0, &autocast, &mut commands, &visual_assets, &targets);
+                    auto_cast_meteors(
+                        &mut game_rng.0,
+                        &autocast,
+                        &mut commands,
+                        &visual_assets,
+                        &targets,
+                    );
                 }
                 RememberedSpell::FingerOfDeath => {
                     auto_cast_fod_beams(
@@ -2021,7 +2056,13 @@ pub(super) fn auto_crystal_fire(
         timer.timer -= interval;
 
         // Find a random enemy in range
-        let targets = find_random_enemies_in_range(&mut game_rng.0, crystal.position, crystal.range, 1, &enemies);
+        let targets = find_random_enemies_in_range(
+            &mut game_rng.0,
+            crystal.position,
+            crystal.range,
+            1,
+            &enemies,
+        );
 
         let Some((target_entity, target_pos)) = targets.first() else {
             continue;
@@ -2123,8 +2164,12 @@ pub(super) fn crystal_network_chain(
                     RememberedSpell::MagicMissile => {
                         let count =
                             scaled_count(MINI_MISSILE_COUNT / 2 + 1, target_crystal.count_mult);
-                        let mini_targets = find_random_enemies_in_range(&mut game_rng.0,
-                            target_crystal.position, target_crystal.range, count, &enemies,
+                        let mini_targets = find_random_enemies_in_range(
+                            &mut game_rng.0,
+                            target_crystal.position,
+                            target_crystal.range,
+                            count,
+                            &enemies,
                         );
                         let mini_radius = magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE;
                         for (te, tp) in &mini_targets {
@@ -2148,8 +2193,12 @@ pub(super) fn crystal_network_chain(
                     }
                     RememberedSpell::Fireball => {
                         let count = scaled_count(MINI_FB_COUNT / 2 + 1, target_crystal.count_mult);
-                        let fire_targets = find_random_targets_in_range(&mut game_rng.0,
-                            target_crystal.position, target_crystal.range, count, &targets,
+                        let fire_targets = find_random_targets_in_range(
+                            &mut game_rng.0,
+                            target_crystal.position,
+                            target_crystal.range,
+                            count,
+                            &targets,
                         );
                         let mini_radius =
                             fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
@@ -2180,8 +2229,12 @@ pub(super) fn crystal_network_chain(
                     }
                     RememberedSpell::Meteor => {
                         let count = scaled_count(1, target_crystal.count_mult);
-                        let meteor_targets = find_random_targets_in_range(&mut game_rng.0,
-                            target_crystal.position, target_crystal.range, count, &targets,
+                        let meteor_targets = find_random_targets_in_range(
+                            &mut game_rng.0,
+                            target_crystal.position,
+                            target_crystal.range,
+                            count,
+                            &targets,
                         );
                         let mini_radius = meteor_fall_constants::METEOR_MESH_RADIUS * SIZE_SCALE;
                         for (_, tp) in &meteor_targets {

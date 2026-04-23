@@ -10,6 +10,7 @@ use crate::config::GameConfig;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::input::messages::MouseLeftHeld;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
@@ -82,7 +83,7 @@ fn compute_missile_params(talents: Option<&ActiveTalents>, wizard: &Wizard) -> M
 #[allow(clippy::too_many_arguments)]
 pub fn handle_magic_missile_casting(
     time: Res<Time>,
-    mouse: Res<ButtonInput<MouseButton>>,
+    mut mouse_left_held: MessageReader<MouseLeftHeld>,
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
@@ -102,13 +103,23 @@ pub fn handle_magic_missile_casting(
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
     peer_id: Option<Res<PeerId>>,
-    sfx: Res<SpellSfxAssets>,
-    config: Res<GameConfig>,
-    active_talents: Option<Res<ActiveTalents>>,
+    (sfx, config, active_talents): (
+        Res<SpellSfxAssets>,
+        Res<GameConfig>,
+        Option<Res<ActiveTalents>>,
+    ),
     existing_barrage: Query<Entity, With<ArcaneBarrage>>,
+    // Hard guard against same-window double-cast. Tracks the `Time::elapsed_secs`
+    // value at the most recent successful cast; re-entry within half the
+    // cooldown window is refused regardless of whether the
+    // `MagicMissileCooldown` component has been applied by deferred commands.
+    mut last_cast_elapsed: Local<f32>,
 ) {
-    // Only fire on initial click, not while mouse is held
-    if !mouse.just_pressed(MouseButton::Left) {
+    // Fire while the button is held so holding RT/mouse auto-cycles at the
+    // cooldown rate. `MouseLeftHeld` fires every frame the button is down
+    // (including the press frame). The `MagicMissileCooldown` gate below
+    // prevents spam.
+    if mouse_left_held.read().next().is_none() {
         return;
     }
 
@@ -124,6 +135,11 @@ pub fn handle_magic_missile_casting(
 
     // Check cooldown
     if cooldown.is_some_and(|cd| cd.remaining > 0.0) {
+        return;
+    }
+    let now = time.elapsed_secs();
+    let min_gap = constants::COOLDOWN * 0.5;
+    if *last_cast_elapsed > 0.0 && now - *last_cast_elapsed < min_gap {
         return;
     }
 
@@ -175,6 +191,7 @@ pub fn handle_magic_missile_casting(
             },
             OnGameplayScreen,
         ));
+        *last_cast_elapsed = now;
         return;
     }
 
@@ -221,6 +238,7 @@ pub fn handle_magic_missile_casting(
     commands.entity(wizard_entity).insert(MagicMissileCooldown {
         remaining: constants::COOLDOWN * params.cooldown_mult,
     });
+    *last_cast_elapsed = now;
 }
 
 /// Ticks the Arcane Barrage concentration entity, periodically firing missile volleys.

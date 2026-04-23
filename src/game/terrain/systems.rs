@@ -18,9 +18,7 @@ use crate::game::pathfinding::messages::{ObstacleChanged, ObstacleShape, Obstacl
 use crate::game::units::DamageType;
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
-use crate::game::units::wizard::spells::fireball::{
-    constants as fireball_constants,
-};
+use crate::game::units::wizard::spells::fireball::constants as fireball_constants;
 use crate::game::units::wizard::spells::visual_assets::{
     FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material,
 };

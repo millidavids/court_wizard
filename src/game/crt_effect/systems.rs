@@ -30,7 +30,7 @@ fn ndc_to_uv(ndc: Vec3) -> Vec2 {
 /// from the previous frame and re-apply barrel distortion each frame,
 /// causing the cursor to drift toward the screen edge.
 #[derive(Resource, Default)]
-pub(super) struct RawCursorPosition(pub(super) Option<Vec2>);
+pub(crate) struct RawCursorPosition(pub(super) Option<Vec2>);
 
 /// Corrects the stored cursor position to account for CRT barrel distortion.
 ///
@@ -73,7 +73,7 @@ fn barrel_correct(
     )
 }
 
-pub(super) fn correct_cursor_for_barrel_distortion(
+pub(crate) fn correct_cursor_for_barrel_distortion(
     windows: Query<&Window, With<PrimaryWindow>>,
     crt_query: Query<&CrtEffectSettings>,
     mut cursor_moved: MessageReader<CursorMoved>,
@@ -153,7 +153,7 @@ pub(super) fn correct_cursor_for_barrel_distortion(
 /// Instead, this system runs AFTER `ui_focus_system` and re-does the hit testing
 /// using barrel-corrected cursor coordinates, overriding `Interaction` values.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn correct_ui_interaction_for_barrel(
+pub(crate) fn correct_ui_interaction_for_barrel(
     corrected_cursor: Res<CorrectedCursorPosition>,
     windows: Query<&Window, With<PrimaryWindow>>,
     camera_query: Query<(Entity, &Camera)>,
@@ -550,9 +550,12 @@ pub(super) fn update_heat_distortion_positions(
         if count >= 4 {
             break;
         }
-        if let Some(uv_radius) =
-            project_point_source(camera, camera_transform, explosion.origin, explosion.max_radius)
-        {
+        if let Some(uv_radius) = project_point_source(
+            camera,
+            camera_transform,
+            explosion.origin,
+            explosion.max_radius,
+        ) {
             set_distortion_slot(&mut settings, count, uv_radius.0, uv_radius.0, uv_radius.1);
             count += 1;
         }

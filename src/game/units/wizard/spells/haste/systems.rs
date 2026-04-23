@@ -254,8 +254,10 @@ pub(crate) fn apply_haste_buff(
     let mut buffed_count = 0u32;
 
     for (entity, transform, existing_haste) in targets.iter_mut() {
-        let distance =
-            crate::game::units::wizard::spells::utils::xz_distance(transform.translation, circle_pos);
+        let distance = crate::game::units::wizard::spells::utils::xz_distance(
+            transform.translation,
+            circle_pos,
+        );
         if distance <= radius {
             if let Some(mut haste) = existing_haste {
                 // Refresh duration if already hasted

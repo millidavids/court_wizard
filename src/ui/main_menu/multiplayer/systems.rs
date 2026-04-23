@@ -287,7 +287,10 @@ pub fn setup(
                     spawn_button(
                         wrapper,
                         "Back",
-                        MultiplayerButtonAction::Back,
+                        (
+                            MultiplayerButtonAction::Back,
+                            crate::ui::focus::NoGamepadFocus,
+                        ),
                         &CONN_BUTTON_STYLE,
                     );
                 });

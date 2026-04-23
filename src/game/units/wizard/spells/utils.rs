@@ -36,7 +36,9 @@ pub(crate) fn sphere_intersects_cylinder(
     cylinder_height: f32,
 ) -> bool {
     // Clamp sphere Y to cylinder vertical range
-    let clamped_y = sphere_center.y.clamp(cylinder_pos.y, cylinder_pos.y + cylinder_height);
+    let clamped_y = sphere_center
+        .y
+        .clamp(cylinder_pos.y, cylinder_pos.y + cylinder_height);
     let dy = sphere_center.y - clamped_y;
 
     // XZ distance between centers
@@ -441,7 +443,13 @@ pub(crate) fn compute_target_assist(
     config: Res<crate::config::GameConfig>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
-    units: Query<&Transform, (With<Health>, Without<super::super::super::components::Corpse>)>,
+    units: Query<
+        &Transform,
+        (
+            With<Health>,
+            Without<super::super::super::components::Corpse>,
+        ),
+    >,
 ) {
     let snap_radius = config.target_assist_snap_radius();
     if snap_radius <= 0.0 {
@@ -581,5 +589,82 @@ pub(crate) fn try_start_cast_with_indicator(
         true
     } else {
         false
+    }
+}
+
+/// Ticks `GlobalCastCooldown` down each frame, removing the component when
+/// it expires so spell input is unblocked.
+pub(crate) fn tick_global_cast_cooldown(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut crate::game::units::wizard::components::GlobalCastCooldown)>,
+) {
+    for (entity, mut cd) in &mut query {
+        cd.remaining -= time.delta_secs();
+        if cd.remaining <= 0.0 {
+            commands
+                .entity(entity)
+                .remove::<crate::game::units::wizard::components::GlobalCastCooldown>();
+        }
+    }
+}
+
+/// Detects charge-spell completion (CastingState just went from `Casting`
+/// to `Resting` AND mana decreased on the same frame) and inserts a global
+/// cooldown on the local wizard. Channel-release returns `Channeling` →
+/// `Resting` (not `Casting` → `Resting`) so channeled spells don't trigger
+/// the cooldown. Cancellation (release before cast_time) doesn't consume
+/// mana, so the mana check also excludes that case.
+pub(crate) fn insert_global_cooldown_on_cast(
+    mut commands: Commands,
+    query: Query<
+        (
+            Entity,
+            &crate::game::units::wizard::components::CastingState,
+            &crate::game::units::wizard::components::Mana,
+        ),
+        With<crate::game::units::wizard::components::LocalWizard>,
+    >,
+    mut prev_state: Local<Option<crate::game::units::wizard::components::CastingState>>,
+    mut prev_mana: Local<Option<f32>>,
+) {
+    let Ok((entity, state, mana)) = query.single() else {
+        return;
+    };
+    let mana_decreased = prev_mana.is_some_and(|p| mana.current < p - f32::EPSILON);
+    let was_casting = matches!(
+        *prev_state,
+        Some(crate::game::units::wizard::components::CastingState::Casting { .. })
+    );
+    let now_resting = matches!(
+        state,
+        crate::game::units::wizard::components::CastingState::Resting
+    );
+    if was_casting && now_resting && mana_decreased {
+        commands
+            .entity(entity)
+            .insert(crate::game::units::wizard::components::GlobalCastCooldown {
+                remaining: crate::game::units::wizard::components::GLOBAL_CAST_COOLDOWN_SECS,
+            });
+    }
+    *prev_state = Some(*state);
+    *prev_mana = Some(mana.current);
+}
+
+/// Writes `BlockSpellInput` whenever the local wizard has a
+/// `GlobalCastCooldown`, so every spell's `spell_input_not_blocked`
+/// run_if rejects while the cooldown is active.
+pub(crate) fn block_spells_during_global_cooldown(
+    query: Query<
+        (),
+        (
+            With<crate::game::units::wizard::components::LocalWizard>,
+            With<crate::game::units::wizard::components::GlobalCastCooldown>,
+        ),
+    >,
+    mut block: MessageWriter<crate::game::input::messages::BlockSpellInput>,
+) {
+    if !query.is_empty() {
+        block.write(crate::game::input::messages::BlockSpellInput);
     }
 }

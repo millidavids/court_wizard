@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-/// Marker component for the action bar root container.
+/// Marker component for the action bar root container. There is only one
+/// action bar — its slots reorganize between linear (bottom-left row, mouse
+/// mode) and radial (ring near the wizard, gamepad mode) layouts via an
+/// animated transition rather than swapping between two different roots.
 #[derive(Component)]
 pub(crate) struct ActionBarRoot;
 
@@ -36,6 +39,21 @@ pub(super) struct DebugManaButton;
 /// Marker for action bar slots currently highlighted by keyboard input.
 #[derive(Component)]
 pub(super) struct KeyboardHighlighted;
+
+/// Short-lived visual pulse applied to a slot when the player commits it via
+/// right-stick + RT. Decays over `RADIAL_COMMIT_FLASH_SECS`, painting the
+/// button yellow, then removes itself and restores the default background.
+#[derive(Component)]
+pub(super) struct RadialCommitFlash {
+    pub(super) remaining: f32,
+}
+
+/// Progress of the layout morph from linear (0.0) to radial (1.0). The
+/// `animate_action_bar_layout` system ticks this toward the target implied by
+/// `ActiveInputDevice` each frame and applies the resulting per-slot
+/// position via absolute `Node` coordinates.
+#[derive(Resource, Default, Debug, Clone, Copy)]
+pub(super) struct ActionBarLayoutProgress(pub f32);
 
 /// Resource that tracks whether infinite mana is enabled.
 #[derive(Resource, Default)]

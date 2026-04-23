@@ -160,6 +160,58 @@ pub(super) fn trigger_cauldron_tutorial(
     );
 }
 
+/// Controller-specific menu nav primer, queued on entering the Wizard Tower
+/// while a gamepad is the active input device. Runs BEFORE the normal
+/// Wizard-Tower tutorial so controller users learn navigation basics first;
+/// on subsequent visits (after it's marked complete) the standard tutorials
+/// take over.
+pub(super) fn trigger_controller_menus_tutorial(
+    mut commands: Commands,
+    progress: Res<TutorialProgress>,
+    config: Res<GameConfig>,
+    active: Option<Res<ActiveTutorial>>,
+    active_input: Res<crate::game::input::gamepad::resources::ActiveInputDevice>,
+) {
+    if !active_input.is_gamepad() {
+        return;
+    }
+    try_start_tutorial(
+        &mut commands,
+        TutorialId::ControllerMenusIntro,
+        &progress,
+        &config,
+        active.as_deref(),
+        false,
+    );
+}
+
+/// Controller-specific combat primer, queued on entering a gameplay session
+/// while a gamepad is the active input device. Pauses gameplay during the
+/// walkthrough (like the standard in-game tutorial) so the player can focus
+/// on the button-mapping text.
+pub(super) fn trigger_controller_in_game_tutorial(
+    mut commands: Commands,
+    progress: Res<TutorialProgress>,
+    config: Res<GameConfig>,
+    active: Option<Res<ActiveTutorial>>,
+    active_input: Res<crate::game::input::gamepad::resources::ActiveInputDevice>,
+    mut next_in_game_state: ResMut<NextState<InGameState>>,
+) {
+    if !active_input.is_gamepad() {
+        return;
+    }
+    if try_start_tutorial(
+        &mut commands,
+        TutorialId::ControllerInGameIntro,
+        &progress,
+        &config,
+        active.as_deref(),
+        true,
+    ) {
+        next_in_game_state.set(InGameState::Tutorial);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Overlay spawn/despawn
 // ---------------------------------------------------------------------------
@@ -215,6 +267,7 @@ pub(super) fn spawn_tutorial_overlay(
                 ..default()
             },
             BackgroundColor(OVERLAY_BG),
+            crate::ui::focus::ModalOverlay,
         ))
         .with_children(|overlay| {
             overlay

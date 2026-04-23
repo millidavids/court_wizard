@@ -966,6 +966,20 @@ impl CastingState {
     }
 }
 
+/// Post-cast cooldown applied to the wizard after any charge spell fires.
+/// While present, spell input is blocked so holding the cast button auto-
+/// cycles at a defined interval rather than firing as fast as cast_time
+/// allows. Does not affect channeled spells (they use `CastingState::Channeling`
+/// which isn't a "completion" event) or Magic Missile (which has its own
+/// `MagicMissileCooldown` with talent modifiers).
+#[derive(Component, Debug, Clone, Copy)]
+pub struct GlobalCastCooldown {
+    pub remaining: f32,
+}
+
+/// Seconds of post-cast cooldown on every charge spell.
+pub const GLOBAL_CAST_COOLDOWN_SECS: f32 = 1.0;
+
 /// Marker component to track when the wizard is actively casting a spell.
 ///
 /// This marker is added when a spell cast begins and removed immediately after

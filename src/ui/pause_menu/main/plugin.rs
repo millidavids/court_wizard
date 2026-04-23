@@ -33,10 +33,7 @@ impl Plugin for PauseMainPlugin {
             )
             .add_systems(
                 Update,
-                (
-                    escape_to_running,
-                    handle_scroll::<ScrollablePauseStats>,
-                )
+                (escape_to_running, handle_scroll::<ScrollablePauseStats>)
                     .run_if(in_state(PauseMenuState::Main)),
             );
     }

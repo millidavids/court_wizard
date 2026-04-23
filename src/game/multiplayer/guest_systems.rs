@@ -861,8 +861,7 @@ pub(super) fn spawn_spell_effect(
         SpellEffectKind::IceExplosion => {
             let max_radius = extra[0];
             let empowerment = extra[1];
-            let mat_handle =
-                clone_sphere_material(sphere_materials, &assets.ice_explosion_sphere);
+            let mat_handle = clone_sphere_material(sphere_materials, &assets.ice_explosion_sphere);
             Some(
                 commands
                     .spawn((

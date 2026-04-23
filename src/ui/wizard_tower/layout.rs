@@ -144,8 +144,7 @@ pub(super) fn setup_wizard_tower_layout(
     // Restore dormant roguelite run from disk if no in-memory run exists.
     // This allows resuming a run after closing the game or switching modes.
     if existing_run.is_none()
-        && let Some(saved_run) =
-            crate::config::save_data::load_current_roguelite_run(&active_save)
+        && let Some(saved_run) = crate::config::save_data::load_current_roguelite_run(&active_save)
     {
         // Restore game mode and run state resources
         commands.insert_resource(crate::game::game_mode::components::GameMode::Roguelite);
@@ -156,9 +155,8 @@ pub(super) fn setup_wizard_tower_layout(
         if let Some(mods) = saved_run.modifiers {
             commands.insert_resource(mods);
         }
-        let toggles = crate::game::game_mode::components::ActiveToggles::from_ids(
-            &saved_run.active_toggles,
-        );
+        let toggles =
+            crate::game::game_mode::components::ActiveToggles::from_ids(&saved_run.active_toggles);
         commands.insert_resource(toggles);
         if let Some(seed) = saved_run.seed {
             commands.insert_resource(crate::game::seeded_rng::resources::GameSeed(seed));
@@ -239,7 +237,10 @@ pub(super) fn setup_wizard_tower_layout(
                 spawn_button(
                     header,
                     "Back",
-                    WizardTowerButtonAction::ReturnToMenu,
+                    (
+                        WizardTowerButtonAction::ReturnToMenu,
+                        crate::ui::focus::NoGamepadFocus,
+                    ),
                     &BACK_BUTTON_STYLE,
                 );
             });
@@ -295,7 +296,8 @@ pub(super) fn setup_wizard_tower_layout(
                                 ..default()
                             })
                             .with_children(|tab_row| {
-                                let initial_tab = existing_tab.as_deref().copied().unwrap_or_default();
+                                let initial_tab =
+                                    existing_tab.as_deref().copied().unwrap_or_default();
                                 for tab in WizardTowerTab::all() {
                                     let is_active = *tab == initial_tab;
                                     let is_disabled = tab.is_disabled();
@@ -330,6 +332,8 @@ pub(super) fn setup_wizard_tower_layout(
                                             border,
                                         },
                                         WizardTowerTabButton(*tab),
+                                        crate::ui::focus::Focusable,
+                                        crate::ui::focus::TabFocusable,
                                     ));
 
                                     if is_disabled {
@@ -414,22 +418,37 @@ pub(super) fn handle_back_button(
     }
 }
 
-/// Handles Escape key to return to the main menu from the wizard tower.
+/// Handles Escape key / gamepad back to return to the main menu from the wizard tower.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn escape_to_main_menu(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mut back_msgs: MessageReader<crate::game::input::gamepad::messages::MenuBackPressed>,
+    tab: Option<Res<WizardTowerTab>>,
+    selected_spell: Option<Res<super::components::SelectedStudySpell>>,
+    selected_bonus: Option<Res<super::components::SelectedInsightBonus>>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut kill_stats: ResMut<KillStats>,
     mut active_save: ResMut<ActiveSave>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
-    if keyboard.just_pressed(KeyCode::Escape) {
-        return_to_main_menu(
-            &mut next_app_state,
-            &mut kill_stats,
-            &mut active_save,
-            &mut channel_change,
-        );
+    let back_pressed = back_msgs.read().next().is_some();
+    if !keyboard.just_pressed(KeyCode::Escape) && !back_pressed {
+        return;
     }
+    // On Study with a selection, `study_back_to_cursor` consumes the back
+    // to deselect; swallow it here so we don't also exit to main menu.
+    let study_consumed = tab.as_deref().is_some_and(|t| *t == WizardTowerTab::Study)
+        && (selected_spell.as_deref().is_some_and(|s| s.0.is_some())
+            || selected_bonus.as_deref().is_some_and(|s| s.0.is_some()));
+    if study_consumed {
+        return;
+    }
+    return_to_main_menu(
+        &mut next_app_state,
+        &mut kill_stats,
+        &mut active_save,
+        &mut channel_change,
+    );
 }
 
 fn return_to_main_menu(
@@ -485,7 +504,6 @@ pub(super) fn rebuild_panels_on_tab_change(
 
     // If showing wizard cards, build the card grid instead of tab content
     if *right_panel_view == RightPanelView::WizardSelect {
-        commands.init_resource::<super::wizard_cards::ExpandedWizard>();
         commands.init_resource::<super::wizard_cards::SelectedWizard>();
         super::wizard_cards::build_wizard_card_grid(&mut commands, right_entity);
         return;
@@ -514,18 +532,9 @@ pub(super) fn rebuild_panels_on_tab_change(
                     pending_toggles.as_deref(),
                     active_toggles.as_deref(),
                 );
-                let seed_text = config
-                    .seed
-                    .map(|s| s.to_string())
-                    .unwrap_or_default();
-                let mods = roguelite_modifiers
-                    .as_deref()
-                    .cloned()
-                    .unwrap_or_default();
-                let pt = pending_toggles
-                    .as_deref()
-                    .cloned()
-                    .unwrap_or_default();
+                let seed_text = config.seed.map(|s| s.to_string()).unwrap_or_default();
+                let mods = roguelite_modifiers.as_deref().cloned().unwrap_or_default();
+                let pt = pending_toggles.as_deref().cloned().unwrap_or_default();
                 super::roguelite_tab::build_roguelite_no_run_right_panel(
                     &mut commands,
                     right_entity,
@@ -543,11 +552,7 @@ pub(super) fn rebuild_panels_on_tab_change(
             }
         }
         WizardTowerTab::Endless => {
-            super::endless_tab::build_endless_right_panel(
-                &mut commands,
-                right_entity,
-                &config,
-            );
+            super::endless_tab::build_endless_right_panel(&mut commands, right_entity, &config);
             super::endless_tab::build_endless_left_panel(
                 &mut commands,
                 left_entity,
@@ -581,7 +586,13 @@ pub(super) fn rebuild_panels_on_tab_change(
 pub(super) fn update_tab_active_state(
     mut commands: Commands,
     tab: Res<WizardTowerTab>,
-    tab_buttons: Query<(Entity, &WizardTowerTabButton, &Children, Has<DisabledTab>, Has<ButtonActive>)>,
+    tab_buttons: Query<(
+        Entity,
+        &WizardTowerTabButton,
+        &Children,
+        Has<DisabledTab>,
+        Has<ButtonActive>,
+    )>,
     mut tab_bg: Query<(&mut BackgroundColor, &mut BorderColor, &mut ButtonColors)>,
     mut front_bg: Query<
         (&mut BackgroundColor, &mut BorderColor),
@@ -773,8 +784,7 @@ pub(super) fn update_arcane_rune_text(
         let text_size = text_computed.size();
         let half_w_pct = text_size.x / size.x * 50.0;
         let half_h_pct = text_size.y / size.y * 50.0;
-        let pct_x =
-            50.0 + rune_text.radius * current_angle.cos() * ratio * 100.0 - half_w_pct;
+        let pct_x = 50.0 + rune_text.radius * current_angle.cos() * ratio * 100.0 - half_w_pct;
         let pct_y = 50.0 + rune_text.radius * current_angle.sin() * 100.0 - half_h_pct;
         node.left = Val::Percent(pct_x);
         node.top = Val::Percent(pct_y);

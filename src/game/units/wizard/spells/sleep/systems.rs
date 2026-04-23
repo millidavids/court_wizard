@@ -290,8 +290,10 @@ pub(crate) fn apply_sleep(
     let mut hit_count = 0u32;
 
     for (entity, transform, health, team) in targets.iter() {
-        let distance =
-            crate::game::units::wizard::spells::utils::xz_distance(transform.translation, circle_pos);
+        let distance = crate::game::units::wizard::spells::utils::xz_distance(
+            transform.translation,
+            circle_pos,
+        );
         if distance > radius {
             continue;
         }

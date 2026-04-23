@@ -116,7 +116,16 @@ pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, ter
     for _ in 0..boulder_count {
         let scale = random_scale(&mut *rng);
         let radius = ROCK_RADIUS * scale;
-        if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position, TERRAIN_MIN_X, TERRAIN_MAX_X, TERRAIN_MIN_Z, TERRAIN_MAX_Z) {
+        if let Some(pos) = try_place(
+            &mut *rng,
+            radius,
+            &placed,
+            &is_valid_position,
+            TERRAIN_MIN_X,
+            TERRAIN_MAX_X,
+            TERRAIN_MIN_Z,
+            TERRAIN_MAX_Z,
+        ) {
             let sprite_index = rng.gen_range(0..BOULDER_SPRITE_COUNT as u8);
             config.saved_boulders.push(SavedBoulder {
                 x: pos.x,
@@ -271,7 +280,16 @@ pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, ter
         let scale = random_scale(&mut *rng);
         let sprite_index = rng.gen_range(0..TREE_SPRITE_COUNT as u8);
         let radius = tree_radius_for_variant(sprite_index) * scale;
-        if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position, TERRAIN_MIN_X, TERRAIN_MAX_X, TERRAIN_MIN_Z, TERRAIN_MAX_Z) {
+        if let Some(pos) = try_place(
+            &mut *rng,
+            radius,
+            &placed,
+            &is_valid_position,
+            TERRAIN_MIN_X,
+            TERRAIN_MAX_X,
+            TERRAIN_MIN_Z,
+            TERRAIN_MAX_Z,
+        ) {
             config.saved_trees.push(SavedTree {
                 x: pos.x,
                 z: pos.y,
@@ -286,7 +304,16 @@ pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, ter
     let pond_count = scale_count(POND_BASE_COUNT_MIN, POND_BASE_COUNT_MAX);
     for _ in 0..pond_count {
         let radius = rng.gen_range(POND_RADIUS_MIN..=POND_RADIUS_MAX);
-        if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position, TERRAIN_MIN_X, TERRAIN_MAX_X, TERRAIN_MIN_Z, TERRAIN_MAX_Z) {
+        if let Some(pos) = try_place(
+            &mut *rng,
+            radius,
+            &placed,
+            &is_valid_position,
+            TERRAIN_MIN_X,
+            TERRAIN_MAX_X,
+            TERRAIN_MIN_Z,
+            TERRAIN_MAX_Z,
+        ) {
             config.saved_ponds.push(SavedPond {
                 x: pos.x,
                 z: pos.y,
@@ -301,7 +328,16 @@ pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, ter
     for _ in 0..bush_count {
         let scale = random_scale(&mut *rng);
         let radius = BUSH_RADIUS * scale;
-        if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position, TERRAIN_MIN_X, TERRAIN_MAX_X, TERRAIN_MIN_Z, TERRAIN_MAX_Z) {
+        if let Some(pos) = try_place(
+            &mut *rng,
+            radius,
+            &placed,
+            &is_valid_position,
+            TERRAIN_MIN_X,
+            TERRAIN_MAX_X,
+            TERRAIN_MIN_Z,
+            TERRAIN_MAX_Z,
+        ) {
             let sprite_index = rng.gen_range(0..BUSH_SPRITE_COUNT as u8);
             config.saved_bushes.push(SavedBush {
                 x: pos.x,

@@ -165,6 +165,10 @@ pub(super) const SPELL_ICON_SIZE: f32 = 34.0;
 // Insight constellation
 // ---------------------------------------------------------------------------
 pub(super) const INSIGHT_CONSTELLATION_OFFSET: Vec2 = Vec2::new(800.0, 0.0);
+
+/// Scale the Study graph opens with — zoomed out enough to show both the
+/// spell web and the insight constellation in one view.
+pub(super) const GRAPH_DEFAULT_SCALE: f32 = 0.55;
 pub(super) const INSIGHT_NODE_SIZE: f32 = 50.0;
 pub(super) const INSIGHT_ANCHOR_SIZE: f32 = 36.0;
 pub(super) const INSIGHT_NODE_RADIUS: f32 = 100.0;
@@ -194,11 +198,27 @@ pub(super) const COMMIT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 50.0,
     border_width: 3.0,
     font_size: 16.0,
-    background: Color::srgba(0.15, 0.3, 0.15, 0.75),
-    border: Color::srgb(0.3, 0.6, 0.3),
-    text_color: Color::srgb(0.85, 1.0, 0.85),
+    background: BUTTON_BG,
+    border: BUTTON_BORDER,
+    text_color: TEXT_PRIMARY,
     text_shadow: true,
 };
+
+/// Small square +/- button used next to the study allocation slider to
+/// let gamepad users adjust insight without dragging the handle.
+pub(super) const ALLOC_ADJUST_BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: 32.0,
+    height: 32.0,
+    border_width: 2.0,
+    font_size: 18.0,
+    background: Color::srgba(0.15, 0.15, 0.2, 0.85),
+    border: Color::srgb(0.45, 0.45, 0.55),
+    text_color: Color::srgb(0.95, 0.95, 0.95),
+    text_shadow: false,
+};
+
+/// Insight allocation step size per +/- button press (spells and bonuses).
+pub(super) const ALLOC_ADJUST_STEP: u32 = 5;
 
 pub(super) use crate::ui::constants::BACK_BUTTON_STYLE;
 

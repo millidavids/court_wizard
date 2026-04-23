@@ -206,14 +206,25 @@ pub(super) struct StudyAllocationText {
     pub spell: Spell,
 }
 
+/// Target of a study allocation +/- button. Either a spell (for unlock
+/// progress) or an insight bonus stat (for bonus upgrade progress).
+#[derive(Debug, Clone, Copy)]
+pub(super) enum AllocTarget {
+    Spell(Spell),
+    Bonus(crate::game::insight_bonuses::InsightBonusStat),
+}
+
+/// Marks a +/- button next to a study allocation slider. `delta` is in
+/// insight units (positive to increase, negative to decrease).
+#[derive(Component, Debug, Clone, Copy)]
+pub(super) struct StudyAllocAdjustButton {
+    pub target: AllocTarget,
+    pub delta: i32,
+}
+
 // ---------------------------------------------------------------------------
 // Talent UI components
 // ---------------------------------------------------------------------------
-
-/// Marker for the talent section container.
-#[derive(Component)]
-#[allow(dead_code)]
-pub(super) struct TalentSection;
 
 /// Marker for a clickable talent card.
 #[derive(Component)]
@@ -233,11 +244,6 @@ pub(super) struct TalentProgressBarFill {
 /// Marker for the talent description text area.
 #[derive(Component)]
 pub(super) struct TalentDescriptionText;
-
-/// Resource tracking which talent card is hovered for description display.
-#[derive(Resource, Default)]
-#[allow(dead_code)]
-pub(super) struct HoveredTalent(pub Option<(Spell, u8, u8)>);
 
 // ---------------------------------------------------------------------------
 // Insight constellation components

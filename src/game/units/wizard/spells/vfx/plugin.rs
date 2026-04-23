@@ -56,10 +56,7 @@ impl Plugin for VfxPlugin {
 }
 
 /// Updates the global time uniform on all fire particle materials each frame.
-fn update_fire_particle_time(
-    time: Res<Time>,
-    mut materials: ResMut<Assets<FireParticleMaterial>>,
-) {
+fn update_fire_particle_time(time: Res<Time>, mut materials: ResMut<Assets<FireParticleMaterial>>) {
     let t = time.elapsed_secs();
     for (_id, material) in materials.iter_mut() {
         material.time = t;
@@ -69,7 +66,9 @@ fn update_fire_particle_time(
 /// Updates the global time uniform on all aura sphere materials each frame.
 fn update_aura_sphere_time(
     time: Res<Time>,
-    mut materials: ResMut<Assets<crate::game::units::wizard::spells::visual_assets::AuraSphereMaterial>>,
+    mut materials: ResMut<
+        Assets<crate::game::units::wizard::spells::visual_assets::AuraSphereMaterial>,
+    >,
 ) {
     let t = time.elapsed_secs();
     for (_id, material) in materials.iter_mut() {

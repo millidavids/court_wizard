@@ -32,12 +32,9 @@ pub(super) fn preload_ogre_assets(
 ) {
     let assets = OgreAssets {
         sprite_mesh: meshes.add(Rectangle::new(OGRE_SPRITE_WIDTH, OGRE_SPRITE_HEIGHT)),
-        walking_texture: asset_server
-            .load("images/sprite_sheets/ogre-walking_4-frames.png"),
-        attacking_texture: asset_server
-            .load("images/sprite_sheets/ogre-attacking_4-frames.png"),
-        throwing_texture: asset_server
-            .load("images/sprite_sheets/ogre-throwing_4-frames.png"),
+        walking_texture: asset_server.load("images/sprite_sheets/ogre-walking_4-frames.png"),
+        attacking_texture: asset_server.load("images/sprite_sheets/ogre-attacking_4-frames.png"),
+        throwing_texture: asset_server.load("images/sprite_sheets/ogre-throwing_4-frames.png"),
         swing_sfx: asset_server.load("audio/sound_effects/ogre_swing.ogg"),
         grunt_sfx: asset_server.load("audio/sound_effects/ogre_grunt.ogg"),
         charge_sfx: asset_server.load("audio/sound_effects/ogre_charge.ogg"),

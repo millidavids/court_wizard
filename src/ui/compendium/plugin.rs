@@ -91,7 +91,6 @@ impl Plugin for PauseMenuCompendiumPlugin {
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // Button handlers
 // ---------------------------------------------------------------------------
@@ -121,7 +120,6 @@ fn handle_pause_menu_back_button(
         }
     }
 }
-
 
 fn cleanup_compendium_state(mut commands: Commands) {
     commands.remove_resource::<CompendiumState>();

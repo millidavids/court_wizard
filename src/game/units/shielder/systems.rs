@@ -7,9 +7,6 @@ use crate::game::components::{Acceleration, Velocity};
 use crate::game::pathfinding::FlowFieldVelocity;
 use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::seeded_rng::resources::GameRng;
-use crate::game::units::wizard::spells::vfx::channel::{
-    ChannelingCast, ChannelParticleSpec, spawn_channel_particle_batch,
-};
 use crate::game::units::components::{
     BanishedModifier, CombatAnimation, CommanderAuraSpeedModifier, Corpse, EliteSpeedBonus,
     FlockingVelocity, FrozenSolidModifier, HasteModifier, Hitbox, MindControlled, MovementSpeed,
@@ -18,6 +15,9 @@ use crate::game::units::components::{
 };
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::spells::vfx::channel::{
+    ChannelParticleSpec, ChannelingCast, spawn_channel_particle_batch,
+};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Updates shielder targeting — seeks nearest same-team ally without a spell shield,
@@ -282,8 +282,8 @@ fn find_shielder_target(
         .iter()
         .filter(|(_, _, ally_team, has_shield)| *ally_team == self_team && !has_shield)
         .filter_map(|&(ally_entity, ally_pos, _, _)| {
-            let dist = ((self_pos.x - ally_pos.x).powi(2) + (self_pos.z - ally_pos.z).powi(2))
-                .sqrt();
+            let dist =
+                ((self_pos.x - ally_pos.x).powi(2) + (self_pos.z - ally_pos.z).powi(2)).sqrt();
             if dist <= SHIELD_RANGE {
                 Some((ally_entity, dist))
             } else {

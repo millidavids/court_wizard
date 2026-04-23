@@ -94,7 +94,7 @@ pub const CAST_TIME: f32 = 0.0;
 pub const MISSILES_PER_CAST: u32 = 3;
 
 /// Cooldown between casts in seconds.
-pub const COOLDOWN: f32 = 0.3;
+pub const COOLDOWN: f32 = 1.0;
 
 /// Power for inverse distance weighting in cursor targeting.
 /// Higher values = stronger preference for targets near cursor.

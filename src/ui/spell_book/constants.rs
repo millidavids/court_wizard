@@ -3,7 +3,9 @@
 use bevy::prelude::*;
 
 use crate::ui::components::ButtonStyle;
-use crate::ui::constants::{BUTTON_BG_SUBTLE, BUTTON_BORDER_SUBTLE, GOLD_ACCENT, TEXT_BODY, TEXT_MUTED};
+use crate::ui::constants::{
+    BUTTON_BG_SUBTLE, BUTTON_BORDER_SUBTLE, GOLD_ACCENT, TEXT_BODY, TEXT_MUTED,
+};
 
 // Re-export shared layout constants used in systems.rs
 pub use crate::ui::constants::{DETAIL_PADDING, LEFT_PANEL_WIDTH};

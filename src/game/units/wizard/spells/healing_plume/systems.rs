@@ -10,6 +10,7 @@ use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -25,7 +26,6 @@ use crate::game::units::wizard::spells::utils::{
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
@@ -87,10 +87,7 @@ pub fn handle_healing_plume_casting(
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    toggle_resources: (
-        Option<Res<ActiveTalents>>,
-        Option<Res<ActiveToggles>>,
-    ),
+    toggle_resources: (Option<Res<ActiveTalents>>, Option<Res<ActiveToggles>>),
     defenders_query: Query<
         (
             Entity,
@@ -107,7 +104,8 @@ pub fn handle_healing_plume_casting(
     >,
 ) {
     let (active_talents, active_toggles) = toggle_resources;
-    let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
+    let scorched_mult =
+        crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let (corrected_cursor, target_assist) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -614,9 +612,7 @@ pub fn field_medic_cleanup(
 }
 
 /// Fades healing plume zone visual over the last few seconds.
-pub fn fade_healing_plume_zone(
-    mut zones: Query<(&HealingPlumeZone, &mut Transform)>,
-) {
+pub fn fade_healing_plume_zone(mut zones: Query<(&HealingPlumeZone, &mut Transform)>) {
     const GROW_DURATION: f32 = 1.5;
 
     for (zone, mut transform) in &mut zones {
@@ -659,7 +655,8 @@ pub(crate) fn spawn_healing_plume_zone(
     talent_params: &HealingPlumeTalentParams,
     scorched_mult: f32,
 ) -> Entity {
-    let duration = constants::ZONE_DURATION * empowerment * talent_params.duration_mult * scorched_mult;
+    let duration =
+        constants::ZONE_DURATION * empowerment * talent_params.duration_mult * scorched_mult;
     let mut heal = constants::HEAL_PER_TICK * empowerment * talent_params.heal_mult;
     if talent_params.healing_rain {
         heal *= constants::HEALING_RAIN_HEAL_MULT;

@@ -867,7 +867,8 @@ pub fn update_beam_glow(
                 * (t * constants::GLOW_PULSE_FREQUENCY * std::f32::consts::TAU).sin();
         let shimmer = constants::SHIMMER_AMPLITUDE
             * ((t * constants::SHIMMER_FREQ_A).sin() + (t * constants::SHIMMER_FREQ_B).cos());
-        let glow_width = beam.beam_width() * constants::GLOW_WIDTH_MULTIPLIER * (pulse + shimmer) * 0.7;
+        let glow_width =
+            beam.beam_width() * constants::GLOW_WIDTH_MULTIPLIER * (pulse + shimmer) * 0.7;
         transform.scale = Vec3::new(glow_width, visual_len, glow_width);
     }
 }

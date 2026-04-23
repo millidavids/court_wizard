@@ -615,10 +615,10 @@ pub(crate) fn check_friendly_thorns(
 
 use crate::game::units::UnitType;
 use crate::game::units::boss::dark_mage::components::DarkMage;
-use crate::game::units::boss::ray::Ray;
 use crate::game::units::boss::hags::components::Hag;
 use crate::game::units::boss::lich::components::Lich;
 use crate::game::units::boss::ogre::components::OgreEnrageState;
+use crate::game::units::boss::ray::Ray;
 use crate::game::units::brute::components::Brute;
 use crate::game::units::dispeller::components::Dispeller;
 use crate::game::units::healer::components::Healer;
@@ -769,7 +769,11 @@ macro_rules! boss_defeat_system {
 boss_defeat_system!(check_hags_defeated, hag, HagsDefeatedAchievement);
 boss_defeat_system!(check_ogre_defeated, ogre, OgreDefeatedAchievement);
 boss_defeat_system!(check_lich_defeated, lich, LichDefeatedAchievement);
-boss_defeat_system!(check_dark_mage_defeated, dark_mage, DarkMageDefeatedAchievement);
+boss_defeat_system!(
+    check_dark_mage_defeated,
+    dark_mage,
+    DarkMageDefeatedAchievement
+);
 boss_defeat_system!(check_ray_defeated, ray, RayDefeatedAchievement);
 
 // ---------------------------------------------------------------------------

@@ -68,7 +68,10 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
                     TEXT_COLOR,
                     Node::default(),
                 );
-                header.spawn(Node { flex_grow: 1.0, ..default() });
+                header.spawn(Node {
+                    flex_grow: 1.0,
+                    ..default()
+                });
                 header
                     .spawn((
                         Button,
@@ -131,8 +134,13 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
                             BackgroundColor(bg),
                             BorderColor::all(border),
                             BorderRadius::all(Val::Px(4.0)),
-                            ButtonColors { background: bg, border },
+                            ButtonColors {
+                                background: bg,
+                                border,
+                            },
                             SettingsTabButton(tab),
+                            crate::ui::focus::Focusable,
+                            crate::ui::focus::TabFocusable,
                         ))
                         .with_children(|btn| {
                             btn.spawn((
@@ -263,50 +271,15 @@ fn spawn_graphics_tab(
                     for &(w, h, label) in RESOLUTION_PRESETS {
                         let is_selected = (saved_geometry.width - w).abs() < 1.0
                             && (saved_geometry.height - h).abs() < 1.0;
-                        let (bg_color, border_color) = if is_selected {
-                            (SELECTED_BACKGROUND, SELECTED_BORDER)
-                        } else {
-                            (BUTTON_BACKGROUND, BUTTON_BORDER)
-                        };
-                        let mut entity = buttons.spawn((
-                            Button,
-                            Node {
-                                width: Val::Px(OPTION_BUTTON_WIDTH),
-                                height: Val::Px(OPTION_BUTTON_HEIGHT),
-                                border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BorderColor::all(border_color),
-                            BorderRadius::all(Val::Px(4.0)),
-                            BackgroundColor(bg_color),
-                            ButtonColors {
-                                background: bg_color,
-                                border: border_color,
-                            },
+                        spawn_option_button(
+                            buttons,
+                            label,
                             ResolutionPreset {
                                 width: w,
                                 height: h,
                             },
-                        ));
-                        if is_selected {
-                            entity.insert((SelectedOption, crate::ui::components::ButtonActive));
-                        }
-                        entity.with_children(|button| {
-                            let font_size = crate::ui::systems::scale_font_by_text_width(
-                                label.len() as f32,
-                                6.0,
-                                12.0,
-                                0.7,
-                                BUTTON_FONT_SIZE,
-                            );
-                            button.spawn((
-                                Text::new(label),
-                                TextFont::from_font_size(font_size),
-                                TextColor(TEXT_COLOR),
-                            ));
-                        });
+                            is_selected,
+                        );
                     }
                 });
             });
@@ -317,7 +290,6 @@ fn spawn_graphics_tab(
             SliderValue::UiBrightness,
             game_config,
         );
-
     });
 }
 
@@ -452,6 +424,7 @@ fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
                         background: BUTTON_BACKGROUND,
                         border: BUTTON_BORDER,
                     },
+                    crate::ui::focus::Focusable,
                     SettingsButtonAction::ResetTutorials,
                 ))
                 .with_children(|button| {
@@ -500,6 +473,7 @@ fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
                         background: DANGER_BUTTON_BACKGROUND,
                         border: DANGER_BUTTON_BORDER,
                     },
+                    crate::ui::focus::Focusable,
                     SettingsButtonAction::ClearProgress,
                 ))
                 .with_children(|button| {
@@ -627,6 +601,56 @@ fn spawn_accessibility_tab(parent: &mut ChildSpawnerCommands, game_config: &Game
     });
 }
 
+/// Spawns Controller tab content: sensitivity / deadzone / response curve sliders + rumble toggle.
+fn spawn_controller_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
+    let mut wrapper = parent.spawn(Node {
+        width: Val::Percent(100.0),
+        flex_direction: FlexDirection::Column,
+        row_gap: Val::Px(MARGIN_SMALL),
+        ..default()
+    });
+    wrapper.with_children(|section| {
+        spawn_slider_control(
+            section,
+            "Controller Sensitivity X:",
+            SliderValue::GamepadSensitivityX,
+            game_config,
+        );
+        spawn_slider_control(
+            section,
+            "Controller Sensitivity Y:",
+            SliderValue::GamepadSensitivityY,
+            game_config,
+        );
+        spawn_slider_control(
+            section,
+            "Controller Deadzone:",
+            SliderValue::GamepadDeadzone,
+            game_config,
+        );
+        spawn_slider_control(
+            section,
+            "Controller Response Curve:",
+            SliderValue::GamepadResponseCurve,
+            game_config,
+        );
+        spawn_option_row(section, "Controller Rumble:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "On",
+                OptionButtonValue::RumbleEnabled(true),
+                game_config.rumble_enabled,
+            );
+            spawn_option_button(
+                buttons,
+                "Off",
+                OptionButtonValue::RumbleEnabled(false),
+                !game_config.rumble_enabled,
+            );
+        });
+    });
+}
+
 /// Spawns Controls tab content: key binding subsections + Reset Controls button.
 /// Locked wizard archetypes show joke text instead of keybindings.
 fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::config::InputBindings) {
@@ -701,7 +725,7 @@ fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::confi
             } else {
                 spawn_locked_subsection(
                     section,
-                    "Rune Caster",
+                    "???",
                     "Try pressing some keys on your keyboard...",
                 );
             }
@@ -733,7 +757,7 @@ fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::confi
             } else {
                 spawn_locked_subsection(
                     section,
-                    "Swordcerer",
+                    "???",
                     "Get up close and personal to unlock this one.",
                 );
             }
@@ -750,19 +774,9 @@ fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::confi
                             BindingAction::RangeUp,
                         ),
                         (
-                            "Range -:",
-                            BindingContext::ArcanoRouter,
-                            BindingAction::RangeDown,
-                        ),
-                        (
                             "Mana +:",
                             BindingContext::ArcanoRouter,
                             BindingAction::ManaUp,
-                        ),
-                        (
-                            "Mana -:",
-                            BindingContext::ArcanoRouter,
-                            BindingAction::ManaDown,
                         ),
                         (
                             "Power +:",
@@ -770,26 +784,16 @@ fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::confi
                             BindingAction::PowerUp,
                         ),
                         (
-                            "Power -:",
-                            BindingContext::ArcanoRouter,
-                            BindingAction::PowerDown,
-                        ),
-                        (
                             "Speed +:",
                             BindingContext::ArcanoRouter,
                             BindingAction::SpeedUp,
-                        ),
-                        (
-                            "Speed -:",
-                            BindingContext::ArcanoRouter,
-                            BindingAction::SpeedDown,
                         ),
                     ],
                 );
             } else {
                 spawn_locked_subsection(
                     section,
-                    "Arcanorouter",
+                    "???",
                     "This wizard has a lot of sliders to slide. Unlock to find out.",
                 );
             }
@@ -820,7 +824,7 @@ fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::confi
             } else {
                 spawn_locked_subsection(
                     section,
-                    "Meteorologist",
+                    "???",
                     "Forecast says: locked with a chance of unlocking.",
                 );
             }
@@ -833,7 +837,7 @@ fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::confi
                     &[("Reload:", BindingContext::Warglock, BindingAction::Reload)],
                 );
             } else {
-                spawn_locked_subsection(section, "Warglock", "Spells are overrated. Find out why.");
+                spawn_locked_subsection(section, "???", "Spells are overrated. Find out why.");
             }
 
             // Reset Controls button
@@ -873,6 +877,7 @@ fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::confi
                             background: BUTTON_BACKGROUND,
                             border: BUTTON_BORDER,
                         },
+                        crate::ui::focus::Focusable,
                         SettingsButtonAction::ResetControls,
                     ))
                     .with_children(|button| {
@@ -978,6 +983,7 @@ fn spawn_key_binding_row(
                     background: BUTTON_BACKGROUND,
                     border: BUTTON_BORDER,
                 },
+                crate::ui::focus::Focusable,
                 KeyBindingButton { context, action },
             ))
             .with_children(|button| {
@@ -1132,6 +1138,7 @@ fn spawn_capture_overlay_inner(commands: &mut Commands, warning: Option<&str>) {
             GlobalZIndex(600),
             KeyCaptureOverlay,
             OnSettingsScreen,
+            crate::ui::focus::ModalOverlay,
         ))
         .with_children(|overlay| {
             overlay
@@ -1227,7 +1234,10 @@ pub fn update_resolution_selection(
     )>,
     mut front_query: Query<
         (&mut BackgroundColor, &mut BorderColor),
-        (With<crate::ui::components::ButtonFront>, Without<ResolutionPreset>),
+        (
+            With<crate::ui::components::ButtonFront>,
+            Without<ResolutionPreset>,
+        ),
     >,
 ) {
     if !saved_geometry.is_changed() {
@@ -1314,7 +1324,10 @@ pub fn rebuild_settings_content(
     mut tab_colors: Query<(&mut BackgroundColor, &mut BorderColor, &mut ButtonColors)>,
     mut front_colors: Query<
         (&mut BackgroundColor, &mut BorderColor),
-        (With<crate::ui::components::ButtonFront>, Without<ButtonColors>),
+        (
+            With<crate::ui::components::ButtonFront>,
+            Without<ButtonColors>,
+        ),
     >,
 ) {
     if !state.is_changed() {
@@ -1325,10 +1338,14 @@ pub fn rebuild_settings_content(
     for (entity, tab_btn, children) in &tab_buttons {
         let is_active = tab_btn.0 == state.active_tab;
         let (bg, border) = if is_active {
-            commands.entity(entity).insert(crate::ui::components::ButtonActive);
+            commands
+                .entity(entity)
+                .insert(crate::ui::components::ButtonActive);
             (ACTIVE_TAB_BG, ACTIVE_TAB_BORDER)
         } else {
-            commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
+            commands
+                .entity(entity)
+                .remove::<crate::ui::components::ButtonActive>();
             (INACTIVE_TAB_BG, TAB_BORDER_COLOR)
         };
         if let Ok((mut bg_color, mut border_color, mut colors)) = tab_colors.get_mut(entity) {
@@ -1360,6 +1377,7 @@ pub fn rebuild_settings_content(
             SettingsTab::Audio => spawn_audio_tab(parent, &game_config),
             SettingsTab::Game => spawn_game_tab(parent, &game_config),
             SettingsTab::Controls => spawn_controls_tab(parent, &bindings),
+            SettingsTab::Controller => spawn_controller_tab(parent, &game_config),
             SettingsTab::Accessibility => spawn_accessibility_tab(parent, &game_config),
         });
 }
@@ -1405,11 +1423,13 @@ fn spawn_dot_leader(parent: &mut ChildSpawnerCommands) {
     crate::ui::systems::spawn_dot_leader(parent, LABEL_FONT_SIZE);
 }
 
-/// Helper function to spawn an option button.
+/// Helper function to spawn an option button. `action` is any component or
+/// bundle that identifies this button to its click handler (e.g.
+/// `OptionButtonValue::CrtEnabled(true)` or `ResolutionPreset { width, height }`).
 fn spawn_option_button(
     parent: &mut ChildSpawnerCommands,
     text: &str,
-    value: OptionButtonValue,
+    action: impl Bundle,
     is_selected: bool,
 ) {
     let (bg_color, border_color) = if is_selected {
@@ -1435,7 +1455,8 @@ fn spawn_option_button(
             background: bg_color,
             border: border_color,
         },
-        value,
+        crate::ui::focus::Focusable,
+        action,
     ));
 
     if is_selected {
@@ -1514,6 +1535,7 @@ fn spawn_confirmation_popup(commands: &mut Commands, action: SettingsButtonActio
             GlobalZIndex(600),
             ConfirmationPopup,
             OnSettingsScreen,
+            crate::ui::focus::ModalOverlay,
         ))
         .with_children(|overlay| {
             overlay
@@ -1889,11 +1911,15 @@ pub fn update_selected_options(
     if game_config.is_changed() {
         for (entity, value, mut bg, mut border, mut colors, children) in &mut option_buttons {
             let (new_bg, new_border) = if value.is_selected(&game_config) {
-                commands.entity(entity).insert((SelectedOption, crate::ui::components::ButtonActive));
+                commands
+                    .entity(entity)
+                    .insert((SelectedOption, crate::ui::components::ButtonActive));
                 (SELECTED_BACKGROUND, SELECTED_BORDER)
             } else {
                 commands.entity(entity).remove::<SelectedOption>();
-                commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
+                commands
+                    .entity(entity)
+                    .remove::<crate::ui::components::ButtonActive>();
                 (BUTTON_BACKGROUND, BUTTON_BORDER)
             };
 

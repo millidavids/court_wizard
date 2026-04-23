@@ -607,8 +607,10 @@ pub fn tick_eye_transfer(
     }
 
     // Reset timer
-    timer.time_remaining =
-        EYE_TRANSFER_BASE_INTERVAL + game_rng.0.gen_range(-EYE_TRANSFER_VARIANCE..EYE_TRANSFER_VARIANCE);
+    timer.time_remaining = EYE_TRANSFER_BASE_INTERVAL
+        + game_rng
+            .0
+            .gen_range(-EYE_TRANSFER_VARIANCE..EYE_TRANSFER_VARIANCE);
 
     let living_hags: Vec<Entity> = hags.iter().map(|(e, _, _)| e).collect();
     if living_hags.len() < 2 {

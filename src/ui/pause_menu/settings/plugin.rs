@@ -8,12 +8,12 @@ use bevy::prelude::*;
 use crate::state::PauseMenuState;
 use crate::ui::main_menu::settings::components::SettingsContentContainer;
 use crate::ui::main_menu::settings::systems::{
-    capture_key_input, handle_confirmation_popup,
-    handle_settings_tab_click, key_binding_button_action, key_capture_inactive,
-    option_button_action, pause_settings_button_action, rebuild_settings_content,
-    resolution_button_action, setup_pause_menu, slider_button_action, slider_interaction,
-    update_key_binding_text, update_resolution_selection, update_resolution_visibility,
-    update_selected_options, update_slider_text, update_sliders,
+    capture_key_input, handle_confirmation_popup, handle_settings_tab_click,
+    key_binding_button_action, key_capture_inactive, option_button_action,
+    pause_settings_button_action, rebuild_settings_content, resolution_button_action,
+    setup_pause_menu, slider_button_action, slider_interaction, update_key_binding_text,
+    update_resolution_selection, update_resolution_visibility, update_selected_options,
+    update_slider_text, update_sliders,
 };
 use crate::ui::plugin::ButtonActionSet;
 use crate::ui::systems::{escape_to_pause_main, handle_scroll};

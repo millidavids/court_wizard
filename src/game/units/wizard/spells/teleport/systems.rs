@@ -706,11 +706,32 @@ fn execute_teleport(
     } else if talent_params.scatterport {
         scatter_enemies(rng, source_center, radius, units_query, commands)
     } else if talent_params.swap_mode {
-        swap_units(rng, source_center, dest_center, radius, units_query, commands)
+        swap_units(
+            rng,
+            source_center,
+            dest_center,
+            radius,
+            units_query,
+            commands,
+        )
     } else if talent_params.emergency_recall {
-        recall_allies(rng, source_center, dest_center, radius, units_query, commands)
+        recall_allies(
+            rng,
+            source_center,
+            dest_center,
+            radius,
+            units_query,
+            commands,
+        )
     } else {
-        teleport_units_with_radius(rng, source_center, dest_center, radius, units_query, commands)
+        teleport_units_with_radius(
+            rng,
+            source_center,
+            dest_center,
+            radius,
+            units_query,
+            commands,
+        )
     }
 }
 
@@ -863,8 +884,7 @@ fn swap_units(
 
     // Move destination units to source
     for (entity, original_pos) in &dest_units {
-        let new_position =
-            random_position_in_circle(rng, source_center, radius, original_pos.y);
+        let new_position = random_position_in_circle(rng, source_center, radius, original_pos.y);
         commands
             .entity(*entity)
             .insert(Transform::from_translation(new_position));
@@ -1083,7 +1103,10 @@ fn random_position_in_circle(rng: &mut impl Rng, center: Vec3, radius: f32, y: f
 /// from the Teleport spell while a teleport is in progress.
 pub fn cleanup_teleport_on_spell_switch(
     mut commands: Commands,
-    mut wizard_query: Query<(&PrimedSpell, &mut CastingState), (With<LocalWizard>, Changed<PrimedSpell>)>,
+    mut wizard_query: Query<
+        (&PrimedSpell, &mut CastingState),
+        (With<LocalWizard>, Changed<PrimedSpell>),
+    >,
     mut caster_query: Query<&mut TeleportCaster, With<LocalWizard>>,
 ) {
     let Ok((primed_spell, mut casting_state)) = wizard_query.single_mut() else {
@@ -1099,8 +1122,7 @@ pub fn cleanup_teleport_on_spell_switch(
 
     // Only clean up if there's actually an in-progress teleport (circles exist).
     // TeleportCaster persists on the wizard, so we must check for active state.
-    let has_circles =
-        caster.destination_circle.is_some() || caster.source_circle.is_some();
+    let has_circles = caster.destination_circle.is_some() || caster.source_circle.is_some();
     if !has_circles {
         return;
     }

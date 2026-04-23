@@ -157,13 +157,9 @@ pub(crate) enum BindingAction {
     Weather3,
     // ArcanoRouter
     RangeUp,
-    RangeDown,
     ManaUp,
-    ManaDown,
     PowerUp,
-    PowerDown,
     SpeedUp,
-    SpeedDown,
 }
 
 impl BindingAction {
@@ -188,13 +184,9 @@ impl BindingAction {
             "Blizzard" => Self::Weather2,
             "Drought" => Self::Weather3,
             "Range +" => Self::RangeUp,
-            "Range -" => Self::RangeDown,
             "Mana +" => Self::ManaUp,
-            "Mana -" => Self::ManaDown,
             "Power +" => Self::PowerUp,
-            "Power -" => Self::PowerDown,
             "Speed +" => Self::SpeedUp,
-            "Speed -" => Self::SpeedDown,
             _ => return None,
         })
     }
@@ -319,37 +311,29 @@ impl Default for MeteorologistBindings {
 }
 
 /// Key bindings for the ArcanoRouter archetype.
+///
+/// Only increment keys — sliders are reactive, so pushing one up pulls the
+/// others down proportionally. Old save files that contain the removed
+/// decrement fields are silently tolerated by serde (unknown fields ignored).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct ArcanoRouterBindings {
     #[serde(with = "optional_keycode_serde")]
     pub range_up: Option<KeyCode>,
     #[serde(with = "optional_keycode_serde")]
-    pub range_down: Option<KeyCode>,
-    #[serde(with = "optional_keycode_serde")]
     pub mana_up: Option<KeyCode>,
-    #[serde(with = "optional_keycode_serde")]
-    pub mana_down: Option<KeyCode>,
     #[serde(with = "optional_keycode_serde")]
     pub power_up: Option<KeyCode>,
     #[serde(with = "optional_keycode_serde")]
-    pub power_down: Option<KeyCode>,
-    #[serde(with = "optional_keycode_serde")]
     pub speed_up: Option<KeyCode>,
-    #[serde(with = "optional_keycode_serde")]
-    pub speed_down: Option<KeyCode>,
 }
 
 impl Default for ArcanoRouterBindings {
     fn default() -> Self {
         Self {
             range_up: Some(KeyCode::KeyQ),
-            range_down: Some(KeyCode::KeyA),
             mana_up: Some(KeyCode::KeyW),
-            mana_down: Some(KeyCode::KeyS),
             power_up: Some(KeyCode::KeyE),
-            power_down: Some(KeyCode::KeyD),
             speed_up: Some(KeyCode::KeyR),
-            speed_down: Some(KeyCode::KeyF),
         }
     }
 }
@@ -409,19 +393,9 @@ impl InputBindings {
                 self.meteorologist.weather_3
             }
             (BindingContext::ArcanoRouter, BindingAction::RangeUp) => self.arcanorouter.range_up,
-            (BindingContext::ArcanoRouter, BindingAction::RangeDown) => {
-                self.arcanorouter.range_down
-            }
             (BindingContext::ArcanoRouter, BindingAction::ManaUp) => self.arcanorouter.mana_up,
-            (BindingContext::ArcanoRouter, BindingAction::ManaDown) => self.arcanorouter.mana_down,
             (BindingContext::ArcanoRouter, BindingAction::PowerUp) => self.arcanorouter.power_up,
-            (BindingContext::ArcanoRouter, BindingAction::PowerDown) => {
-                self.arcanorouter.power_down
-            }
             (BindingContext::ArcanoRouter, BindingAction::SpeedUp) => self.arcanorouter.speed_up,
-            (BindingContext::ArcanoRouter, BindingAction::SpeedDown) => {
-                self.arcanorouter.speed_down
-            }
             _ => None,
         }
     }
@@ -486,26 +460,14 @@ impl InputBindings {
             (BindingContext::ArcanoRouter, BindingAction::RangeUp) => {
                 self.arcanorouter.range_up = key;
             }
-            (BindingContext::ArcanoRouter, BindingAction::RangeDown) => {
-                self.arcanorouter.range_down = key;
-            }
             (BindingContext::ArcanoRouter, BindingAction::ManaUp) => {
                 self.arcanorouter.mana_up = key;
-            }
-            (BindingContext::ArcanoRouter, BindingAction::ManaDown) => {
-                self.arcanorouter.mana_down = key;
             }
             (BindingContext::ArcanoRouter, BindingAction::PowerUp) => {
                 self.arcanorouter.power_up = key;
             }
-            (BindingContext::ArcanoRouter, BindingAction::PowerDown) => {
-                self.arcanorouter.power_down = key;
-            }
             (BindingContext::ArcanoRouter, BindingAction::SpeedUp) => {
                 self.arcanorouter.speed_up = key;
-            }
-            (BindingContext::ArcanoRouter, BindingAction::SpeedDown) => {
-                self.arcanorouter.speed_down = key;
             }
             _ => {}
         }
@@ -542,13 +504,9 @@ impl InputBindings {
             ],
             BindingContext::ArcanoRouter => vec![
                 ("Range +", self.arcanorouter.range_up),
-                ("Range -", self.arcanorouter.range_down),
                 ("Mana +", self.arcanorouter.mana_up),
-                ("Mana -", self.arcanorouter.mana_down),
                 ("Power +", self.arcanorouter.power_up),
-                ("Power -", self.arcanorouter.power_down),
                 ("Speed +", self.arcanorouter.speed_up),
-                ("Speed -", self.arcanorouter.speed_down),
             ],
         }
     }

@@ -1,6 +1,6 @@
 [package]
 name = "court_wizard"
-version = "0.6.284"
+version = "0.6.366"
 edition = "2024"
 default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"
@@ -38,6 +38,7 @@ bevy = { version = "0.17.3", default-features = false, features = [
     "bevy_window",
     "bevy_winit",
     "bevy_input_focus",
+    "bevy_gilrs",       # Gamepad/controller support via gilrs
 
     # Audio
     "bevy_audio",

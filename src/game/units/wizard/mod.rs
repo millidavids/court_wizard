@@ -2,6 +2,7 @@
 //!
 //! Handles the wizard entity, castle setup, spells, and archetypes.
 
+mod aim_line;
 pub(crate) mod archetypes;
 pub(crate) mod components;
 pub(in crate::game) mod constants;

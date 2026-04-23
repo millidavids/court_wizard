@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use super::utils::{SpellCircleIndicator, TargetAssistWorldPos, update_spell_indicators};
+use super::utils::{
+    SpellCircleIndicator, TargetAssistWorldPos, block_spells_during_global_cooldown,
+    insert_global_cooldown_on_cast, tick_global_cast_cooldown, update_spell_indicators,
+};
 use super::visual_assets::{AuraSphereMaterial, FireExplosionSphereMaterial};
 use super::wall_of_stone::wall_material::WallOfStoneMaterial;
 use crate::game::battlefield::load_battlefield_assets;
@@ -49,8 +52,7 @@ impl Plugin for SpellsPlugin {
         app.init_resource::<TargetAssistWorldPos>()
             .add_systems(
                 Update,
-                super::utils::compute_target_assist
-                    .run_if(is_spell_effects_active),
+                super::utils::compute_target_assist.run_if(is_spell_effects_active),
             )
             .add_plugins((
                 MaterialPlugin::<FireExplosionSphereMaterial>::default(),
@@ -60,8 +62,7 @@ impl Plugin for SpellsPlugin {
             .add_systems(
                 Startup,
                 (
-                    super::visual_assets::init_spell_visual_assets
-                        .after(load_battlefield_assets),
+                    super::visual_assets::init_spell_visual_assets.after(load_battlefield_assets),
                     super::visual_assets::capture_original_spell_colors
                         .after(super::visual_assets::init_spell_visual_assets),
                     super::audio::load_spell_sfx_assets,
@@ -126,6 +127,15 @@ impl Plugin for SpellsPlugin {
                     systems::despawn_distant_projectiles,
                 )
                     .chain()
+                    .run_if(is_spell_effects_active),
+            )
+            .add_systems(
+                Update,
+                (
+                    tick_global_cast_cooldown,
+                    insert_global_cooldown_on_cast,
+                    block_spells_during_global_cooldown,
+                )
                     .run_if(is_spell_effects_active),
             );
     }

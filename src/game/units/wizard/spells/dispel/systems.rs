@@ -4,6 +4,7 @@ use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::game_mode::components::ActiveToggles;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::components::{
@@ -25,7 +26,6 @@ use crate::game::units::wizard::spells::vfx::systems::spawn_explosion_smoke;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
-use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
@@ -367,10 +367,7 @@ pub fn update_dispel_impacts(
     meteor_fire_query: Query<&MeteorGroundFire>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     mut wizard_mana: Query<&mut Mana, With<LocalWizard>>,
-    progress_and_toggles: (
-        ResMut<BattleTalentProgress>,
-        Option<Res<ActiveToggles>>,
-    ),
+    progress_and_toggles: (ResMut<BattleTalentProgress>, Option<Res<ActiveToggles>>),
     // Combined query for buff removal, damage, enemy finding, and mind control removal
     mut unit_query: Query<
         (
@@ -391,7 +388,8 @@ pub fn update_dispel_impacts(
     >,
 ) {
     let (mut progress, active_toggles) = progress_and_toggles;
-    let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
+    let scorched_mult =
+        crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let time_secs = time.elapsed_secs();
     let mut damage_targets: Vec<(Entity, f32, bool)> = Vec::new();
 
@@ -555,12 +553,12 @@ pub fn update_dispel_impacts(
             &mut commands,
             impact_center,
             radius,
-            unit_query
-                .iter()
-                .filter_map(|(entity, tf, team, _, _, has_shield, _, _, _, _, _, _)| {
+            unit_query.iter().filter_map(
+                |(entity, tf, team, _, _, has_shield, _, _, _, _, _, _)| {
                     (has_shield && Team::Defenders.is_enemy(team))
                         .then_some((entity, tf.translation))
-                }),
+                },
+            ),
         );
         dispelled_count += shields_stripped;
 
@@ -587,7 +585,9 @@ pub fn update_dispel_impacts(
 
                 // Dispel cures petrified allies
                 if *team == Team::Defenders && has_petrified {
-                    commands.entity(unit_entity).remove::<crate::game::units::components::Petrified>();
+                    commands
+                        .entity(unit_entity)
+                        .remove::<crate::game::units::components::Petrified>();
                 }
 
                 if Team::Defenders.is_enemy(team) {

@@ -9,9 +9,6 @@ use super::assassin::AssassinPlugin;
 use super::boss::BossPlugin;
 use super::brute::BrutePlugin;
 use super::commander::CommanderPlugin;
-use super::wizard::spells::vfx::channel::{
-    self, ChannelParticle, ChannelingCast,
-};
 use super::components::{
     Airborne, BerserkerRageModifier, CombatAnimation, DeathAnimationFinished, DyingAnimation,
     FacingDirection, FearModifier, FireDoT, FogEvasionModifier, FrozenSolidModifier, HasteModifier,
@@ -30,6 +27,7 @@ use super::shielder::ShielderPlugin;
 use super::systems;
 use super::teleporter::TeleporterPlugin;
 use super::wizard::WizardPlugin;
+use super::wizard::spells::vfx::channel::{self, ChannelParticle, ChannelingCast};
 use super::{ApplyTransformsSet, MovementCalculationSet};
 use crate::game::terrain::TerrainPlugin;
 
@@ -111,9 +109,11 @@ impl Plugin for UnitsPlugin {
                     systems::update_facing_direction
                         .after(ApplyTransformsSet)
                         .run_if(any_with_component::<FacingDirection>),
-                    channel::update_channel_particles
-                        .run_if(any_with_component::<ChannelParticle>),
-                    (ranged_bolt::move_magic_bolts, ranged_bolt::check_magic_bolt_collisions)
+                    channel::update_channel_particles.run_if(any_with_component::<ChannelParticle>),
+                    (
+                        ranged_bolt::move_magic_bolts,
+                        ranged_bolt::check_magic_bolt_collisions,
+                    )
                         .chain()
                         .run_if(any_with_component::<MagicBolt>),
                 )

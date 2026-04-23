@@ -97,7 +97,11 @@ fn init_toggle_resources(
             .unwrap_or_default();
         let unlocked_types: Vec<crate::config::WizardType> = crate::config::WizardType::all()
             .iter()
-            .filter(|wt| unlocked_names.iter().any(|name| name == &format!("{:?}", wt)))
+            .filter(|wt| {
+                unlocked_names
+                    .iter()
+                    .any(|name| name == &format!("{:?}", wt))
+            })
             .copied()
             .collect();
 
@@ -275,7 +279,10 @@ fn animate_fortified_horde_glow(
 /// Removes the FortifiedHordeShield marker and resets emissive when shield expires.
 fn cleanup_fortified_horde_glow(
     mut commands: Commands,
-    shielded: Query<(Entity, &MeshMaterial3d<StandardMaterial>), (With<FortifiedHordeShield>, Without<TemporaryHitPoints>)>,
+    shielded: Query<
+        (Entity, &MeshMaterial3d<StandardMaterial>),
+        (With<FortifiedHordeShield>, Without<TemporaryHitPoints>),
+    >,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (entity, mat_handle) in &shielded {
@@ -337,7 +344,9 @@ fn tick_wizard_cycle(
     archetype_ui: Query<Entity, With<super::components::ArchetypeUI>>,
     existing_flash: Query<Entity, With<super::components::WizardCycleFlash>>,
     asset_server: Res<AssetServer>,
-    arcanorouter_state: Option<Res<crate::game::units::wizard::archetypes::arcanorouter::resources::ArcanoRouterState>>,
+    arcanorouter_state: Option<
+        Res<crate::game::units::wizard::archetypes::arcanorouter::resources::ArcanoRouterState>,
+    >,
     wizard_entity_query: Query<Entity, With<crate::game::units::wizard::components::LocalWizard>>,
 ) {
     let Some(ref mut timer) = cycle_timer else {
@@ -435,7 +444,11 @@ fn tick_wizard_cycle(
 fn update_wizard_cycle_flash(
     mut commands: Commands,
     time: Res<Time>,
-    mut flash_query: Query<(Entity, &mut super::components::WizardCycleFlash, &mut TextColor)>,
+    mut flash_query: Query<(
+        Entity,
+        &mut super::components::WizardCycleFlash,
+        &mut TextColor,
+    )>,
 ) {
     for (entity, mut flash, mut text_color) in &mut flash_query {
         flash.timer -= time.delta_secs();

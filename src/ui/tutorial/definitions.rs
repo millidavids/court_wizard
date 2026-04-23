@@ -63,6 +63,13 @@ pub(crate) enum TutorialId {
     InGameIntro,
     SpellBookIntro,
     CauldronIntro,
+    /// Controller-specific menu navigation primer. Shown once on the first
+    /// time the Wizard Tower is entered while a gamepad is the active
+    /// input device.
+    ControllerMenusIntro,
+    /// Controller-specific in-game combat primer. Shown once on the first
+    /// gameplay session entered while a gamepad is the active input device.
+    ControllerInGameIntro,
 }
 
 impl TutorialId {
@@ -75,6 +82,8 @@ impl TutorialId {
             TutorialId::InGameIntro => "in_game_intro",
             TutorialId::SpellBookIntro => "spell_book_intro",
             TutorialId::CauldronIntro => "cauldron_intro",
+            TutorialId::ControllerMenusIntro => "controller_menus_intro",
+            TutorialId::ControllerInGameIntro => "controller_in_game_intro",
         }
     }
 
@@ -87,6 +96,8 @@ impl TutorialId {
             TutorialId::InGameIntro => IN_GAME_STEPS,
             TutorialId::SpellBookIntro => SPELL_BOOK_STEPS,
             TutorialId::CauldronIntro => CAULDRON_STEPS,
+            TutorialId::ControllerMenusIntro => CONTROLLER_MENUS_STEPS,
+            TutorialId::ControllerInGameIntro => CONTROLLER_IN_GAME_STEPS,
         }
     }
 }
@@ -212,7 +223,7 @@ static IN_GAME_STEPS: &[TutorialStep] = &[
 static SPELL_BOOK_STEPS: &[TutorialStep] = &[
     TutorialStep {
         target: HighlightTarget::SpellList,
-        text: "Browse your available spells here. Click one to see its details.",
+        text: "Browse your available spells here. Click one to prime it — the menu stays open so you can keep exploring.",
         anchor: PanelAnchor::TopRight,
     },
     TutorialStep {
@@ -222,7 +233,12 @@ static SPELL_BOOK_STEPS: &[TutorialStep] = &[
     },
     TutorialStep {
         target: HighlightTarget::HotkeySlots,
-        text: "Click a hotkey slot (1-5) to assign this spell to your action bar.",
+        text: "Click a hotkey slot (1-5) to assign the primed spell to your action bar.",
+        anchor: PanelAnchor::Center,
+    },
+    TutorialStep {
+        target: HighlightTarget::None,
+        text: "Press the back button (or B / Circle on a controller) to close the Spell Book when you're done.",
         anchor: PanelAnchor::Center,
     },
 ];
@@ -242,6 +258,87 @@ static CAULDRON_STEPS: &[TutorialStep] = &[
     TutorialStep {
         target: HighlightTarget::BrewButton,
         text: "Click Brew to start. Brews take time but provide powerful temporary buffs.",
+        anchor: PanelAnchor::Center,
+    },
+];
+
+// Controller menu navigation primer. Text-only; covers focus nav, confirm,
+// back, tab switching, and pause.
+static CONTROLLER_MENUS_STEPS: &[TutorialStep] = &[
+    TutorialStep {
+        target: HighlightTarget::None,
+        text: "Controller detected! Here's how to get around menus.",
+        anchor: PanelAnchor::Center,
+    },
+    TutorialStep {
+        target: HighlightTarget::None,
+        text: "Use the D-pad or left stick to move the highlight between buttons.",
+        anchor: PanelAnchor::Center,
+    },
+    TutorialStep {
+        target: HighlightTarget::None,
+        text: "Press the bottom face button (A / Cross) to select the highlighted button.",
+        anchor: PanelAnchor::Center,
+    },
+    TutorialStep {
+        target: HighlightTarget::None,
+        text: "Press the right face button (B / Circle) to go back or close a menu.",
+        anchor: PanelAnchor::Center,
+    },
+    TutorialStep {
+        target: HighlightTarget::None,
+        text: "Press the Left / Right bumpers (LB / RB) to cycle between tabs.",
+        anchor: PanelAnchor::Center,
+    },
+    TutorialStep {
+        target: HighlightTarget::None,
+        text: "Press Start / Options at any time during battle to pause.",
+        anchor: PanelAnchor::Center,
+    },
+];
+
+// Controller in-game combat primer. Teaches the aim + cast + radial + HUD
+// shortcuts tied to the controller layout. Fires with `paused_gameplay: true`
+// so the player can read it without the battle running behind.
+static CONTROLLER_IN_GAME_STEPS: &[TutorialStep] = &[
+    TutorialStep {
+        target: HighlightTarget::None,
+        text: "Combat on a controller: let's go through the battle controls.",
+        anchor: PanelAnchor::Center,
+    },
+    TutorialStep {
+        target: HighlightTarget::None,
+        text: "The left stick aims. A thin line from your staff shows where your spell will land.",
+        anchor: PanelAnchor::Center,
+    },
+    TutorialStep {
+        target: HighlightTarget::ActionBar,
+        text: "Hold the right stick in a direction and press the Right Trigger to pick that spell from the action bar.",
+        anchor: PanelAnchor::TopCenter,
+    },
+    TutorialStep {
+        target: HighlightTarget::None,
+        text: "Once a spell is primed, tap or hold the Right Trigger to cast it.",
+        anchor: PanelAnchor::Center,
+    },
+    TutorialStep {
+        target: HighlightTarget::None,
+        text: "Press the Left Trigger to cancel an in-progress cast.",
+        anchor: PanelAnchor::Center,
+    },
+    TutorialStep {
+        target: HighlightTarget::SpellBookButton,
+        text: "Press the left face button (X / Square) to open the Spell Book and swap spells.",
+        anchor: PanelAnchor::CenterRight,
+    },
+    TutorialStep {
+        target: HighlightTarget::CauldronButton,
+        text: "Press the top face button (Y / Triangle) to open the Cauldron and brew buffs.",
+        anchor: PanelAnchor::CenterRight,
+    },
+    TutorialStep {
+        target: HighlightTarget::None,
+        text: "Press Start / Options to pause. That's everything — good luck!",
         anchor: PanelAnchor::Center,
     },
 ];

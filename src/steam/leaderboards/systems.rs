@@ -8,15 +8,10 @@ use crate::game::game_mode::components::{
 };
 use crate::game::resources::{CurrentLevel, GameOutcome};
 
-use super::constants::{
-    LeaderboardId, display_type, sort_method, steam_board_name,
-};
+use super::constants::{LeaderboardId, display_type, sort_method, steam_board_name};
 use super::resources::LeaderboardHandles;
 
-pub(super) fn prewarm_leaderboard_handles(
-    client: Res<Client>,
-    handles: Res<LeaderboardHandles>,
-) {
+pub(super) fn prewarm_leaderboard_handles(client: Res<Client>, handles: Res<LeaderboardHandles>) {
     for id in LeaderboardId::all() {
         if handles.map.contains_key(&id) {
             continue;
@@ -174,10 +169,7 @@ fn is_pure_run(mods: Option<&RogueliteModifiers>, toggles: Option<&ActiveToggles
     mods.is_some_and(|m| m.is_default()) && toggles.is_none_or(|t| t.count() == 0)
 }
 
-fn modifier_multiplier(
-    mods: Option<&RogueliteModifiers>,
-    toggles: Option<&ActiveToggles>,
-) -> f32 {
+fn modifier_multiplier(mods: Option<&RogueliteModifiers>, toggles: Option<&ActiveToggles>) -> f32 {
     let Some(m) = mods else {
         return 1.0;
     };
@@ -240,7 +232,9 @@ fn wizard_ordinal(w: WizardType) -> i32 {
     match WizardType::all().iter().position(|&wt| wt == w) {
         Some(idx) => idx as i32,
         None => {
-            warn!("wizard_ordinal: {w:?} missing from WizardType::all() — leaderboard detail will be -1");
+            warn!(
+                "wizard_ordinal: {w:?} missing from WizardType::all() — leaderboard detail will be -1"
+            );
             -1
         }
     }
@@ -254,7 +248,10 @@ mod tests {
     fn pure_run_requires_default_modifiers_and_no_toggles() {
         let default_mods = RogueliteModifiers::default();
         assert!(is_pure_run(Some(&default_mods), None));
-        assert!(is_pure_run(Some(&default_mods), Some(&ActiveToggles::default())));
+        assert!(is_pure_run(
+            Some(&default_mods),
+            Some(&ActiveToggles::default())
+        ));
 
         let mut bumped = RogueliteModifiers::default();
         bumped.game_speed = 1.5;

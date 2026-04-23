@@ -96,4 +96,3 @@ pub const DISINTEGRATE_BEAM_COLOR: Color = Color::srgb(1.0, 0.6, 0.1);
 pub const FEAR_BEAM_COLOR: Color = Color::srgb(0.6, 0.0, 0.8);
 pub const CHARM_BEAM_COLOR: Color = Color::srgb(1.0, 0.3, 0.6);
 pub const TELEPORT_BEAM_COLOR: Color = Color::srgb(0.0, 1.0, 0.7);
-

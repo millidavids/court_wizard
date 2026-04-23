@@ -5,7 +5,7 @@ use bevy::tasks::AsyncComputeTaskPool;
 
 use crate::game::constants::{
     BATTLEFIELD_SIZE, CENTER_STAGING_INDEX, PATHFINDING_X_EXTENSION, STAGING_ACTIVATION_RADIUS,
-    STAGING_POINTS, STAGING_POINT_COUNT, STAGING_SATISFACTION_RADIUS, WAVE_ACTIVATION_THRESHOLD,
+    STAGING_POINT_COUNT, STAGING_POINTS, STAGING_SATISFACTION_RADIUS, WAVE_ACTIVATION_THRESHOLD,
     WAVE_STAGING_TIMEOUT, defender_spawn_center,
 };
 use crate::game::units::archer::Archer;
@@ -705,10 +705,7 @@ pub fn check_wave_activation(
     mut kill_stats: ResMut<crate::game::resources::KillStats>,
     mut staging_timers: ResMut<WaveStagingTimers>,
     mut staging_plan: ResMut<super::staging::WaveStagingPlan>,
-    staging_query: Query<
-        (Entity, &WaveGroup, &StagingAttacker, &Transform),
-        Without<Corpse>,
-    >,
+    staging_query: Query<(Entity, &WaveGroup, &StagingAttacker, &Transform), Without<Corpse>>,
 ) {
     use std::collections::HashMap;
 
@@ -772,27 +769,40 @@ pub fn check_wave_activation(
 }
 
 /// Manages game speed: 3x when only staging (unactivated) attackers exist, 1x otherwise.
+///
+/// Drops the speedup to baseline whenever a full-screen in-game menu (spell
+/// book / cauldron) is open — menu navigation and scrolling behave erratically
+/// at 3x. When the player returns to `Running` with staging still active the
+/// speedup resumes automatically on the next frame.
+#[allow(clippy::too_many_arguments)]
 pub fn manage_staging_speedup(
     mut time: ResMut<Time<Virtual>>,
     staging_query: Query<(), (With<StagingAttacker>, Without<Corpse>)>,
     activated_attackers: Query<&Team, (With<WaveGroup>, Without<StagingAttacker>, Without<Corpse>)>,
     wave_state: Option<Res<crate::game::resources::WaveState>>,
     config: Res<crate::config::GameConfig>,
+    sp_state: Option<Res<State<crate::state::InGameState>>>,
+    mp_state: Option<Res<State<crate::state::MultiplayerGameState>>>,
 ) {
     let has_staging = !staging_query.is_empty();
 
-    // Check if any activated attackers exist (have WaveGroup, lost StagingAttacker)
     let has_activated = activated_attackers
         .iter()
         .any(|team| *team == Team::Attackers);
 
-    // Check if more waves are still coming
     let waves_remaining = wave_state.map(|w| !w.waves_complete).unwrap_or(false);
 
-    // Speed up when no activated attackers are on the field and the battle isn't over:
-    // - Staging attackers are marching in but none are fighting yet
-    // - All activated attackers died between waves and more waves are coming
-    let should_speedup = !has_activated && (has_staging || waves_remaining);
+    let speed_eligible = !has_activated && (has_staging || waves_remaining);
+
+    // Any in-game menu overlay — SpellBook, CauldronMenu, Paused, etc. —
+    // suppresses the speedup. Only `Running` (SP) or `Running` (MP) keeps it on.
+    let in_menu_overlay = sp_state.as_ref().is_some_and(|s| {
+        !matches!(*s.get(), crate::state::InGameState::Running)
+    }) || mp_state.as_ref().is_some_and(|s| {
+        !matches!(*s.get(), crate::state::MultiplayerGameState::Running)
+    });
+
+    let should_speedup = speed_eligible && !in_menu_overlay;
 
     let current_speed = time.relative_speed_f64();
     let base_speed = config.game_speed as f64;
@@ -804,11 +814,6 @@ pub fn manage_staging_speedup(
 
     if (current_speed - target_speed).abs() > 0.01 {
         time.set_relative_speed_f64(target_speed);
-        if target_speed > 1.0 {
-            info!("Speedup: {}x (waiting for next wave)", target_speed);
-        } else {
-            info!("Normal speed restored");
-        }
     }
 }
 

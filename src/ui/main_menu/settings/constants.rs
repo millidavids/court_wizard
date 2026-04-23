@@ -36,9 +36,12 @@ pub const BUTTON_BORDER_WIDTH: f32 = 2.0;
 
 /// Normal button background color (warm dark).
 pub const BUTTON_BACKGROUND: Color = Color::hsla(25.0, 0.12, 0.13, 1.0);
+// Charcoal alias used where code historically expected a distinct "selected" bg.
+// Selected/active state now shows via the purple border + pressed-down offset,
+// not via a different background color.
 
 /// Selected option button background color (purple highlight).
-pub const SELECTED_BACKGROUND: Color = Color::hsla(270.0, 0.40, 0.25, 1.0);
+pub const SELECTED_BACKGROUND: Color = BUTTON_BACKGROUND;
 
 /// Button border color (purple).
 pub const BUTTON_BORDER: Color = Color::hsla(270.0, 0.35, 0.35, 1.0);

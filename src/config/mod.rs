@@ -13,4 +13,7 @@ pub(crate) use input_bindings::InputBindings;
 pub use messages::ConfigChanged;
 pub use plugin::ConfigPlugin;
 pub(crate) use resources::SavedWindowedGeometry;
-pub use resources::{ActiveSave, ColorblindType, DisplayMode, GameConfig, VsyncMode, WizardType};
+pub use resources::{
+    ActiveSave, ColorblindType, ControllerGlyphStyle, DisplayMode, GameConfig, VsyncMode,
+    WizardType,
+};

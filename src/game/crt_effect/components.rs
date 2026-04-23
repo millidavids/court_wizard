@@ -2,8 +2,8 @@ use bevy::prelude::*;
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::ShaderType;
 
-use crate::config::ColorblindType;
 use super::constants::*;
+use crate::config::ColorblindType;
 
 /// Settings component that controls the CRT post-processing effect.
 ///

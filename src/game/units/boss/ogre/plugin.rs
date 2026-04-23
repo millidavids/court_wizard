@@ -27,8 +27,7 @@ impl Plugin for OgrePlugin {
                     update_ogre_charge_visuals
                         .after(ogre_charge_system)
                         .after(crate::game::units::systems::update_walking_animation),
-                    update_ogre_facing
-                        .after(crate::game::units::systems::update_facing_direction),
+                    update_ogre_facing.after(crate::game::units::systems::update_facing_direction),
                 )
                     .run_if(is_gameplay_running)
                     .run_if(any_with_component::<Boss>),

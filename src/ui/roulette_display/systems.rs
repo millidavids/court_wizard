@@ -4,8 +4,10 @@ use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::game_mode::components::ArchetypeUI;
+use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::units::wizard::archetypes::roulette::resources::{RoulettePhase, RouletteState};
 use crate::game::units::wizard::components::Spell;
+use crate::ui::gamepad_glyphs::{CurrentControllerGlyphStyle, GamepadGlyphFonts, glyph_char};
 
 /// Returns the display name for a spell with newlines replaced by spaces.
 fn spell_display_name(spell: &Spell) -> String {
@@ -214,6 +216,51 @@ pub(super) fn update_selected_spell_fade(
             if let Ok(mut text) = text_query.single_mut() {
                 **text = "".to_string();
             }
+        }
+    }
+}
+
+/// Re-renders the idle-phase prompt so it reads "Press SPACE to spin" under
+/// mouse/keyboard and shows the gamepad's "South" glyph (A / ✕ / etc.) from
+/// the Kenney controller font when a gamepad is the active input device.
+/// Runs every frame but cheaply bails if nothing changed.
+pub(super) fn adapt_prompt_to_input_device(
+    roulette_state: Res<RouletteState>,
+    active: Res<ActiveInputDevice>,
+    style: Res<CurrentControllerGlyphStyle>,
+    fonts: Option<Res<GamepadGlyphFonts>>,
+    mut prompt_query: Query<
+        (&mut Text, &mut TextFont),
+        (With<RoulettePromptText>, Without<RouletteSelectedText>),
+    >,
+) {
+    if !matches!(roulette_state.phase, RoulettePhase::Idle) {
+        return;
+    }
+    let Ok((mut text, mut font)) = prompt_query.single_mut() else {
+        return;
+    };
+    let gamepad = active.is_gamepad();
+    if gamepad && let Some(fonts) = fonts {
+        if let Some(glyph) = glyph_char(GamepadButton::South, style.0) {
+            let glyph_str = glyph.to_string();
+            if **text != glyph_str {
+                **text = glyph_str;
+            }
+            let want_font = fonts.font_for(style.0);
+            if font.font != want_font {
+                font.font = want_font;
+                font.font_size = PROMPT_FONT_SIZE * 1.8;
+            }
+        }
+    } else {
+        let default_text = "Press SPACE to spin";
+        if **text != default_text {
+            **text = default_text.to_string();
+        }
+        if font.font != Handle::<Font>::default() {
+            font.font = Handle::<Font>::default();
+            font.font_size = PROMPT_FONT_SIZE;
         }
     }
 }

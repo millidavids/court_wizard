@@ -74,10 +74,11 @@ pub fn detect_mouse_input(
         left_released.write(MouseLeftReleased);
     }
 
-    // Only clear consumed flag when button is completely idle (not pressed, not released this frame)
-    if !mouse.pressed(MouseButton::Left) && !mouse.just_released(MouseButton::Left) {
-        mouse_state.left_consumed = false;
-    }
+    // Consumed-flag clearing is handled in `update_input_state_for_run_conditions`
+    // so that gamepad-driven holds keep the flag alive until the user
+    // physically releases the trigger. Doing it here based on physical
+    // mouse state incorrectly cleared the flag every frame for gamepad
+    // users.
 
     // Check right mouse button state
     if mouse.just_pressed(MouseButton::Right) {
@@ -154,9 +155,8 @@ pub fn detect_rune_input(
     if let Some(activate_key) = bindings.universal.activate
         && keyboard.just_pressed(activate_key)
     {
-        rune_activate.write(
-            crate::game::units::wizard::archetypes::runes::messages::ActivateRuneSequence,
-        );
+        rune_activate
+            .write(crate::game::units::wizard::archetypes::runes::messages::ActivateRuneSequence);
     }
 
     // Check rune keys, skipping unbound entries
@@ -206,9 +206,8 @@ pub fn detect_roulette_input(
     if let Some(activate_key) = bindings.universal.activate
         && keyboard.just_pressed(activate_key)
     {
-        spin_message.write(
-            crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage,
-        );
+        spin_message
+            .write(crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage);
     }
 }
 
@@ -223,8 +222,18 @@ pub fn update_input_state_for_run_conditions(
     mut spell_blocked: ResMut<SpellInputBlockedThisFrame>,
     mut mouse_left_held_state: ResMut<MouseLeftHeldThisFrame>,
     mut mouse_right_held_state: ResMut<MouseRightHeldThisFrame>,
+    mut mouse_state: ResMut<MouseButtonState>,
 ) {
     spell_blocked.blocked = block_spell_input.read().next().is_some();
     mouse_left_held_state.held = mouse_left_held.read().next().is_some();
     mouse_right_held_state.held = mouse_right_held.read().next().is_some();
+    // Clear the mouse-consumption flag only when the button is actually not
+    // held. Physical-mouse-based clearing in `translate_mouse_input` fires
+    // every frame for gamepad users (the physical mouse is never pressed),
+    // which prematurely cleared `left_consumed` and broke spells like
+    // Teleport that rely on it to require a fresh press between two-phase
+    // cast steps.
+    if !mouse_left_held_state.held {
+        mouse_state.left_consumed = false;
+    }
 }

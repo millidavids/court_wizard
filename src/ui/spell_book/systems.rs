@@ -62,13 +62,18 @@ pub(super) fn spawn_spell_book_ui(
 
     commands.insert_resource(SelectedSpellPreview(initial_spell));
 
-    // Page container with column layout (header + two-panel content)
+    // Page container with column layout (header + two-panel content).
+    // `ModalOverlay` scopes gamepad focus to this overlay so the Spells /
+    // Cauldron HUD buttons rendering behind it don't pick up focus.
     let content = spawn_page_container(
         &mut commands,
         OnSpellBookScreen,
         false,
         crate::ui::systems::default_content_node(),
     );
+    commands
+        .entity(content)
+        .insert(crate::ui::focus::ModalOverlay);
 
     commands.entity(content).with_children(|root| {
         // Header row: title left, Back button right
@@ -87,11 +92,17 @@ pub(super) fn spawn_spell_book_ui(
                 crate::ui::constants::TEXT_PRIMARY,
                 Node::default(),
             );
-            header.spawn(Node { flex_grow: 1.0, ..default() });
+            header.spawn(Node {
+                flex_grow: 1.0,
+                ..default()
+            });
             spawn_button(
                 header,
                 "Back",
-                SpellBookButtonAction::Close,
+                (
+                    SpellBookButtonAction::Close,
+                    crate::ui::focus::NoGamepadFocus,
+                ),
                 &crate::ui::main_menu::BACK_BUTTON_STYLE,
             );
         });
@@ -119,134 +130,115 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
     let detail_box = crate::ui::systems::spawn_left_detail_panel(parent);
 
     parent.commands().entity(detail_box).with_children(|panel| {
-                // Spell name
-                panel.spawn((
-                    Text::new(spell.display_name()),
-                    TextFont::from_font_size(DETAIL_NAME_FONT_SIZE),
-                    TextColor(DETAIL_NAME_COLOR),
-                    DetailName,
-                ));
+        // Spell name
+        panel.spawn((
+            Text::new(spell.display_name()),
+            TextFont::from_font_size(DETAIL_NAME_FONT_SIZE),
+            TextColor(DETAIL_NAME_COLOR),
+            DetailName,
+        ));
 
-                // Damage type
-                panel.spawn((
-                    Text::new(spell.damage_type().display_name()),
-                    TextFont::from_font_size(DETAIL_TYPE_FONT_SIZE),
-                    TextColor(DETAIL_TYPE_COLOR),
-                    DetailDamageType,
-                ));
+        // Damage type
+        panel.spawn((
+            Text::new(spell.damage_type().display_name()),
+            TextFont::from_font_size(DETAIL_TYPE_FONT_SIZE),
+            TextColor(DETAIL_TYPE_COLOR),
+            DetailDamageType,
+        ));
 
-                // Description
-                panel.spawn((
-                    Text::new(spell.description()),
-                    TextFont::from_font_size(DETAIL_DESC_FONT_SIZE),
-                    TextColor(DETAIL_DESC_COLOR),
-                    Node {
-                        max_width: Val::Px(LEFT_PANEL_WIDTH - DETAIL_PADDING * 2.0),
-                        ..default()
-                    },
-                    DetailDescription,
-                ));
+        // Description
+        panel.spawn((
+            Text::new(spell.description()),
+            TextFont::from_font_size(DETAIL_DESC_FONT_SIZE),
+            TextColor(DETAIL_DESC_COLOR),
+            Node {
+                max_width: Val::Px(LEFT_PANEL_WIDTH - DETAIL_PADDING * 2.0),
+                ..default()
+            },
+            DetailDescription,
+        ));
 
-                // Instructions
-                panel.spawn((
-                    Text::new(spell.instructions()),
-                    TextFont::from_font_size(DETAIL_INSTRUCTIONS_FONT_SIZE),
-                    TextColor(DETAIL_INSTRUCTIONS_COLOR),
-                    DetailInstructions,
-                ));
+        // Instructions
+        panel.spawn((
+            Text::new(spell.instructions()),
+            TextFont::from_font_size(DETAIL_INSTRUCTIONS_FONT_SIZE),
+            TextColor(DETAIL_INSTRUCTIONS_COLOR),
+            DetailInstructions,
+        ));
 
-                // Hotkey section
-                panel
-                    .spawn(Node {
-                        flex_direction: FlexDirection::Column,
-                        row_gap: Val::Px(6.0),
-                        ..default()
-                    })
-                    .with_children(|hotkey_section| {
-                        // Label
-                        hotkey_section.spawn((
-                            Text::new("Assign Hotkey"),
-                            TextFont::from_font_size(LABEL_FONT_SIZE),
-                            TextColor(LABEL_COLOR),
-                        ));
-
-                        // Hotkey boxes row
-                        hotkey_section
-                            .spawn(Node {
-                                flex_direction: FlexDirection::Row,
-                                column_gap: Val::Px(HOTKEY_BOX_GAP),
-                                ..default()
-                            })
-                            .with_children(|row| {
-                                for slot in 0..5u8 {
-                                    let is_active =
-                                        config.action_bar_slots[slot as usize] == Some(spell);
-                                    let (bg, border, text_color) = if is_active {
-                                        (HOTKEY_ACTIVE_BG, HOTKEY_ACTIVE_BORDER, HOTKEY_ACTIVE_TEXT)
-                                    } else {
-                                        (
-                                            HOTKEY_INACTIVE_BG,
-                                            HOTKEY_INACTIVE_BORDER,
-                                            HOTKEY_INACTIVE_TEXT,
-                                        )
-                                    };
-
-                                    let mut hotkey_btn = row.spawn((
-                                        Button,
-                                        Node {
-                                            width: Val::Px(HOTKEY_BOX_SIZE),
-                                            height: Val::Px(HOTKEY_BOX_SIZE),
-                                            border: UiRect::all(Val::Px(1.0)),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
-                                            ..default()
-                                        },
-                                        BackgroundColor(bg),
-                                        BorderColor::all(border),
-                                        BorderRadius::all(Val::Px(4.0)),
-                                        ButtonColors {
-                                            background: bg,
-                                            border,
-                                        },
-                                        HotkeySlotButton(slot),
-                                    ));
-                                    if is_active {
-                                        hotkey_btn.insert(crate::ui::components::ButtonActive);
-                                    }
-                                    hotkey_btn
-                                    .with_children(|btn| {
-                                        btn.spawn((
-                                            Text::new(format!("{}", slot + 1)),
-                                            TextFont::from_font_size(HOTKEY_FONT_SIZE),
-                                            TextColor(text_color),
-                                        ));
-                                    });
-                                }
-                            });
-                    });
-
-        // Button row: Select + Close
+        // Hotkey section
         panel
             .spawn(Node {
-                flex_direction: FlexDirection::Row,
-                column_gap: Val::Px(10.0),
-                justify_content: JustifyContent::Center,
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(6.0),
                 ..default()
             })
-            .with_children(|buttons| {
-                spawn_button(
-                    buttons,
-                    "Select",
-                    SpellBookButtonAction::CastSpell,
-                    &SELECT_BUTTON_STYLE,
-                );
-                spawn_button(
-                    buttons,
-                    "Close",
-                    SpellBookButtonAction::Close,
-                    &CLOSE_BUTTON_STYLE,
-                );
+            .with_children(|hotkey_section| {
+                // Label
+                hotkey_section.spawn((
+                    Text::new("Assign Hotkey"),
+                    TextFont::from_font_size(LABEL_FONT_SIZE),
+                    TextColor(LABEL_COLOR),
+                ));
+
+                // Hotkey boxes row
+                hotkey_section
+                    .spawn(Node {
+                        flex_direction: FlexDirection::Row,
+                        column_gap: Val::Px(HOTKEY_BOX_GAP),
+                        ..default()
+                    })
+                    .with_children(|row| {
+                        for slot in 0..5u8 {
+                            let is_active = config.action_bar_slots[slot as usize] == Some(spell);
+                            let (bg, border, text_color) = if is_active {
+                                (HOTKEY_ACTIVE_BG, HOTKEY_ACTIVE_BORDER, HOTKEY_ACTIVE_TEXT)
+                            } else {
+                                (
+                                    HOTKEY_INACTIVE_BG,
+                                    HOTKEY_INACTIVE_BORDER,
+                                    HOTKEY_INACTIVE_TEXT,
+                                )
+                            };
+
+                            let mut hotkey_btn = row.spawn((
+                                Button,
+                                Node {
+                                    width: Val::Px(HOTKEY_BOX_SIZE),
+                                    height: Val::Px(HOTKEY_BOX_SIZE),
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                BackgroundColor(bg),
+                                BorderColor::all(border),
+                                BorderRadius::all(Val::Px(4.0)),
+                                ButtonColors {
+                                    background: bg,
+                                    border,
+                                },
+                                HotkeySlotButton(slot),
+                                crate::ui::focus::Focusable,
+                                crate::ui::focus::CrossRowHorizontalNav,
+                            ));
+                            if is_active {
+                                hotkey_btn.insert(crate::ui::components::ButtonActive);
+                            }
+                            hotkey_btn.with_children(|btn| {
+                                btn.spawn((
+                                    Text::new(format!("{}", slot + 1)),
+                                    TextFont::from_font_size(HOTKEY_FONT_SIZE),
+                                    TextColor(text_color),
+                                ));
+                            });
+                        }
+                    });
             });
+
+        // Selecting a spell from the right list primes it and closes the
+        // menu automatically, so no Select / Close buttons are needed here.
+        // The header's Back button (B / Escape) still closes the menu.
     });
 }
 
@@ -265,96 +257,100 @@ fn spawn_spell_list(
     );
 
     parent.commands().entity(right_id).with_children(|list| {
-            for category in SpellCategory::all() {
-                let mut unlocked_in_category: Vec<Spell> = category
-                    .spells()
-                    .iter()
-                    .copied()
-                    .filter(|s| is_unlocked(s))
-                    .collect();
+        for category in SpellCategory::all() {
+            let mut unlocked_in_category: Vec<Spell> = category
+                .spells()
+                .iter()
+                .copied()
+                .filter(|s| is_unlocked(s))
+                .collect();
 
-                if unlocked_in_category.is_empty() {
-                    continue;
-                }
-
-                // Sort alphabetically by display name
-                unlocked_in_category.sort_by_key(|s| s.display_name());
-
-                // Category column
-                list.spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(LIST_ITEM_GAP),
-                    flex_grow: 1.0,
-                    ..default()
-                })
-                .with_children(|column| {
-                    // Category header
-                    column.spawn((
-                        Text::new(category.display_name()),
-                        TextFont::from_font_size(CATEGORY_FONT_SIZE),
-                        TextColor(crate::ui::constants::spell_category_color(*category)),
-                        TextLayout::new_with_justify(Justify::Center),
-                        Node {
-                            width: Val::Percent(100.0),
-                            margin: UiRect::bottom(Val::Px(4.0)),
-                            ..default()
-                        },
-                    ));
-
-                    // One spell button per row
-                    for spell in &unlocked_in_category {
-                        let is_selected = *spell == selected;
-                        let border = if is_selected {
-                            SPELL_BUTTON_SELECTED_BORDER
-                        } else {
-                            SPELL_BUTTON_BORDER
-                        };
-
-                        column
-                            .spawn((
-                                Button,
-                                Node {
-                                    width: Val::Percent(100.0),
-                                    height: Val::Px(SPELL_BUTTON_HEIGHT),
-                                    border: UiRect::all(Val::Px(SPELL_BUTTON_BORDER_WIDTH)),
-                                    justify_content: JustifyContent::SpaceBetween,
-                                    align_items: AlignItems::Center,
-                                    flex_direction: FlexDirection::Row,
-                                    column_gap: Val::Px(6.0),
-                                    padding: UiRect::horizontal(Val::Px(6.0)),
-                                    ..default()
-                                },
-                                BackgroundColor(SPELL_BUTTON_BG),
-                                BorderColor::all(border),
-                                BorderRadius::all(Val::Px(4.0)),
-                                ButtonColors {
-                                    background: SPELL_BUTTON_BG,
-                                    border: SPELL_BUTTON_BORDER,
-                                },
-                                SpellBookButtonAction::SelectSpell(*spell),
-                                SpellListButton(*spell),
-                            ))
-                            .with_children(|btn| {
-                                if let Some(icon_handle) = icon_assets.get(spell) {
-                                    btn.spawn((
-                                        ImageNode::new(icon_handle.clone()),
-                                        Node {
-                                            width: Val::Px(SPELL_ICON_SIZE),
-                                            height: Val::Px(SPELL_ICON_SIZE),
-                                            ..default()
-                                        },
-                                    ));
-                                }
-                                btn.spawn((
-                                    Text::new(spell.display_name()),
-                                    TextFont::from_font_size(SPELL_BUTTON_FONT_SIZE),
-                                    TextColor(SPELL_BUTTON_TEXT_COLOR),
-                                ));
-                            });
-                    }
-                });
+            if unlocked_in_category.is_empty() {
+                continue;
             }
-        });
+
+            // Sort alphabetically by display name
+            unlocked_in_category.sort_by_key(|s| s.display_name());
+
+            // Category column
+            list.spawn(Node {
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(LIST_ITEM_GAP),
+                flex_grow: 1.0,
+                ..default()
+            })
+            .with_children(|column| {
+                // Category header
+                column.spawn((
+                    Text::new(category.display_name()),
+                    TextFont::from_font_size(CATEGORY_FONT_SIZE),
+                    TextColor(crate::ui::constants::spell_category_color(*category)),
+                    TextLayout::new_with_justify(Justify::Center),
+                    Node {
+                        width: Val::Percent(100.0),
+                        margin: UiRect::bottom(Val::Px(4.0)),
+                        ..default()
+                    },
+                ));
+
+                // One spell button per row
+                for spell in &unlocked_in_category {
+                    let is_selected = *spell == selected;
+                    let border = if is_selected {
+                        SPELL_BUTTON_SELECTED_BORDER
+                    } else {
+                        SPELL_BUTTON_BORDER
+                    };
+
+                    column
+                        .spawn((
+                            Button,
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Px(SPELL_BUTTON_HEIGHT),
+                                border: UiRect::all(Val::Px(SPELL_BUTTON_BORDER_WIDTH)),
+                                justify_content: JustifyContent::SpaceBetween,
+                                align_items: AlignItems::Center,
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(6.0),
+                                padding: UiRect::horizontal(Val::Px(6.0)),
+                                ..default()
+                            },
+                            BackgroundColor(SPELL_BUTTON_BG),
+                            BorderColor::all(border),
+                            BorderRadius::all(Val::Px(4.0)),
+                            ButtonColors {
+                                background: SPELL_BUTTON_BG,
+                                border: SPELL_BUTTON_BORDER,
+                            },
+                            SpellBookButtonAction::SelectSpell(*spell),
+                            SpellListButton(*spell),
+                            crate::ui::focus::Focusable,
+                            // Left / Right can cross to the left detail
+                            // panel regardless of row alignment.
+                            crate::ui::focus::CrossRowHorizontalNav,
+                        ))
+                        .with_children(|btn| {
+                            if let Some(icon_handle) = icon_assets.get(spell) {
+                                btn.spawn((
+                                    ImageNode::new(icon_handle.clone()),
+                                    Node {
+                                        width: Val::Px(SPELL_ICON_SIZE),
+                                        height: Val::Px(SPELL_ICON_SIZE),
+                                        ..default()
+                                    },
+                                ));
+                            }
+                            btn.spawn((
+                                Text::new(spell.display_name()),
+                                TextFont::from_font_size(SPELL_BUTTON_FONT_SIZE),
+                                TextColor(SPELL_BUTTON_TEXT_COLOR),
+                            ));
+                        });
+                }
+            });
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -375,8 +371,15 @@ pub(super) fn button_action(
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
+                // Clicking a spell primes it but leaves the menu open so
+                // the player can assign it to an action-bar slot before
+                // returning to the battle. The menu is dismissed only via
+                // the explicit close button or the back/B input.
                 SpellBookButtonAction::SelectSpell(spell) => {
                     selected.0 = *spell;
+                    prime_spell.write(PrimeSpellMessage {
+                        spell: spell.primed_config(),
+                    });
                 }
                 SpellBookButtonAction::CastSpell => {
                     prime_spell.write(PrimeSpellMessage {
@@ -559,7 +562,9 @@ pub(super) fn handle_hotkey_click(
                     },
                 ));
             } else {
-                commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
+                commands
+                    .entity(entity)
+                    .remove::<crate::ui::components::ButtonActive>();
                 commands.entity(entity).insert(ButtonColors {
                     background: HOTKEY_INACTIVE_BG,
                     border: HOTKEY_INACTIVE_BORDER,
@@ -604,7 +609,9 @@ pub(super) fn handle_number_key_assignment(
                     },
                 ));
             } else {
-                commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
+                commands
+                    .entity(entity)
+                    .remove::<crate::ui::components::ButtonActive>();
                 commands.entity(entity).insert(ButtonColors {
                     background: HOTKEY_INACTIVE_BG,
                     border: HOTKEY_INACTIVE_BORDER,

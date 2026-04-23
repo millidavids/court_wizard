@@ -11,8 +11,12 @@ use crate::game::units::wizard::archetypes::gunslinger::GunState;
 use crate::game::units::wizard::archetypes::gunslinger::GunType;
 use crate::game::units::wizard::archetypes::gunslinger::messages::SelectGunMessage;
 use crate::game::units::wizard::messages::PrimeSpellMessage;
-use crate::ui::components::{ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, SpellIconAssets};
-use crate::ui::constants::{BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_PRESSED_OUTLINE};
+use crate::ui::components::{
+    ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, SpellIconAssets,
+};
+use crate::ui::constants::{
+    BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_PRESSED_OUTLINE,
+};
 use crate::ui::styles::border_bright;
 use crate::ui::systems::scale_font_by_text_width;
 
@@ -53,23 +57,17 @@ pub(super) fn spawn_action_bar(
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
-                bottom: Val::Px(ACTION_BAR_BOTTOM_MARGIN),
-                left: Val::Px(ACTION_BAR_LEFT_MARGIN),
+                bottom: Val::Px(0.0),
+                left: Val::Px(0.0),
+                width: Val::Percent(100.0),
+                height: Val::Px(240.0),
                 ..default()
             },
             ActionBarRoot,
             OnGameplayScreen,
         ))
-        .with_children(|wrapper| {
-            // Inner container with the actual slot buttons
-            wrapper
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    column_gap: Val::Px(SLOT_GAP),
-                    align_items: AlignItems::End,
-                    ..default()
-                })
-                .with_children(|parent| {
+        .with_children(|parent| {
+            {
                     let is_gunslinger = config.wizard_type == WizardType::Warglock;
                     let guns = GunType::all();
 
@@ -99,10 +97,15 @@ pub(super) fn spawn_action_bar(
                             (name, icon.is_some(), icon)
                         };
 
+                        let linear_left = ACTION_BAR_LEFT_MARGIN
+                            + slot as f32 * (SLOT_BUTTON_STYLE.width + SLOT_GAP);
                         parent
                             .spawn((
                                 Button,
                                 Node {
+                                    position_type: PositionType::Absolute,
+                                    left: Val::Px(linear_left),
+                                    bottom: Val::Px(ACTION_BAR_BOTTOM_MARGIN),
                                     width: Val::Px(SLOT_BUTTON_STYLE.width),
                                     height: Val::Px(SLOT_BUTTON_STYLE.height),
                                     border: UiRect::all(Val::Px(SLOT_BUTTON_STYLE.border_width)),
@@ -169,15 +172,20 @@ pub(super) fn spawn_action_bar(
                             });
                     }
 
-                    // Debug: infinite mana toggle button
-                    parent.spawn(Node {
-                        width: Val::Px(DEBUG_BUTTON_GAP),
-                        ..default()
-                    });
+                    // Debug: infinite mana toggle — sits at the end of the
+                    // linear row, hidden while the gamepad radial is active.
+                    let inf_left = ACTION_BAR_LEFT_MARGIN
+                        + 5.0 * (SLOT_BUTTON_STYLE.width + SLOT_GAP)
+                        + DEBUG_BUTTON_GAP;
+                    let inf_bottom = ACTION_BAR_BOTTOM_MARGIN
+                        + (SLOT_BUTTON_STYLE.height - DEBUG_BUTTON_SIZE) / 2.0;
                     parent
                         .spawn((
                             Button,
                             Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(inf_left),
+                                bottom: Val::Px(inf_bottom),
                                 width: Val::Px(DEBUG_BUTTON_SIZE),
                                 height: Val::Px(DEBUG_BUTTON_SIZE),
                                 border: UiRect::all(Val::Px(1.0)),
@@ -199,7 +207,7 @@ pub(super) fn spawn_action_bar(
                             TextFont::from_font_size(7.0),
                             TextColor(Color::srgba(0.8, 0.8, 0.8, 1.0)),
                         ));
-                });
+                }
         });
 }
 

@@ -4,6 +4,7 @@
 //! Input systems send messages that other game systems consume.
 
 pub(crate) mod components;
+pub(crate) mod gamepad;
 pub(crate) mod messages;
 mod plugin;
 pub(crate) mod run_conditions;

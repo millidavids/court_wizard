@@ -520,7 +520,14 @@ pub fn update_water_ripples(
 /// Deals damage to any living unit inside the lava pool.
 pub fn apply_lava_damage(
     time: Res<Time>,
-    mut units: Query<(&Transform, &mut Health), (Without<Corpse>, Without<crate::game::units::components::Flying>, Without<crate::game::units::boss::ray::RayEye>)>,
+    mut units: Query<
+        (&Transform, &mut Health),
+        (
+            Without<Corpse>,
+            Without<crate::game::units::components::Flying>,
+            Without<crate::game::units::boss::ray::RayEye>,
+        ),
+    >,
 ) {
     let damage = LAVA_DAMAGE_PER_SECOND * time.delta_secs();
     let lava_xz = Vec2::new(LAVA_POOL_POSITION.x, LAVA_POOL_POSITION.z);

@@ -212,7 +212,6 @@ pub fn ray_movement(
     }
 }
 
-
 // ===== Body/Eye Health Management =====
 
 /// Ray's body is a sentinel — defeat is determined by all eyes dying, not body HP.
@@ -306,6 +305,7 @@ pub fn ray_all_eyes_dead_check(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn ray_death_cleanup(
     mut commands: Commands,
     dead_ray: Query<Entity, (With<Ray>, With<Corpse>)>,
@@ -339,7 +339,6 @@ pub fn ray_death_cleanup(
         despawn_mind_control_beam(&mut commands, &mut sweep);
     }
 }
-
 
 // ===== Eye Movement =====
 
@@ -644,6 +643,7 @@ pub fn update_fear_movement(
 // ===== Disintegration Sweep =====
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn ray_disintegration_sweep(
     time: Res<Time>,
     mut commands: Commands,
@@ -688,11 +688,10 @@ pub fn ray_disintegration_sweep(
         }
 
         let has_targets = defenders.iter().any(|(entity, def_transform, _, _, _, _)| {
-            if let Ok(team) = team_query.get(entity) {
-                if *team != Team::Defenders {
+            if let Ok(team) = team_query.get(entity)
+                && *team != Team::Defenders {
                     return false;
                 }
-            }
             let horizontal = Vec2::new(
                 def_transform.translation.x - boss_pos.x,
                 def_transform.translation.z - boss_pos.z,
@@ -877,6 +876,7 @@ fn despawn_petrify_beam(commands: &mut Commands, sweep: &mut RayPetrificationSwe
 // ===== Petrification Beam =====
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn ray_petrification_beam(
     time: Res<Time>,
     mut commands: Commands,
@@ -919,11 +919,10 @@ pub fn ray_petrification_beam(
         }
 
         let has_targets = defenders.iter().any(|(entity, def_transform, _, _, _, _)| {
-            if let Ok(team) = team_query.get(entity) {
-                if *team != Team::Defenders {
+            if let Ok(team) = team_query.get(entity)
+                && *team != Team::Defenders {
                     return false;
                 }
-            }
             let horizontal = Vec2::new(
                 def_transform.translation.x - boss_pos.x,
                 def_transform.translation.z - boss_pos.z,
@@ -979,14 +978,14 @@ pub fn ray_petrification_beam(
             sweep.glow_entity = Some(glow_entity);
         }
 
-        if let Some(beam_entity) = sweep.beam_entity {
-            if let Ok(mut beam) = beams.get_mut(beam_entity) {
+        if let Some(beam_entity) = sweep.beam_entity
+            && let Ok(mut beam) = beams.get_mut(beam_entity) {
                 beam.origin = eye_pos;
                 beam.channel_progress += delta / PETRIFY_CHANNEL_TIME;
 
                 // Track target during channel: steer toward nearest defender
-                if !beam.has_fired {
-                    if let Some(target_pos) =
+                if !beam.has_fired
+                    && let Some(target_pos) =
                         find_nearest_defender_position(boss_pos, &defenders, &team_query)
                     {
                         let desired = (target_pos - eye_pos).normalize_or_zero();
@@ -1004,7 +1003,6 @@ pub fn ray_petrification_beam(
                             beam.length = (target_pos - eye_pos).length().max(1.0);
                         }
                     }
-                }
 
                 if beam.channel_progress >= 1.0 && !beam.has_fired {
                     beam.has_fired = true;
@@ -1038,7 +1036,6 @@ pub fn ray_petrification_beam(
                     sweep.cooldown = PETRIFY_BEAM_COOLDOWN;
                 }
             }
-        }
     }
 }
 
@@ -1084,6 +1081,7 @@ pub fn update_ray_petrification_visuals(
 // ===== Charm Beam =====
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn ray_mind_control_beam(
     time: Res<Time>,
     mut commands: Commands,
@@ -1139,11 +1137,10 @@ pub fn ray_mind_control_beam(
         }
 
         let has_targets = defender_positions.iter().any(|(entity, def_transform, _)| {
-            if let Ok(team) = team_query.get(entity) {
-                if *team != Team::Defenders {
+            if let Ok(team) = team_query.get(entity)
+                && *team != Team::Defenders {
                     return false;
                 }
-            }
             let horizontal = Vec2::new(
                 def_transform.translation.x - boss_pos.x,
                 def_transform.translation.z - boss_pos.z,
@@ -1163,11 +1160,8 @@ pub fn ray_mind_control_beam(
             .unwrap_or(boss_pos);
 
         if sweep.beam_entity.is_none() {
-            let target_pos = find_nearest_defender_position_filtered(
-                boss_pos,
-                &defender_positions,
-                &team_query,
-            );
+            let target_pos =
+                find_nearest_defender_position_filtered(boss_pos, &defender_positions, &team_query);
             let target = target_pos.unwrap_or(Vec3::new(boss_pos.x - 100.0, 0.0, boss_pos.z));
             let to_target = target - eye_pos;
             let dir = to_target.normalize_or_zero();
@@ -1179,7 +1173,9 @@ pub fn ray_mind_control_beam(
                 .spawn((
                     beam,
                     Mesh3d(spell_assets.disintegrate_cone.clone()),
-                    MeshMaterial3d(ray_assets.beam_materials[RayEyeType::MindControl.index()].clone()),
+                    MeshMaterial3d(
+                        ray_assets.beam_materials[RayEyeType::MindControl.index()].clone(),
+                    ),
                     Transform::from_translation(eye_pos),
                     OnGameplayScreen,
                 ))
@@ -1189,7 +1185,9 @@ pub fn ray_mind_control_beam(
                 .spawn((
                     RayMindControlGlow { beam_entity },
                     Mesh3d(spell_assets.disintegrate_cone.clone()),
-                    MeshMaterial3d(ray_assets.beam_materials[RayEyeType::MindControl.index()].clone()),
+                    MeshMaterial3d(
+                        ray_assets.beam_materials[RayEyeType::MindControl.index()].clone(),
+                    ),
                     Transform::from_translation(eye_pos),
                     OnGameplayScreen,
                 ))
@@ -1199,14 +1197,14 @@ pub fn ray_mind_control_beam(
             sweep.glow_entity = Some(glow_entity);
         }
 
-        if let Some(beam_entity) = sweep.beam_entity {
-            if let Ok(mut beam) = beams.get_mut(beam_entity) {
+        if let Some(beam_entity) = sweep.beam_entity
+            && let Ok(mut beam) = beams.get_mut(beam_entity) {
                 beam.origin = eye_pos;
                 beam.channel_progress += delta / MIND_CONTROL_CHANNEL_TIME;
 
                 // Track target during channel
-                if !beam.has_fired {
-                    if let Some(target_pos) = find_nearest_defender_position_filtered(
+                if !beam.has_fired
+                    && let Some(target_pos) = find_nearest_defender_position_filtered(
                         boss_pos,
                         &defender_positions,
                         &team_query,
@@ -1226,7 +1224,6 @@ pub fn ray_mind_control_beam(
                             beam.length = (target_pos - eye_pos).length().max(1.0);
                         }
                     }
-                }
 
                 if beam.channel_progress >= 1.0 && !beam.has_fired {
                     beam.has_fired = true;
@@ -1266,7 +1263,6 @@ pub fn ray_mind_control_beam(
                     sweep.cooldown = MIND_CONTROL_BEAM_COOLDOWN;
                 }
             }
-        }
     }
 }
 
@@ -1280,7 +1276,11 @@ fn despawn_mind_control_beam(commands: &mut Commands, sweep: &mut RayMindControl
 }
 
 pub fn update_ray_mind_control_visuals(
-    mut beam_query: Query<(&RayMindControlBeam, &mut Transform, &mut MeshMaterial3d<StandardMaterial>)>,
+    mut beam_query: Query<(
+        &RayMindControlBeam,
+        &mut Transform,
+        &mut MeshMaterial3d<StandardMaterial>,
+    )>,
     mut glow_query: Query<(&RayMindControlGlow, &mut Transform), Without<RayMindControlBeam>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -1295,12 +1295,7 @@ pub fn update_ray_mind_control_visuals(
 
         if let Some(mat) = materials.get_mut(&mat_handle.0) {
             let intensity = growth * growth;
-            mat.emissive = LinearRgba::new(
-                2.0 * intensity,
-                0.5 * intensity,
-                1.2 * intensity,
-                1.0,
-            );
+            mat.emissive = LinearRgba::new(2.0 * intensity, 0.5 * intensity, 1.2 * intensity, 1.0);
             mat.base_color = Color::srgba(1.0, 0.3, 0.6, 0.3 + 0.4 * intensity);
             mat.alpha_mode = AlphaMode::Blend;
         }
@@ -1320,6 +1315,7 @@ pub fn update_ray_mind_control_visuals(
 }
 
 /// Nearest defender position, filtered query (excludes King and KingsGuard).
+#[allow(clippy::type_complexity)]
 fn find_nearest_defender_position_filtered(
     boss_pos: Vec3,
     defenders: &Query<
@@ -1339,11 +1335,10 @@ fn find_nearest_defender_position_filtered(
     // Priority: non-feared first (0), feared second (1), then by distance.
     let mut best: Option<(Vec3, f32, u8)> = None;
     for (entity, transform, has_fear) in defenders.iter() {
-        if let Ok(team) = team_query.get(entity) {
-            if *team != Team::Defenders {
+        if let Ok(team) = team_query.get(entity)
+            && *team != Team::Defenders {
                 continue;
             }
-        }
         let to = Vec2::new(
             transform.translation.x - boss_pos.x,
             transform.translation.z - boss_pos.z,
@@ -1356,8 +1351,7 @@ fn find_nearest_defender_position_filtered(
         let replace = match &best {
             None => true,
             Some((_, best_dist, best_priority)) => {
-                priority < *best_priority
-                    || (priority == *best_priority && dist < *best_dist)
+                priority < *best_priority || (priority == *best_priority && dist < *best_dist)
             }
         };
         if replace {
@@ -1368,6 +1362,7 @@ fn find_nearest_defender_position_filtered(
 }
 
 /// Cone-cylinder intersection returning entity + position, filtered (excludes King, KingsGuard).
+#[allow(clippy::type_complexity)]
 fn find_units_in_cone_filtered(
     origin: Vec3,
     direction: Vec3,
@@ -1391,11 +1386,10 @@ fn find_units_in_cone_filtered(
     let dir_norm = direction.normalize_or_zero();
 
     for (entity, transform, hitbox) in defenders.iter() {
-        if let Ok(team) = team_query.get(entity) {
-            if *team != Team::Defenders {
+        if let Ok(team) = team_query.get(entity)
+            && *team != Team::Defenders {
                 continue;
             }
-        }
         let to_unit = transform.translation - origin;
         let forward_dist = to_unit.dot(dir_norm);
         if forward_dist < 0.0 || forward_dist > length {
@@ -1449,6 +1443,7 @@ pub fn update_petrified_damage(
 // ===== Fear Beam =====
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn ray_fear_beam(
     time: Res<Time>,
     mut commands: Commands,
@@ -1458,7 +1453,13 @@ pub fn ray_fear_beam(
     >,
     eye_query: Query<(&Transform, &RayEye)>,
     defenders: Query<
-        (Entity, &Transform, &Hitbox, Has<BerserkerRageModifier>, Has<MindControlled>),
+        (
+            Entity,
+            &Transform,
+            &Hitbox,
+            Has<BerserkerRageModifier>,
+            Has<MindControlled>,
+        ),
         (
             With<Team>,
             Without<Corpse>,
@@ -1522,8 +1523,8 @@ pub fn ray_fear_beam(
         }
 
         // Update beam position + apply fear
-        if let Some(beam_entity) = sweep.beam_entity {
-            if let Ok(mut beam) = beams.get_mut(beam_entity) {
+        if let Some(beam_entity) = sweep.beam_entity
+            && let Ok(mut beam) = beams.get_mut(beam_entity) {
                 beam.origin = eye_pos;
                 beam.length = eye_pos.y.max(1.0);
                 beam.time_alive += delta;
@@ -1538,11 +1539,10 @@ pub fn ray_fear_beam(
                         if has_rage || is_mind_controlled {
                             continue;
                         }
-                        if let Ok(team) = team_query.get(entity) {
-                            if *team != Team::Defenders {
+                        if let Ok(team) = team_query.get(entity)
+                            && *team != Team::Defenders {
                                 continue;
                             }
-                        }
                         let unit_xz = Vec2::new(def_tf.translation.x, def_tf.translation.z);
                         let dist = (unit_xz - ground_pos).length();
                         if dist <= FEAR_BEAM_GROUND_RADIUS + hitbox.radius {
@@ -1553,7 +1553,6 @@ pub fn ray_fear_beam(
                     }
                 }
             }
-        }
     }
 }
 
@@ -1610,6 +1609,7 @@ pub fn update_ray_fear_visuals(
 // ===== Teleport Eye =====
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn ray_teleport_eye(
     time: Res<Time>,
     mut commands: Commands,
@@ -1619,7 +1619,13 @@ pub fn ray_teleport_eye(
     >,
     eye_query: Query<(&Transform, &RayEye)>,
     defenders: Query<
-        (Entity, &Transform, Has<Petrified>, Has<FearModifier>, Has<MindControlled>),
+        (
+            Entity,
+            &Transform,
+            Has<Petrified>,
+            Has<FearModifier>,
+            Has<MindControlled>,
+        ),
         (
             With<Team>,
             Without<Corpse>,
@@ -1651,11 +1657,10 @@ pub fn ray_teleport_eye(
 
         // Only activate when a defender is in melee range of Ray's body
         let any_in_melee = defenders.iter().any(|(entity, def_tf, _, _, _)| {
-            if let Ok(team) = team_query.get(entity) {
-                if *team != Team::Defenders {
+            if let Ok(team) = team_query.get(entity)
+                && *team != Team::Defenders {
                     return false;
                 }
-            }
             let dist = Vec2::new(
                 def_tf.translation.x - boss_pos.x,
                 def_tf.translation.z - boss_pos.z,
@@ -1682,11 +1687,10 @@ pub fn ray_teleport_eye(
                 if is_petrified || is_charmed {
                     return None;
                 }
-                if let Ok(team) = team_query.get(entity) {
-                    if *team != Team::Defenders {
+                if let Ok(team) = team_query.get(entity)
+                    && *team != Team::Defenders {
                         return None;
                     }
-                }
                 let dist = Vec2::new(
                     def_tf.translation.x - boss_pos.x,
                     def_tf.translation.z - boss_pos.z,
@@ -1789,6 +1793,7 @@ pub fn update_ray_teleport_bubbles(
 /// widens linearly to `base_radius` at `length` along `direction`.
 /// Projects each unit onto the 3D beam axis and checks perpendicular distance
 /// against the cone radius at that depth.
+#[allow(clippy::type_complexity)]
 fn find_units_in_cone(
     origin: Vec3,
     direction: Vec3,
@@ -1811,11 +1816,10 @@ fn find_units_in_cone(
     let dir_norm = direction.normalize_or_zero();
 
     for (entity, transform, hitbox, _, _, _) in defenders.iter() {
-        if let Ok(team) = team_query.get(entity) {
-            if *team != Team::Defenders {
+        if let Ok(team) = team_query.get(entity)
+            && *team != Team::Defenders {
                 continue;
             }
-        }
 
         // Project unit center onto the 3D beam axis
         let to_unit = transform.translation - origin;
@@ -1839,6 +1843,7 @@ fn find_units_in_cone(
 }
 
 /// Find direction from `from_pos` (XZ) to nearest defender. Used for reticle steering.
+#[allow(clippy::type_complexity)]
 fn find_nearest_defender_direction_from(
     from_pos: Vec2,
     defenders: &Query<
@@ -1856,11 +1861,10 @@ fn find_nearest_defender_direction_from(
 ) -> Option<Vec2> {
     let mut best: Option<(Vec2, f32)> = None;
     for (entity, transform, _, _, _, _) in defenders.iter() {
-        if let Ok(team) = team_query.get(entity) {
-            if *team != Team::Defenders {
+        if let Ok(team) = team_query.get(entity)
+            && *team != Team::Defenders {
                 continue;
             }
-        }
         let to = Vec2::new(
             transform.translation.x - from_pos.x,
             transform.translation.z - from_pos.y,
@@ -1925,6 +1929,7 @@ pub fn update_ray_disintegrate_visuals(
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn find_nearest_defender_position(
     boss_pos: Vec3,
     defenders: &Query<
@@ -1942,11 +1947,10 @@ fn find_nearest_defender_position(
 ) -> Option<Vec3> {
     let mut best: Option<(Vec3, f32)> = None;
     for (entity, transform, _, _, _, _) in defenders.iter() {
-        if let Ok(team) = team_query.get(entity) {
-            if *team != Team::Defenders {
+        if let Ok(team) = team_query.get(entity)
+            && *team != Team::Defenders {
                 continue;
             }
-        }
         let to = Vec2::new(
             transform.translation.x - boss_pos.x,
             transform.translation.z - boss_pos.z,
@@ -1962,4 +1966,3 @@ fn find_nearest_defender_position(
     }
     best.map(|(pos, _)| pos)
 }
-

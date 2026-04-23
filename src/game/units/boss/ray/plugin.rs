@@ -1,13 +1,16 @@
 use bevy::prelude::*;
 
-use super::components::{Ray, RayBeamVisual, RayEyeDying, RayMindControlBeam, RayDisintegrateBeam, RayEye, RayFearBeam, RayPetrificationBeam, RayStalkParticle, RayTeleportBubble};
-use crate::game::units::components::Petrified;
+use super::components::{
+    Ray, RayBeamVisual, RayDisintegrateBeam, RayEye, RayEyeDying, RayFearBeam, RayMindControlBeam,
+    RayPetrificationBeam, RayStalkParticle, RayTeleportBubble,
+};
 use super::resources;
 use super::systems::*;
 use crate::game::plugin::PostCombatSet;
 use crate::game::run_conditions::is_gameplay_running;
 use crate::game::units::MovementCalculationSet;
 use crate::game::units::components::FearModifier;
+use crate::game::units::components::Petrified;
 
 pub struct RayPlugin;
 
@@ -26,8 +29,7 @@ impl Plugin for RayPlugin {
                         .run_if(any_with_component::<RayPetrificationBeam>),
                     update_ray_eye_movement.run_if(any_with_component::<RayEye>),
                     spawn_ray_stalk_particles,
-                    update_ray_stalk_particles
-                        .run_if(any_with_component::<RayStalkParticle>),
+                    update_ray_stalk_particles.run_if(any_with_component::<RayStalkParticle>),
                     update_ray_beam_visuals.run_if(any_with_component::<RayBeamVisual>),
                 )
                     .run_if(is_gameplay_running)
@@ -46,8 +48,7 @@ impl Plugin for RayPlugin {
                 Update,
                 (
                     ray_teleport_eye,
-                    update_ray_teleport_bubbles
-                        .run_if(any_with_component::<RayTeleportBubble>),
+                    update_ray_teleport_bubbles.run_if(any_with_component::<RayTeleportBubble>),
                 )
                     .run_if(is_gameplay_running)
                     .run_if(any_with_component::<Ray>),
@@ -56,7 +57,8 @@ impl Plugin for RayPlugin {
                 Update,
                 (
                     ray_mind_control_beam,
-                    update_ray_mind_control_visuals.run_if(any_with_component::<RayMindControlBeam>),
+                    update_ray_mind_control_visuals
+                        .run_if(any_with_component::<RayMindControlBeam>),
                 )
                     .run_if(is_gameplay_running)
                     .run_if(any_with_component::<Ray>),

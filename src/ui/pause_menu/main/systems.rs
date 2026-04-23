@@ -5,14 +5,13 @@ use bevy::prelude::*;
 use crate::config::ActiveSave;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::game_mode::components::{
-    ActiveToggles, GameMode, RogueliteModifiers, ToggleModifier, format_time, ROGUELITE_MAX_LEVEL,
+    ActiveToggles, GameMode, ROGUELITE_MAX_LEVEL, RogueliteModifiers, ToggleModifier, format_time,
 };
 use crate::game::input::messages::MouseClicked;
 use crate::game::resources::{CurrentLevel, KillStats, WaveState};
 use crate::state::{AppState, InGameState, PauseMenuState};
 use crate::ui::systems::{
-    default_content_node, spawn_button, spawn_page_container,
-    spawn_title_with_shadow,
+    default_content_node, spawn_button, spawn_page_container, spawn_title_with_shadow,
 };
 
 use super::components::{OnPauseMainScreen, PauseMenuButtonAction, ScrollablePauseStats};
@@ -38,6 +37,12 @@ pub fn setup(
         true,
         default_content_node(),
     );
+    // Trap gamepad focus to the pause menu so controller nav doesn't leak
+    // through to the in-game HUD buttons (Spells / Cauldron / etc.) sitting
+    // behind the overlay.
+    commands
+        .entity(content)
+        .insert(crate::ui::focus::ModalOverlay);
 
     // Collect left panel data before building UI (avoids borrow conflicts)
     let left_panel_data = collect_left_panel_data(
@@ -131,8 +136,7 @@ fn collect_left_panel_data(
     // Efficiency (use actual initial count which accounts for Veteran/Attrition toggles)
     let total_defenders = initial_defenders.map_or(
         (crate::game::constants::INITIAL_DEFENDER_COUNT
-            + crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT)
-            as f32,
+            + crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT) as f32,
         |d| d.0 as f32,
     );
     let efficiency = if total_defenders > 0.0 {
@@ -176,8 +180,14 @@ fn collect_left_panel_data(
             .and_then(|_| crate::config::save_data::get_endless_best_stats(level));
         best.map(|b| {
             let mut best_stats = Vec::new();
-            best_stats.push(("Best Efficiency", format!("{:.0}%", b.best_efficiency * 100.0)));
-            best_stats.push(("Best Kills", format!("{}", b.attackers_killed + b.undead_killed)));
+            best_stats.push((
+                "Best Efficiency",
+                format!("{:.0}%", b.best_efficiency * 100.0),
+            ));
+            best_stats.push((
+                "Best Kills",
+                format!("{}", b.attackers_killed + b.undead_killed),
+            ));
             best_stats.push(("Best Time", format_time(b.elapsed_time)));
             LeftPanelSection::EndlessBest { stats: best_stats }
         })
@@ -190,10 +200,8 @@ fn collect_left_panel_data(
 
 /// Spawns the left panel with run statistics and modifier info.
 fn spawn_left_panel(parent: &mut ChildSpawnerCommands, data: &LeftPanelData) {
-    let detail_box = crate::ui::systems::spawn_scrollable_left_detail_panel(
-        parent,
-        ScrollablePauseStats,
-    );
+    let detail_box =
+        crate::ui::systems::spawn_scrollable_left_detail_panel(parent, ScrollablePauseStats);
 
     parent.commands().entity(detail_box).with_children(|panel| {
         // Battle stats

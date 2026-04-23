@@ -418,10 +418,22 @@ pub(super) fn build_insight_constellation() -> (Vec<InsightNodeDef>, Vec<Insight
 
     // Diamond layout: top, right, bottom, left
     let positions = [
-        (InsightBonusStat::SpellDamage, Vec2::new(center.x, center.y - r)),
-        (InsightBonusStat::CastSpeed, Vec2::new(center.x + r, center.y)),
-        (InsightBonusStat::ManaCost, Vec2::new(center.x, center.y + r)),
-        (InsightBonusStat::SpellRange, Vec2::new(center.x - r, center.y)),
+        (
+            InsightBonusStat::SpellDamage,
+            Vec2::new(center.x, center.y - r),
+        ),
+        (
+            InsightBonusStat::CastSpeed,
+            Vec2::new(center.x + r, center.y),
+        ),
+        (
+            InsightBonusStat::ManaCost,
+            Vec2::new(center.x, center.y + r),
+        ),
+        (
+            InsightBonusStat::SpellRange,
+            Vec2::new(center.x - r, center.y),
+        ),
     ];
 
     let nodes: Vec<InsightNodeDef> = positions

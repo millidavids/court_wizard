@@ -6,7 +6,9 @@ use super::systems::*;
 use crate::game::run_conditions::is_gameplay_running;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
-use crate::game::units::wizard::spells::meteor_fall::components::{MeteorExplosion, MeteorGroundFire};
+use crate::game::units::wizard::spells::meteor_fall::components::{
+    MeteorExplosion, MeteorGroundFire,
+};
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 
 pub struct TreePlugin;

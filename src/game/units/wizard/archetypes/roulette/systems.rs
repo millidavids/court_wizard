@@ -14,7 +14,10 @@ pub fn handle_spin_trigger(
     mut state: ResMut<RouletteState>,
 ) {
     for _ in messages.read() {
-        if matches!(state.phase, RoulettePhase::Idle | RoulettePhase::Selected { .. }) {
+        if matches!(
+            state.phase,
+            RoulettePhase::Idle | RoulettePhase::Selected { .. }
+        ) {
             let rng = &mut game_rng.0;
             let result_index = rng.gen_range(0..state.wheel_spells.len());
             state.phase = RoulettePhase::Spinning {

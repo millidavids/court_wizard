@@ -154,6 +154,19 @@ pub enum ColorblindType {
     Tritanopia,
 }
 
+/// Which controller glyph set to render in on-screen prompts. `Auto` uses
+/// the connected gamepad's vendor to pick one of the four supported styles;
+/// the other variants force that style regardless of hardware.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum ControllerGlyphStyle {
+    #[default]
+    Auto,
+    Xbox,
+    PlayStation,
+    SteamDeck,
+    Switch,
+}
+
 /// Wizard class types available for selection.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
 pub enum WizardType {
@@ -330,9 +343,17 @@ fn default_colorblind_strength() -> f32 {
     1.0
 }
 
-/// Default game speed (normal).
-fn default_game_speed() -> f32 {
+/// Default 1.0 multiplier (game speed, gamepad sensitivity, etc.).
+fn default_one() -> f32 {
     1.0
+}
+
+fn default_gamepad_deadzone() -> f32 {
+    0.15
+}
+
+fn default_gamepad_curve() -> f32 {
+    2.2
 }
 
 /// Default action bar slots: None for all 5 slots.
@@ -449,7 +470,7 @@ pub struct GameConfig {
     #[serde(default = "default_true")]
     pub crt_enabled: bool,
     /// Game speed multiplier (0.5 = half speed, 1.0 = normal, 2.0 = double)
-    #[serde(default = "default_game_speed")]
+    #[serde(default = "default_one")]
     pub game_speed: f32,
     /// Whether to auto-pause when the game window loses focus
     #[serde(default)]
@@ -460,6 +481,26 @@ pub struct GameConfig {
     /// Aim assist — snaps spell targeting to nearest unit
     #[serde(default)]
     pub aim_assist: bool,
+    /// Gamepad aim sensitivity multiplier (X axis, 0.3..=2.5, default 1.0)
+    #[serde(default = "default_one")]
+    pub gamepad_sensitivity_x: f32,
+    /// Gamepad aim sensitivity multiplier (Y axis, 0.3..=2.5, default 1.0)
+    #[serde(default = "default_one")]
+    pub gamepad_sensitivity_y: f32,
+    /// Gamepad stick deadzone (0.05..=0.30, default 0.15)
+    #[serde(default = "default_gamepad_deadzone")]
+    pub gamepad_deadzone: f32,
+    /// Gamepad response curve exponent (1.0..=3.5, default 2.2)
+    #[serde(default = "default_gamepad_curve")]
+    pub gamepad_response_curve: f32,
+    /// Whether controller rumble is enabled
+    #[serde(default = "default_true")]
+    pub rumble_enabled: bool,
+    /// Which controller glyph set to use for on-screen prompts. `Auto` picks
+    /// Xbox / PlayStation / Steam Deck / Nintendo from the connected
+    /// gamepad's vendor; the other variants force that style.
+    #[serde(default)]
+    pub controller_glyph_style: ControllerGlyphStyle,
     /// Permanent walls saved from previous victories
     #[serde(skip)]
     pub saved_walls: Vec<SavedWall>,
@@ -517,6 +558,12 @@ impl Default for GameConfig {
             auto_pause_on_focus_loss: false,
             high_contrast_strength: 0.0,
             aim_assist: false,
+            gamepad_sensitivity_x: 1.0,
+            gamepad_sensitivity_y: 1.0,
+            gamepad_deadzone: 0.15,
+            gamepad_response_curve: 2.2,
+            rumble_enabled: true,
+            controller_glyph_style: ControllerGlyphStyle::Auto,
             saved_walls: Vec::new(),
             saved_crystals: Vec::new(),
             saved_flora: Vec::new(),

@@ -7,8 +7,8 @@ use crate::config::GameConfig;
 use crate::config::input_bindings::InputBindings;
 use crate::game::components::{Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::WIZARD_POSITION;
-use crate::game::game_mode::components::ArchetypeUI;
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::game_mode::components::ArchetypeUI;
 use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::units::components::{
     AttackTiming, Corpse, Effectiveness, FacingDirection, Health, Hitbox, MovementSpeed, Team,
@@ -81,13 +81,26 @@ pub(super) fn handle_retreat(
     }
 }
 
-/// Handles WASD movement for the battlemage avatar.
+/// Handles WASD / left-stick movement for the battlemage avatar.
+/// Also updates the avatar's `BattlemageFacing` so spells aim along the
+/// current movement direction (no separate aim input for this archetype).
+#[allow(clippy::too_many_arguments)]
 pub(super) fn player_movement(
     time: Res<Time>,
     keyboard: Res<ButtonInput<KeyCode>>,
     bindings: Res<InputBindings>,
+    active_device: Res<crate::game::input::gamepad::resources::ActiveInputDevice>,
+    gamepads: Query<&Gamepad>,
+    aim_settings: Res<crate::game::input::gamepad::resources::GamepadAimSettings>,
+    mut commands: Commands,
     mut avatar_query: Query<
-        (&mut Transform, &mut Velocity, &MovementSpeed),
+        (
+            Entity,
+            &mut Transform,
+            &mut Velocity,
+            &MovementSpeed,
+            Option<&mut BattlemageFacing>,
+        ),
         With<BattlemageAvatar>,
     >,
     state: Res<BattlemageState>,
@@ -96,11 +109,12 @@ pub(super) fn player_movement(
         return;
     }
 
-    let Ok((mut transform, mut velocity, speed)) = avatar_query.single_mut() else {
+    let Ok((avatar_entity, mut transform, mut velocity, speed, maybe_facing)) =
+        avatar_query.single_mut()
+    else {
         return;
     };
 
-    // Calculate input direction
     let mut input = Vec2::ZERO;
     if let Some(key) = bindings.battlemage.move_forward
         && keyboard.pressed(key)
@@ -123,11 +137,38 @@ pub(super) fn player_movement(
         input.x += 1.0;
     }
 
+    // Gamepad: left stick overrides keyboard when active and deflected.
+    if let Some(gamepad_entity) = active_device.gamepad_entity()
+        && let Ok(gamepad) = gamepads.get(gamepad_entity)
+    {
+        let lx = gamepad.get(GamepadAxis::LeftStickX).unwrap_or(0.0);
+        let ly = gamepad.get(GamepadAxis::LeftStickY).unwrap_or(0.0);
+        // Negate Y so stick-up is -Z (forward toward the battlefield).
+        let shaped = crate::game::input::gamepad::systems::apply_deadzone_and_curve(
+            Vec2::new(lx, -ly),
+            aim_settings.deadzone,
+            aim_settings.response_curve,
+        );
+        if shaped != Vec2::ZERO {
+            input = shaped;
+        }
+    }
+
     let input_normalized = if input.length_squared() > 0.0 {
         input.normalize()
     } else {
         Vec2::ZERO
     };
+
+    if input_normalized.length_squared() > 0.0 {
+        let facing = BattlemageFacing(input_normalized);
+        match maybe_facing {
+            Some(mut f) => *f = facing,
+            None => {
+                commands.entity(avatar_entity).insert(facing);
+            }
+        }
+    }
 
     let dt = time.delta_secs();
     let max_speed = speed.0;
@@ -159,18 +200,24 @@ pub(super) fn player_movement(
     transform.translation.z = transform.translation.z.clamp(-half_field, half_field);
 }
 
-/// Handles left-click magic missile firing from the battlemage avatar.
+/// Handles RT / left-click magic missile firing from the battlemage avatar.
+///
+/// Fires in the avatar's current facing direction (most recent movement vector).
+/// There is no separate aim input — movement direction IS attack direction.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn fire_missile(
-    mouse: Res<ButtonInput<MouseButton>>,
+    mut mouse_pressed: MessageReader<crate::game::input::messages::MouseLeftPressed>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut avatar_query: Query<
-        (Entity, &Transform, Option<&BattlemageMissileCooldown>),
+        (
+            Entity,
+            &Transform,
+            Option<&BattlemageMissileCooldown>,
+            Option<&BattlemageFacing>,
+        ),
         With<BattlemageAvatar>,
     >,
-    camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
     targets: Query<(Entity, &Transform, &Team), (Without<BattlemageAvatar>, Without<Corpse>)>,
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
@@ -181,11 +228,11 @@ pub(super) fn fire_missile(
     if state.phase != BattlemagePhase::OnField {
         return;
     }
-    if !mouse.just_pressed(MouseButton::Left) {
+    if mouse_pressed.read().next().is_none() {
         return;
     }
 
-    let Ok((avatar_entity, avatar_transform, cooldown)) = avatar_query.single_mut() else {
+    let Ok((avatar_entity, avatar_transform, cooldown, facing)) = avatar_query.single_mut() else {
         return;
     };
 
@@ -200,15 +247,10 @@ pub(super) fn fire_missile(
         return;
     }
 
-    let cursor_pos = get_cursor_world_position(&camera_query_3d, &corrected_cursor);
     let spawn_pos = avatar_transform.translation + Vec3::new(0.0, 30.0, 0.0);
 
-    // Calculate direction toward cursor or nearest enemy
-    let direction = if let Some(cursor) = cursor_pos {
-        (cursor - spawn_pos).normalize_or_zero()
-    } else {
-        Vec3::new(1.0, 0.0, -1.0).normalize()
-    };
+    let facing_vec = facing.copied().unwrap_or_default().0;
+    let direction = Vec3::new(facing_vec.x, 0.0, facing_vec.y).normalize_or_zero();
 
     let initial_velocity = direction * MISSILE_SPEED;
 
@@ -271,10 +313,12 @@ pub(super) fn fire_missile(
         });
 }
 
-/// Handles right-click sword swing from the battlemage avatar.
+/// Handles LT / right-click sword swing from the battlemage avatar.
+///
+/// Swings in the avatar's current facing direction (most recent movement vector).
 #[allow(clippy::too_many_arguments)]
 pub(super) fn sword_swing(
-    mouse: Res<ButtonInput<MouseButton>>,
+    mut mouse_right_pressed: MessageReader<crate::game::input::messages::MouseRightPressed>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     arc_material: Res<SwordArcMaterial>,
@@ -284,22 +328,22 @@ pub(super) fn sword_swing(
             &Transform,
             &mut Velocity,
             Option<&BattlemageSwordCooldown>,
+            Option<&BattlemageFacing>,
         ),
         With<BattlemageAvatar>,
     >,
-    camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
     state: Res<BattlemageState>,
     battlemage_assets: Res<BattlemageAssets>,
 ) {
     if state.phase != BattlemagePhase::OnField {
         return;
     }
-    if !mouse.just_pressed(MouseButton::Right) {
+    if mouse_right_pressed.read().next().is_none() {
         return;
     }
 
-    let Ok((avatar_entity, avatar_transform, mut velocity, cooldown)) = avatar_query.single_mut()
+    let Ok((avatar_entity, avatar_transform, mut velocity, cooldown, facing)) =
+        avatar_query.single_mut()
     else {
         return;
     };
@@ -308,16 +352,9 @@ pub(super) fn sword_swing(
         return;
     }
 
-    let cursor_pos = get_cursor_world_position(&camera_query_3d, &corrected_cursor);
     let avatar_pos = avatar_transform.translation;
 
-    // Direction toward cursor on the XZ plane
-    let direction = if let Some(cursor) = cursor_pos {
-        let diff = cursor - avatar_pos;
-        Vec2::new(diff.x, diff.z).normalize_or_zero()
-    } else {
-        Vec2::new(1.0, -1.0).normalize()
-    };
+    let direction = facing.copied().unwrap_or_default().0.normalize_or_zero();
 
     // Build a semicircle mesh (fan of triangles covering ±90° from swing direction)
     let segments = 16u32;
@@ -623,10 +660,10 @@ pub(super) fn handle_enter_fray_click(
     }
 }
 
-/// Handles left-click on the battlefield to place the avatar during ChoosingLocation phase.
+/// Handles left-click / RT on the battlefield to place the avatar during ChoosingLocation phase.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_location_click(
-    mouse: Res<ButtonInput<MouseButton>>,
+    mut mouse_pressed: MessageReader<crate::game::input::messages::MouseLeftPressed>,
     mut state: ResMut<BattlemageState>,
     mut commands: Commands,
     mut wizard_query: Query<&mut Visibility, With<Wizard>>,
@@ -641,7 +678,7 @@ pub(super) fn handle_location_click(
     if state.phase != BattlemagePhase::ChoosingLocation {
         return;
     }
-    if !mouse.just_pressed(MouseButton::Left) {
+    if mouse_pressed.read().next().is_none() {
         return;
     }
 
@@ -684,11 +721,14 @@ pub(super) fn handle_location_click(
         AttackTiming::new(),
         Effectiveness::new(),
         Team::Defenders,
-        BattlemageAvatar,
-        WalkingAnimation::default(),
-        FacingDirection::default(),
-        Billboard,
-        OnGameplayScreen,
+        (
+            BattlemageAvatar,
+            BattlemageFacing::default(),
+            WalkingAnimation::default(),
+            FacingDirection::default(),
+            Billboard,
+            OnGameplayScreen,
+        ),
     ));
 
     state.phase = BattlemagePhase::OnField;

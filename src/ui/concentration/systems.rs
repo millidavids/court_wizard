@@ -57,7 +57,10 @@ pub(super) fn spawn_concentration_ui(
 
     // Despawn buttons for spells that no longer exist
     for (button_entity, btn) in existing_buttons.iter() {
-        if !concentration_spells.iter().any(|(e, _)| e == btn.spell_entity) {
+        if !concentration_spells
+            .iter()
+            .any(|(e, _)| e == btn.spell_entity)
+        {
             commands.entity(button_entity).try_despawn();
         }
     }

@@ -31,6 +31,9 @@ impl Plugin for RouletteDisplayPlugin {
             (
                 systems::animate_wheel_spin,
                 systems::update_roulette_display,
+                // Runs after `update_roulette_display` so it has the last
+                // word on the Idle-phase prompt text / font.
+                systems::adapt_prompt_to_input_device.after(systems::update_roulette_display),
                 systems::update_selected_spell_fade
                     .run_if(any_with_component::<SelectedSpellFadeTimer>),
             )

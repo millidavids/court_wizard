@@ -11,6 +11,7 @@ use super::{
         MouseButtonState, MouseLeftHeldThisFrame, MouseRightHeldThisFrame,
         SpellInputBlockedThisFrame,
     },
+    gamepad::GamepadInputPlugin,
     messages::*,
     systems,
 };
@@ -24,7 +25,7 @@ pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        app
+        app.add_plugins(GamepadInputPlugin)
             // Initialize input resources
             .init_resource::<MouseButtonState>()
             .init_resource::<SpellInputBlockedThisFrame>()

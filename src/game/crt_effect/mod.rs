@@ -16,3 +16,5 @@ pub(crate) use messages::ScreenFlashMessage;
 pub(crate) use messages::VignettePulseMessage;
 pub(crate) use plugin::CrtEffectPlugin;
 pub(crate) use systems::CorrectedCursorPosition;
+pub(crate) use systems::correct_cursor_for_barrel_distortion;
+pub(crate) use systems::correct_ui_interaction_for_barrel;

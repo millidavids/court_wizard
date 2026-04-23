@@ -10,6 +10,7 @@ use crate::game::cauldron::brews::BrewEffect;
 use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::cauldron::resources::CauldronBuffs;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
+use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::messages::WaveSpawnedMessage;
 use crate::game::resources::{CurrentLevel, KillStats, WaveState};
@@ -24,42 +25,91 @@ use crate::game::units::wizard::components::{CastingState, LocalWizard, Mana, Pr
 use crate::state::{InGameState, MultiplayerGameState};
 use crate::ui::systems::spawn_button;
 
-/// Blocks spell input when any button is being interacted with.
-///
-/// This system runs before spell systems to prevent casting when clicking UI buttons.
+/// Blocks spell input when the mouse is interacting with a UI button so
+/// clicking a HUD button doesn't simultaneously fire a spell. With a
+/// gamepad, spells are triggered by RT (not by a UI cursor), and the hidden
+/// OS cursor may sit over a HUD button at any time — gating on mouse mode
+/// prevents those incidental hovers from silently killing RT casts.
 pub(super) fn block_spell_input_on_button_interaction(
+    active: Res<ActiveInputDevice>,
     button_query: Query<&Interaction, With<Button>>,
     mut block_spell_input: MessageWriter<BlockSpellInput>,
 ) {
-    // Block spell input if any button is pressed or hovered
+    if active.is_gamepad() {
+        return;
+    }
     for interaction in &button_query {
         if matches!(*interaction, Interaction::Pressed | Interaction::Hovered) {
             block_spell_input.write(BlockSpellInput);
-            return; // Only need to send once
+            return;
         }
     }
 }
 
-/// Handles keyboard input during active gameplay (single-player only).
+/// Opens the spell book on gamepad X (West) and the cauldron menu on
+/// gamepad Y (North) during gameplay. Matches the existing HUD-button
+/// routing so state handling stays in one place.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn gamepad_hud_shortcuts(
+    active: Res<ActiveInputDevice>,
+    gamepads: Query<&Gamepad>,
+    current_state: Res<State<InGameState>>,
+    mp_state: Option<Res<State<MultiplayerGameState>>>,
+    config: Res<crate::config::GameConfig>,
+    mut next_in_game_state: Option<ResMut<NextState<InGameState>>>,
+    mut next_mp_state: Option<ResMut<NextState<MultiplayerGameState>>>,
+) {
+    if *current_state.get() != InGameState::Running {
+        return;
+    }
+    let Some(gp_entity) = active.gamepad_entity() else {
+        return;
+    };
+    let Ok(gamepad) = gamepads.get(gp_entity) else {
+        return;
+    };
+    if gamepad.just_pressed(GamepadButton::West)
+        && !config.wizard_type.uses_exclusive_casting()
+    {
+        if let Some(ref mut next_sp) = next_in_game_state {
+            next_sp.set(InGameState::SpellBook);
+        }
+        if let Some(ref mut next_mp) = next_mp_state {
+            next_mp.set(MultiplayerGameState::SpellBook);
+        }
+    }
+    if gamepad.just_pressed(GamepadButton::North)
+        && mp_state.is_none()
+        && let Some(ref mut next_sp) = next_in_game_state
+    {
+        next_sp.set(InGameState::CauldronMenu);
+    }
+}
+
+/// Handles pause input during active gameplay (single-player only):
+/// Escape on keyboard or Start on the gamepad. **Not** B/East — in gameplay
+/// that button is reserved for other actions and shouldn't stop the game.
 ///
-/// - Escape: Pause the game, transitioning to `InGameState::Paused`
-///
-/// In multiplayer, `mp_escape_key_handler` handles Escape instead.
+/// In multiplayer, `mp_escape_key_handler` handles pause instead.
 pub(super) fn keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    active: Res<ActiveInputDevice>,
+    gamepads: Query<&Gamepad>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     current_state: Res<State<InGameState>>,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
 ) {
-    // Don't handle Escape in multiplayer — mp_escape_key_handler does it
     if mp_state.is_some() {
         return;
     }
-    // Only handle escape when actually running (not in menus with urgent mode)
     if *current_state.get() != InGameState::Running {
         return;
     }
-    if keyboard.just_pressed(KeyCode::Escape) {
+    let gamepad_start = active
+        .gamepad_entity()
+        .and_then(|e| gamepads.get(e).ok())
+        .is_some_and(|g| g.just_pressed(GamepadButton::Start));
+    if keyboard.just_pressed(KeyCode::Escape) || gamepad_start {
         next_in_game_state.set(InGameState::Paused);
     }
 }
@@ -161,7 +211,10 @@ pub(super) fn spawn_hud(
                     })
                     .with_children(|buttons| {
                         // Hide Spells button for archetypes that don't manage spells.
-                        if !matches!(config.wizard_type, WizardType::Warglock | WizardType::Randomancer | WizardType::RuneCaster) {
+                        if !matches!(
+                            config.wizard_type,
+                            WizardType::Warglock | WizardType::Randomancer | WizardType::RuneCaster
+                        ) {
                             spawn_button(
                                 buttons,
                                 "Spells",
@@ -437,7 +490,10 @@ pub(super) fn spawn_mp_hud(mut commands: Commands, config: Res<GameConfig>) {
                         ..default()
                     })
                     .with_children(|buttons| {
-                        if !matches!(config.wizard_type, WizardType::Warglock | WizardType::Randomancer | WizardType::RuneCaster) {
+                        if !matches!(
+                            config.wizard_type,
+                            WizardType::Warglock | WizardType::Randomancer | WizardType::RuneCaster
+                        ) {
                             spawn_button(
                                 buttons,
                                 "Spells",
@@ -550,10 +606,7 @@ pub(super) fn update_mana_bar(
     wizard_query: Query<&Mana, With<LocalWizard>>,
     concentration_spells: Query<&ConcentrationSpell>,
     mut mana_bar_query: Query<&mut Node, With<ManaBarFill>>,
-    mut reserved_bar_query: Query<
-        &mut Node,
-        (With<ManaBarReservedFill>, Without<ManaBarFill>),
-    >,
+    mut reserved_bar_query: Query<&mut Node, (With<ManaBarReservedFill>, Without<ManaBarFill>)>,
 ) {
     if let Ok(mana) = wizard_query.single() {
         let reserved: f32 = concentration_spells.iter().map(|c| c.mana_cost).sum();
@@ -764,13 +817,7 @@ pub(super) fn spawn_boss_health_bar(
             Without<Corpse>,
         ),
     >,
-    ray_query: Query<
-        Entity,
-        (
-            With<crate::game::units::boss::ray::Ray>,
-            Without<Corpse>,
-        ),
-    >,
+    ray_query: Query<Entity, (With<crate::game::units::boss::ray::Ray>, Without<Corpse>)>,
     bar_query: Query<Entity, With<BossHealthBarRoot>>,
 ) {
     let boss_exists = boss_query.iter().next().is_some();
@@ -869,10 +916,18 @@ pub(super) fn spawn_boss_health_bar(
                         .with_children(|bar_row| {
                             let sections = [
                                 (RayEyeType::Petrification, "Pet", Color::srgb(0.7, 0.7, 0.7)),
-                                (RayEyeType::Disintegration, "Dis", Color::srgb(1.0, 0.6, 0.1)),
+                                (
+                                    RayEyeType::Disintegration,
+                                    "Dis",
+                                    Color::srgb(1.0, 0.6, 0.1),
+                                ),
                                 (RayEyeType::Fear, "Fear", Color::srgb(0.6, 0.0, 0.8)),
                                 (RayEyeType::MindControl, "MC", Color::srgb(1.0, 0.3, 0.6)),
-                                (RayEyeType::Teleportation, "Tele", Color::srgb(0.0, 1.0, 0.7)),
+                                (
+                                    RayEyeType::Teleportation,
+                                    "Tele",
+                                    Color::srgb(0.0, 1.0, 0.7),
+                                ),
                             ];
                             for (eye_type, name, color) in sections {
                                 spawn_ray_eye_bar_section(bar_row, eye_type, name, color);

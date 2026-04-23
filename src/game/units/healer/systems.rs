@@ -5,24 +5,24 @@ use super::constants::*;
 use super::resources::HealerAssets;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
-use crate::game::seeded_rng::resources::GameRng;
-use crate::game::units::wizard::spells::vfx::channel::{
-    ChannelingCast, ChannelParticleSpec, spawn_channel_particle_batch,
-};
-use crate::game::units::components::CombatAnimation;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::pathfinding::FlowFieldVelocity;
 use crate::game::pathfinding::{StagingAttacker, WaveGroup};
+use crate::game::seeded_rng::resources::GameRng;
 use crate::game::units::brute::components::Brute;
 use crate::game::units::commander::components::Commander;
+use crate::game::units::components::CombatAnimation;
 use crate::game::units::components::{
-    BanishedModifier, CommanderAuraSpeedModifier, Corpse, EliteSpeedBonus,
-    FlockingVelocity, FrozenSolidModifier, HasteModifier, Health, Hitbox, MindControlled,
-    MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier,
-    SleepModifier, Sleepwalking, SlowMovementModifier, TargetingVelocity, Team,
+    BanishedModifier, CommanderAuraSpeedModifier, Corpse, EliteSpeedBonus, FlockingVelocity,
+    FrozenSolidModifier, HasteModifier, Health, Hitbox, MindControlled, MovementSpeed,
+    PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
+    Sleepwalking, SlowMovementModifier, TargetingVelocity, Team,
 };
 use crate::game::units::dispeller::components::Dispeller;
 use crate::game::units::infantry::components::DefendersActivated;
+use crate::game::units::wizard::spells::vfx::channel::{
+    ChannelParticleSpec, ChannelingCast, spawn_channel_particle_batch,
+};
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Updates healer targeting — seeks hurt same-team allies, or falls back to following army.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -447,7 +447,17 @@ pub fn healer_tick_heal_channel(
             potential_targets
                 .iter()
                 .map(
-                    |(entity, transform, team, health, commander, brute, elite, dispeller, healer)| {
+                    |(
+                        entity,
+                        transform,
+                        team,
+                        health,
+                        commander,
+                        brute,
+                        elite,
+                        dispeller,
+                        healer,
+                    )| {
                         let priority = find_heal_priority(
                             commander.is_some(),
                             brute.is_some(),

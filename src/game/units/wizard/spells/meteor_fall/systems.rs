@@ -9,6 +9,7 @@ use crate::config::GameConfig;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -33,7 +34,6 @@ use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::{
     FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material, explosion_fade_opacity,
 };
-use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -524,14 +524,12 @@ fn spawn_explosion_entity(
     damage: f32,
     networked: bool,
 ) {
-    let mat_handle =
-        clone_sphere_material(sphere_materials, &assets.fireball_explosion_sphere);
+    let mat_handle = clone_sphere_material(sphere_materials, &assets.fireball_explosion_sphere);
 
     let mut entity = commands.spawn((
         Mesh3d(assets.explosion_sphere.clone()),
         MeshMaterial3d(mat_handle),
-        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-            .with_scale(Vec3::splat(0.1)),
+        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z)).with_scale(Vec3::splat(0.1)),
         MeteorExplosion::new(pos, radius, damage),
         OnGameplayScreen,
     ));
@@ -683,7 +681,8 @@ pub(super) fn check_meteor_collisions(
     >,
     active_toggles: Option<Res<ActiveToggles>>,
 ) {
-    let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
+    let scorched_mult =
+        crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     for (entity, transform, projectile) in projectiles.iter() {
         let projectile_pos = transform.translation;
 
@@ -926,8 +925,7 @@ pub(super) fn update_meteor_explosions(
         if let Some(handle) = material_handle
             && let Some(mat) = sphere_materials.get_mut(handle)
         {
-            mat.opacity =
-                explosion_fade_opacity(explosion.time_alive / EXPLOSION_LIFETIME);
+            mat.opacity = explosion_fade_opacity(explosion.time_alive / EXPLOSION_LIFETIME);
         }
 
         // Apply damage once when explosion spawns

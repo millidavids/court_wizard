@@ -35,7 +35,12 @@ pub fn setup(mut commands: Commands) {
                     ..default()
                 })
                 .with_children(|buttons| {
-                    spawn_button(buttons, "Wizard Tower", MenuButtonAction::WizardTower, &BUTTON_STYLE);
+                    spawn_button(
+                        buttons,
+                        "Wizard Tower",
+                        MenuButtonAction::WizardTower,
+                        &BUTTON_STYLE,
+                    );
                     spawn_button(
                         buttons,
                         "Settings",

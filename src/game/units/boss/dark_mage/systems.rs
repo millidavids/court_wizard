@@ -379,7 +379,13 @@ pub fn dark_mage_ai(
                         );
                     }
                     DarkMageSpellType::PlagueCloud => {
-                        spawn_plague_cloud(&mut game_rng.0, &mut commands, &assets, &spell_assets, tp);
+                        spawn_plague_cloud(
+                            &mut game_rng.0,
+                            &mut commands,
+                            &assets,
+                            &spell_assets,
+                            tp,
+                        );
                         crate::game::units::wizard::spells::audio::play_sfx_scaled(
                             &mut commands,
                             &sfx.plague_wind_cast,

@@ -223,39 +223,17 @@ impl ToggleModifier {
     #[allow(dead_code)]
     pub const fn description(&self) -> &'static str {
         match self {
-            ToggleModifier::ManaDrought => {
-                "No passive mana regen. Kills restore mana instead."
-            }
-            ToggleModifier::BossParade => {
-                "Every 3rd wave includes a boss unit."
-            }
-            ToggleModifier::Urgent => {
-                "Game keeps running while browsing menus."
-            }
-            ToggleModifier::FortifiedHorde => {
-                "First wave arrives with damage shields."
-            }
-            ToggleModifier::GlassCannon => {
-                "Defenders deal 2x damage but have half health."
-            }
-            ToggleModifier::SpellRotation => {
-                "Can't cast the same spell twice in a row."
-            }
-            ToggleModifier::WizardCycle => {
-                "Wizard type cycles through your unlocked archetypes."
-            }
-            ToggleModifier::ScorchedEarth => {
-                "Ground-effect spells last 3x longer."
-            }
-            ToggleModifier::VeteranDefenders => {
-                "Half as many defenders, but much tougher."
-            }
-            ToggleModifier::Attrition => {
-                "Dead defenders don't come back next level."
-            }
-            ToggleModifier::RisingTide => {
-                "Each wave has 25% more enemies than the last."
-            }
+            ToggleModifier::ManaDrought => "No passive mana regen. Kills restore mana instead.",
+            ToggleModifier::BossParade => "Every 3rd wave includes a boss unit.",
+            ToggleModifier::Urgent => "Game keeps running while browsing menus.",
+            ToggleModifier::FortifiedHorde => "First wave arrives with damage shields.",
+            ToggleModifier::GlassCannon => "Defenders deal 2x damage but have half health.",
+            ToggleModifier::SpellRotation => "Can't cast the same spell twice in a row.",
+            ToggleModifier::WizardCycle => "Wizard type cycles through your unlocked archetypes.",
+            ToggleModifier::ScorchedEarth => "Ground-effect spells last 3x longer.",
+            ToggleModifier::VeteranDefenders => "Half as many defenders, but much tougher.",
+            ToggleModifier::Attrition => "Dead defenders don't come back next level.",
+            ToggleModifier::RisingTide => "Each wave has 25% more enemies than the last.",
         }
     }
 

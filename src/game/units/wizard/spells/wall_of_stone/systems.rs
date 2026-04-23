@@ -7,8 +7,11 @@ use super::components::{
     WallTalents,
 };
 use super::constants::*;
+use super::wall_material::WallOfStoneMaterial;
 use crate::config::GameConfig;
 use crate::config::save_data::SavedWall;
+use crate::game::battlefield::trampling::constants::TRAMPLING_CELL_SIZE;
+use crate::game::battlefield::trampling::resources::TramplingGrid;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
@@ -28,9 +31,6 @@ use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
-use super::wall_material::WallOfStoneMaterial;
-use crate::game::battlefield::trampling::constants::TRAMPLING_CELL_SIZE;
-use crate::game::battlefield::trampling::resources::TramplingGrid;
 use bevy::prelude::*;
 
 /// Computes talent parameters from active talent selections.

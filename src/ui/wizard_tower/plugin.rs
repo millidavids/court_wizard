@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::prelude::UiMaterialPlugin;
+use bevy::prelude::*;
 
 use crate::state::{AppState, MetaGameState};
 use crate::ui::plugin::ButtonActionSet;
@@ -9,9 +9,7 @@ use super::components::{
     GraphViewAnimation, GraphViewState, SelectedInsightBonus, SelectedStudySpell,
     SelectedTimeTravelLevel, TimeTravelSection,
 };
-use super::layout::{
-    RightPanelView, WizardTowerTab,
-};
+use super::layout::{RightPanelView, WizardTowerTab};
 use super::materials::{
     ArcaneRuneMaterial, ConcentricRingsMaterial, RadialProgressMaterial, StarSkyMaterial,
 };
@@ -64,7 +62,9 @@ impl Plugin for WizardTowerPlugin {
                         resource_exists::<WizardTowerTab>.and(
                             resource_changed::<WizardTowerTab>
                                 .or(resource_changed::<RightPanelView>)
-                                .or(resource_removed::<crate::game::game_mode::components::RogueliteRunState>),
+                                .or(resource_removed::<
+                                    crate::game::game_mode::components::RogueliteRunState,
+                                >),
                         ),
                     ),
                     super::layout::update_tab_active_state
@@ -78,15 +78,15 @@ impl Plugin for WizardTowerPlugin {
             .add_systems(
                 Update,
                 (
-                    super::wizard_cards::handle_wizard_card_actions
-                        .in_set(ButtonActionSet),
+                    super::wizard_cards::handle_wizard_card_actions.in_set(ButtonActionSet),
                     super::wizard_cards::animate_card_expand,
                 )
                     .run_if(in_state(MetaGameState::WizardTower))
-                    .run_if(resource_exists::<super::wizard_cards::ExpandedWizard>)
-                    .run_if(resource_exists::<RightPanelView>.and(
-                        |view: Res<RightPanelView>| *view == RightPanelView::WizardSelect,
-                    )),
+                    .run_if(
+                        resource_exists::<RightPanelView>
+                            .and(|view: Res<RightPanelView>| *view == RightPanelView::WizardSelect)
+                            .and(resource_exists::<super::wizard_cards::SelectedWizard>),
+                    ),
             )
             // ----- Study tab systems -----
             .add_systems(
@@ -95,6 +95,19 @@ impl Plugin for WizardTowerPlugin {
                     super::study_tab::handle_study_button_actions.in_set(ButtonActionSet),
                     super::study_tab::handle_graph_node_clicks.in_set(ButtonActionSet),
                     super::study_tab::handle_talent_card_clicks.in_set(ButtonActionSet),
+                    super::study_tab::handle_alloc_adjust_buttons.in_set(ButtonActionSet),
+                    // Writes MouseClicked while +/- is held, so it must NOT
+                    // be in ButtonActionSet (that set is gated on a click
+                    // already existing — chicken-and-egg).
+                    super::study_tab::handle_alloc_adjust_buttons_hold,
+                    super::study_tab::reset_previous_alloc_on_selection_change,
+                    super::study_tab::toggle_focus_nav_on_study_selection,
+                    // Must run AFTER escape_to_main_menu so escape sees the
+                    // selection is still Some and skips its exit-to-menu path.
+                    // study_back_to_cursor then clears the selection on the
+                    // same back press.
+                    super::study_tab::study_back_to_cursor
+                        .after(super::layout::escape_to_main_menu),
                 )
                     .run_if(in_state(MetaGameState::WizardTower))
                     .run_if(study_tab_active)
@@ -114,14 +127,23 @@ impl Plugin for WizardTowerPlugin {
                     super::study_tab::handle_graph_zoom,
                     super::study_tab::animate_graph_view
                         .run_if(resource_exists::<GraphViewAnimation>),
-                    super::study_tab::update_graph_node_positions
-                        .run_if(resource_exists::<GraphViewState>),
-                    super::study_tab::update_graph_edge_positions
-                        .run_if(resource_exists::<GraphViewState>),
-                    super::study_tab::update_insight_node_positions
-                        .run_if(resource_exists::<GraphViewState>),
-                    super::study_tab::update_insight_edge_positions
-                        .run_if(resource_exists::<GraphViewState>),
+                    // Position/layout systems only need to run when the view
+                    // actually moves — gate on `resource_changed` so idle
+                    // frames don't rewrite dozens of `Node` fields.
+                    // `resource_changed` requires the resource to exist, so
+                    // combine with `resource_exists`.
+                    super::study_tab::update_graph_node_positions.run_if(
+                        resource_exists::<GraphViewState>.and(resource_changed::<GraphViewState>),
+                    ),
+                    super::study_tab::update_graph_edge_positions.run_if(
+                        resource_exists::<GraphViewState>.and(resource_changed::<GraphViewState>),
+                    ),
+                    super::study_tab::update_insight_node_positions.run_if(
+                        resource_exists::<GraphViewState>.and(resource_changed::<GraphViewState>),
+                    ),
+                    super::study_tab::update_insight_edge_positions.run_if(
+                        resource_exists::<GraphViewState>.and(resource_changed::<GraphViewState>),
+                    ),
                     super::study_tab::update_graph_node_borders.run_if(
                         resource_exists::<SelectedStudySpell>
                             .and(resource_changed::<SelectedStudySpell>),
@@ -148,8 +170,9 @@ impl Plugin for WizardTowerPlugin {
                     super::study_tab::update_allocation_text,
                     super::study_tab::update_insight_bonus_allocation_text,
                     super::study_tab::update_insight_bonus_rings,
-                    super::study_tab::update_graph_node_label_scale
-                        .run_if(resource_exists::<GraphViewState>),
+                    super::study_tab::update_graph_node_label_scale.run_if(
+                        resource_exists::<GraphViewState>.and(resource_changed::<GraphViewState>),
+                    ),
                     super::study_tab::update_pending_insight_display,
                     super::study_tab::update_talent_hover_description,
                     super::study_tab::clear_talent_hover_description,
@@ -157,6 +180,58 @@ impl Plugin for WizardTowerPlugin {
                     .run_if(in_state(MetaGameState::WizardTower))
                     .run_if(study_tab_active)
                     .run_if(resource_exists::<SelectedStudySpell>),
+            )
+            // ----- Study tab gamepad cursor -----
+            // Spawn: runs while in WizardTower so the cursor appears when the
+            // graph area is added on tab switch to Study.
+            .add_systems(
+                Update,
+                super::study_tab::spawn_study_cursor_on_area_added
+                    .run_if(in_state(MetaGameState::WizardTower)),
+            )
+            // Cleanup: must run regardless of state so `FocusNavInhibit` is
+            // cleared even when the area is despawned by leaving the wizard
+            // tower entirely — otherwise focus navigation stays suppressed
+            // on the main-menu landing screen.
+            .add_systems(
+                Update,
+                super::study_tab::cleanup_study_cursor_on_area_removed,
+            )
+            // Cursor systems only run while we're actually in "spell-web cursor"
+            // mode — i.e. `FocusNavInhibit` is active. As soon as a spell or
+            // bonus is selected, `toggle_focus_nav_on_study_selection` removes
+            // the inhibit and the cursor freezes so left-stick and A act on
+            // the detail-panel focusables instead of re-clicking nodes.
+            .add_systems(
+                Update,
+                (
+                    super::study_tab::update_study_cursor,
+                    super::study_tab::sync_study_cursor_visual
+                        .after(super::study_tab::update_study_cursor),
+                    super::study_tab::detect_study_cursor_hover
+                        .after(super::study_tab::sync_study_cursor_visual),
+                    super::study_tab::study_cursor_confirm
+                        .after(super::study_tab::detect_study_cursor_hover),
+                    super::study_tab::study_cursor_edge_scroll
+                        .after(super::study_tab::update_study_cursor)
+                        .run_if(resource_exists::<GraphViewState>),
+                    super::study_tab::study_cursor_trigger_zoom
+                        .run_if(resource_exists::<GraphViewState>),
+                )
+                    .run_if(in_state(MetaGameState::WizardTower))
+                    .run_if(study_tab_active)
+                    .run_if(resource_exists::<super::study_tab::StudyCursorMode>)
+                    .run_if(resource_exists::<crate::ui::focus::FocusNavInhibit>),
+            )
+            // Reticle appearance (including show/hide based on mode) runs
+            // regardless of inhibit state so the visual can vanish when the
+            // detail panel opens.
+            .add_systems(
+                Update,
+                super::study_tab::update_reticle_appearance
+                    .run_if(in_state(MetaGameState::WizardTower))
+                    .run_if(study_tab_active)
+                    .run_if(resource_exists::<super::study_tab::StudyCursorMode>),
             )
             // ----- Roguelite tab systems -----
             // Action handler runs whenever the roguelite tab is active (handles
@@ -224,8 +299,7 @@ impl Plugin for WizardTowerPlugin {
         #[cfg(debug_assertions)]
         app.add_systems(
             Update,
-            super::layout::toggle_debug_background
-                .run_if(in_state(MetaGameState::WizardTower)),
+            super::layout::toggle_debug_background.run_if(in_state(MetaGameState::WizardTower)),
         );
     }
 }
@@ -236,7 +310,10 @@ fn study_tab_active(tab: Option<Res<WizardTowerTab>>) -> bool {
     tab.is_some_and(|t| *t == WizardTowerTab::Study)
 }
 
-fn roguelite_tab_active(tab: Option<Res<WizardTowerTab>>, view: Option<Res<RightPanelView>>) -> bool {
+fn roguelite_tab_active(
+    tab: Option<Res<WizardTowerTab>>,
+    view: Option<Res<RightPanelView>>,
+) -> bool {
     tab.is_some_and(|t| *t == WizardTowerTab::Roguelite)
         && view.is_some_and(|v| *v == RightPanelView::TabContent)
 }

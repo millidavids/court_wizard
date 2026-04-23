@@ -12,15 +12,15 @@ use super::pathfinding::StagingAttacker;
 use super::resources::{CurrentLevel, KillStats, PendingWaveUpgrades, WaveState};
 use super::units::aerialist::resources::AerialistAssets;
 use super::units::archer::resources::ArcherAssets;
+use super::units::boss::dark_mage::resources::DarkMageAssets;
+use super::units::boss::hags::resources::HagAssets;
+use super::units::boss::ogre::resources::OgreAssets;
 use super::units::brute::constants::BRUTE_START_TIER;
 use super::units::components::{Corpse, Hitbox};
 use super::units::dispeller::resources::DispellerAssets;
 use super::units::healer::resources::HealerAssets;
 use super::units::infantry::resources::InfantryAssets;
 use super::units::shielder::resources::ShielderAssets;
-use super::units::boss::dark_mage::resources::DarkMageAssets;
-use super::units::boss::hags::resources::HagAssets;
-use super::units::boss::ogre::resources::OgreAssets;
 use super::units::{aerialist, archer, boss, brute, infantry};
 
 /// Ticks the wave timer and spawns the next wave when it expires.
@@ -82,10 +82,9 @@ pub fn tick_wave_timer(
         .unwrap_or(1.0);
 
     // Rising Tide: each successive wave spawns 25% more enemies
-    let rising_tide_mult = if active_toggles
-        .as_ref()
-        .is_some_and(|t| t.is_active(crate::game::game_mode::components::ToggleModifier::RisingTide))
-    {
+    let rising_tide_mult = if active_toggles.as_ref().is_some_and(|t| {
+        t.is_active(crate::game::game_mode::components::ToggleModifier::RisingTide)
+    }) {
         1.0 + 0.25 * next_wave as f32
     } else {
         1.0
@@ -157,7 +156,11 @@ pub fn tick_wave_timer(
         match (next_wave / 3) % 3 {
             0 => {
                 if let Some(ref assets) = hag_assets {
-                    boss::hags::systems::spawn_hags(&mut game_rng.0, commands.reborrow(), Res::clone(assets));
+                    boss::hags::systems::spawn_hags(
+                        &mut game_rng.0,
+                        commands.reborrow(),
+                        Res::clone(assets),
+                    );
                     3 // hags spawn 3 units
                 } else {
                     0

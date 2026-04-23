@@ -259,8 +259,7 @@ pub fn aerialist_movement(
         };
 
         // Calculate target speed with modifiers
-        let mut speed =
-            movement_speed.0 * crate::game::constants::GLOBAL_SPEED_MULTIPLIER;
+        let mut speed = movement_speed.0 * crate::game::constants::GLOBAL_SPEED_MULTIPLIER;
         if let Some(slow) = slow_modifier {
             speed *= slow.modifier;
         }

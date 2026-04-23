@@ -28,6 +28,13 @@ pub(super) struct RuneSequenceTextShadow;
 #[derive(Component)]
 pub(super) struct ActivatedSpellTextShadow;
 
+/// Marker for the text label inside a rune button. Lets the glyph-adapter
+/// system swap "Q/W/E/R" for D-pad glyphs when a gamepad is active.
+#[derive(Component, Debug, Clone, Copy)]
+pub(super) struct RuneButtonLabel {
+    pub(super) rune: Rune,
+}
+
 /// Timer component for spell name fade-out animation.
 #[derive(Component)]
 pub(super) struct SpellNameFadeTimer {

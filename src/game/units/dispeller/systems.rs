@@ -11,9 +11,6 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::FlowFieldVelocity;
 use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::seeded_rng::resources::GameRng;
-use crate::game::units::wizard::spells::vfx::channel::{
-    ChannelingCast, ChannelParticleSpec, spawn_channel_particle_batch,
-};
 use crate::game::units::components::{
     BanishedModifier, CombatAnimation, CommanderAuraSpeedModifier, Corpse, EliteSpeedBonus,
     FlockingVelocity, FrozenSolidModifier, HasteModifier, Hitbox, MindControlled, MovementSpeed,
@@ -22,13 +19,16 @@ use crate::game::units::components::{
 };
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::ranged_bolt::RangedAttackTimer;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::dispel::systems::{
     is_dispellable, spawn_dispel_projectile, spell_edge_distance,
 };
 use crate::game::units::wizard::spells::grease::components::{GreaseIgnited, GreaseZone};
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
 use crate::game::units::wizard::spells::spike_growth::components::SpikeGrowthZone;
+use crate::game::units::wizard::spells::vfx::channel::{
+    ChannelParticleSpec, ChannelingCast, spawn_channel_particle_batch,
+};
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
@@ -307,7 +307,7 @@ pub fn dispeller_movement(
 
 /// Starts a 5-second dispel channel when cooldown is ready and a dispellable
 /// spell effect is within range.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn dispeller_start_dispel_channel(
     mut commands: Commands,
     time: Res<Time>,
@@ -361,18 +361,20 @@ pub fn dispeller_start_dispel_channel(
             continue;
         }
 
-        let has_in_range = dispellable_effects.iter().any(|&(spell_entity, spell_pos)| {
-            spell_edge_distance(
-                transform.translation,
-                spell_entity,
-                spell_pos,
-                &wall_of_fire_query,
-                &wall_of_stone_query,
-                &spike_growth_query,
-                &grease_query,
-                &meteor_fire_query,
-            ) <= DISPEL_RANGE
-        });
+        let has_in_range = dispellable_effects
+            .iter()
+            .any(|&(spell_entity, spell_pos)| {
+                spell_edge_distance(
+                    transform.translation,
+                    spell_entity,
+                    spell_pos,
+                    &wall_of_fire_query,
+                    &wall_of_stone_query,
+                    &spike_growth_query,
+                    &grease_query,
+                    &meteor_fire_query,
+                ) <= DISPEL_RANGE
+            });
         if !has_in_range {
             continue;
         }

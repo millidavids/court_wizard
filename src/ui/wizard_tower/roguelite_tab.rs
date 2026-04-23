@@ -346,82 +346,80 @@ pub(super) fn build_roguelite_no_run_right_panel(
     pending_toggles: &PendingToggles,
     seed_text: &str,
 ) {
-    commands
-        .entity(right_panel_entity)
-        .with_children(|right| {
-            // Padding wrapper (parent panel handles scrolling)
-            right
-                .spawn(Node {
-                    width: Val::Percent(100.0),
-                    flex_direction: FlexDirection::Column,
-                    padding: UiRect::all(Val::Px(SECTION_PADDING)),
-                    row_gap: Val::Px(10.0),
-                    ..default()
-                })
-                .with_children(|right| {
-            // Action buttons at the top
-            right
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    column_gap: Val::Px(8.0),
-                    align_items: AlignItems::Center,
-                    margin: UiRect::bottom(Val::Px(SECTION_MARGIN)),
-                    ..default()
-                })
-                .with_children(|buttons| {
-                    spawn_button(
-                        buttons,
-                        "Start Run",
-                        RogueliteAction::StartRun,
-                        &START_RUN_BUTTON_STYLE,
-                    );
-                    spawn_button(
-                        buttons,
-                        "Switch Wizard",
-                        RogueliteAction::ChangeWizardType,
-                        &CHANGE_WIZARD_BUTTON_STYLE,
-                    );
-                });
+    commands.entity(right_panel_entity).with_children(|right| {
+        // Padding wrapper (parent panel handles scrolling)
+        right
+            .spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                padding: UiRect::all(Val::Px(SECTION_PADDING)),
+                row_gap: Val::Px(10.0),
+                ..default()
+            })
+            .with_children(|right| {
+                // Action buttons at the top (stacked vertically)
+                right
+                    .spawn(Node {
+                        flex_direction: FlexDirection::Column,
+                        row_gap: Val::Px(8.0),
+                        align_items: AlignItems::FlexStart,
+                        margin: UiRect::bottom(Val::Px(SECTION_MARGIN)),
+                        ..default()
+                    })
+                    .with_children(|buttons| {
+                        spawn_button(
+                            buttons,
+                            "Start Run",
+                            RogueliteAction::StartRun,
+                            &START_RUN_BUTTON_STYLE,
+                        );
+                        spawn_button(
+                            buttons,
+                            "Switch Wizard",
+                            RogueliteAction::ChangeWizardType,
+                            &CHANGE_WIZARD_BUTTON_STYLE,
+                        );
+                    });
 
-            // Seed input row
-            spawn_seed_input_row(right, seed_text);
+                // Seed input row
+                spawn_seed_input_row(right, seed_text);
 
-            // Sliders
-            let sliders = [
-                ModifierSliderValue::GameSpeed,
-                ModifierSliderValue::EnemyEffectiveness,
-                ModifierSliderValue::EnemyCount,
-                ModifierSliderValue::TerrainDensity,
-            ];
-            for slider_value in sliders {
-                spawn_modifier_slider(right, slider_value, modifiers);
-            }
+                // Sliders
+                let sliders = [
+                    ModifierSliderValue::GameSpeed,
+                    ModifierSliderValue::EnemyEffectiveness,
+                    ModifierSliderValue::EnemyCount,
+                    ModifierSliderValue::TerrainDensity,
+                ];
+                for slider_value in sliders {
+                    spawn_modifier_slider(right, slider_value, modifiers);
+                }
 
-            // Toggle Modifiers section header
-            right.spawn((
-                Text::new("Toggle Modifiers"),
-                TextFont::from_font_size(SECTION_HEADER_FONT_SIZE),
-                TextColor(LABEL_COLOR),
-                Node {
-                    margin: UiRect::new(
-                        Val::ZERO,
-                        Val::ZERO,
-                        Val::Px(SECTION_MARGIN),
-                        Val::Px(ROW_GAP),
-                    ),
-                    ..default()
-                },
-            ));
+                // Toggle Modifiers section header
+                right.spawn((
+                    Text::new("Toggle Modifiers"),
+                    TextFont::from_font_size(SECTION_HEADER_FONT_SIZE),
+                    TextColor(LABEL_COLOR),
+                    Node {
+                        margin: UiRect::new(
+                            Val::ZERO,
+                            Val::ZERO,
+                            Val::Px(SECTION_MARGIN),
+                            Val::Px(ROW_GAP),
+                        ),
+                        ..default()
+                    },
+                ));
 
-            // Toggle modifier rows
-            let unlocked_ids = save_data::get_unlocked_toggles();
-            for &toggle in ToggleModifier::all() {
-                let is_unlocked = unlocked_ids.iter().any(|id| id == toggle.id());
-                let is_enabled = is_unlocked && pending_toggles.is_enabled(toggle);
-                spawn_toggle_row(right, toggle, is_unlocked, is_enabled);
-            }
+                // Toggle modifier rows
+                let unlocked_ids = save_data::get_unlocked_toggles();
+                for &toggle in ToggleModifier::all() {
+                    let is_unlocked = unlocked_ids.iter().any(|id| id == toggle.id());
+                    let is_enabled = is_unlocked && pending_toggles.is_enabled(toggle);
+                    spawn_toggle_row(right, toggle, is_unlocked, is_enabled);
+                }
             });
-        });
+    });
 }
 
 /// Builds the left panel content for the "no active run" state.
@@ -433,31 +431,29 @@ pub(super) fn build_roguelite_no_run_left_panel(
     modifiers: &RogueliteModifiers,
     pending_toggles: &PendingToggles,
 ) {
-    commands
-        .entity(left_panel_entity)
-        .with_children(|panel| {
-            // Wizard name
-            panel.spawn((
-                Text::new(config.wizard_type.display_name()),
-                TextFont::from_font_size(SUMMARY_TITLE_FONT_SIZE),
-                TextColor(LABEL_COLOR),
-            ));
+    commands.entity(left_panel_entity).with_children(|panel| {
+        // Wizard name
+        panel.spawn((
+            Text::new(config.wizard_type.display_name()),
+            TextFont::from_font_size(SUMMARY_TITLE_FONT_SIZE),
+            TextColor(LABEL_COLOR),
+        ));
 
-            // Summary content container (rebuilt dynamically)
-            panel
-                .spawn((
-                    Node {
-                        flex_direction: FlexDirection::Column,
-                        row_gap: Val::Px(4.0),
-                        margin: UiRect::top(Val::Px(10.0)),
-                        ..default()
-                    },
-                    RunSummaryContent,
-                ))
-                .with_children(|summary| {
-                    spawn_summary_items(summary, modifiers, pending_toggles);
-                });
-        });
+        // Summary content container (rebuilt dynamically)
+        panel
+            .spawn((
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(4.0),
+                    margin: UiRect::top(Val::Px(10.0)),
+                    ..default()
+                },
+                RunSummaryContent,
+            ))
+            .with_children(|summary| {
+                spawn_summary_items(summary, modifiers, pending_toggles);
+            });
+    });
 }
 
 // ===========================================================================
@@ -518,86 +514,84 @@ pub(super) fn build_roguelite_active_run_left_panel(
     config: &GameConfig,
     run_state: &RogueliteRunState,
 ) {
-    commands
-        .entity(left_panel_entity)
-        .with_children(|panel| {
-            // Wizard name
-            panel.spawn((
-                Text::new(config.wizard_type.display_name()),
-                TextFont::from_font_size(SUMMARY_TITLE_FONT_SIZE),
-                TextColor(LABEL_COLOR),
-            ));
+    commands.entity(left_panel_entity).with_children(|panel| {
+        // Wizard name
+        panel.spawn((
+            Text::new(config.wizard_type.display_name()),
+            TextFont::from_font_size(SUMMARY_TITLE_FONT_SIZE),
+            TextColor(LABEL_COLOR),
+        ));
 
-            // Current level
-            let levels_done = run_state.level_stats.len() as u32;
-            let next_level = levels_done + 1;
+        // Current level
+        let levels_done = run_state.level_stats.len() as u32;
+        let next_level = levels_done + 1;
+        panel.spawn((
+            Text::new(format!("Level {} (next: {})", levels_done, next_level)),
+            TextFont::from_font_size(RUN_STATS_LABEL_FONT),
+            TextColor(TEXT_COLOR),
+            Node {
+                margin: UiRect::top(Val::Px(8.0)),
+                ..default()
+            },
+        ));
+
+        // Level-by-level stats
+        if !run_state.level_stats.is_empty() {
             panel.spawn((
-                Text::new(format!("Level {} (next: {})", levels_done, next_level)),
+                Text::new("Level Stats"),
                 TextFont::from_font_size(RUN_STATS_LABEL_FONT),
                 TextColor(TEXT_COLOR),
                 Node {
-                    margin: UiRect::top(Val::Px(8.0)),
+                    margin: UiRect::top(Val::Px(12.0)),
                     ..default()
                 },
             ));
 
-            // Level-by-level stats
-            if !run_state.level_stats.is_empty() {
-                panel.spawn((
-                    Text::new("Level Stats"),
-                    TextFont::from_font_size(RUN_STATS_LABEL_FONT),
-                    TextColor(TEXT_COLOR),
-                    Node {
-                        margin: UiRect::top(Val::Px(12.0)),
-                        ..default()
-                    },
-                ));
-
-                for stat in &run_state.level_stats {
-                    panel.spawn((
-                        Text::new(format!(
-                            "  Lv{}: {}% eff, {} kills, {}",
-                            stat.level,
-                            (stat.efficiency * 100.0) as u32,
-                            stat.total_kills(),
-                            format_time(stat.elapsed_time),
-                        )),
-                        TextFont::from_font_size(RUN_STATS_VALUE_FONT),
-                        TextColor(RUN_STATS_VALUE_COLOR),
-                    ));
-                }
-
-                // Aggregate stats
-                let agg = RunAggregateStats::from_level_stats(&run_state.level_stats);
-                panel.spawn((
-                    Text::new("Totals"),
-                    TextFont::from_font_size(RUN_STATS_LABEL_FONT),
-                    TextColor(TEXT_COLOR),
-                    Node {
-                        margin: UiRect::top(Val::Px(12.0)),
-                        ..default()
-                    },
-                ));
-                panel.spawn((
-                    Text::new(format!("  Total Kills: {}", agg.total_kills)),
-                    TextFont::from_font_size(RUN_STATS_VALUE_FONT),
-                    TextColor(RUN_STATS_VALUE_COLOR),
-                ));
+            for stat in &run_state.level_stats {
                 panel.spawn((
                     Text::new(format!(
-                        "  Avg Efficiency: {}%",
-                        (agg.avg_efficiency * 100.0) as u32
+                        "  Lv{}: {}% eff, {} kills, {}",
+                        stat.level,
+                        (stat.efficiency * 100.0) as u32,
+                        stat.total_kills(),
+                        format_time(stat.elapsed_time),
                     )),
                     TextFont::from_font_size(RUN_STATS_VALUE_FONT),
                     TextColor(RUN_STATS_VALUE_COLOR),
                 ));
-                panel.spawn((
-                    Text::new(format!("  Total Time: {}", format_time(agg.total_time))),
-                    TextFont::from_font_size(RUN_STATS_VALUE_FONT),
-                    TextColor(RUN_STATS_VALUE_COLOR),
-                ));
             }
-        });
+
+            // Aggregate stats
+            let agg = RunAggregateStats::from_level_stats(&run_state.level_stats);
+            panel.spawn((
+                Text::new("Totals"),
+                TextFont::from_font_size(RUN_STATS_LABEL_FONT),
+                TextColor(TEXT_COLOR),
+                Node {
+                    margin: UiRect::top(Val::Px(12.0)),
+                    ..default()
+                },
+            ));
+            panel.spawn((
+                Text::new(format!("  Total Kills: {}", agg.total_kills)),
+                TextFont::from_font_size(RUN_STATS_VALUE_FONT),
+                TextColor(RUN_STATS_VALUE_COLOR),
+            ));
+            panel.spawn((
+                Text::new(format!(
+                    "  Avg Efficiency: {}%",
+                    (agg.avg_efficiency * 100.0) as u32
+                )),
+                TextFont::from_font_size(RUN_STATS_VALUE_FONT),
+                TextColor(RUN_STATS_VALUE_COLOR),
+            ));
+            panel.spawn((
+                Text::new(format!("  Total Time: {}", format_time(agg.total_time))),
+                TextFont::from_font_size(RUN_STATS_VALUE_FONT),
+                TextColor(RUN_STATS_VALUE_COLOR),
+            ));
+        }
+    });
 }
 
 // ===========================================================================
@@ -668,6 +662,7 @@ fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text: &str) {
             ));
 
             // Input text field
+            let seed_bg = Color::hsla(270.0, 0.08, 0.08, 1.0);
             row.spawn((
                 Button,
                 Node {
@@ -680,8 +675,10 @@ fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text: &str) {
                 },
                 BorderColor::all(Color::hsla(270.0, 0.35, 0.35, 1.0)),
                 BorderRadius::all(Val::Px(4.0)),
-                BackgroundColor(Color::hsla(270.0, 0.08, 0.08, 1.0)),
+                BackgroundColor(seed_bg),
                 SeedInputBox,
+                crate::ui::focus::Focusable,
+                crate::ui::focus::FocusableFlatBackground { base: seed_bg },
             ))
             .with_children(|input_box| {
                 input_box.spawn((
@@ -711,6 +708,7 @@ fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text: &str) {
                     border: Color::hsla(270.0, 0.35, 0.35, 1.0),
                 },
                 SeedRandomButton,
+                crate::ui::focus::Focusable,
             ))
             .with_children(|btn| {
                 btn.spawn((
@@ -804,6 +802,7 @@ fn spawn_toggle_row(
                     border,
                 },
                 ToggleRowContainer(toggle),
+                crate::ui::focus::Focusable,
             ))
             .insert_if(ButtonActive, || is_enabled)
             .with_children(|toggle_btn| {
@@ -878,6 +877,7 @@ fn spawn_toggle_row(
                     border: expand_border,
                 },
                 ToggleExpandButton(toggle),
+                crate::ui::focus::Focusable,
             ))
             .with_children(|btn| {
                 btn.spawn((
@@ -970,6 +970,7 @@ fn spawn_unlock_popup(commands: &mut Commands, toggle: ToggleModifier) {
             BackgroundColor(POPUP_OVERLAY_BG),
             GlobalZIndex(600),
             ConfirmUnlockPopup,
+            crate::ui::focus::ModalOverlay,
         ))
         .with_children(|overlay| {
             overlay
@@ -1060,11 +1061,7 @@ pub(super) fn handle_roguelite_action(
                     .unwrap_or_default();
                 commands.insert_resource(toggles);
 
-                save_data::load_or_create_wizard(
-                    config.wizard_type,
-                    &mut config,
-                    &mut active_save,
-                );
+                save_data::load_or_create_wizard(config.wizard_type, &mut config, &mut active_save);
 
                 // Initialize roguelite run state (normally done by init_roguelite_run
                 // on OnEnter(MetaGame), but we're already in MetaGame)

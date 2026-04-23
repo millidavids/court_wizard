@@ -9,6 +9,7 @@ use crate::config::GameConfig;
 use crate::game::achievements::messages::EntangleHitDefenderMessage;
 use crate::game::components::OnGameplayScreen;
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -24,7 +25,6 @@ use crate::game::units::wizard::spells::utils::{
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
@@ -113,8 +113,10 @@ pub fn handle_entangle_casting(
     ),
 ) {
     let (mut defender_hit_msg, mut obstacle_events) = messages;
-    let (sfx, game_config, active_talents, mut talent_progress, active_toggles) = config_and_talents;
-    let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
+    let (sfx, game_config, active_talents, mut talent_progress, active_toggles) =
+        config_and_talents;
+    let scorched_mult =
+        crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let (mut meshes, mut materials) = mesh_and_materials;
     let (corrected_cursor, target_assist) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);

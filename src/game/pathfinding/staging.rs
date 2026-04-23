@@ -8,7 +8,7 @@ use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 
-use crate::game::seeded_rng::resources::{derive_seed, SEED_PURPOSE_STAGING};
+use crate::game::seeded_rng::resources::{SEED_PURPOSE_STAGING, derive_seed};
 
 /// Which tunnel an attacker spawned from.
 /// Determines which subset of staging points the attacker may stage at so
@@ -50,9 +50,7 @@ impl WaveStagingPlan {
 
     /// Returns true if the plan has any staging points for the given wave.
     pub fn has_wave(&self, wave: u32) -> bool {
-        self.wave_points
-            .keys()
-            .any(|(w, _)| *w == wave)
+        self.wave_points.keys().any(|(w, _)| *w == wave)
     }
 
     /// Returns the next staging point index for a given wave and tunnel,

@@ -26,8 +26,7 @@ impl Plugin for PondPlugin {
                     emit_pond_fog_particles.run_if(any_with_component::<PondFogCloud>),
                     tick_pond_frozen.run_if(any_with_component::<PondFrozen>),
                     update_frozen_pond_tint.run_if(any_with_component::<PondFrozen>),
-                    restore_pond_material_on_thaw
-                        .run_if(any_with_component::<ClonedPondMaterial>),
+                    restore_pond_material_on_thaw.run_if(any_with_component::<ClonedPondMaterial>),
                     tick_pond_shocked.run_if(any_with_component::<PondShocked>),
                 )
                     .run_if(is_gameplay_running),

@@ -10,22 +10,27 @@ use bevy::render::render_resource::{AsBindGroup, ShaderType};
 use bevy::shader::ShaderRef;
 use bevy::ui::RelativeCursorPosition;
 
-use super::components::{ButtonActive, ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, ButtonStyle};
+use super::components::{
+    ButtonActive, ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, ButtonStyle,
+};
 use super::constants::{
     BUTTON_3D_ANIM_SPEED, BUTTON_3D_OFFSET_HOVER, BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST,
-    BUTTON_EDGE_DARKEN, BUTTON_GLOW_INNER, BUTTON_GLOW_OUTER, BUTTON_HOVERED_OUTLINE,
-    BUTTON_PRESSED_OUTLINE, BUTTON_PRESS_GLOW_INNER, BUTTON_PRESS_GLOW_OUTER, BUTTON_REST_OUTLINE,
-    BUTTON_SHADOW_COLOR, CONTENT_BG, CONTENT_BORDER, DETAIL_BG,
-    DETAIL_BORDER, DETAIL_PADDING, FRAME_OUTER_RING_COLOR, FRAME_OUTLINE_COLOR,
-    FRAME_OUTLINE_OFFSET, FRAME_OUTLINE_WIDTH, FRAME_SHADOW_SPREAD_BASE, LEFT_PANEL_WIDTH, LIST_BG,
-    LIST_BORDER, OVERLAY_BG, PANEL_BORDER_RADIUS, SCROLL_BG, SCROLL_BORDER, SCROLL_SHADOW_COLOR,
-    SHADOW_COLOR, SLIDER_BORDER_WIDTH, SLIDER_BUTTON_BG, SLIDER_BUTTON_BORDER_COLOR,
-    SLIDER_BUTTON_FONT_SIZE, SLIDER_BUTTON_SIZE, SLIDER_GAP, SLIDER_LABEL_FONT_SIZE,
-    SLIDER_TRACK_WIDTH, TEXT_PRIMARY, TEXT_SHADOW_COLOR,
+    BUTTON_EDGE_DARKEN, BUTTON_GLOW_INNER, BUTTON_GLOW_OUTER, BUTTON_HOVER_BG_TINT,
+    BUTTON_HOVERED_OUTLINE, BUTTON_PRESS_GLOW_INNER, BUTTON_PRESS_GLOW_OUTER, BUTTON_PRESSED_OUTLINE,
+    BUTTON_REST_OUTLINE, BUTTON_SHADOW_COLOR, CONTENT_BG, CONTENT_BORDER, DETAIL_BG, DETAIL_BORDER,
+    DETAIL_PADDING, FRAME_OUTER_RING_COLOR, FRAME_OUTLINE_COLOR, FRAME_OUTLINE_OFFSET,
+    FRAME_OUTLINE_WIDTH, FRAME_SHADOW_SPREAD_BASE, LEFT_PANEL_WIDTH, LIST_BG, LIST_BORDER,
+    OVERLAY_BG, PANEL_BORDER_RADIUS, SCROLL_BG, SCROLL_BORDER, SCROLL_SHADOW_COLOR, SHADOW_COLOR,
+    SLIDER_BORDER_WIDTH, SLIDER_BUTTON_BG, SLIDER_BUTTON_BORDER_COLOR, SLIDER_BUTTON_FONT_SIZE,
+    SLIDER_BUTTON_SIZE, SLIDER_GAP, SLIDER_LABEL_FONT_SIZE, SLIDER_TRACK_WIDTH, TEXT_PRIMARY,
+    TEXT_SHADOW_COLOR,
 };
-use super::styles::{border_bright, border_hovered};
+use super::focus::GamepadFocused;
+use super::styles::{blend_over, border_bright, border_hovered};
+use super::focus::Focusable;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::MouseButtonState;
+use crate::game::input::gamepad::messages::MenuBackPressed;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{InGameState, MenuState, MultiplayerGameState, PauseMenuState};
 
@@ -127,6 +132,8 @@ pub fn button_interaction(
         };
 
         // Update edge outline (lower layer glow) + front border (top layer glow).
+        // Front-face background tint is handled separately by `apply_gamepad_focus_tint`
+        // — mouse hover/press do not tint the bg; only controller focus does.
         if let Some(children) = children {
             for child in children.iter() {
                 if let Ok(mut bc) = front_query.get_mut(child) {
@@ -170,15 +177,15 @@ pub fn button_interaction(
                             color: BUTTON_GLOW_INNER,
                             x_offset: Val::Px(0.0),
                             y_offset: Val::Px(0.0),
-                            spread_radius: Val::Px(2.0),
-                            blur_radius: Val::Px(8.0),
+                            spread_radius: Val::Px(4.0),
+                            blur_radius: Val::Px(12.0),
                         },
                         ShadowStyle {
                             color: BUTTON_GLOW_OUTER,
                             x_offset: Val::Px(0.0),
                             y_offset: Val::Px(0.0),
-                            spread_radius: Val::Px(4.0),
-                            blur_radius: Val::Px(16.0),
+                            spread_radius: Val::Px(8.0),
+                            blur_radius: Val::Px(24.0),
                         },
                     ];
                 }
@@ -510,6 +517,69 @@ pub fn reset_deactivated_buttons(
                     outline.color = BUTTON_REST_OUTLINE;
                 }
             }
+        }
+    }
+}
+
+/// Tints the 3D front-face background purple when a button is gamepad-focused,
+/// and restores the base (charcoal) color when focus leaves. This is the only
+/// visual that distinguishes controller focus from mouse hover — mouse hover
+/// keeps the default bg and only tweaks the border / outline / glow.
+#[allow(clippy::type_complexity)]
+pub fn apply_gamepad_focus_tint(
+    focused: Query<
+        (&ButtonColors, &Children),
+        Or<(
+            Added<GamepadFocused>,
+            (With<GamepadFocused>, Changed<ButtonColors>),
+        )>,
+    >,
+    mut removed: RemovedComponents<GamepadFocused>,
+    all_buttons: Query<(&ButtonColors, &Children)>,
+    mut front_query: Query<&mut BackgroundColor, (With<ButtonFront>, Without<ButtonEdge>)>,
+) {
+    for (colors, children) in &focused {
+        let tinted = blend_over(opaque(colors.background), BUTTON_HOVER_BG_TINT);
+        for child in children.iter() {
+            if let Ok(mut bg) = front_query.get_mut(child) {
+                *bg = BackgroundColor(tinted);
+            }
+        }
+    }
+
+    for entity in removed.read() {
+        if let Ok((colors, children)) = all_buttons.get(entity) {
+            let base = opaque(colors.background);
+            for child in children.iter() {
+                if let Ok(mut bg) = front_query.get_mut(child) {
+                    *bg = BackgroundColor(base);
+                }
+            }
+        }
+    }
+}
+
+/// Tints the entity's own `BackgroundColor` purple when gamepad-focused, for
+/// flat focusables that don't wrap a `ButtonFront` child (e.g. text input
+/// fields). Stores the base color in `FocusableFlatBackground` so the tint
+/// can be cleanly removed on unfocus.
+pub fn apply_flat_gamepad_focus_tint(
+    mut just_focused: Query<
+        (&super::focus::FocusableFlatBackground, &mut BackgroundColor),
+        Added<GamepadFocused>,
+    >,
+    mut removed: RemovedComponents<GamepadFocused>,
+    mut un_focused: Query<
+        (&super::focus::FocusableFlatBackground, &mut BackgroundColor),
+        Without<GamepadFocused>,
+    >,
+) {
+    for (tint, mut bg) in &mut just_focused {
+        *bg = BackgroundColor(blend_over(opaque(tint.base), BUTTON_HOVER_BG_TINT));
+    }
+    for entity in removed.read() {
+        if let Ok((tint, mut bg)) = un_focused.get_mut(entity) {
+            *bg = BackgroundColor(tint.base);
         }
     }
 }
@@ -848,35 +918,53 @@ pub fn spawn_page_container<M: Component>(
 // Shared Escape key handling
 // ---------------------------------------------------------------------------
 
-/// Handles Escape key to return to the main menu landing screen.
+/// Handles Escape key / gamepad back to return to the main menu landing screen.
 pub fn escape_to_landing(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mut back_msgs: MessageReader<MenuBackPressed>,
     mut next_state: ResMut<NextState<MenuState>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
-    if keyboard.just_pressed(KeyCode::Escape) {
+    let back_pressed = back_msgs.read().next().is_some();
+    if keyboard.just_pressed(KeyCode::Escape) || back_pressed {
         channel_change.write(ChannelChangeMessage);
         next_state.set(MenuState::Landing);
     }
 }
 
-/// Handles Escape key to return to the pause menu main screen.
+/// Handles Escape key / gamepad back to return to the pause menu main screen.
 pub fn escape_to_pause_main(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mut back_msgs: MessageReader<MenuBackPressed>,
     mut next_state: ResMut<NextState<PauseMenuState>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Escape) {
+    let back_pressed = back_msgs.read().next().is_some();
+    if keyboard.just_pressed(KeyCode::Escape) || back_pressed {
         next_state.set(PauseMenuState::Main);
     }
 }
 
-/// Handles Escape key to return to running gameplay state (SP and/or MP).
+/// Handles Escape / gamepad East or Start to return to running gameplay state.
+///
+/// Reads gamepad buttons directly via `just_pressed` rather than the
+/// `MenuBackPressed` message — the latter persists for an extra frame,
+/// which would re-fire immediately after entering a paused state and flip
+/// back to Running (Start-in-Running → pause → Paused frame sees leftover
+/// back-press → unpause).
 pub fn escape_to_running(
     keyboard: Res<ButtonInput<KeyCode>>,
+    active: Res<crate::game::input::gamepad::resources::ActiveInputDevice>,
+    gamepads: Query<&Gamepad>,
     mut next_in_game_state: Option<ResMut<NextState<InGameState>>>,
     mut next_mp_state: Option<ResMut<NextState<MultiplayerGameState>>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Escape) {
+    let gamepad_back = active
+        .gamepad_entity()
+        .and_then(|e| gamepads.get(e).ok())
+        .is_some_and(|g| {
+            g.just_pressed(GamepadButton::East) || g.just_pressed(GamepadButton::Start)
+        });
+    if keyboard.just_pressed(KeyCode::Escape) || gamepad_back {
         if let Some(ref mut next_sp) = next_in_game_state {
             next_sp.set(InGameState::Running);
         }
@@ -967,7 +1055,7 @@ pub fn cleanup_screen<T: Component>(mut commands: Commands, query: Query<Entity,
 pub fn spawn_button(
     parent: &mut ChildSpawnerCommands,
     text: &str,
-    action: impl Component,
+    action: impl Bundle,
     style: &ButtonStyle,
 ) {
     let depth = -BUTTON_3D_OFFSET_REST; // positive value = edge visible at bottom
@@ -1000,6 +1088,7 @@ pub fn spawn_button(
                 current: BUTTON_3D_OFFSET_REST,
                 target: BUTTON_3D_OFFSET_REST,
             },
+            Focusable,
             action,
         ))
         .with_children(|wrapper| {
@@ -1100,6 +1189,9 @@ fn spawn_shadowed_text(
 }
 
 /// Spawns a standard page header row: title on the left, spacer, back button on the right.
+///
+/// The back button is marked `NoGamepadFocus` — on controller the B/East button
+/// handles "back" universally, so we don't want the D-pad to land on it.
 pub fn spawn_page_header<B: Component>(
     parent: &mut ChildSpawnerCommands,
     title: &str,
@@ -1122,7 +1214,12 @@ pub fn spawn_page_header<B: Component>(
                 flex_grow: 1.0,
                 ..default()
             });
-            spawn_button(header, "Back", back_action, button_style);
+            spawn_button(
+                header,
+                "Back",
+                (back_action, super::focus::NoGamepadFocus),
+                button_style,
+            );
         });
 }
 
@@ -1342,6 +1439,7 @@ pub(crate) fn spawn_slider_row<
                             background: SLIDER_BUTTON_BG,
                             border: SLIDER_BUTTON_BORDER_COLOR,
                         },
+                        crate::ui::focus::Focusable,
                         down_button,
                     ))
                     .with_children(|button| {
@@ -1427,6 +1525,7 @@ pub(crate) fn spawn_slider_row<
                             background: SLIDER_BUTTON_BG,
                             border: SLIDER_BUTTON_BORDER_COLOR,
                         },
+                        crate::ui::focus::Focusable,
                         up_button,
                     ))
                     .with_children(|button| {

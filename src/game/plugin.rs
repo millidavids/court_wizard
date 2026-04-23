@@ -154,7 +154,9 @@ impl Plugin for GamePlugin {
                 Update,
                 auto_pause_on_focus_loss
                     .run_if(in_state(InGameState::Running))
-                    .run_if(|config: Res<crate::config::GameConfig>| config.auto_pause_on_focus_loss),
+                    .run_if(|config: Res<crate::config::GameConfig>| {
+                        config.auto_pause_on_focus_loss
+                    }),
             )
             .add_systems(OnExit(AppState::InGame), shared_systems::cleanup_game)
             // Also clean up OnGameplayScreen entities when leaving MP
@@ -288,17 +290,17 @@ impl Plugin for GamePlugin {
             // Debug hitbox visualization (F2 toggle)
             .add_systems(
                 Update,
-                (toggle_debug_hitboxes, update_debug_hitboxes.run_if(resource_exists::<DebugHitboxes>))
+                (
+                    toggle_debug_hitboxes,
+                    update_debug_hitboxes.run_if(resource_exists::<DebugHitboxes>),
+                )
                     .run_if(in_state(AppState::InGame)),
             );
     }
 }
 
 /// Sets the virtual time speed from the GameConfig game_speed setting.
-fn apply_game_speed(
-    config: Res<crate::config::GameConfig>,
-    mut time: ResMut<Time<Virtual>>,
-) {
+fn apply_game_speed(config: Res<crate::config::GameConfig>, mut time: ResMut<Time<Virtual>>) {
     time.set_relative_speed_f64(config.game_speed as f64);
 }
 

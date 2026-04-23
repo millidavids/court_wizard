@@ -246,7 +246,8 @@ pub fn handle_prime_spell_messages(
     for message in messages.read() {
         // Spell Rotation: block priming the same spell that was just cast
         if let Some(ref lc) = last_cast
-            && !lc.bypass_until_cast && lc.spell == Some(message.spell.spell)
+            && !lc.bypass_until_cast
+            && lc.spell == Some(message.spell.spell)
         {
             continue;
         }
@@ -319,7 +320,6 @@ pub fn reset_empowerment_after_cast(
         }
     }
 }
-
 
 /// Cancels any active casting when leaving the Running state.
 ///

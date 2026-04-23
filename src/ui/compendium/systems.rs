@@ -52,7 +52,7 @@ fn setup(mut commands: Commands, pause_menu: bool) {
                 spawn_button(
                     header,
                     "Back",
-                    BackButton,
+                    (BackButton, crate::ui::focus::NoGamepadFocus),
                     &crate::ui::main_menu::BACK_BUTTON_STYLE,
                 );
             });
@@ -94,6 +94,7 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands) {
             BorderColor::all(DETAIL_BORDER),
             BorderRadius::all(Val::Px(6.0)),
             DetailPanel,
+            crate::ui::focus::GamepadScrollTarget,
         ))
         .with_children(|panel| {
             // Spell icon (hidden by default, shown when a spell is selected)
@@ -204,6 +205,8 @@ fn spawn_right_panel(parent: &mut ChildSpawnerCommands) {
                                 border,
                             },
                             TabButton(*tab),
+                            crate::ui::focus::Focusable,
+                            crate::ui::focus::TabFocusable,
                         ))
                         .with_children(|btn| {
                             btn.spawn((
@@ -300,9 +303,13 @@ pub(super) fn update_item_active_state(
     }
     for (entity, item_btn) in &item_buttons {
         if state.selected_item.as_ref() == Some(&item_btn.0) {
-            commands.entity(entity).insert(crate::ui::components::ButtonActive);
+            commands
+                .entity(entity)
+                .insert(crate::ui::components::ButtonActive);
         } else {
-            commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
+            commands
+                .entity(entity)
+                .remove::<crate::ui::components::ButtonActive>();
         }
     }
 }
@@ -420,10 +427,14 @@ pub(super) fn rebuild_on_state_change(
     for (tab_btn, entity, children) in &tab_buttons {
         let is_active = tab_btn.0 == state.active_tab;
         let (bg, border) = if is_active {
-            commands.entity(entity).insert(crate::ui::components::ButtonActive);
+            commands
+                .entity(entity)
+                .insert(crate::ui::components::ButtonActive);
             (ACTIVE_TAB_BG, ACTIVE_TAB_BORDER)
         } else {
-            commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
+            commands
+                .entity(entity)
+                .remove::<crate::ui::components::ButtonActive>();
             (INACTIVE_TAB_BG, TAB_BORDER)
         };
         if let Ok((mut bg_color, mut border_color, mut colors)) = tab_bg.get_mut(entity) {
@@ -458,9 +469,7 @@ pub(super) fn rebuild_on_state_change(
 
     // Rebuild items list
     // Only rebuild the item list when the tab changes — not on item selection.
-    if tab_changed
-        && let Ok(container) = items_container.single()
-    {
+    if tab_changed && let Ok(container) = items_container.single() {
         commands.entity(container).despawn_related::<Children>();
         commands
             .entity(container)
@@ -624,7 +633,11 @@ fn spawn_spell_items(
     }
 }
 
-fn spawn_ingredient_items(parent: &mut ChildSpawnerCommands, unlocked_ingredients: &[String], state: &CompendiumState) {
+fn spawn_ingredient_items(
+    parent: &mut ChildSpawnerCommands,
+    unlocked_ingredients: &[String],
+    state: &CompendiumState,
+) {
     let mut ingredients: Vec<_> = Ingredient::all()
         .iter()
         .map(|i| {
@@ -665,7 +678,11 @@ fn team_label_color(label: &str) -> Color {
     }
 }
 
-fn spawn_unit_items(parent: &mut ChildSpawnerCommands, unlocked_units: &[String], state: &CompendiumState) {
+fn spawn_unit_items(
+    parent: &mut ChildSpawnerCommands,
+    unlocked_units: &[String],
+    state: &CompendiumState,
+) {
     // Group by team label
     for team_label in &["Defender", "Attacker", "Boss"] {
         parent.spawn((
@@ -706,7 +723,11 @@ fn spawn_unit_items(parent: &mut ChildSpawnerCommands, unlocked_units: &[String]
     }
 }
 
-fn spawn_wizard_items(parent: &mut ChildSpawnerCommands, unlocked_wizard_types: &[String], state: &CompendiumState) {
+fn spawn_wizard_items(
+    parent: &mut ChildSpawnerCommands,
+    unlocked_wizard_types: &[String],
+    state: &CompendiumState,
+) {
     for wizard_type in WizardType::all() {
         let debug_name = format!("{:?}", wizard_type);
         let is_unlocked = *wizard_type == WizardType::BoringOleMage
@@ -732,7 +753,11 @@ fn spawn_wizard_items(parent: &mut ChildSpawnerCommands, unlocked_wizard_types: 
     }
 }
 
-fn spawn_achievement_items(parent: &mut ChildSpawnerCommands, unlocked_achievements: &[String], state: &CompendiumState) {
+fn spawn_achievement_items(
+    parent: &mut ChildSpawnerCommands,
+    unlocked_achievements: &[String],
+    state: &CompendiumState,
+) {
     let mut achievements: Vec<_> = AchievementId::all()
         .iter()
         .map(|a| {
@@ -1207,6 +1232,7 @@ fn spawn_roguelite_run_detail(
                 border: btn_color,
             },
             ToggleSaveRunButton(run.started_at),
+            crate::ui::focus::Focusable,
         ))
         .with_children(|btn| {
             btn.spawn((
@@ -1277,6 +1303,7 @@ fn spawn_roguelite_run_detail(
                             border: Color::srgb(0.3, 0.6, 0.9),
                         },
                         CopySeedButton(seed),
+                        crate::ui::focus::Focusable,
                     ))
                     .with_children(|btn| {
                         btn.spawn((
@@ -1391,6 +1418,7 @@ fn spawn_item_button(
                 background: ITEM_BG,
                 border: ITEM_BORDER,
             },
+            crate::ui::focus::Focusable,
             ItemButton(item_id),
         ))
         .insert_if(crate::ui::components::ButtonActive, || is_selected)

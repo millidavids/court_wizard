@@ -5,9 +5,9 @@ use crate::game::run_conditions::any_exist;
 use crate::game::run_conditions::is_gameplay_running;
 
 use super::components::{King, KingSpawned, SpellShield};
-use crate::game::units::commander::{Commander, CommanderAuraParticle};
 use super::resources;
 use super::systems;
+use crate::game::units::commander::{Commander, CommanderAuraParticle};
 
 pub struct KingPlugin;
 
@@ -31,8 +31,7 @@ impl Plugin for KingPlugin {
             .add_systems(
                 Update,
                 (
-                    systems::spawn_commander_aura_particles
-                        .run_if(any_with_component::<Commander>),
+                    systems::spawn_commander_aura_particles.run_if(any_with_component::<Commander>),
                     systems::update_commander_aura_particles
                         .run_if(any_exist::<CommanderAuraParticle>()),
                 )

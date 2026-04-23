@@ -471,20 +471,14 @@ mod tests {
     fn parse_unclosed_bold_is_plain() {
         let spans = parse_inline_spans("**unclosed bold");
         assert_eq!(spans.len(), 1);
-        assert_eq!(
-            spans[0],
-            MarkdownSpan::Plain("**unclosed bold".to_string())
-        );
+        assert_eq!(spans[0], MarkdownSpan::Plain("**unclosed bold".to_string()));
     }
 
     #[test]
     fn parse_unclosed_link_is_plain() {
         let spans = parse_inline_spans("[unclosed link");
         assert_eq!(spans.len(), 1);
-        assert_eq!(
-            spans[0],
-            MarkdownSpan::Plain("[unclosed link".to_string())
-        );
+        assert_eq!(spans[0], MarkdownSpan::Plain("[unclosed link".to_string()));
     }
 
     #[test]

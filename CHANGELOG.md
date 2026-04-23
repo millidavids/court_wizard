@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.366] - 2026-04-23
+
+### Added
+- **Full controller support for the whole game** — every menu, every spell, every button can now be driven from an Xbox, PlayStation, Steam Deck, or Nintendo Switch controller. The game detects which controller is plugged in and swaps button prompts across the UI to match (A / Cross / Square)
+- **Animated action bar that reshapes for your controller** — when you pick up a controller the horizontal spell bar smoothly morphs into a compact radial ring positioned near your wizard, then morphs back into the familiar row if you touch the mouse or keyboard again
+- **Right-stick spell picker with a press flash** — flick the right stick in any of five directions to highlight a spell slot, then pull the right trigger to prime it. The chosen slot flashes yellow so you know the spell was actually committed
+- **Brand-new controller tutorials** — plugging in a gamepad for the first time now triggers a menu-navigation primer (focus movement, select, back, tab cycling, pause) and an in-game combat primer (aim, radial spell picker, casting, spell book, cauldron)
+- **Gamepad button glyphs on on-screen prompts** — the "Press SPACE to spin" prompt on the Randomancer wheel and the Q/W/E/R rune labels now show the correct controller glyphs (D-pad arrows, face buttons) instead of keyboard labels while you're playing on a controller
+- **Controller glyph style setting** — pick Auto / Xbox / PlayStation / Steam Deck / Nintendo in the controls menu if you want to override the default detection
+
+### Changed
+- **Spell book stays open when you pick a spell** — clicking a spell now only primes it and keeps the menu open, so you can immediately drop it into an action-bar slot without reopening the book. Use the Back button or B / Circle to close when you're done
+- **Magic Missile is a bit beefier per shot** — cooldown bumped from a third of a second to a full second. Hold the cast button and missiles keep flying at that new cadence
+- **Chain Lightning takes a bit longer to cast** — its cast time doubled so you can see more clearly what you're about to unleash
+- **Every charge spell gets a short breather after firing** — a one-second cooldown between casts so holding the cast button charges the next spell instead of slamming them out back-to-back
+- **Menus always run at normal speed** — during the big staging speed-up before a wave, opening the spell book, cauldron, pause menu, or settings now drops the game clock back to 1× so the menu cursor isn't zooming around at triple speed
+
+### Fixed
+- **Magic Missile double-casting on hold** — holding the cast button no longer fires two volleys in quick succession before settling into the cooldown rhythm
+- **Teleport no longer auto-advances from placement to origin circle** — phase one finalizes when you release the cast button, and phase two only begins on a brand-new press. No more accidental teleports from holding the button down
+- **Score screen + pause menu lock controller focus** — navigating the score screen or the pause menu with a controller no longer leaks clicks through to the gameplay HUD buttons sitting behind the overlay
+- **"Switch Wizard" no longer crashes the game** — pressing Switch Wizard in the tower is safe on first entry
+- **Action bar no longer flickers on the score screen** — swapping between controller and mouse while looking at the score screen used to keep flipping the action bar between its linear and radial layouts in the background. It now stays put
+
 ## [v0.6.284] - 2026-04-17
 
 ### Added

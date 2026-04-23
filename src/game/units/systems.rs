@@ -9,11 +9,11 @@ use super::components::{
 };
 use super::components::{
     Airborne, BanishedModifier, Corpse, Effectiveness, ElectricCharge, FALL_DAMAGE_SCALE,
-    FearModifier, FireDoT, FlockingVelocity, FrostAccumulation, FrozenSolidModifier, Health, Hitbox,
-    InMelee, MindControlled, OriginalMaterial, PendingDamageEffect, Petrified, PoisonedModifier,
-    RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, RootedModifier, SickenedModifier,
-    SlowMovementModifier, SmellyModifier, Stunned, TargetingVelocity, Team, TemporaryHitPoints,
-    TimedModifier, apply_damage_to_unit,
+    FearModifier, FireDoT, FlockingVelocity, FrostAccumulation, FrozenSolidModifier, Health,
+    Hitbox, InMelee, MindControlled, OriginalMaterial, PendingDamageEffect, Petrified,
+    PoisonedModifier, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, RootedModifier,
+    SickenedModifier, SlowMovementModifier, SmellyModifier, Stunned, TargetingVelocity, Team,
+    TemporaryHitPoints, TimedModifier, apply_damage_to_unit,
 };
 use super::constants::{
     BERSERKER_RAGE_EFFECT_COLOR, BERSERKER_RAGE_EFFECT_INTENSITY, ELECTRIC_ARC_COLOR,
@@ -21,9 +21,8 @@ use super::constants::{
     ELECTRIC_ARC_WIDTH, ELECTRIC_EFFECT_COLOR, ELECTRIC_EFFECT_FLICKER_SPEED,
     ELECTRIC_EFFECT_MAX_INTENSITY, ELECTRIC_EFFECT_MIN_INTENSITY, ELITE_EFFECT_COLOR,
     ELITE_EFFECT_MAX_INTENSITY, ELITE_EFFECT_MIN_INTENSITY, ELITE_EFFECT_PULSE_SPEED,
-    FROST_ACCUMULATION_PER_HIT, FROST_EFFECT_COLOR,
-    FROST_EFFECT_MAX_INTENSITY, FROST_GENERIC_DECAY_DELAY, MIND_CONTROL_EFFECT_COLOR,
-    MIND_CONTROL_EFFECT_INTENSITY,
+    FROST_ACCUMULATION_PER_HIT, FROST_EFFECT_COLOR, FROST_EFFECT_MAX_INTENSITY,
+    FROST_GENERIC_DECAY_DELAY, MIND_CONTROL_EFFECT_COLOR, MIND_CONTROL_EFFECT_INTENSITY,
     POISON_DURATION, POISON_EFFECT_COLOR, POISON_EFFECT_INTENSITY, POISON_EFFECTIVENESS_CAP,
     POISON_EFFECTIVENESS_PER_STACK, SHIELD_EFFECT_COLOR, SHIELD_EFFECT_MAX_INTENSITY,
     SHIELD_EFFECT_MIN_INTENSITY, SHIELD_EFFECT_PULSE_SPEED, SICKENED_DURATION,
@@ -58,6 +57,7 @@ use crate::game::units::wizard::spells::mind_control::components::MassHysteriaTa
 /// Centralizes CC checks so new CC types only need updating here.
 /// Sleepwalking units (Dreamwalker talent) are NOT immobilized.
 #[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn is_cc_immobilized(
     rooted: Option<&RootedModifier>,
     has_sleep: bool,
@@ -382,10 +382,12 @@ pub fn process_pending_damage_effects(
                         })
                     });
                     for _ in 0..DRY_BURNING_PATCH_COUNT {
-                        let offset_x =
-                            game_rng.0.gen_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
-                        let offset_z =
-                            game_rng.0.gen_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
+                        let offset_x = game_rng
+                            .0
+                            .gen_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
+                        let offset_z = game_rng
+                            .0
+                            .gen_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
                         let patch_pos = Vec3::new(
                             impact_pos.x + offset_x,
                             0.5, // Just above ground
@@ -559,13 +561,12 @@ pub fn update_fire_dot(
 
     let delta = time.delta_secs();
 
-    for (entity, mut fire_dot, mut health, temp_hp, has_shield, is_wet, frost) in query.iter_mut()
-    {
+    for (entity, mut fire_dot, mut health, temp_hp, has_shield, is_wet, frost) in query.iter_mut() {
         // Frost quenches fire — reduce DPS proportional to frost level
         if let Some(frost) = frost {
-            fire_dot.damage_per_tick =
-                (fire_dot.damage_per_tick - FROST_QUENCHES_FIRE_RATE * frost.level * delta)
-                    .max(0.0);
+            fire_dot.damage_per_tick = (fire_dot.damage_per_tick
+                - FROST_QUENCHES_FIRE_RATE * frost.level * delta)
+                .max(0.0);
         }
 
         let (tick_damage, expired) = fire_dot.update(delta);
@@ -1026,12 +1027,14 @@ pub fn update_persistent_effect_visuals(
             };
             let cloned = current_material.clone();
             let cloned_handle = materials.add(cloned);
-            commands.entity(entity).queue_silenced(move |mut e: EntityWorldMut| {
-                e.insert((
-                    OriginalMaterial(current_handle),
-                    MeshMaterial3d(cloned_handle),
-                ));
-            });
+            commands
+                .entity(entity)
+                .queue_silenced(move |mut e: EntityWorldMut| {
+                    e.insert((
+                        OriginalMaterial(current_handle),
+                        MeshMaterial3d(cloned_handle),
+                    ));
+                });
         } else if has_any_effect {
             // Phase 2: Blend effect colors onto the cloned material
             let Some(original) = original_mat else {
@@ -1138,10 +1141,12 @@ pub fn update_persistent_effect_visuals(
         } else if let Some(original) = original_mat {
             // Phase 3: All effects expired — restore original material
             let restored = original.0.clone();
-            commands.entity(entity).queue_silenced(move |mut e: EntityWorldMut| {
-                e.insert(MeshMaterial3d(restored));
-                e.remove::<OriginalMaterial>();
-            });
+            commands
+                .entity(entity)
+                .queue_silenced(move |mut e: EntityWorldMut| {
+                    e.insert(MeshMaterial3d(restored));
+                    e.remove::<OriginalMaterial>();
+                });
         }
     }
 }

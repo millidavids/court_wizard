@@ -379,30 +379,34 @@ pub fn check_fireball_collisions(
     for (fireball_entity, fireball_transform, fireball, crystal_spawn) in &fireballs {
         let fireball_pos = fireball_transform.translation;
 
-        let explode_at =
-            |rng: &mut dyn rand::RngCore,
-             commands: &mut Commands,
-             mats: &mut Assets<FireExplosionSphereMaterial>,
-             pos: Vec3| {
-                spawn_explosion_with_talents(
-                    rng,
-                    commands,
-                    &visual_assets,
-                    mats,
-                    pos,
-                    fireball,
-                    t,
-                    &sfx,
-                    &game_config,
-                    crystal_spawn,
-                );
-            };
+        let explode_at = |rng: &mut dyn rand::RngCore,
+                          commands: &mut Commands,
+                          mats: &mut Assets<FireExplosionSphereMaterial>,
+                          pos: Vec3| {
+            spawn_explosion_with_talents(
+                rng,
+                commands,
+                &visual_assets,
+                mats,
+                pos,
+                fireball,
+                t,
+                &sfx,
+                &game_config,
+                crystal_spawn,
+            );
+        };
 
         // Check collision with walls
         let mut hit_wall = false;
         for wall in &walls {
             if wall.contains_point_xz(fireball_pos) && fireball_pos.y <= wall.height {
-                explode_at(&mut game_rng.0, &mut commands, &mut sphere_materials, fireball_pos);
+                explode_at(
+                    &mut game_rng.0,
+                    &mut commands,
+                    &mut sphere_materials,
+                    fireball_pos,
+                );
                 commands.entity(fireball_entity).try_despawn();
                 hit_wall = true;
                 break;
@@ -416,7 +420,12 @@ pub fn check_fireball_collisions(
         let mut hit_rock = false;
         for rock in &rocks {
             if rock.blocks_projectile(fireball_pos) {
-                explode_at(&mut game_rng.0, &mut commands, &mut sphere_materials, fireball_pos);
+                explode_at(
+                    &mut game_rng.0,
+                    &mut commands,
+                    &mut sphere_materials,
+                    fireball_pos,
+                );
                 commands.entity(fireball_entity).try_despawn();
                 hit_rock = true;
                 break;
@@ -429,7 +438,12 @@ pub fn check_fireball_collisions(
         // Check collision with ground (Y <= 0)
         if fireball_pos.y <= 0.0 {
             let explosion_pos = Vec3::new(fireball_pos.x, 5.0, fireball_pos.z);
-            explode_at(&mut game_rng.0, &mut commands, &mut sphere_materials, explosion_pos);
+            explode_at(
+                &mut game_rng.0,
+                &mut commands,
+                &mut sphere_materials,
+                explosion_pos,
+            );
             commands.entity(fireball_entity).try_despawn();
             continue;
         }
@@ -439,13 +453,22 @@ pub fn check_fireball_collisions(
             let hit = crate::game::units::wizard::spells::utils::sphere_intersects_cylinder(
                 fireball_pos,
                 fireball.radius,
-                Vec3::new(target_transform.translation.x, 0.0, target_transform.translation.z),
+                Vec3::new(
+                    target_transform.translation.x,
+                    0.0,
+                    target_transform.translation.z,
+                ),
                 hitbox.radius,
                 hitbox.height,
             );
 
             if hit {
-                explode_at(&mut game_rng.0, &mut commands, &mut sphere_materials, fireball_pos);
+                explode_at(
+                    &mut game_rng.0,
+                    &mut commands,
+                    &mut sphere_materials,
+                    fireball_pos,
+                );
                 commands.entity(fireball_entity).try_despawn();
                 break;
             }
@@ -484,8 +507,7 @@ fn spawn_explosion_with_talents(
     explosion.chain_ignition = fireball.chain_ignition;
 
     // Per-entity material clone so each explosion can fade independently
-    let mat_handle =
-        clone_sphere_material(sphere_materials, &assets.fireball_explosion_sphere);
+    let mat_handle = clone_sphere_material(sphere_materials, &assets.fireball_explosion_sphere);
 
     // Pre-generate all sub-explosion bubbles with distance-based sizes
     use rand::Rng;
@@ -864,11 +886,7 @@ pub(super) fn spawn_explosion_bubbles(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
-    mut spawners: Query<(
-        &FireballExplosion,
-        &mut ExplosionBubbleSpawner,
-        &Transform,
-    )>,
+    mut spawners: Query<(&FireballExplosion, &mut ExplosionBubbleSpawner, &Transform)>,
 ) {
     for (explosion, mut spawner, transform) in &mut spawners {
         let current_radius = explosion.current_radius();

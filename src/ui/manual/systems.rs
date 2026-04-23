@@ -12,7 +12,7 @@ use crate::ui::constants::{
     ACTIVE_TAB_BG, ACTIVE_TAB_BORDER, BACK_BUTTON_STYLE, INACTIVE_TAB_BG, TAB_BORDER,
     TAB_FONT_SIZE, TAB_HEIGHT, TAB_PADDING_H, TEXT_BODY,
 };
-use crate::ui::markdown::{parse_markdown, spawn_markdown, MarkdownBlock};
+use crate::ui::markdown::{MarkdownBlock, parse_markdown, spawn_markdown};
 use crate::ui::systems::spawn_page_header;
 
 const INSTRUCTIONS_TEXT: &str = include_str!("../../../INSTRUCTIONS.md");
@@ -113,6 +113,8 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
                             border,
                         },
                         ManualTabButton(*tab),
+                        crate::ui::focus::Focusable,
+                        crate::ui::focus::TabFocusable,
                     ));
 
                     if is_active {
@@ -143,6 +145,7 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
                 crate::ui::systems::scroll_area_style(),
                 ScrollPosition::default(),
                 ScrollableManualContainer,
+                crate::ui::focus::GamepadScrollTarget,
             ))
             .with_children(|scroll| {
                 scroll.spawn((
@@ -184,9 +187,7 @@ pub(super) fn rebuild_content_on_tab_change(
         *scroll_pos = ScrollPosition::default();
     }
 
-    commands
-        .entity(panel_entity)
-        .despawn_related::<Children>();
+    commands.entity(panel_entity).despawn_related::<Children>();
 
     commands.entity(panel_entity).with_children(|content| {
         spawn_markdown(content, parsed.blocks_for(*tab));

@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 
+use crate::game::input::gamepad::resources::RadialHoveredSlot;
 use crate::game::run_conditions::is_local_wizard_active;
 use crate::state::{InGameState, MultiplayerGameState};
 use crate::ui::plugin::ButtonActionSet;
 
-use super::components::InfiniteMana;
+use super::components::{ActionBarLayoutProgress, InfiniteMana};
 use super::messages::AssignSpellToSlot;
+use super::radial;
 use super::systems;
 
 /// Plugin that manages the action bar UI.
@@ -15,18 +17,27 @@ pub struct ActionBarPlugin;
 impl Plugin for ActionBarPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InfiniteMana>()
+            .init_resource::<ActionBarLayoutProgress>()
             .add_message::<AssignSpellToSlot>()
-            // Clear blocked spells before spawning the action bar
+            // Reset the morph to linear at the start of every run so the
+            // slots spawn in their linear positions.
+            .add_systems(
+                OnEnter(InGameState::Running),
+                reset_layout_progress.before(systems::spawn_action_bar),
+            )
+            .add_systems(
+                OnEnter(MultiplayerGameState::Running),
+                reset_layout_progress.before(systems::spawn_action_bar),
+            )
+            // Clear blocked spells before spawning the action bar.
             .add_systems(
                 OnEnter(InGameState::Running),
                 systems::clear_blocked_action_bar_spells,
             )
-            // SP spawn
             .add_systems(
                 OnEnter(InGameState::Running),
                 systems::spawn_action_bar.after(systems::clear_blocked_action_bar_spells),
             )
-            // MP spawn
             .add_systems(
                 OnEnter(MultiplayerGameState::Running),
                 systems::spawn_action_bar,
@@ -39,6 +50,27 @@ impl Plugin for ActionBarPlugin {
                     systems::handle_keyboard_input,
                     systems::highlight_keyboard_pressed_slots,
                 )
+                    .run_if(is_local_wizard_active),
+            )
+            // Layout morph: runs every frame while the action bar exists so
+            // the buttons smoothly reorganize whenever the input device
+            // changes, and so the current progress is applied immediately
+            // after spawn.
+            .add_systems(
+                Update,
+                radial::animate_action_bar_layout.run_if(
+                    in_state(InGameState::Running).or(in_state(MultiplayerGameState::Running)),
+                ),
+            )
+            .add_systems(
+                Update,
+                radial::highlight_radial_hovered_slot
+                    .run_if(is_local_wizard_active)
+                    .run_if(resource_changed::<RadialHoveredSlot>),
+            )
+            .add_systems(
+                Update,
+                (radial::flash_committed_slot, radial::tick_commit_flash)
                     .run_if(is_local_wizard_active),
             )
             .add_systems(
@@ -54,4 +86,8 @@ impl Plugin for ActionBarPlugin {
                     ),
             );
     }
+}
+
+fn reset_layout_progress(mut progress: ResMut<ActionBarLayoutProgress>) {
+    progress.0 = 0.0;
 }

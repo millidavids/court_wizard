@@ -42,6 +42,7 @@ impl Plugin for InGamePlugin {
                 Update,
                 (
                     systems::keyboard_input,
+                    systems::gamepad_hud_shortcuts,
                     systems::update_level_display,
                     systems::update_past_victory_display,
                     systems::update_level_clock,
@@ -72,7 +73,10 @@ impl Plugin for InGamePlugin {
             // Boss health bar: spawn when boss appears, update each frame
             .add_systems(
                 Update,
-                (systems::spawn_boss_health_bar, systems::update_boss_health_bar)
+                (
+                    systems::spawn_boss_health_bar,
+                    systems::update_boss_health_bar,
+                )
                     .run_if(is_gameplay_running),
             )
             .add_systems(

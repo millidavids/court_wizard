@@ -4,8 +4,8 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    AbsoluteZeroSlow, FrozenGround, IceExplosion, IceProjectile, SnowParticle,
-    SquallStorm, SquallStormRing, SquallTalentParams,
+    AbsoluteZeroSlow, FrozenGround, IceExplosion, IceProjectile, SnowParticle, SquallStorm,
+    SquallStormRing, SquallTalentParams,
 };
 use super::constants::*;
 use crate::config::GameConfig;
@@ -27,10 +27,10 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    RETICLE_Y, SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist,
-    build_wizard_input, clamp_to_spell_range_ground, cleanup_spell_caster,
-    get_cursor_world_position, handle_spell_release, indicator_pulse_scale, make_reticle_mesh,
-    spawn_circle_indicator, sphere_intersects_cylinder, update_indicator_position, xz_distance,
+    RETICLE_Y, SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
+    clamp_to_spell_range_ground, cleanup_spell_caster, get_cursor_world_position,
+    handle_spell_release, indicator_pulse_scale, make_reticle_mesh, spawn_circle_indicator,
+    sphere_intersects_cylinder, update_indicator_position, xz_distance,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::{
@@ -305,7 +305,6 @@ fn squall_casting_logic(
                                 });
                             }
 
-
                             // Spawn persistent annulus ring reticle for the storm
                             let ring_mesh = meshes.add(make_reticle_mesh(storm_radius));
                             commands.spawn((
@@ -557,8 +556,7 @@ fn spawn_ice_explosion(
 ) {
     let explosion_pos = Vec3::new(position.x, 1.0, position.z);
 
-    let mat_handle =
-        clone_sphere_material(sphere_materials, &assets.ice_explosion_sphere);
+    let mat_handle = clone_sphere_material(sphere_materials, &assets.ice_explosion_sphere);
 
     commands.spawn((
         Mesh3d(assets.explosion_sphere.clone()),
@@ -622,14 +620,15 @@ pub(super) fn update_ice_explosions(
         if let Some(handle) = material_handle
             && let Some(mat) = sphere_materials.get_mut(handle)
         {
-            mat.opacity =
-                explosion_fade_opacity(explosion.time_alive / EXPLOSION_LIFETIME);
+            mat.opacity = explosion_fade_opacity(explosion.time_alive / EXPLOSION_LIFETIME);
         }
 
         // Continuous white smoke from explosion surface (throttled to ~20Hz)
         let prev_tick = ((explosion.time_alive - time.delta_secs()) / 0.05) as u32;
         let curr_tick = (explosion.time_alive / 0.05) as u32;
-        if current_radius > 5.0 && curr_tick > prev_tick && explosion.time_alive < EXPLOSION_LIFETIME
+        if current_radius > 5.0
+            && curr_tick > prev_tick
+            && explosion.time_alive < EXPLOSION_LIFETIME
         {
             use rand::Rng;
             let dir = Vec3::new(
@@ -680,8 +679,14 @@ pub(super) fn update_ice_explosions(
             {
                 let hit = sphere_intersects_cylinder(
                     explosion.origin,
-                    explosion.current_radius(EXPLOSION_GROWTH_TIME).max(explosion.max_radius),
-                    Vec3::new(unit_transform.translation.x, 0.0, unit_transform.translation.z),
+                    explosion
+                        .current_radius(EXPLOSION_GROWTH_TIME)
+                        .max(explosion.max_radius),
+                    Vec3::new(
+                        unit_transform.translation.x,
+                        0.0,
+                        unit_transform.translation.z,
+                    ),
                     hitbox.radius,
                     hitbox.height,
                 );

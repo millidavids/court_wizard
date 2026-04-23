@@ -32,7 +32,6 @@ impl RayEyeType {
             RayEyeType::Teleportation => 4,
         }
     }
-
 }
 
 #[derive(Component)]

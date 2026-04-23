@@ -19,8 +19,8 @@ use crate::game::units::components::{
     Sleepwalking, SlowMovementModifier, TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::systems::create_default_sprite_material;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::session::MultiplayerSession;
 
 /// Spawns the King unit at the center of the defender grid.
@@ -103,8 +103,7 @@ pub fn spawn_king(
         .spawn((
             Mesh3d(spell_assets.explosion_sphere.clone()),
             MeshMaterial3d(spell_assets.king_aura_sphere.clone()),
-            Transform::from_xyz(0.0, 0.0, 0.0)
-                .with_scale(Vec3::splat(KING_AURA_RADIUS)),
+            Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(KING_AURA_RADIUS)),
             OnGameplayScreen,
         ))
         .id();

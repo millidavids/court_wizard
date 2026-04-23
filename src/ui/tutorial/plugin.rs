@@ -17,13 +17,26 @@ impl Plugin for TutorialPlugin {
         app.add_systems(
             OnEnter(MetaGameState::WizardTower),
             (
+                // Controller primer runs first: when a gamepad is active
+                // and the menu nav tutorial hasn't played yet, it queues
+                // ahead of the standard wizard-tower walkthrough so
+                // controller users learn how to navigate before anything
+                // else.
+                trigger_controller_menus_tutorial,
                 trigger_wizard_tower_tutorial,
                 trigger_time_travel_tutorial,
                 trigger_study_tutorial,
             )
                 .chain(),
         )
-        .add_systems(OnEnter(InGameState::Running), trigger_in_game_tutorial)
+        .add_systems(
+            OnEnter(InGameState::Running),
+            (
+                trigger_controller_in_game_tutorial,
+                trigger_in_game_tutorial,
+            )
+                .chain(),
+        )
         .add_systems(OnEnter(InGameState::SpellBook), trigger_spell_book_tutorial)
         .add_systems(
             OnEnter(InGameState::CauldronMenu),

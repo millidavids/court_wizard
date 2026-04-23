@@ -67,7 +67,6 @@ pub const ATTACKER_COMMANDER_DAMAGE_BUFF: f32 = 0.30;
 /// Speed buff percentage for units within attacker commander aura.
 pub const ATTACKER_COMMANDER_SPEED_BUFF: f32 = 0.15;
 
-
 // ============================================================================
 // Visual Differentiation - Elite Units
 // ============================================================================

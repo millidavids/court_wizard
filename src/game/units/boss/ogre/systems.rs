@@ -10,7 +10,6 @@ use super::resources::OgreAssets;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
-use crate::game::units::components::{CombatAnimation, FacingDirection, WalkingAnimation};
 use crate::game::pathfinding::resources::PathfindingGrid;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
 use crate::game::terrain::boulder::constants::{ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE};
@@ -26,6 +25,7 @@ use crate::game::units::components::{
     Sleepwalking, SlowMovementModifier, TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
     apply_damage_to_unit,
 };
+use crate::game::units::components::{CombatAnimation, FacingDirection, WalkingAnimation};
 use crate::game::units::random_position_in_cell;
 
 /// Spawns the ogre at one of the tunnel spawn points.
@@ -952,9 +952,7 @@ pub fn update_ogre_charge_visuals(
     {
         match charge_state {
             OgreChargeState::Telegraphing {
-                elapsed,
-                direction,
-                ..
+                elapsed, direction, ..
             } => {
                 // Set facing direction from charge direction
                 let new_facing = facing_from_world_direction(*direction, cam_forward_xz);
@@ -963,50 +961,43 @@ pub fn update_ogre_charge_visuals(
                 if let Some(mut visuals) = charge_visuals {
                     // Ongoing telegraph — update effects
                     visuals.elapsed += delta;
-                    let progress =
-                        (*elapsed / OGRE_CHARGE_TELEGRAPH_DURATION).min(1.0);
+                    let progress = (*elapsed / OGRE_CHARGE_TELEGRAPH_DURATION).min(1.0);
 
                     if let Some(mat) = materials.get_mut(&material_handle.0) {
                         // First frame: swap texture to attacking sheet
                         if !visuals.texture_swapped {
-                            mat.base_color_texture =
-                                Some(ogre_assets.attacking_texture.clone());
+                            mat.base_color_texture = Some(ogre_assets.attacking_texture.clone());
                             visuals.texture_swapped = true;
                         }
 
                         // Show frame 0 (wind-up) in correct direction
-                        let row =
-                            OGRE_ATTACKING_DIRECTION_ROWS[new_facing as usize];
+                        let row = OGRE_ATTACKING_DIRECTION_ROWS[new_facing as usize];
                         mat.uv_transform = ogre_frame_uv_transform(0, row);
 
                         // Red flash: pulse between enrage tint and flash color
-                        let flash_t = (visuals.elapsed
-                            * OGRE_CHARGE_FLASH_FREQUENCY
-                            * std::f32::consts::TAU)
-                            .sin()
-                            * 0.5
-                            + 0.5;
+                        let flash_t =
+                            (visuals.elapsed * OGRE_CHARGE_FLASH_FREQUENCY * std::f32::consts::TAU)
+                                .sin()
+                                * 0.5
+                                + 0.5;
                         let base_tint = enrage_phase_tint(enrage_state.phase);
                         mat.base_color = Color::LinearRgba(
-                            base_tint.to_linear().mix(
-                                &OGRE_CHARGE_FLASH_COLOR.to_linear(),
-                                flash_t,
-                            ),
+                            base_tint
+                                .to_linear()
+                                .mix(&OGRE_CHARGE_FLASH_COLOR.to_linear(), flash_t),
                         );
                     }
 
                     // Vibration: sinusoidal offset scaled by progress
                     let amp = OGRE_CHARGE_VIBRATION_AMPLITUDE * progress;
-                    let vib_x = (visuals.elapsed
-                        * OGRE_CHARGE_VIBRATION_FREQ_X
-                        * std::f32::consts::TAU)
-                        .sin()
-                        * amp;
-                    let vib_z = (visuals.elapsed
-                        * OGRE_CHARGE_VIBRATION_FREQ_Z
-                        * std::f32::consts::TAU)
-                        .sin()
-                        * amp;
+                    let vib_x =
+                        (visuals.elapsed * OGRE_CHARGE_VIBRATION_FREQ_X * std::f32::consts::TAU)
+                            .sin()
+                            * amp;
+                    let vib_z =
+                        (visuals.elapsed * OGRE_CHARGE_VIBRATION_FREQ_Z * std::f32::consts::TAU)
+                            .sin()
+                            * amp;
                     transform.translation.x = visuals.base_position.x + vib_x;
                     transform.translation.z = visuals.base_position.z + vib_z;
                 } else {
@@ -1037,8 +1028,7 @@ pub fn update_ogre_charge_visuals(
                     }
 
                     // Show frame 1 (charge pose)
-                    let new_facing =
-                        facing_from_world_direction(*direction, cam_forward_xz);
+                    let new_facing = facing_from_world_direction(*direction, cam_forward_xz);
                     *facing = new_facing;
                     let row = OGRE_ATTACKING_DIRECTION_ROWS[new_facing as usize];
                     mat.uv_transform = ogre_frame_uv_transform(1, row);
@@ -1063,8 +1053,7 @@ pub fn update_ogre_charge_visuals(
                     if visuals.texture_swapped
                         && let Some(mat) = materials.get_mut(&material_handle.0)
                     {
-                        mat.base_color_texture =
-                            Some(ogre_assets.walking_texture.clone());
+                        mat.base_color_texture = Some(ogre_assets.walking_texture.clone());
                         mat.base_color = enrage_phase_tint(enrage_state.phase);
                         // Reset UV to walking idle frame
                         mat.uv_transform = walking_anim.uv_transform(*facing);
@@ -1180,7 +1169,17 @@ pub fn ogre_rock_throw(
         boss_team,
         charge_state,
         mut cooldown,
-        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned, petrified, polymorphed),
+        (
+            rooted,
+            sleeping,
+            sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
+            petrified,
+            polymorphed,
+        ),
     ) in &mut bosses
     {
         if charge_state.is_movement_locked() {
