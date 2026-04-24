@@ -58,6 +58,37 @@ pub fn load_spell_icon_assets(mut commands: Commands, asset_server: Res<AssetSer
     commands.insert_resource(SpellIconAssets { icons });
 }
 
+/// Pre-loaded gun icon image handles for the Warglock action bar.
+#[derive(Resource)]
+pub struct GunIconAssets {
+    icons: HashMap<crate::game::units::wizard::archetypes::gunslinger::GunType, Handle<Image>>,
+}
+
+impl GunIconAssets {
+    pub fn get(
+        &self,
+        gun: &crate::game::units::wizard::archetypes::gunslinger::GunType,
+    ) -> Option<&Handle<Image>> {
+        self.icons.get(gun)
+    }
+}
+
+pub fn load_gun_icon_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
+    use crate::game::units::wizard::archetypes::gunslinger::GunType;
+    let mut icons = HashMap::new();
+    for gun in GunType::all() {
+        let path = match gun {
+            GunType::MachineGun => "images/icons/assault_rifle_icon.png",
+            GunType::Magnum => "images/icons/magnum_icon.png",
+            GunType::Shotgun => "images/icons/shotgun_icon.png",
+            GunType::RocketLauncher => "images/icons/rocket_launcher_icon.png",
+            GunType::Flamethrower => "images/icons/flame_thrower_icon.png",
+        };
+        icons.insert(gun, asset_server.load(path));
+    }
+    commands.insert_resource(GunIconAssets { icons });
+}
+
 /// Tracks the 3D push animation state for a button's front face.
 ///
 /// The front face slides up/down relative to the edge layer to create

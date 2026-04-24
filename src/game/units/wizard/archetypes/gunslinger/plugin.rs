@@ -92,6 +92,20 @@ impl Plugin for GunslingerPlugin {
                     .run_if(any_exist::<FlameParticle>())
                     .run_if(is_spell_effects_active),
             )
+            // Fire+smoke emission for in-flight flame projectiles
+            .add_systems(
+                Update,
+                emit_flame_particle_vfx
+                    .run_if(any_exist::<FlameParticle>())
+                    .run_if(is_spell_effects_active),
+            )
+            // Fire+smoke emission for ground patches left behind by flames
+            .add_systems(
+                Update,
+                emit_flame_ground_fire_vfx
+                    .run_if(any_exist::<FlameGroundFire>())
+                    .run_if(is_spell_effects_active),
+            )
             // VFX
             .add_systems(
                 Update,

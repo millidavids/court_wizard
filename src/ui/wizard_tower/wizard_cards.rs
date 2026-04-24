@@ -105,6 +105,12 @@ const EXPANDED_SECTION_HEIGHT: f32 = 180.0;
 /// Spawns a 3-column wizard card grid inside the given parent entity.
 /// Cards are arranged in columns so expanding a card only pushes down
 /// cards in the same column.
+/// Marker for the scrollable wizard-card grid container so the generic
+/// `handle_scroll` system can find it on mouse wheel events. Re-exported
+/// `pub(crate)` so the tutorial system can also tag it for highlighting.
+#[derive(Component)]
+pub(crate) struct WizardCardScrollContainer;
+
 pub(super) fn build_wizard_card_grid(commands: &mut Commands, parent: Entity) {
     let save = load_unified_save();
     let unlocked_names: Vec<String> = save
@@ -127,6 +133,7 @@ pub(super) fn build_wizard_card_grid(commands: &mut Commands, parent: Entity) {
                     ..default()
                 },
                 ScrollPosition::default(),
+                WizardCardScrollContainer,
             ))
             .with_children(|row| {
                 // Create 3 columns

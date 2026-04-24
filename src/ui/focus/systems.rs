@@ -72,31 +72,68 @@ fn nearest_in_direction(
     candidates: impl IntoIterator<Item = (Entity, Vec2)>,
 ) -> Option<Entity> {
     let horizontal = direction.x.abs() > direction.y.abs();
+    let candidates: Vec<(Entity, Vec2)> = candidates.into_iter().collect();
+
+    // Two-pass for vertical nav: first try same-panel-column candidates so
+    // side-by-side panels (spell book / cauldron / compendium) don't bleed
+    // into each other on Up/Down. If none exist, fall back to any column —
+    // this is what lets row-based settings layouts (where row 1's controls
+    // don't share X with row 2's controls) navigate Down to the next row
+    // regardless of column alignment.
+    if !horizontal {
+        if let Some(found) = nearest_pass(from, direction, &candidates, true) {
+            return Some(found);
+        }
+        return nearest_pass(from, direction, &candidates, false);
+    }
+
+    // Horizontal nav: single pass, gated by SAME_ROW_TOLERANCE unless the
+    // focused entity opts into cross-row hops via CrossRowHorizontalNav.
     let mut best: Option<(Entity, f32, f32)> = None;
-    for (entity, pos) in candidates {
+    for &(entity, pos) in &candidates {
         let delta = pos - from;
         let along = delta.dot(direction);
         if along <= 0.0 {
             continue;
         }
         let perp = (delta - direction * along).length();
-
-        // Horizontal nav is STRICTLY same-row: Left/Right never crosses rows.
-        // Cross-panel jumps at the same Y are still allowed (they're same-row).
-        // Relaxed when the focused entity has `CrossRowHorizontalNav` (grid
-        // layouts where columns can misalign).
-        if horizontal && !relax_horizontal && perp >= SAME_ROW_TOLERANCE {
+        if !relax_horizontal && perp >= SAME_ROW_TOLERANCE {
             continue;
         }
+        let is_better = match best {
+            None => true,
+            Some((_, best_along, best_perp)) => {
+                if (along - best_along).abs() < SAME_ROW_TOLERANCE {
+                    perp < best_perp
+                } else {
+                    along < best_along
+                }
+            }
+        };
+        if is_better {
+            best = Some((entity, along, perp));
+        }
+    }
+    best.map(|(e, _, _)| e)
+}
 
-        // Vertical nav is STRICTLY same-panel: Up/Down never crosses to a
-        // focusable more than `PANEL_COLUMN_TOLERANCE` away horizontally.
-        // Panels (spell book / cauldron / compendium) live side-by-side;
-        // Left/Right is the only way to hop between them.
-        if !horizontal && delta.x.abs() >= PANEL_COLUMN_TOLERANCE {
+fn nearest_pass(
+    from: Vec2,
+    direction: Vec2,
+    candidates: &[(Entity, Vec2)],
+    require_same_column: bool,
+) -> Option<Entity> {
+    let mut best: Option<(Entity, f32, f32)> = None;
+    for &(entity, pos) in candidates {
+        let delta = pos - from;
+        let along = delta.dot(direction);
+        if along <= 0.0 {
             continue;
         }
-
+        let perp = (delta - direction * along).length();
+        if require_same_column && delta.x.abs() >= PANEL_COLUMN_TOLERANCE {
+            continue;
+        }
         let is_better = match best {
             None => true,
             Some((_, best_along, best_perp)) => {

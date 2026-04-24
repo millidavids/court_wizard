@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.8] - 2026-04-24
+
+### Added
+- **Per-tab tutorials in the Wizard Tower** — opening Roguelite, Endless, or the Study for the first time now triggers a focused walkthrough for that specific tab, instead of one generic tower intro. Each tutorial covers what's actually on screen: modifier sliders, wizard select cards, time travel, the spell web, and so on
+- **Wizard select tutorial** — the first time you click "Switch Wizard" you get a short walkthrough of the wizard cards panel
+- **Spell-selected tutorial in the Study** — clicking a locked spell node for the first time triggers a short tutorial of the +/− Insight buttons and the talent tree. It won't fire on spells you already have unlocked (like Magic Missile)
+- **Mouse + keyboard menu primer** — first-time tower entry on mouse and keyboard now shows a brief navigation primer, mirroring the controller version
+- **Pulsing golden highlights on the thing the tutorial is talking about** — when a tutorial mentions the action bar, the tab row, the time travel list, the spell web, the +/− buttons, talents, or other UI, that element pulses with a gold border so you know exactly what's being referenced
+- **Inline controller glyphs in tutorial text** — sentences like "Press [A] to select" now render the actual controller button icon for whichever controller you're using (Xbox, PlayStation, Steam Deck, Switch). The keyboard/mouse versions of the same tutorials swap to plain wording
+- **Tutorial queue** — when more than one tutorial wants to play at the same time (e.g. opening a tab on the very first tower visit while the controller primer is still running), they now play back-to-back instead of the second one being silently dropped
+- **Warglock guns have icons in the action bar** — each of the five guns now uses its own dedicated icon (assault rifle, magnum, shotgun, rocket launcher, flame thrower) rather than text names that overflowed the buttons
+- **Lighter Warglock action bar background** — the slot backgrounds are noticeably lighter when playing as the Warglock so the dark gun icons stay easy to read
+- **Kenney credit added** — the controller-button glyph fonts (Xbox / PlayStation / Steam Deck / Switch) are by Kenney and are now credited in the in-game Credits panel
+
+### Changed
+- **Roguelite mode boots straight into Gameplay settings** — the settings menu now defaults to the Gameplay tab instead of the Video tab
+- **Spell names removed from action bar buttons** — the icons identify each spell already, and long names like "Crescent Strike" or "Forged in Fire" were spilling out of the buttons
+- **Rocket Launcher moved to slot 4** — the Warglock's gun order is now Machine Gun, Magnum, Shotgun, Rocket Launcher, Flamethrower
+- **Rocket Launcher rebalanced** — direct hit damage cut to a quarter of what it used to be, and the explosion now uses the same blast as a Fireball cast so they look and feel consistent
+- **Flamethrower flames look like real fire and smoke** — both the in-flight projectiles and the burning patches they leave behind on the ground now use the same billowing fire-and-smoke effect as Wall of Fire and Grease ignition
+- **Tutorial highlight animation simplified** — the gold border now stays a steady size and just pulses brighter and dimmer, instead of also growing inward
+- **Tutorial windows position themselves so they don't cover what they highlight** — talking about the left panel? Window jumps to the right side. Talking about Time Travel at the top? Window drops to the bottom. Talking about the tabs? Stays centered so it doesn't block them
+- **Action bar starts in the right layout immediately** — starting a run while a controller is plugged in now spawns the radial action bar straight away on frame 1, instead of starting linear and visibly morphing to radial. Same the other way around for mouse and keyboard
+- **Down/Up navigation in menus** — the controller can now press Down to jump to the next row even when the columns of two rows don't line up exactly (e.g. settings sliders with mismatched widths)
+- **Basic D-pad / stick navigation tutorial removed** — moving the highlight with D-pad and selecting with the bottom face button is intuitive enough that the controller primer no longer spends two steps explaining it. It still covers Back, bumpers for tabs, and Start to pause
+- **Settings tab labels** — "Video" → "Gameplay" is the new default, and tabs now read in a more useful order
+
+### Fixed
+- **Warglock guns can now be fired and selected with a controller** — both the radial spell picker and the right trigger now work for the Warglock just like every other wizard. The right stick highlights a gun, the right trigger primes it, and pulling the right trigger from a centered stick fires the currently equipped gun
+- **Gold radial-hover highlight is visible on the Warglock** — the slot the right stick is pointing at now actually lights up gold; previously the per-frame gun-selection highlight was overwriting it
+- **Action bar buttons no longer have a giant outline around a tiny icon** — when starting a run on controller and switching to mouse, the outer button outline used to grow to mouse size while the inner content stayed at controller size. They now stay in lockstep through the morph
+- **Button tops no longer get clipped** — the hotkey number and icon stack now fits cleanly inside each button without the top of the icon being cut off
+- **Action bar no longer flickers / constantly re-animates** — the layout system now skips per-frame mutations once the morph has settled, so the action bar isn't constantly re-rendering itself
+- **Clicking a spell in the Spell Book actually primes it now** — the Spell Book click was writing a "prime spell" message that nothing was listening for during the menu state. It's now picked up so clicking a spell primes it and keeps the menu open as intended
+- **Reset Tutorials and Clear Progress popups now work with a controller** — the Confirm and Cancel buttons are reachable, and pressing Back / Circle dismisses the popup like Cancel
+- **Tutorial windows on the Study no longer leak input to the spell web behind them** — the spell-web cursor and pan/zoom are paused while a tutorial is on screen
+- **Spell-web cursor disappears entirely on mouse and keyboard** — it's a controller-only affordance and was previously visible in the corner during mouse play
+- **Tutorials that don't match your input device dismiss themselves** — switch from controller to mouse mid-tutorial and the controller-flavored overlay dismisses cleanly so the keyboard-flavored counterpart can fire instead
+- **Tab bumpers / clicking tabs are blocked while a tutorial is open** — prevents accidentally swapping tabs mid-walkthrough and triggering the wrong tutorial
+- **Wizard select grid scrolls with the mouse wheel** — previously only the controller could navigate the wizard cards
+- **Tutorial controller-glyph text size and ordering** — controller glyphs in tutorial messages render at a much larger, legible size; the Next button is now on the left of the popup with default focus, Skip is on the right
+- **Crash when rebuilding a tutorial overlay during a state transition** — the overlay rebuild no longer panics when its host entity is being despawned in the same frame
+
 ## [v0.6.366] - 2026-04-23
 
 ### Added

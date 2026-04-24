@@ -16,4 +16,10 @@ pub(crate) use components::{
     InsightDisplay, LevelDisplay, SpellGraphArea, StudyButtonAction, StudyDetailPanel,
     TimeTravelContainer, WizardTowerButtonAction,
 };
-pub(crate) use layout::WizardTowerTab;
+pub(crate) use layout::{
+    RightPanelView, WizardTowerLeftPanel, WizardTowerRightPanel, WizardTowerTab, WizardTowerTabRow,
+};
+pub(crate) use roguelite_tab::{RogueliteScrollableLeft, SeedInputBox};
+pub(crate) use components::{SelectedStudySpell, StudyAllocAdjustButton, TalentCard};
+pub(crate) use study_tab::is_spell_unlocked;
+pub(crate) use wizard_cards::WizardCardScrollContainer;

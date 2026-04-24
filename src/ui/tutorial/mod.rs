@@ -6,5 +6,6 @@ pub(crate) mod definitions;
 mod plugin;
 pub(crate) mod resources;
 pub(crate) mod systems;
+mod text_glyphs;
 
 pub(crate) use plugin::TutorialPlugin;

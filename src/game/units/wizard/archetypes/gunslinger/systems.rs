@@ -138,6 +138,7 @@ fn apply_cone_spread(dir: Vec3, max_spread: f32, rng: &mut impl rand::Rng) -> Ve
 #[allow(clippy::too_many_arguments)]
 pub fn fire_machine_gun(
     mouse: Res<ButtonInput<MouseButton>>,
+    left_held: Res<crate::game::input::components::MouseLeftHeldThisFrame>,
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut gun_state: ResMut<GunState>,
@@ -147,7 +148,11 @@ pub fn fire_machine_gun(
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
 ) {
-    if gun_state.selected_gun != GunType::MachineGun || !mouse.pressed(MouseButton::Left) {
+    // Fire on either a real left-mouse hold or a gamepad RT hold (the
+    // gamepad layer writes `MouseLeftHeld` messages aggregated into
+    // `MouseLeftHeldThisFrame`).
+    let firing = mouse.pressed(MouseButton::Left) || left_held.held;
+    if gun_state.selected_gun != GunType::MachineGun || !firing {
         return;
     }
 
@@ -200,6 +205,7 @@ pub fn fire_machine_gun(
 #[allow(clippy::too_many_arguments)]
 pub fn fire_magnum(
     mouse: Res<ButtonInput<MouseButton>>,
+    mut gamepad_pressed: MessageReader<crate::game::input::messages::MouseLeftPressed>,
     mut commands: Commands,
     mut gun_state: ResMut<GunState>,
     visual_assets: Res<SpellVisualAssets>,
@@ -208,7 +214,9 @@ pub fn fire_magnum(
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
 ) {
-    if gun_state.selected_gun != GunType::Magnum || !mouse.just_pressed(MouseButton::Left) {
+    let just_pressed = mouse.just_pressed(MouseButton::Left)
+        || gamepad_pressed.read().next().is_some();
+    if gun_state.selected_gun != GunType::Magnum || !just_pressed {
         return;
     }
 
@@ -255,6 +263,7 @@ pub fn fire_magnum(
 #[allow(clippy::too_many_arguments)]
 pub fn fire_rocket(
     mouse: Res<ButtonInput<MouseButton>>,
+    mut gamepad_pressed: MessageReader<crate::game::input::messages::MouseLeftPressed>,
     mut commands: Commands,
     mut gun_state: ResMut<GunState>,
     visual_assets: Res<SpellVisualAssets>,
@@ -263,7 +272,9 @@ pub fn fire_rocket(
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
 ) {
-    if gun_state.selected_gun != GunType::RocketLauncher || !mouse.just_pressed(MouseButton::Left) {
+    let just_pressed = mouse.just_pressed(MouseButton::Left)
+        || gamepad_pressed.read().next().is_some();
+    if gun_state.selected_gun != GunType::RocketLauncher || !just_pressed {
         return;
     }
 
@@ -278,6 +289,8 @@ pub fn fire_rocket(
     let direction = (target - GUN_SPAWN_POS).normalize();
     let velocity = direction * constants::ROCKET_SPEED;
 
+    // Use Fireball's own explosion radius so the rocket's detonation looks
+    // identical to a Fireball cast (same bubble count, same blast size).
     spawn_fireball_entity(
         &mut commands,
         &visual_assets,
@@ -285,7 +298,7 @@ pub fn fire_rocket(
         velocity,
         constants::ROCKET_DAMAGE,
         DamageType::Fire,
-        constants::ROCKET_EXPLOSION_RADIUS,
+        crate::game::units::wizard::spells::fireball::constants::EXPLOSION_RADIUS,
         constants::ROCKET_RADIUS,
         1.0,
         constants::ROCKET_RADIUS * 2.0,
@@ -309,6 +322,7 @@ pub fn fire_rocket(
 #[allow(clippy::too_many_arguments)]
 pub fn fire_shotgun(
     mouse: Res<ButtonInput<MouseButton>>,
+    mut gamepad_pressed: MessageReader<crate::game::input::messages::MouseLeftPressed>,
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut gun_state: ResMut<GunState>,
@@ -318,7 +332,9 @@ pub fn fire_shotgun(
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
 ) {
-    if gun_state.selected_gun != GunType::Shotgun || !mouse.just_pressed(MouseButton::Left) {
+    let just_pressed = mouse.just_pressed(MouseButton::Left)
+        || gamepad_pressed.read().next().is_some();
+    if gun_state.selected_gun != GunType::Shotgun || !just_pressed {
         return;
     }
 
@@ -372,6 +388,7 @@ pub fn fire_shotgun(
 #[allow(clippy::too_many_arguments)]
 pub fn fire_flamethrower(
     mouse: Res<ButtonInput<MouseButton>>,
+    left_held: Res<crate::game::input::components::MouseLeftHeldThisFrame>,
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut gun_state: ResMut<GunState>,
@@ -383,7 +400,7 @@ pub fn fire_flamethrower(
     mut flamethrower_sfx: ResMut<FlamethrowerSfx>,
 ) {
     let is_firing = gun_state.selected_gun == GunType::Flamethrower
-        && mouse.pressed(MouseButton::Left)
+        && (mouse.pressed(MouseButton::Left) || left_held.held)
         && !gun_state.current_ammo().reloading
         && gun_state.current_ammo().current > 0;
 
@@ -421,11 +438,11 @@ pub fn fire_flamethrower(
     let spread_dir = apply_cone_spread(dir, constants::FLAMETHROWER_SPREAD, rng);
     let velocity = spread_dir * constants::FLAMETHROWER_SPEED;
 
+    // Visuals: no mesh — `emit_flame_particle_vfx` spawns fire+smoke puffs
+    // along the flame's path each frame so the projectile reads as a
+    // billowing flame rather than a single sphere sprite.
     commands.spawn((
-        Mesh3d(visual_assets.cross_plane_sphere.clone()),
-        MeshMaterial3d(visual_assets.fireball_projectile.clone()),
-        Transform::from_translation(GUN_SPAWN_POS)
-            .with_scale(Vec3::splat(constants::FLAME_PARTICLE_START_SIZE)),
+        Transform::from_translation(GUN_SPAWN_POS),
         FlameParticle {
             velocity,
             damage: constants::FLAMETHROWER_DAMAGE,
@@ -548,6 +565,79 @@ pub fn update_flame_particles(
     }
 }
 
+/// Emits fire+smoke puffs at each flame projectile's current position so the
+/// flamethrower reads as a billowing stream of flame instead of a single
+/// sprite. Throttled by a small interval to avoid swamping the particle
+/// system; one puff per particle per emit tick.
+pub fn emit_flame_particle_vfx(
+    mut commands: Commands,
+    time: Res<Time>,
+    flames: Query<(&Transform, &FlameParticle)>,
+    visual_assets: Res<SpellVisualAssets>,
+    mut emit_timer: Local<f32>,
+) {
+    *emit_timer += time.delta_secs();
+    if *emit_timer < 0.04 {
+        return;
+    }
+    *emit_timer = 0.0;
+
+    let t = time.elapsed_secs();
+    for (transform, flame) in &flames {
+        // Tighter half-width than the gameplay radius so puffs cluster around
+        // the flame core rather than spraying outward.
+        let half_width = flame.radius * 0.4;
+        crate::game::units::wizard::spells::vfx::systems::spawn_fire_orange_smoke(
+            &mut commands,
+            &visual_assets,
+            transform.translation,
+            half_width,
+            1,
+            t + transform.translation.x * 0.013,
+        );
+    }
+}
+
+/// Marker on the burning-ground AOE left behind by flamethrower projectiles.
+/// Drives `emit_flame_ground_fire_vfx` so the patch keeps billowing fire+
+/// smoke for the duration of its damage tick.
+#[derive(Component)]
+pub struct FlameGroundFire;
+
+/// Periodically spawns fire+smoke at each burning-ground patch. Mirrors the
+/// emission used by Wall of Fire / Grease so the visual is consistent.
+pub fn emit_flame_ground_fire_vfx(
+    mut commands: Commands,
+    time: Res<Time>,
+    patches: Query<(&Transform, &FireballExplosion), With<FlameGroundFire>>,
+    visual_assets: Res<SpellVisualAssets>,
+    mut emit_timer: Local<f32>,
+) {
+    *emit_timer += time.delta_secs();
+    if *emit_timer < 0.12 {
+        return;
+    }
+    *emit_timer = 0.0;
+
+    let t = time.elapsed_secs();
+    for (transform, explosion) in &patches {
+        // Stop emitting if the patch is about to despawn so we don't leave
+        // dangling puffs.
+        if explosion.duration - explosion.time_alive < 0.25 {
+            continue;
+        }
+        let pos = Vec3::new(transform.translation.x, 0.0, transform.translation.z);
+        crate::game::units::wizard::spells::vfx::systems::spawn_fire_orange_smoke(
+            &mut commands,
+            &visual_assets,
+            pos,
+            explosion.max_radius * 0.6,
+            2,
+            t + pos.x * 0.017,
+        );
+    }
+}
+
 /// Check flame particle collisions with enemies — apply tick damage.
 pub fn check_flame_collisions(
     mut commands: Commands,
@@ -602,7 +692,6 @@ pub fn check_flame_collisions(
 pub fn despawn_expired_flames(
     mut commands: Commands,
     flames: Query<(Entity, &Transform, &FlameParticle)>,
-    visual_assets: Res<SpellVisualAssets>,
 ) {
     for (entity, transform, flame) in &flames {
         let hit_ground = transform.translation.y <= 1.0;
@@ -622,13 +711,13 @@ pub fn despawn_expired_flames(
                 ground_fire.duration = constants::BURNING_GROUND_DURATION;
                 ground_fire.skip_growth = true;
 
+                // Visuals come from `emit_flame_ground_fire_vfx` (fire+smoke
+                // puffs) — the FireballExplosion entity itself stays
+                // invisible and only carries the gameplay logic + marker.
                 commands.spawn((
-                    Mesh3d(visual_assets.unit_circle.clone()),
-                    MeshMaterial3d(visual_assets.grease_fire.clone()),
-                    Transform::from_translation(pos)
-                        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-                        .with_scale(Vec3::splat(constants::BURNING_GROUND_RADIUS)),
+                    Transform::from_translation(pos),
                     ground_fire,
+                    FlameGroundFire,
                     OnGameplayScreen,
                 ));
             }

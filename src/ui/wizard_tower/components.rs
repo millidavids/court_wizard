@@ -171,7 +171,7 @@ pub(super) struct FreeNode;
 
 /// Resource tracking the currently selected spell for the detail panel.
 #[derive(Resource, Default)]
-pub(super) struct SelectedStudySpell(pub Option<Spell>);
+pub(crate) struct SelectedStudySpell(pub Option<Spell>);
 
 /// Marks the floating detail panel entity.
 #[derive(Component)]
@@ -217,7 +217,7 @@ pub(super) enum AllocTarget {
 /// Marks a +/- button next to a study allocation slider. `delta` is in
 /// insight units (positive to increase, negative to decrease).
 #[derive(Component, Debug, Clone, Copy)]
-pub(super) struct StudyAllocAdjustButton {
+pub(crate) struct StudyAllocAdjustButton {
     pub target: AllocTarget,
     pub delta: i32,
 }
@@ -228,7 +228,7 @@ pub(super) struct StudyAllocAdjustButton {
 
 /// Marker for a clickable talent card.
 #[derive(Component)]
-pub(super) struct TalentCard {
+pub(crate) struct TalentCard {
     pub spell: Spell,
     pub tier: u8,
     pub choice: u8,

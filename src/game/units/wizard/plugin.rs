@@ -59,7 +59,14 @@ impl Plugin for WizardPlugin {
             )
             .add_systems(
                 Update,
-                systems::handle_prime_spell_messages.run_if(is_local_wizard_active),
+                // Also runs in the single-player Spell Book so clicking a
+                // spell there primes it without having to exit the menu
+                // first. `is_local_wizard_active` already covers the
+                // multiplayer SpellBook state.
+                systems::handle_prime_spell_messages.run_if(
+                    is_local_wizard_active
+                        .or(in_state(crate::state::InGameState::SpellBook)),
+                ),
             )
             .add_systems(
                 PostUpdate,

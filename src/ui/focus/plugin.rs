@@ -27,8 +27,21 @@ fn focus_enabled(in_game: Option<Res<State<InGameState>>>) -> bool {
         .unwrap_or(true)
 }
 
-fn nav_enabled(inhibit: Option<Res<FocusNavInhibit>>) -> bool {
-    inhibit.is_none()
+/// Focus navigation is enabled when neither a screen-driven cursor mode
+/// (Study spell-web reticle) nor a tutorial overlay is active. Tutorial
+/// overlays must remain navigable so the player can press Next/Skip even
+/// while standing on a screen that would otherwise own the sticks.
+fn nav_enabled(
+    inhibit: Option<Res<FocusNavInhibit>>,
+    active_tutorial: Option<Res<crate::ui::tutorial::resources::ActiveTutorial>>,
+) -> bool {
+    inhibit.is_none() || active_tutorial.is_some()
+}
+
+fn no_active_tutorial(
+    active: Option<Res<crate::ui::tutorial::resources::ActiveTutorial>>,
+) -> bool {
+    active.is_none()
 }
 
 impl Plugin for FocusPlugin {
@@ -51,8 +64,14 @@ impl Plugin for FocusPlugin {
                     focus_navigation.run_if(gamepad_active).run_if(focus_enabled).run_if(nav_enabled),
                     // Bumpers cycle tabs regardless of `FocusNavInhibit` so
                     // tab switching still works when a full-screen cursor
-                    // mode (e.g. Study spell web) is active.
-                    tab_cycle.run_if(gamepad_active).run_if(focus_enabled),
+                    // mode (e.g. Study spell web) is active. Tab cycling is
+                    // disabled while a tutorial overlay is up so the player
+                    // can't accidentally swap tabs and trigger a different
+                    // tab's tutorial mid-walkthrough.
+                    tab_cycle
+                        .run_if(gamepad_active)
+                        .run_if(focus_enabled)
+                        .run_if(no_active_tutorial),
                     clear_focus_on_back.run_if(focus_enabled),
                     autoscroll_to_focused.run_if(gamepad_active).run_if(focus_enabled).run_if(nav_enabled),
                 )

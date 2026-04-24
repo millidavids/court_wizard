@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use super::components::*;
+use super::radial::{ease, linear_pos, radial_pos};
 use super::constants::*;
 use super::messages::AssignSpellToSlot;
 use crate::config::input_bindings::{InputBindings, key_display_name};
@@ -12,7 +13,7 @@ use crate::game::units::wizard::archetypes::gunslinger::GunType;
 use crate::game::units::wizard::archetypes::gunslinger::messages::SelectGunMessage;
 use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::ui::components::{
-    ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, SpellIconAssets,
+    ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, GunIconAssets, SpellIconAssets,
 };
 use crate::ui::constants::{
     BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_PRESSED_OUTLINE,
@@ -52,6 +53,8 @@ pub(super) fn spawn_action_bar(
     config: Res<GameConfig>,
     bindings: Res<InputBindings>,
     icon_assets: Res<SpellIconAssets>,
+    gun_icon_assets: Res<GunIconAssets>,
+    layout_progress: Res<ActionBarLayoutProgress>,
 ) {
     commands
         .spawn((
@@ -83,13 +86,16 @@ pub(super) fn spawn_action_bar(
                         let hotkey_label =
                             &key_display_name(slot_bindings[slot as usize]).to_string();
 
-                        // For gunslinger, show gun names instead of spells
+                        // For gunslinger, render gun icons (no name fallback);
+                        // every gun has a dedicated icon now.
                         let (slot_name, has_icon, icon_handle): (
                             &str,
                             bool,
                             Option<Handle<Image>>,
                         ) = if is_gunslinger {
-                            (guns[slot as usize].display_name(), false, None)
+                            let gun = guns[slot as usize];
+                            let icon = gun_icon_assets.get(&gun).cloned();
+                            ("", icon.is_some(), icon)
                         } else {
                             let spell = config.action_bar_slots[slot as usize];
                             let icon = spell.and_then(|s| icon_assets.get(&s).cloned());
@@ -97,29 +103,52 @@ pub(super) fn spawn_action_bar(
                             (name, icon.is_some(), icon)
                         };
 
-                        let linear_left = ACTION_BAR_LEFT_MARGIN
-                            + slot as f32 * (SLOT_BUTTON_STYLE.width + SLOT_GAP);
+                        // Compute initial position from the already-settled
+                        // layout progress (set by `reset_layout_progress` on
+                        // gameplay entry) so the slots render in their final
+                        // layout — linear on KB+M, radial on controller —
+                        // from the very first frame. Avoids the visible
+                        // linear→radial animation every time a controller
+                        // user starts a run.
+                        let t = ease(layout_progress.0);
+                        let init_pos = linear_pos(slot).lerp(radial_pos(slot), t);
+                        let init_scale = 1.0 + (RADIAL_SLOT_SCALE - 1.0) * t;
+                        let init_w = SLOT_BUTTON_STYLE.width * init_scale;
+                        let init_h = SLOT_BUTTON_STYLE.height * init_scale;
+                        let init_border = SLOT_BUTTON_STYLE.border_width * init_scale;
+                        let init_padding = 2.0 * init_scale;
+                        let bg_color = if is_gunslinger {
+                            WARGLOCK_SLOT_BACKGROUND
+                        } else {
+                            SLOT_BUTTON_STYLE.background
+                        };
                         parent
                             .spawn((
                                 Button,
                                 Node {
                                     position_type: PositionType::Absolute,
-                                    left: Val::Px(linear_left),
-                                    bottom: Val::Px(ACTION_BAR_BOTTOM_MARGIN),
-                                    width: Val::Px(SLOT_BUTTON_STYLE.width),
-                                    height: Val::Px(SLOT_BUTTON_STYLE.height),
-                                    border: UiRect::all(Val::Px(SLOT_BUTTON_STYLE.border_width)),
+                                    left: Val::Px(init_pos.x),
+                                    bottom: Val::Px(init_pos.y),
+                                    width: Val::Px(init_w),
+                                    height: Val::Px(init_h),
+                                    min_width: Val::Px(0.0),
+                                    min_height: Val::Px(0.0),
+                                    border: UiRect::all(Val::Px(init_border)),
                                     flex_direction: FlexDirection::Column,
-                                    justify_content: JustifyContent::SpaceBetween,
+                                    justify_content: if layout_progress.0 > 0.5 {
+                                        JustifyContent::Center
+                                    } else {
+                                        JustifyContent::SpaceBetween
+                                    },
                                     align_items: AlignItems::Center,
-                                    padding: UiRect::all(Val::Px(2.0)),
+                                    padding: UiRect::all(Val::Px(init_padding)),
                                     ..default()
                                 },
                                 BorderColor::all(SLOT_BUTTON_STYLE.border),
                                 BorderRadius::all(Val::Px(4.0)),
-                                BackgroundColor(SLOT_BUTTON_STYLE.background),
+                                BackgroundColor(bg_color),
                                 ButtonColors {
-                                    background: SLOT_BUTTON_STYLE.background,
+                                    background: bg_color,
                                     border: SLOT_BUTTON_STYLE.border,
                                 },
                                 ActionBarSlot { slot },
@@ -133,13 +162,18 @@ pub(super) fn spawn_action_bar(
                                     ActionBarHotkeyText,
                                 ));
 
-                                // Spell icon or name in center
+                                // Spell icon or name in center. Scale the
+                                // icon by the current layout progress so a
+                                // controller-first spawn renders its icons
+                                // already at radial size (no brief oversized
+                                // flash before the animate system catches up).
                                 if let Some(handle) = icon_handle {
+                                    let icon_px = SPELL_ICON_SIZE * init_scale;
                                     button.spawn((
                                         ImageNode::new(handle),
                                         Node {
-                                            width: Val::Px(SPELL_ICON_SIZE),
-                                            height: Val::Px(SPELL_ICON_SIZE),
+                                            width: Val::Px(icon_px),
+                                            height: Val::Px(icon_px),
                                             flex_grow: 1.0,
                                             justify_content: JustifyContent::Center,
                                             align_items: AlignItems::Center,
@@ -149,26 +183,13 @@ pub(super) fn spawn_action_bar(
                                     ));
                                 }
 
-                                let font_size = calculate_action_bar_font_size(slot_name);
-                                button
-                                    .spawn((
-                                        Text::new(slot_name),
-                                        TextFont::from_font_size(font_size),
-                                        TextColor(SLOT_BUTTON_STYLE.text_color),
-                                        TextLayout::new_with_justify(Justify::Center),
-                                        ActionBarSlotText { slot },
-                                        if has_icon {
-                                            Visibility::Hidden
-                                        } else {
-                                            Visibility::Inherited
-                                        },
-                                    ))
-                                    .insert(Node {
-                                        flex_grow: if has_icon { 0.0 } else { 1.0 },
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..default()
-                                    });
+                                // Spell names have been removed from the
+                                // action bar — icons are the identity, and
+                                // long names like "Crescent Strike" /
+                                // "Forged in Fire" overflow the 50x50
+                                // button. The hotkey text above the icon is
+                                // all that remains.
+                                let _ = slot_name;
                             });
                     }
 
@@ -278,6 +299,7 @@ pub(super) fn handle_keyboard_input(
 pub(super) fn update_action_bar_slots(
     config: Res<GameConfig>,
     icon_assets: Res<SpellIconAssets>,
+    gun_icon_assets: Res<GunIconAssets>,
     gun_state: Option<Res<GunState>>,
     mut slot_text_query: Query<(
         &mut Text,
@@ -299,8 +321,13 @@ pub(super) fn update_action_bar_slots(
 ) {
     let is_gunslinger = config.wizard_type == WizardType::Warglock;
 
-    // Update slot highlighting for gunslinger
-    if is_gunslinger && let Some(ref gs) = gun_state {
+    // Update slot highlighting for gunslinger — only when the gun
+    // selection changes, so the per-frame write doesn't stomp on the radial
+    // hover color written by `highlight_radial_hovered_slot`.
+    if is_gunslinger
+        && let Some(ref gs) = gun_state
+        && gs.is_changed()
+    {
         let guns = GunType::all();
         for (slot, mut border_color, colors) in &mut slot_button_query {
             let slot_idx = slot.slot as usize;
@@ -314,27 +341,33 @@ pub(super) fn update_action_bar_slots(
 
     if config.is_changed() {
         if is_gunslinger {
-            // Show gun names in slots, hide icons
+            // Show gun icons in slots, hide name text.
             let guns = GunType::all();
-            for (mut text, mut text_font, mut visibility, mut node, slot_text) in
+            for (mut text, _text_font, mut visibility, mut node, _slot_text) in
                 &mut slot_text_query
             {
-                let slot_idx = slot_text.slot as usize;
-                let gun_name = if slot_idx < guns.len() {
-                    guns[slot_idx].display_name()
-                } else {
-                    ""
-                };
-                **text = gun_name.to_string();
-                text_font.font_size = calculate_action_bar_font_size(gun_name);
+                **text = String::new();
                 *visibility = Visibility::Inherited;
-                node.flex_grow = 1.0;
-            }
-            for (_, mut visibility, mut node, _) in &mut slot_icon_query {
-                *visibility = Visibility::Hidden;
+                node.display = Display::None;
                 node.flex_grow = 0.0;
-                node.width = Val::Px(0.0);
-                node.height = Val::Px(0.0);
+            }
+            for (mut image_node, mut visibility, mut node, slot_icon) in &mut slot_icon_query {
+                let slot_idx = slot_icon.slot as usize;
+                let handle = guns
+                    .get(slot_idx)
+                    .and_then(|gun| gun_icon_assets.get(gun).cloned());
+                if let Some(handle) = handle {
+                    *image_node = ImageNode::new(handle);
+                    *visibility = Visibility::Inherited;
+                    node.width = Val::Px(SPELL_ICON_SIZE);
+                    node.height = Val::Px(SPELL_ICON_SIZE);
+                    node.flex_grow = 1.0;
+                } else {
+                    *visibility = Visibility::Hidden;
+                    node.flex_grow = 0.0;
+                    node.width = Val::Px(0.0);
+                    node.height = Val::Px(0.0);
+                }
             }
             return;
         }
@@ -346,12 +379,18 @@ pub(super) fn update_action_bar_slots(
             text_font.font_size = calculate_action_bar_font_size(spell_name);
 
             let has_icon = spell.is_some_and(|s| icon_assets.get(&s).is_some());
-            *visibility = if has_icon {
-                Visibility::Hidden
+            // Use Display::None (not Visibility::Hidden) for hidden text —
+            // otherwise the text still reserves layout space and pushes the
+            // icon/hotkey stack past the button's fixed height, which shows
+            // up as the edge/front-face layers disagreeing about size.
+            *visibility = Visibility::Inherited;
+            if has_icon {
+                node.display = Display::None;
+                node.flex_grow = 0.0;
             } else {
-                Visibility::Inherited
-            };
-            node.flex_grow = if has_icon { 0.0 } else { 1.0 };
+                node.display = Display::Flex;
+                node.flex_grow = 1.0;
+            }
         }
 
         for (mut image_node, mut visibility, mut node, slot_icon) in &mut slot_icon_query {

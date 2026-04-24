@@ -14,6 +14,17 @@ pub(crate) struct ActiveTutorial {
     pub paused_gameplay: bool,
 }
 
+/// FIFO queue of tutorials waiting to play. When a tutorial completes,
+/// the next id (if any) is popped and started immediately. Triggers that
+/// fire while another tutorial is active append to this queue instead of
+/// being silently dropped — so e.g. opening a tab on the very first visit
+/// while the controller-menus primer is still running plays the tab
+/// tutorial right after, not on the second visit.
+#[derive(Resource, Default)]
+pub(crate) struct PendingTutorials {
+    pub queue: std::collections::VecDeque<TutorialId>,
+}
+
 /// Resource tracking which tutorials the player has completed.
 /// Synced with save file on load/save.
 #[derive(Resource, Default)]

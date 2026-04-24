@@ -13,7 +13,7 @@ use super::achievement_popup::AchievementPopupPlugin;
 use super::action_bar::ActionBarPlugin;
 use super::arcanorouter_display::ArcanoRouterDisplayPlugin;
 use super::cauldron_menu::CauldronMenuPlugin;
-use super::components::{load_spell_icon_assets, set_default_font};
+use super::components::{load_gun_icon_assets, load_spell_icon_assets, set_default_font};
 use super::concentration::ConcentrationUIPlugin;
 use super::focus::FocusPlugin;
 use super::gamepad_glyphs::GamepadGlyphsPlugin;
@@ -77,7 +77,10 @@ impl Plugin for UiPlugin {
             Update,
             ButtonActionSet.run_if(systems::on_message::<MouseClicked>),
         )
-        .add_systems(Startup, (set_default_font, load_spell_icon_assets))
+        .add_systems(
+            Startup,
+            (set_default_font, load_spell_icon_assets, load_gun_icon_assets),
+        )
         .add_systems(
             Update,
             (

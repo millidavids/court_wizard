@@ -9,9 +9,9 @@ pub(crate) struct ActionBarRoot;
 
 /// Component that marks an action bar slot button and stores its slot index.
 #[derive(Component, Debug, Clone, Copy)]
-pub(super) struct ActionBarSlot {
+pub(crate) struct ActionBarSlot {
     /// The slot index (0-9, where 0 represents key 1, and 9 represents key 0).
-    pub(super) slot: u8,
+    pub(crate) slot: u8,
 }
 
 /// Marker component for the spell name text within an action bar slot.

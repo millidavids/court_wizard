@@ -19,7 +19,7 @@ use crate::ui::components::ButtonColors;
 
 /// Linear target position (screen-space `left`, `bottom`) of slot `i` — the
 /// row in the bottom-left corner that matches the mouse/keyboard layout.
-fn linear_pos(i: u8) -> Vec2 {
+pub(super) fn linear_pos(i: u8) -> Vec2 {
     let left =
         ACTION_BAR_LEFT_MARGIN + i as f32 * (SLOT_BUTTON_STYLE.width + SLOT_GAP);
     Vec2::new(left, ACTION_BAR_BOTTOM_MARGIN)
@@ -30,7 +30,7 @@ fn linear_pos(i: u8) -> Vec2 {
 /// sits at the top (12 o'clock); subsequent slots go clockwise. Positions
 /// account for the shrunken radial button size so each slot's center lands
 /// exactly on the ring.
-fn radial_pos(i: u8) -> Vec2 {
+pub(super) fn radial_pos(i: u8) -> Vec2 {
     let angle = i as f32 * TAU / RADIAL_SLOT_COUNT as f32;
     let dx = angle.sin() * RADIAL_RING_RADIUS;
     let dy = angle.cos() * RADIAL_RING_RADIUS;
@@ -44,7 +44,7 @@ fn radial_pos(i: u8) -> Vec2 {
 
 /// Smoothstep easing for a nicer morph — the buttons accelerate out of the
 /// row, cruise, and settle softly into the ring (and vice versa).
-fn ease(t: f32) -> f32 {
+pub(super) fn ease(t: f32) -> f32 {
     let t = t.clamp(0.0, 1.0);
     t * t * (3.0 - 2.0 * t)
 }
@@ -58,7 +58,8 @@ pub(super) fn animate_action_bar_layout(
     time: Res<Time>,
     active: Res<ActiveInputDevice>,
     mut progress: ResMut<ActionBarLayoutProgress>,
-    mut slots: Query<(&ActionBarSlot, &mut Node), Without<DebugManaButton>>,
+    mut last_applied: Local<Option<f32>>,
+    mut slots: Query<(Entity, &ActionBarSlot, &mut Node), Without<DebugManaButton>>,
     mut icons: Query<
         (&mut Node, &mut ImageNode),
         (With<ActionBarSlotIcon>, Without<ActionBarSlot>),
@@ -82,6 +83,18 @@ pub(super) fn animate_action_bar_layout(
         ),
     >,
     mut inf: Query<&mut Visibility, With<DebugManaButton>>,
+    children_query: Query<&Children>,
+    mut fronts: Query<
+        &mut Node,
+        (
+            With<crate::ui::components::ButtonFront>,
+            Without<ActionBarSlot>,
+            Without<ActionBarSlotIcon>,
+            Without<ActionBarSlotText>,
+            Without<ActionBarHotkeyText>,
+            Without<DebugManaButton>,
+        ),
+    >,
 ) {
     let target = if active.is_gamepad() { 1.0 } else { 0.0 };
     let step = time.delta_secs() / RADIAL_TRANSITION_SECS;
@@ -90,6 +103,14 @@ pub(super) fn animate_action_bar_layout(
     } else {
         progress.0 += (target - progress.0).signum() * step;
     }
+    // Skip applying the layout if nothing has changed since last tick —
+    // keeps the system from marking every Node as Changed every frame and
+    // triggering a full UI re-layout + visible flicker. We still always
+    // apply on first run and on every in-flight frame of the morph.
+    if last_applied.map(|v| (v - progress.0).abs() < f32::EPSILON).unwrap_or(false) {
+        return;
+    }
+    *last_applied = Some(progress.0);
     let t = ease(progress.0);
     let scale = 1.0 + (RADIAL_SLOT_SCALE - 1.0) * t;
 
@@ -97,7 +118,9 @@ pub(super) fn animate_action_bar_layout(
     let slot_h = SLOT_BUTTON_STYLE.height * scale;
     let border_px = SLOT_BUTTON_STYLE.border_width * scale;
     let padding_px = 2.0 * scale;
-    for (slot, mut node) in &mut slots {
+    let mut slot_entities: Vec<Entity> = Vec::new();
+    for (entity, slot, mut node) in &mut slots {
+        slot_entities.push(entity);
         let from = linear_pos(slot.slot);
         let to = radial_pos(slot.slot);
         let pos = from.lerp(to, t);
@@ -105,13 +128,31 @@ pub(super) fn animate_action_bar_layout(
         node.bottom = Val::Px(pos.y);
         node.width = Val::Px(slot_w);
         node.height = Val::Px(slot_h);
-        // Default `min_*: Auto` lets intrinsic content force the button to
-        // grow past the set width/height. Pinning min to 0 lets width/height
-        // be authoritative without clipping the content.
+        // Pin min to 0 so width/height stays authoritative. Content fits
+        // because hidden text nodes use Display::None (see
+        // `update_action_bar_slots`) — they don't reserve layout space.
         node.min_width = Val::Px(0.0);
         node.min_height = Val::Px(0.0);
         node.border = UiRect::all(Val::Px(border_px));
         node.padding = UiRect::all(Val::Px(padding_px));
+    }
+
+    // Action-bar slots have a 3D button structure spawned by
+    // `apply_3d_button_structure`, which locks the inner `ButtonFront`
+    // height to whatever the outer node's height was at spawn time. As the
+    // outer morphs between linear (50px) and radial (~32px), the front face
+    // needs to track so the edge and front layers stay the same size. Walk
+    // each slot's immediate children and resize any `ButtonFront` node.
+    for slot_entity in slot_entities {
+        let Ok(children) = children_query.get(slot_entity) else {
+            continue;
+        };
+        for child in children.iter() {
+            if let Ok(mut front_node) = fronts.get_mut(child) {
+                front_node.width = Val::Px(slot_w);
+                front_node.height = Val::Px(slot_h);
+            }
+        }
     }
 
     let icon_px = SPELL_ICON_SIZE * scale;
@@ -146,7 +187,7 @@ pub(super) fn animate_action_bar_layout(
             Display::Flex
         };
     }
-    for (_slot, mut node) in slots.iter_mut() {
+    for (_entity, _slot, mut node) in slots.iter_mut() {
         node.justify_content = if text_hidden {
             JustifyContent::Center
         } else {
@@ -163,20 +204,49 @@ pub(super) fn animate_action_bar_layout(
     }
 }
 
-/// Applies a yellow outline to the slot the right stick is currently
-/// pointing at. Only has a visible effect while the radial layout is active
-/// since `RadialHoveredSlot` stays `None` under mouse input.
+/// Applies a gold outline to the slot the right stick is currently pointing
+/// at. Writes to the visible 3D layers (`ButtonFront` BorderColor + Outline
+/// on `ButtonEdge`) — the outer Button's own Border is hidden behind the
+/// edge/front children and isn't visible from the camera.
+///
+/// The Bevy plugin already gates this with `resource_changed::<RadialHoveredSlot>`,
+/// but the run_if check happens before system params are evaluated and
+/// systems still run on the very first frame; the `is_changed` early-out
+/// here is belt-and-suspenders against any future caller that runs us
+/// outside the `resource_changed` gate.
 pub(super) fn highlight_radial_hovered_slot(
     hovered: Res<RadialHoveredSlot>,
-    mut slots: Query<(&ActionBarSlot, &mut BorderColor, &mut Node, &ButtonColors)>,
+    slots: Query<(Entity, &ActionBarSlot, &ButtonColors)>,
+    children_query: Query<&Children>,
+    mut front_query: Query<
+        &mut BorderColor,
+        (
+            With<crate::ui::components::ButtonFront>,
+            Without<crate::ui::components::ButtonEdge>,
+        ),
+    >,
+    mut edge_query: Query<&mut Outline, With<crate::ui::components::ButtonEdge>>,
 ) {
-    for (slot, mut border_color, mut node, colors) in &mut slots {
-        if hovered.0 == Some(slot.slot) {
-            *border_color = BorderColor::all(RADIAL_HOVER_COLOR);
-            node.border = UiRect::all(Val::Px(RADIAL_HOVER_BORDER));
-        } else {
-            *border_color = BorderColor::all(colors.border);
-            node.border = UiRect::all(Val::Px(SLOT_BUTTON_STYLE.border_width));
+    for (entity, slot, colors) in &slots {
+        let is_hovered = hovered.0 == Some(slot.slot);
+        let Ok(children) = children_query.get(entity) else {
+            continue;
+        };
+        for child in children.iter() {
+            if let Ok(mut bc) = front_query.get_mut(child) {
+                *bc = if is_hovered {
+                    BorderColor::all(RADIAL_HOVER_COLOR)
+                } else {
+                    BorderColor::all(colors.border)
+                };
+            }
+            if let Ok(mut outline) = edge_query.get_mut(child) {
+                outline.color = if is_hovered {
+                    RADIAL_HOVER_COLOR
+                } else {
+                    crate::ui::constants::BUTTON_REST_OUTLINE
+                };
+            }
         }
     }
 }
@@ -200,25 +270,65 @@ pub(super) fn flash_committed_slot(
     }
 }
 
-/// Ticks down the commit flash, painting the slot yellow while active and
-/// restoring its default background when the timer expires.
+/// Ticks down the commit flash and drives the slot's standard 3D press
+/// animation (ButtonAnimState + front-border + outline). This is the same
+/// visual used by keyboard hotkey presses, so a radial commit reads
+/// identically to pressing `1`/`2`/`3`/`4`/`5` on the keyboard.
 pub(super) fn tick_commit_flash(
     time: Res<Time>,
     mut commands: Commands,
-    mut query: Query<(
+    mut slots: Query<(
         Entity,
         &mut RadialCommitFlash,
-        &mut BackgroundColor,
         &ButtonColors,
+        &Children,
+        Option<&mut crate::ui::components::ButtonAnimState>,
     )>,
+    mut front_query: Query<
+        &mut BorderColor,
+        (
+            With<crate::ui::components::ButtonFront>,
+            Without<crate::ui::components::ButtonEdge>,
+        ),
+    >,
+    mut edge_query: Query<&mut Outline, With<crate::ui::components::ButtonEdge>>,
 ) {
-    for (entity, mut flash, mut bg, colors) in &mut query {
+    use crate::ui::constants::{
+        BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_PRESSED_OUTLINE,
+        BUTTON_REST_OUTLINE,
+    };
+    use crate::ui::styles::border_bright;
+
+    for (entity, mut flash, colors, children, anim) in &mut slots {
+        let was_fresh = flash.remaining == RADIAL_COMMIT_FLASH_SECS;
         flash.remaining -= time.delta_secs();
+
         if flash.remaining <= 0.0 {
-            *bg = BackgroundColor(colors.background);
+            if let Some(mut a) = anim {
+                a.target = BUTTON_3D_OFFSET_REST;
+            }
+            for child in children.iter() {
+                if let Ok(mut bc) = front_query.get_mut(child) {
+                    *bc = BorderColor::all(colors.border);
+                }
+                if let Ok(mut outline) = edge_query.get_mut(child) {
+                    outline.color = BUTTON_REST_OUTLINE;
+                }
+            }
             commands.entity(entity).remove::<RadialCommitFlash>();
-        } else {
-            *bg = BackgroundColor(RADIAL_COMMIT_FLASH_COLOR);
+        } else if was_fresh {
+            // Only apply pressed styling once, on the first tick.
+            if let Some(mut a) = anim {
+                a.target = BUTTON_3D_OFFSET_PRESSED;
+            }
+            for child in children.iter() {
+                if let Ok(mut bc) = front_query.get_mut(child) {
+                    *bc = BorderColor::all(border_bright(colors.border));
+                }
+                if let Ok(mut outline) = edge_query.get_mut(child) {
+                    outline.color = BUTTON_PRESSED_OUTLINE;
+                }
+            }
         }
     }
 }

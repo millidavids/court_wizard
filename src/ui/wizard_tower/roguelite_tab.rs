@@ -246,7 +246,7 @@ pub(super) struct SeedInputText;
 
 /// Marker for the seed input box background (clickable to focus).
 #[derive(Component)]
-pub(super) struct SeedInputBox;
+pub(crate) struct SeedInputBox;
 
 /// Resource tracking the seed input state.
 #[derive(Resource, Default)]
@@ -322,7 +322,7 @@ pub(super) struct RogueliteScrollableContent;
 
 /// Marker for the scrollable left panel.
 #[derive(Component)]
-pub(super) struct RogueliteScrollableLeft;
+pub(crate) struct RogueliteScrollableLeft;
 
 // ===========================================================================
 // Helpers

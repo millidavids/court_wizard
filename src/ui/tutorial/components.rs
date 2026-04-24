@@ -30,12 +30,18 @@ pub(super) struct TutorialNextButton;
 #[derive(Component)]
 pub(super) struct TutorialSkipButton;
 
-/// Tracks the original border state of a highlighted entity so we can restore it.
+/// Tracks the highlight overlay entity spawned as a child of a highlighted
+/// element so it can be despawned cleanly. Replaces the older "mutate the
+/// element's own border" approach so the highlight no longer changes the
+/// element's layout or fights with the element's own focus/hover styling.
 #[derive(Component)]
-pub(super) struct OriginalBorder {
-    pub color: Color,
-    pub width: UiRect,
+pub(super) struct HighlightOverlay {
+    pub child: Entity,
 }
+
+/// Marker on the spawned overlay child that pulses with the gold glow.
+#[derive(Component)]
+pub(super) struct HighlightOverlayGlow;
 
 /// Drives the glow animation timer.
 #[derive(Component)]

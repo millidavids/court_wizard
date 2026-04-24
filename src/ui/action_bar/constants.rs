@@ -31,6 +31,10 @@ pub(super) const SLOT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     text_shadow: true,
 };
 
+/// Lighter slot background used for the Warglock action bar so the dark
+/// gun icons stay legible against it.
+pub(super) const WARGLOCK_SLOT_BACKGROUND: Color = Color::srgba(0.55, 0.50, 0.48, 0.85);
+
 /// Bottom margin for the action bar from screen edge.
 pub(super) const ACTION_BAR_BOTTOM_MARGIN: f32 = 15.0;
 

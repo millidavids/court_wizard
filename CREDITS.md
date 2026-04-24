@@ -46,6 +46,13 @@ Music tracks are sourced from [OpenGameArt.org](https://opengameart.org/) and ar
   - Source: https://opengameart.org/content/sunshine-skirmish-loop
   - License: CC-BY-SA 3.0 — https://creativecommons.org/licenses/by-sa/3.0/
 
+## Controller Glyphs
+
+Controller-button glyph fonts (Xbox, PlayStation, Steam Deck, Nintendo Switch) are by **Kenney**.
+
+- **Source**: https://www.kenney.nl/
+- **License**: CC0 1.0 Universal — https://creativecommons.org/publicdomain/zero/1.0/
+
 ## Sound Effects
 
 Sound effects are sourced from [Pixabay](https://pixabay.com/).
@@ -60,6 +67,7 @@ Sound effects are sourced from [Pixabay](https://pixabay.com/).
 - The LPC community and all contributing sprite artists on OpenGameArt.org
 - Trevor Lentz and the music contributors on OpenGameArt.org
 - Pixabay and its sound effect contributors
+- Kenney for the controller-glyph fonts
 
 ---
 

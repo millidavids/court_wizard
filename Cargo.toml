@@ -1,6 +1,6 @@
 [package]
 name = "court_wizard"
-version = "0.6.366"
+version = "0.7.8"
 edition = "2024"
 default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"

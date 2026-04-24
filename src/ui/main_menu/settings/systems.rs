@@ -42,7 +42,7 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
     use crate::ui::systems::spawn_page_container;
 
     // Reset to default tab when entering settings
-    tab_state.active_tab = SettingsTab::Graphics;
+    tab_state.active_tab = SettingsTab::Game;
 
     let content = spawn_page_container(
         &mut commands,
@@ -1584,6 +1584,7 @@ fn spawn_confirmation_popup(commands: &mut Commands, action: SettingsButtonActio
                                     border: DANGER_BUTTON_BORDER,
                                 },
                                 ConfirmationAction::Confirm(action),
+                                crate::ui::focus::Focusable,
                             ))
                             .with_children(|btn| {
                                 btn.spawn((
@@ -1611,6 +1612,7 @@ fn spawn_confirmation_popup(commands: &mut Commands, action: SettingsButtonActio
                                     border: BUTTON_BORDER,
                                 },
                                 ConfirmationAction::Cancel,
+                                crate::ui::focus::Focusable,
                             ))
                             .with_children(|btn| {
                                 btn.spawn((
@@ -1628,11 +1630,18 @@ fn spawn_confirmation_popup(commands: &mut Commands, action: SettingsButtonActio
 pub fn handle_confirmation_popup(
     mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
+    mut back_msgs: MessageReader<crate::game::input::gamepad::messages::MenuBackPressed>,
     action_query: Query<&ConfirmationAction>,
     popup_query: Query<Entity, With<ConfirmationPopup>>,
     mut tutorial_progress: ResMut<crate::ui::tutorial::resources::TutorialProgress>,
     mut popup_queue: ResMut<crate::ui::achievement_popup::PopupQueue>,
 ) {
+    if !popup_query.is_empty() && back_msgs.read().next().is_some() {
+        for entity in &popup_query {
+            commands.entity(entity).despawn();
+        }
+        return;
+    }
     for event in button_clicked.read() {
         if let Ok(action) = action_query.get(event.button) {
             if let ConfirmationAction::Confirm(settings_action) = action {

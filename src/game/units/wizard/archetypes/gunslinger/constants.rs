@@ -16,7 +16,7 @@ pub const MAGNUM_BULLET_SPEED: f32 = 25000.0;
 // ===== Rocket Launcher =====
 pub const ROCKET_MAX_AMMO: u32 = 3;
 pub const ROCKET_RELOAD_TIME: f32 = 3.0;
-pub const ROCKET_DAMAGE: f32 = 100.0;
+pub const ROCKET_DAMAGE: f32 = 25.0;
 pub const ROCKET_EXPLOSION_RADIUS: f32 = 120.0;
 pub const ROCKET_SPEED: f32 = 1500.0;
 pub const ROCKET_FIRE_INTERVAL: f32 = 0.6;

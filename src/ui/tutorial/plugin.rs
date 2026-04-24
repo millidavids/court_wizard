@@ -12,22 +12,45 @@ impl Plugin for TutorialPlugin {
     fn build(&self, app: &mut App) {
         let progress = load_tutorial_progress();
         app.insert_resource(progress);
+        app.init_resource::<super::resources::PendingTutorials>();
 
-        // Trigger tutorials on entering specific states
+        // Trigger tutorials on entering specific states. Both menu primers
+        // are also re-evaluated each frame in Update via the modality
+        // enforcer + Update triggers below, so switching input devices in
+        // the tower swaps overlays cleanly.
         app.add_systems(
             OnEnter(MetaGameState::WizardTower),
-            (
-                // Controller primer runs first: when a gamepad is active
-                // and the menu nav tutorial hasn't played yet, it queues
-                // ahead of the standard wizard-tower walkthrough so
-                // controller users learn how to navigate before anything
-                // else.
-                trigger_controller_menus_tutorial,
-                trigger_wizard_tower_tutorial,
-                trigger_time_travel_tutorial,
-                trigger_study_tutorial,
-            )
-                .chain(),
+            (trigger_controller_menus_tutorial, trigger_kbm_menus_tutorial).chain(),
+        )
+        // Per-tab tutorials fire the first time each Wizard Tower tab is
+        // opened. The watcher runs in Update so it catches both the initial
+        // tab inserted on entry and subsequent tab switches.
+        .add_systems(
+            Update,
+            trigger_wizard_tower_tab_tutorial
+                .run_if(in_state(MetaGameState::WizardTower))
+                .run_if(
+                    resource_exists::<crate::ui::wizard_tower::WizardTowerTab>
+                        .and(resource_changed::<crate::ui::wizard_tower::WizardTowerTab>),
+                ),
+        )
+        .add_systems(
+            Update,
+            trigger_wizard_select_tutorial
+                .run_if(in_state(MetaGameState::WizardTower))
+                .run_if(
+                    resource_exists::<crate::ui::wizard_tower::RightPanelView>
+                        .and(resource_changed::<crate::ui::wizard_tower::RightPanelView>),
+                ),
+        )
+        .add_systems(
+            Update,
+            trigger_study_spell_selected_tutorial
+                .run_if(in_state(MetaGameState::WizardTower))
+                .run_if(
+                    resource_exists::<crate::ui::wizard_tower::SelectedStudySpell>
+                        .and(resource_changed::<crate::ui::wizard_tower::SelectedStudySpell>),
+                ),
         )
         .add_systems(
             OnEnter(InGameState::Running),
@@ -69,6 +92,28 @@ impl Plugin for TutorialPlugin {
                 handle_skip_button.in_set(crate::ui::plugin::ButtonActionSet),
             )
                 .run_if(resource_exists::<ActiveTutorial>),
+        );
+
+        // Modality enforcer: dismisses any active tutorial whose required
+        // input modality doesn't match the current input device. Runs every
+        // frame so switching between mouse and controller mid-overlay swaps
+        // immediately. The KBM/controller menu primers also re-fire from
+        // here when the modality flips back.
+        //
+        // Order: must run AFTER `update_tutorial_content` so the latter's
+        // text-rebuild commands (which target the overlay's text entity) are
+        // queued before the enforcer's overlay-despawn commands. Otherwise
+        // the rebuild panics inserting onto an already-despawned entity.
+        app.add_systems(
+            Update,
+            (
+                enforce_tutorial_modality,
+                drain_pending_tutorials,
+                trigger_controller_menus_tutorial.run_if(in_state(MetaGameState::WizardTower)),
+                trigger_kbm_menus_tutorial.run_if(in_state(MetaGameState::WizardTower)),
+            )
+                .chain()
+                .after(update_tutorial_content),
         );
 
         // Cleanup tutorials when leaving states

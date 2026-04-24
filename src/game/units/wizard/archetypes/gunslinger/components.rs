@@ -18,8 +18,8 @@ impl GunType {
         [
             GunType::MachineGun,
             GunType::Magnum,
-            GunType::RocketLauncher,
             GunType::Shotgun,
+            GunType::RocketLauncher,
             GunType::Flamethrower,
         ]
     }

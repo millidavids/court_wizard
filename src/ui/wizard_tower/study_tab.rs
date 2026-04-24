@@ -87,7 +87,7 @@ fn is_prereq_met(spell: Spell) -> bool {
 }
 
 /// Returns true if this spell is fully researched (unlocked).
-fn is_spell_unlocked(spell: Spell) -> bool {
+pub(crate) fn is_spell_unlocked(spell: Spell) -> bool {
     let save = load_unified_save();
     let unlocked: Vec<String> = save
         .map(|s| s.player.unlocked_content.spells)
@@ -2846,6 +2846,7 @@ pub(super) fn detect_study_cursor_hover(
 pub(super) fn update_reticle_appearance(
     cursor: Res<StudyCursorMode>,
     inhibit: Option<Res<crate::ui::focus::FocusNavInhibit>>,
+    active_input: Res<ActiveInputDevice>,
     mut reticle: Query<
         (&mut Node, &mut BackgroundColor, &mut BorderColor),
         With<StudyCursorReticle>,
@@ -2854,7 +2855,10 @@ pub(super) fn update_reticle_appearance(
     let Ok((mut node, mut bg, mut border)) = reticle.single_mut() else {
         return;
     };
-    if inhibit.is_none() {
+    // Reticle is a controller affordance only — when the player is on mouse
+    // + keyboard the OS cursor is the input, so the reticle would just be
+    // visual clutter.
+    if inhibit.is_none() || !active_input.is_gamepad() {
         node.display = Display::None;
         return;
     }

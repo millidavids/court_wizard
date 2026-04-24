@@ -5,7 +5,11 @@ use bevy::prelude::*;
 use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_MUTED, TEXT_PRIMARY};
 
 /// Golden glow color for highlighted elements.
-pub(super) const GLOW_COLOR: Color = Color::hsla(270.0, 0.85, 0.65, 1.0);
+pub(super) const GLOW_COLOR: Color = Color::hsla(45.0, 0.95, 0.60, 1.0);
+
+/// Hue used by the pulsing animation in `animate_glow`. Kept in sync with
+/// `GLOW_COLOR` so the resting and pulsing colors share a tone.
+pub(super) const GLOW_HUE: f32 = 45.0;
 
 /// Glow border width in pixels.
 pub(super) const GLOW_BORDER_WIDTH: f32 = 5.0;
@@ -69,6 +73,7 @@ pub(super) const MUTED_TEXT_COLOR: Color = TEXT_MUTED;
 
 /// Glow animation speed (radians per second).
 pub(super) const GLOW_ANIMATION_SPEED: f32 = 3.0;
+
 
 /// GlobalZIndex for the tutorial overlay.
 pub(super) const TUTORIAL_Z_INDEX: i32 = 1000;

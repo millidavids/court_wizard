@@ -88,6 +88,14 @@ impl Plugin for ActionBarPlugin {
     }
 }
 
-fn reset_layout_progress(mut progress: ResMut<ActionBarLayoutProgress>) {
-    progress.0 = 0.0;
+/// Resets the radial-vs-linear morph progress on gameplay start. Snaps
+/// directly to the radial endpoint when a gamepad is the active input device
+/// so the action bar renders in its final radial layout from the very first
+/// frame — otherwise the controller in-game tutorial (which references the
+/// radial controls) would talk about a layout that hadn't morphed yet.
+fn reset_layout_progress(
+    mut progress: ResMut<ActionBarLayoutProgress>,
+    active: Res<crate::game::input::gamepad::resources::ActiveInputDevice>,
+) {
+    progress.0 = if active.is_gamepad() { 1.0 } else { 0.0 };
 }

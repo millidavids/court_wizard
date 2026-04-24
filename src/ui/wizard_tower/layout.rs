@@ -72,7 +72,7 @@ impl WizardTowerTab {
 
 /// What the right panel is currently showing.
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub(super) enum RightPanelView {
+pub(crate) enum RightPanelView {
     /// The default view for the active tab.
     #[default]
     TabContent,
@@ -86,15 +86,20 @@ pub(super) enum RightPanelView {
 
 /// Marker for the left panel container.
 #[derive(Component)]
-pub(super) struct WizardTowerLeftPanel;
+pub(crate) struct WizardTowerLeftPanel;
 
 /// Marker for the right panel container.
 #[derive(Component)]
-pub(super) struct WizardTowerRightPanel;
+pub(crate) struct WizardTowerRightPanel;
 
 /// Identifies which tab a button corresponds to.
 #[derive(Component)]
 pub(super) struct WizardTowerTabButton(pub WizardTowerTab);
+
+/// Marker on the row container holding all top-level tab buttons, so the
+/// tutorial system can highlight the whole row at once.
+#[derive(Component)]
+pub(crate) struct WizardTowerTabRow;
 
 /// Marker for tabs that are disabled and cannot be clicked.
 #[derive(Component)]
@@ -290,11 +295,15 @@ pub(super) fn setup_wizard_tower_layout(
                     .with_children(|right_col| {
                         // Tab bar inside the right column
                         right_col
-                            .spawn(Node {
-                                flex_direction: FlexDirection::Row,
-                                column_gap: Val::Px(4.0),
-                                ..default()
-                            })
+                            .spawn((
+                                Node {
+                                    flex_direction: FlexDirection::Row,
+                                    column_gap: Val::Px(4.0),
+                                    border: UiRect::all(Val::Px(0.0)),
+                                    ..default()
+                                },
+                                WizardTowerTabRow,
+                            ))
                             .with_children(|tab_row| {
                                 let initial_tab =
                                     existing_tab.as_deref().copied().unwrap_or_default();
