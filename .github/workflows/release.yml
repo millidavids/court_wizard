@@ -88,11 +88,7 @@ jobs:
           # Discord's embed description hard-limits at 4096 characters. Trim
           # with python so multi-byte characters are counted correctly, ending
           # on a clean line break with an ellipsis if we had to cut.
-          body=$(printf '%s' "$body" | python3 -c 'import sys
-s = sys.stdin.read()
-if len(s) > 4000:
-    s = s[:3990].rsplit(chr(10), 1)[0] + chr(10) + "…"
-sys.stdout.write(s)')
+          body=$(printf '%s' "$body" | python3 -c 'import sys; s = sys.stdin.read(); s = (s[:3990].rsplit(chr(10), 1)[0] + chr(10) + "…") if len(s) > 4000 else s; sys.stdout.write(s)')
           echo "full_title=$full_title" >> "$GITHUB_OUTPUT"
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "body<<$EOF" >> "$GITHUB_OUTPUT"
