@@ -386,7 +386,7 @@ pub fn apply_grease_slow(
 
                             // Talent: Slip and Fall — stun on zone entry
                             if zone.talent_params.slip_and_fall {
-                                let roll: f32 = rng.gen_range(0.0..1.0);
+                                let roll: f32 = rng.random_range(0.0..1.0);
                                 if roll < constants::SLIP_AND_FALL_CHANCE {
                                     commands.entity(entity).insert(RootedModifier::new(
                                         constants::SLIP_AND_FALL_STUN_DURATION,

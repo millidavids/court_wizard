@@ -308,7 +308,7 @@ fn create_tile_mesh(tile_size: f32, tile_index: usize, total_tiles: usize) -> Me
 
 /// Picks a weighted-random tile index. Base tiles are heavily favored over flavor tiles.
 fn pick_weighted_tile(rng: &mut impl Rng) -> usize {
-    let roll: u32 = rng.gen_range(0..TILE_TOTAL_WEIGHT);
+    let roll: u32 = rng.random_range(0..TILE_TOTAL_WEIGHT);
     let base_total = TILE_BASE_COUNT as u32 * TILE_BASE_WEIGHT;
     if roll < base_total {
         (roll / TILE_BASE_WEIGHT) as usize

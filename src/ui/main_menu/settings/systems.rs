@@ -81,10 +81,10 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
                             border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
+                            border_radius: BorderRadius::all(Val::Px(8.0)),
                             ..default()
                         },
                         BorderColor::all(BUTTON_BORDER),
-                        BorderRadius::all(Val::Px(8.0)),
                         BackgroundColor(BUTTON_BACKGROUND),
                         ButtonColors {
                             background: BUTTON_BACKGROUND,
@@ -129,11 +129,11 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
                                 border: UiRect::all(Val::Px(2.0)),
                                 justify_content: JustifyContent::Center,
                                 align_items: AlignItems::Center,
+                                border_radius: BorderRadius::all(Val::Px(4.0)),
                                 ..default()
                             },
                             BackgroundColor(bg),
                             BorderColor::all(border),
-                            BorderRadius::all(Val::Px(4.0)),
                             ButtonColors {
                                 background: bg,
                                 border,
@@ -154,7 +154,7 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
 
         // Scrollable content container (rebuilt by rebuild_settings_content)
         parent.spawn((
-            Node {
+            crate::ui::systems::scroll_area_style(Node {
                 width: Val::Percent(100.0),
                 flex_grow: 1.0,
                 flex_direction: FlexDirection::Column,
@@ -163,8 +163,7 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
                 border: UiRect::all(Val::Px(1.0)),
                 padding: UiRect::all(Val::Px(10.0)),
                 ..default()
-            },
-            crate::ui::systems::scroll_area_style(),
+            }),
             ScrollPosition::default(),
             SettingsContentContainer,
         ));
@@ -415,10 +414,10 @@ fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
                         border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,
+                        border_radius: BorderRadius::all(Val::Px(4.0)),
                         ..default()
                     },
                     BorderColor::all(BUTTON_BORDER),
-                    BorderRadius::all(Val::Px(4.0)),
                     BackgroundColor(BUTTON_BACKGROUND),
                     ButtonColors {
                         background: BUTTON_BACKGROUND,
@@ -464,10 +463,10 @@ fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
                         border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,
+                        border_radius: BorderRadius::all(Val::Px(4.0)),
                         ..default()
                     },
                     BorderColor::all(DANGER_BUTTON_BORDER),
-                    BorderRadius::all(Val::Px(4.0)),
                     BackgroundColor(DANGER_BUTTON_BACKGROUND),
                     ButtonColors {
                         background: DANGER_BUTTON_BACKGROUND,
@@ -868,10 +867,10 @@ fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::confi
                             border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
+                            border_radius: BorderRadius::all(Val::Px(4.0)),
                             ..default()
                         },
                         BorderColor::all(BUTTON_BORDER),
-                        BorderRadius::all(Val::Px(4.0)),
                         BackgroundColor(BUTTON_BACKGROUND),
                         ButtonColors {
                             background: BUTTON_BACKGROUND,
@@ -974,10 +973,10 @@ fn spawn_key_binding_row(
                     border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
                     justify_content: JustifyContent::Center,
                     align_items: AlignItems::Center,
+                    border_radius: BorderRadius::all(Val::Px(4.0)),
                     ..default()
                 },
                 BorderColor::all(BUTTON_BORDER),
-                BorderRadius::all(Val::Px(4.0)),
                 BackgroundColor(BUTTON_BACKGROUND),
                 ButtonColors {
                     background: BUTTON_BACKGROUND,
@@ -1149,11 +1148,11 @@ fn spawn_capture_overlay_inner(commands: &mut Commands, warning: Option<&str>) {
                         flex_direction: FlexDirection::Column,
                         align_items: AlignItems::Center,
                         row_gap: Val::Px(MARGIN_SMALL),
+                        border_radius: BorderRadius::all(Val::Px(8.0)),
                         ..default()
                     },
                     BackgroundColor(POPUP_BOX_BG),
                     BorderColor::all(SELECTED_BORDER),
-                    BorderRadius::all(Val::Px(8.0)),
                 ))
                 .with_children(|popup| {
                     if let Some(warning) = warning {
@@ -1446,10 +1445,10 @@ fn spawn_option_button(
             border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
+            border_radius: BorderRadius::all(Val::Px(4.0)),
             ..default()
         },
         BorderColor::all(border_color),
-        BorderRadius::all(Val::Px(4.0)),
         BackgroundColor(bg_color),
         ButtonColors {
             background: bg_color,
@@ -1546,11 +1545,11 @@ fn spawn_confirmation_popup(commands: &mut Commands, action: SettingsButtonActio
                         padding: UiRect::all(Val::Px(30.0)),
                         row_gap: Val::Px(20.0),
                         border: UiRect::all(Val::Px(2.0)),
+                        border_radius: BorderRadius::all(Val::Px(8.0)),
                         ..default()
                     },
                     BackgroundColor(POPUP_BOX_BG),
                     BorderColor::all(DANGER_BUTTON_BORDER),
-                    BorderRadius::all(Val::Px(8.0)),
                 ))
                 .with_children(|popup| {
                     popup.spawn((
@@ -1574,10 +1573,10 @@ fn spawn_confirmation_popup(commands: &mut Commands, action: SettingsButtonActio
                                     border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
                                     justify_content: JustifyContent::Center,
                                     align_items: AlignItems::Center,
+                                    border_radius: BorderRadius::all(Val::Px(4.0)),
                                     ..default()
                                 },
                                 BorderColor::all(DANGER_BUTTON_BORDER),
-                                BorderRadius::all(Val::Px(4.0)),
                                 BackgroundColor(DANGER_BUTTON_BACKGROUND),
                                 ButtonColors {
                                     background: DANGER_BUTTON_BACKGROUND,
@@ -1602,10 +1601,10 @@ fn spawn_confirmation_popup(commands: &mut Commands, action: SettingsButtonActio
                                     border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
                                     justify_content: JustifyContent::Center,
                                     align_items: AlignItems::Center,
+                                    border_radius: BorderRadius::all(Val::Px(4.0)),
                                     ..default()
                                 },
                                 BorderColor::all(BUTTON_BORDER),
-                                BorderRadius::all(Val::Px(4.0)),
                                 BackgroundColor(BUTTON_BACKGROUND),
                                 ButtonColors {
                                     background: BUTTON_BACKGROUND,

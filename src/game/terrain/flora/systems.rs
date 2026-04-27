@@ -25,7 +25,7 @@ pub(in crate::game) fn generate_flora_positions(config: &mut GameConfig) {
             config.current_level,
             SEED_PURPOSE_FLORA,
         ))),
-        None => Box::new(rand::thread_rng()),
+        None => Box::new(rand::rng()),
     };
 
     let lava_xz = Vec2::new(LAVA_POOL_POSITION.x, LAVA_POOL_POSITION.z);
@@ -40,8 +40,8 @@ pub(in crate::game) fn generate_flora_positions(config: &mut GameConfig) {
     while id < FLORA_COUNT && attempts < FLORA_COUNT * 10 {
         attempts += 1;
 
-        let x = rng.gen_range(FLORA_MIN_X..=FLORA_MAX_X);
-        let z = rng.gen_range(FLORA_MIN_Z..=FLORA_MAX_Z);
+        let x = rng.random_range(FLORA_MIN_X..=FLORA_MAX_X);
+        let z = rng.random_range(FLORA_MIN_Z..=FLORA_MAX_Z);
         let pos = Vec2::new(x, z);
 
         // Skip positions near lava or water pools
@@ -52,7 +52,7 @@ pub(in crate::game) fn generate_flora_positions(config: &mut GameConfig) {
             continue;
         }
 
-        let sprite_index = rng.gen_range(0..FLORA_SPRITE_COUNT as u8);
+        let sprite_index = rng.random_range(0..FLORA_SPRITE_COUNT as u8);
 
         config.saved_flora.push(SavedFlora {
             id,

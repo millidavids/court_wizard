@@ -272,13 +272,13 @@ pub(super) fn setup_wizard_tower_layout(
                         border: UiRect::all(Val::Px(1.0)),
                         overflow: Overflow::scroll_y(),
                         flex_shrink: 0.0,
+                        border_radius: BorderRadius::all(Val::Px(6.0)),
                         ..default()
                     },
                     ScrollPosition::default(),
                     Interaction::None,
                     BackgroundColor(DETAIL_BG),
                     BorderColor::all(DETAIL_BORDER),
-                    BorderRadius::all(Val::Px(6.0)),
                     ZIndex(10),
                     WizardTowerLeftPanel,
                 ));
@@ -331,11 +331,11 @@ pub(super) fn setup_wizard_tower_layout(
                                             border: UiRect::all(Val::Px(1.0)),
                                             justify_content: JustifyContent::Center,
                                             align_items: AlignItems::Center,
+                                            border_radius: BorderRadius::all(Val::Px(4.0)),
                                             ..default()
                                         },
                                         BackgroundColor(bg),
                                         BorderColor::all(border),
-                                        BorderRadius::all(Val::Px(4.0)),
                                         ButtonColors {
                                             background: bg,
                                             border,
@@ -366,13 +366,13 @@ pub(super) fn setup_wizard_tower_layout(
                                 border: UiRect::all(Val::Px(1.0)),
                                 overflow: Overflow::scroll_y(),
                                 flex_grow: 1.0,
+                                border_radius: BorderRadius::all(Val::Px(6.0)),
                                 ..default()
                             },
                             ScrollPosition::default(),
                             Interaction::None,
                             BackgroundColor(SECTION_BG),
                             BorderColor::all(DETAIL_BORDER),
-                            BorderRadius::all(Val::Px(6.0)),
                             WizardTowerRightPanel,
                         ));
                     });

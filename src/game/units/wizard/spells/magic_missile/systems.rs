@@ -380,7 +380,7 @@ fn spawn_magic_missile_with_talents(
                     .collect();
 
                 if total_weight > 0.0 {
-                    let mut random_value = rng.gen_range(0.0..total_weight);
+                    let mut random_value = rng.random_range(0.0..total_weight);
                     let mut selected_target = None;
                     for (entity, weight) in weighted_targets {
                         random_value -= weight;
@@ -391,11 +391,11 @@ fn spawn_magic_missile_with_talents(
                     }
                     selected_target.or_else(|| enemies_in_range.first().copied())
                 } else {
-                    let index = rng.gen_range(0..enemies_in_range.len());
+                    let index = rng.random_range(0..enemies_in_range.len());
                     Some(enemies_in_range[index])
                 }
             } else {
-                let index = rng.gen_range(0..enemies_in_range.len());
+                let index = rng.random_range(0..enemies_in_range.len());
                 Some(enemies_in_range[index])
             }
         } else {
@@ -412,9 +412,9 @@ fn spawn_magic_missile_with_talents(
     };
 
     // Random initial velocity
-    let horizontal_x = rng.gen_range(constants::HORIZONTAL_VEL_MIN..constants::HORIZONTAL_VEL_MAX);
-    let horizontal_z = rng.gen_range(constants::HORIZONTAL_VEL_MIN..constants::HORIZONTAL_VEL_MAX);
-    let vertical = rng.gen_range(constants::VERTICAL_VEL_MIN..constants::VERTICAL_VEL_MAX);
+    let horizontal_x = rng.random_range(constants::HORIZONTAL_VEL_MIN..constants::HORIZONTAL_VEL_MAX);
+    let horizontal_z = rng.random_range(constants::HORIZONTAL_VEL_MIN..constants::HORIZONTAL_VEL_MAX);
+    let vertical = rng.random_range(constants::VERTICAL_VEL_MIN..constants::VERTICAL_VEL_MAX);
     let mut initial_velocity = Vec3::new(horizontal_x, vertical, horizontal_z);
 
     // Storm wobble: increase initial velocity randomness
@@ -426,12 +426,12 @@ fn spawn_magic_missile_with_talents(
         let camera_pos = camera_transform.translation();
         let to_camera = (camera_pos - spawn_pos).normalize_or_zero();
         let camera_arc_speed =
-            rng.gen_range(constants::CAMERA_ARC_SPEED_MIN..constants::CAMERA_ARC_SPEED_MAX);
+            rng.random_range(constants::CAMERA_ARC_SPEED_MIN..constants::CAMERA_ARC_SPEED_MAX);
         let camera_arc = to_camera * camera_arc_speed;
         initial_velocity += camera_arc;
     }
 
-    let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
+    let wobble_offset = rng.random_range(0.0..std::f32::consts::TAU);
 
     // Construct missile with modified damage and radius
     let scale = empowerment;
@@ -586,7 +586,7 @@ pub fn move_magic_missiles(
                 .collect();
 
             missile.target = if !enemies_in_range.is_empty() {
-                let index = rng.gen_range(0..enemies_in_range.len());
+                let index = rng.random_range(0..enemies_in_range.len());
                 Some(enemies_in_range[index])
             } else {
                 targets
@@ -811,11 +811,11 @@ pub fn check_magic_missile_collisions(
             for _ in 0..2 {
                 let mut split = MagicMissile::new(
                     Vec3::new(
-                        rng.gen_range(-1000.0..1000.0),
-                        rng.gen_range(-500.0..500.0),
-                        rng.gen_range(-1000.0..1000.0),
+                        rng.random_range(-1000.0..1000.0),
+                        rng.random_range(-500.0..500.0),
+                        rng.random_range(-1000.0..1000.0),
                     ),
-                    rng.gen_range(0.0..std::f32::consts::TAU),
+                    rng.random_range(0.0..std::f32::consts::TAU),
                     None, // Will retarget automatically
                     missile.empowerment,
                     missile.target_teams,

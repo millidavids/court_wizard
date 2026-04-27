@@ -416,7 +416,7 @@ fn pick_material(
     use crate::game::units::systems::{corpse_material_for_team, create_default_sprite_material};
 
     if is_corpse {
-        let idx = rand::random::<usize>() % CORPSE_MATERIAL_VARIANTS;
+        let idx = rand::random_range(0..CORPSE_MATERIAL_VARIANTS);
         if is_king {
             king_assets.corpse_materials[idx].clone()
         } else if is_archer {

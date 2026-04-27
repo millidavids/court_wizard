@@ -209,11 +209,11 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
                                     border: UiRect::all(Val::Px(1.0)),
                                     justify_content: JustifyContent::Center,
                                     align_items: AlignItems::Center,
+                                    border_radius: BorderRadius::all(Val::Px(4.0)),
                                     ..default()
                                 },
                                 BackgroundColor(bg),
                                 BorderColor::all(border),
-                                BorderRadius::all(Val::Px(4.0)),
                                 ButtonColors {
                                     background: bg,
                                     border,
@@ -314,11 +314,11 @@ fn spawn_spell_list(
                                 flex_direction: FlexDirection::Row,
                                 column_gap: Val::Px(6.0),
                                 padding: UiRect::horizontal(Val::Px(6.0)),
+                                border_radius: BorderRadius::all(Val::Px(4.0)),
                                 ..default()
                             },
                             BackgroundColor(SPELL_BUTTON_BG),
                             BorderColor::all(border),
-                            BorderRadius::all(Val::Px(4.0)),
                             ButtonColors {
                                 background: SPELL_BUTTON_BG,
                                 border: SPELL_BUTTON_BORDER,

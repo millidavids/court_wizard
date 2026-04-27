@@ -611,7 +611,7 @@ pub fn emit_spike_growth_rings(
         zone.ring_timer -= utils::RING_SPAWN_INTERVAL;
 
         // Alternate between green vine rings and red spike rings
-        let material = if game_rng.0.r#gen::<f32>() < 0.35 {
+        let material = if game_rng.0.random::<f32>() < 0.35 {
             visual_assets.spike_growth_spike.clone()
         } else {
             visual_assets.spike_growth_vine.clone()

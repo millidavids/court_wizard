@@ -57,7 +57,7 @@ pub struct ApplyTransformsSet;
 pub(crate) fn random_position_in_cell(rng: &mut impl Rng, cell_x: f32, cell_z: f32) -> (f32, f32) {
     use crate::game::constants::GRID_ROW_DEPTH;
     let spread = GRID_ROW_DEPTH / 8.0;
-    let final_x = cell_x + rng.gen_range(-spread..spread);
-    let final_z = cell_z + rng.gen_range(-spread..spread);
+    let final_x = cell_x + rng.random_range(-spread..spread);
+    let final_z = cell_z + rng.random_range(-spread..spread);
     (final_x, final_z)
 }

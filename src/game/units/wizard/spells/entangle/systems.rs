@@ -586,26 +586,26 @@ fn spawn_vine_toruses(
 ) {
     for _ in 0..constants::VINE_COUNT {
         // Random position within circle (uniform distribution via rejection-free polar)
-        let angle = rng.r#gen::<f32>() * std::f32::consts::TAU;
-        let dist = radius * rng.r#gen::<f32>().sqrt() * 0.85; // 0.85 keeps vines slightly inward
+        let angle = rng.random::<f32>() * std::f32::consts::TAU;
+        let dist = radius * rng.random::<f32>().sqrt() * 0.85; // 0.85 keeps vines slightly inward
         let x = center.x + angle.cos() * dist;
         let z = center.z + angle.sin() * dist;
 
         // Random scale
         let scale = constants::VINE_MIN_SCALE
-            + rng.r#gen::<f32>() * (constants::VINE_MAX_SCALE - constants::VINE_MIN_SCALE);
+            + rng.random::<f32>() * (constants::VINE_MAX_SCALE - constants::VINE_MIN_SCALE);
 
         // Random orientation — tilt the ring so it looks like a vine arching out of the ground
         // Annulus lies in XZ plane by default, so we tilt it partially upright
-        let yaw = rng.r#gen::<f32>() * std::f32::consts::TAU;
-        let tilt = 0.4 + rng.r#gen::<f32>() * 0.8; // 0.4..1.2 radians tilt from horizontal
+        let yaw = rng.random::<f32>() * std::f32::consts::TAU;
+        let tilt = 0.4 + rng.random::<f32>() * 0.8; // 0.4..1.2 radians tilt from horizontal
         let rotation = Quat::from_rotation_y(yaw) * Quat::from_rotation_x(tilt);
 
         // Position so at most 75% of the ring is above ground (y=0).
         // The ring's visible height above ground depends on tilt and scale.
         // We set final_y so the center is near or below ground level,
         // leaving only the top arc poking through.
-        let max_above = constants::VINE_MAX_ABOVE_GROUND * (0.3 + rng.r#gen::<f32>() * 0.7);
+        let max_above = constants::VINE_MAX_ABOVE_GROUND * (0.3 + rng.random::<f32>() * 0.7);
         // Center of ring sits below ground so only the top arch is visible
         let final_y = max_above - scale * tilt.sin() * 0.5;
 
@@ -625,7 +625,7 @@ fn spawn_vine_toruses(
             EntangleVine {
                 final_y,
                 rise_elapsed: 0.0,
-                rise_duration: constants::VINE_RISE_DURATION * (0.7 + rng.r#gen::<f32>() * 0.6), // Stagger rise timing
+                rise_duration: constants::VINE_RISE_DURATION * (0.7 + rng.random::<f32>() * 0.6), // Stagger rise timing
                 duration,
                 time_remaining: duration,
             },

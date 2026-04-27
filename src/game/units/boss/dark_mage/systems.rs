@@ -503,8 +503,8 @@ pub fn dark_mage_teleport(
         );
 
         for _ in 0..20 {
-            let x = VISIBLE_MIN_X + game_rng.0.r#gen::<f32>() * (VISIBLE_MAX_X - VISIBLE_MIN_X);
-            let z = VISIBLE_MIN_Z + game_rng.0.r#gen::<f32>() * (VISIBLE_MAX_Z - VISIBLE_MIN_Z);
+            let x = VISIBLE_MIN_X + game_rng.0.random::<f32>() * (VISIBLE_MAX_X - VISIBLE_MIN_X);
+            let z = VISIBLE_MIN_Z + game_rng.0.random::<f32>() * (VISIBLE_MAX_Z - VISIBLE_MIN_Z);
             let candidate = Vec2::new(x, z);
 
             let dist_from_current = ((x - boss_pos.x).powi(2) + (z - boss_pos.z).powi(2)).sqrt();
@@ -1179,16 +1179,16 @@ fn spawn_plague_cloud(
     // Spawn initial cloud puffs (cross-plane spheres floating above the zone)
     for i in 0..5 {
         let angle = (i as f32 / 5.0) * std::f32::consts::TAU;
-        let offset_r = PLAGUE_RADIUS * 0.5 * rng.r#gen::<f32>();
+        let offset_r = PLAGUE_RADIUS * 0.5 * rng.random::<f32>();
         let px = target_pos.x + angle.cos() * offset_r;
         let pz = target_pos.z + angle.sin() * offset_r;
-        let py = 20.0 + rng.r#gen::<f32>() * 40.0;
+        let py = 20.0 + rng.random::<f32>() * 40.0;
 
         commands.spawn((
             Mesh3d(spell_assets.cross_plane_sphere.clone()),
             MeshMaterial3d(assets.plague_zone_material.clone()),
             Transform::from_translation(Vec3::new(px, py, pz))
-                .with_scale(Vec3::splat(40.0 + rng.r#gen::<f32>() * 30.0)),
+                .with_scale(Vec3::splat(40.0 + rng.random::<f32>() * 30.0)),
             DarkMageVisualEffect {
                 lifetime: PLAGUE_DURATION,
             },
@@ -1287,19 +1287,19 @@ pub fn update_plague_particles(
             cloud.particle_timer += 0.4;
 
             let center = transform.translation;
-            let angle = game_rng.0.r#gen::<f32>() * std::f32::consts::TAU;
-            let offset_r = cloud.radius * 0.6 * game_rng.0.r#gen::<f32>();
+            let angle = game_rng.0.random::<f32>() * std::f32::consts::TAU;
+            let offset_r = cloud.radius * 0.6 * game_rng.0.random::<f32>();
             let px = center.x + angle.cos() * offset_r;
             let pz = center.z + angle.sin() * offset_r;
-            let py = 15.0 + game_rng.0.r#gen::<f32>() * 30.0;
+            let py = 15.0 + game_rng.0.random::<f32>() * 30.0;
 
             commands.spawn((
                 Mesh3d(spell_assets.cross_plane_sphere.clone()),
                 MeshMaterial3d(assets.plague_zone_material.clone()),
                 Transform::from_translation(Vec3::new(px, py, pz))
-                    .with_scale(Vec3::splat(30.0 + game_rng.0.r#gen::<f32>() * 25.0)),
+                    .with_scale(Vec3::splat(30.0 + game_rng.0.random::<f32>() * 25.0)),
                 DarkMageVisualEffect {
-                    lifetime: 2.0 + game_rng.0.r#gen::<f32>() * 1.5,
+                    lifetime: 2.0 + game_rng.0.random::<f32>() * 1.5,
                 },
                 OnGameplayScreen,
             ));

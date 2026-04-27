@@ -120,8 +120,8 @@ fn apply_spread(dir: Vec3, spread_angle: f32) -> Vec3 {
 
 /// Apply cone spread — rotate by a random angle around a random axis perpendicular to dir.
 fn apply_cone_spread(dir: Vec3, max_spread: f32, rng: &mut impl rand::Rng) -> Vec3 {
-    let spread_angle = rng.gen_range(0.0..max_spread);
-    let random_rotation = rng.gen_range(0.0..std::f32::consts::TAU);
+    let spread_angle = rng.random_range(0.0..max_spread);
+    let random_rotation = rng.random_range(0.0..std::f32::consts::TAU);
     // Pick an arbitrary perpendicular axis, then rotate it around dir
     let perp = if dir.y.abs() < 0.9 {
         dir.cross(Vec3::Y).normalize()
@@ -167,7 +167,7 @@ pub fn fire_machine_gun(
     };
 
     let rng = &mut game_rng.0;
-    let spread = rng.gen_range(-constants::MACHINE_GUN_SPREAD..constants::MACHINE_GUN_SPREAD);
+    let spread = rng.random_range(-constants::MACHINE_GUN_SPREAD..constants::MACHINE_GUN_SPREAD);
     let shot_dir = apply_spread(dir, spread);
 
     // Spawn hitscan ray for instant damage (from origin to cursor ground position)

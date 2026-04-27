@@ -446,11 +446,11 @@ pub(super) fn spawn_tutorial_overlay(
                         padding: UiRect::all(Val::Px(PANEL_PADDING)),
                         border: UiRect::all(Val::Px(PANEL_BORDER_WIDTH)),
                         row_gap: Val::Px(16.0),
+                        border_radius: BorderRadius::all(Val::Px(PANEL_BORDER_RADIUS)),
                         ..default()
                     },
                     BackgroundColor(PANEL_BG),
                     BorderColor::all(PANEL_BORDER),
-                    BorderRadius::all(Val::Px(PANEL_BORDER_RADIUS)),
                 ))
                 .with_children(|panel| {
                     let display_text = if active_input.is_gamepad() {
@@ -587,10 +587,10 @@ pub(super) fn apply_highlight(
                         top: Val::Px(0.0),
                         bottom: Val::Px(0.0),
                         border: UiRect::all(Val::Px(GLOW_BORDER_WIDTH)),
+                        border_radius: BorderRadius::all(Val::Px(6.0)),
                         ..default()
                     },
                     BorderColor::all(GLOW_COLOR),
-                    BorderRadius::all(Val::Px(6.0)),
                     // Fully transparent fill so we don't tint the parent.
                     BackgroundColor(Color::NONE),
                     GlobalZIndex(super::constants::TUTORIAL_Z_INDEX - 1),

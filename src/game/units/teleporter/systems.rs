@@ -404,8 +404,8 @@ pub(super) fn update_channel_state(
 
                 // Move each picked entity onto the king (preserving y+scale) and grant temp HP.
                 for (ally, max_hp) in &picks {
-                    let angle = game_rng.0.gen_range(0.0..std::f32::consts::TAU);
-                    let r = game_rng.0.gen_range(0.0..DROP_JITTER_RADIUS);
+                    let angle = game_rng.0.random_range(0.0..std::f32::consts::TAU);
+                    let r = game_rng.0.random_range(0.0..DROP_JITTER_RADIUS);
                     let new_x = king_pos.x + angle.cos() * r;
                     let new_z = king_pos.z + angle.sin() * r;
 

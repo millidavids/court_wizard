@@ -469,13 +469,13 @@ pub fn spawn_commander_aura_particles(
 
         for _ in 0..2 {
             let dir = Vec3::new(
-                game_rng.0.gen_range(-1.0..1.0_f32),
-                game_rng.0.gen_range(0.0..0.5_f32),
-                game_rng.0.gen_range(-1.0..1.0_f32),
+                game_rng.0.random_range(-1.0..1.0_f32),
+                game_rng.0.random_range(0.0..0.5_f32),
+                game_rng.0.random_range(-1.0..1.0_f32),
             )
             .normalize_or(Vec3::Y);
 
-            let speed = game_rng.0.gen_range(80.0..150.0_f32);
+            let speed = game_rng.0.random_range(80.0..150.0_f32);
             let lifetime = radius / speed;
 
             commands.spawn((

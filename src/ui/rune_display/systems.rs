@@ -122,10 +122,10 @@ pub(crate) fn spawn_rune_display(mut commands: Commands) {
                                         )),
                                         justify_content: JustifyContent::Center,
                                         align_items: AlignItems::Center,
+                                        border_radius: BorderRadius::all(Val::Px(4.0)),
                                         ..default()
                                     },
                                     BorderColor::all(RUNE_BUTTON_STYLE.border),
-                                    BorderRadius::all(Val::Px(4.0)),
                                     BackgroundColor(RUNE_BUTTON_STYLE.background),
                                     ButtonColors {
                                         background: RUNE_BUTTON_STYLE.background,

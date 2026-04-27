@@ -60,11 +60,11 @@ pub(super) fn spawn_wizard_card(
                 padding: UiRect::all(Val::Px(8.0)),
                 border: UiRect::all(Val::Px(CARD_BORDER_WIDTH)),
                 row_gap: Val::Px(3.0),
+                border_radius: BorderRadius::all(Val::Px(CARD_BORDER_RADIUS)),
                 ..default()
             },
             BackgroundColor(CARD_BG),
             BorderColor::all(border_color),
-            BorderRadius::all(Val::Px(CARD_BORDER_RADIUS)),
             ButtonColors {
                 background: CARD_BG,
                 border: border_color,
@@ -106,11 +106,11 @@ pub(super) fn spawn_locked_wizard_card(parent: &mut ChildSpawnerCommands, wizard
                 padding: UiRect::all(Val::Px(8.0)),
                 border: UiRect::all(Val::Px(CARD_BORDER_WIDTH)),
                 row_gap: Val::Px(3.0),
+                border_radius: BorderRadius::all(Val::Px(CARD_BORDER_RADIUS)),
                 ..default()
             },
             BackgroundColor(LOCKED_CARD_BG),
             BorderColor::all(LOCKED_CARD_BORDER),
-            BorderRadius::all(Val::Px(CARD_BORDER_RADIUS)),
         ))
         .with_children(|card| {
             card.spawn((
@@ -137,11 +137,11 @@ pub(super) fn spawn_locked_card(parent: &mut ChildSpawnerCommands) {
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
                 border: UiRect::all(Val::Px(CARD_BORDER_WIDTH)),
+                border_radius: BorderRadius::all(Val::Px(CARD_BORDER_RADIUS)),
                 ..default()
             },
             BackgroundColor(LOCKED_CARD_BG),
             BorderColor::all(LOCKED_CARD_BORDER),
-            BorderRadius::all(Val::Px(CARD_BORDER_RADIUS)),
         ))
         .with_children(|card| {
             card.spawn((
@@ -200,11 +200,11 @@ pub(super) fn spawn_detail_panel_container(
                 row_gap: Val::Px(16.0),
                 padding: UiRect::all(Val::Px(16.0)),
                 border: UiRect::all(Val::Px(DETAIL_BORDER_WIDTH)),
+                border_radius: BorderRadius::all(Val::Px(DETAIL_BORDER_RADIUS)),
                 ..default()
             },
             BackgroundColor(DETAIL_PANEL_BG),
             BorderColor::all(DETAIL_PANEL_BORDER),
-            BorderRadius::all(Val::Px(DETAIL_BORDER_RADIUS)),
         ))
         .with_children(build_contents);
 }

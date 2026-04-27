@@ -80,11 +80,11 @@ pub(crate) fn spawn_arcanorouter_display(mut commands: Commands, state: Res<Arca
                                             flex_direction: FlexDirection::Column,
                                             justify_content: JustifyContent::FlexEnd, // Fill from bottom
                                             border: UiRect::all(Val::Px(2.0)),
+                                            border_radius: BorderRadius::all(Val::Px(4.0)),
                                             ..default()
                                         },
                                         BackgroundColor(BAR_BACKGROUND_COLOR),
                                         BorderColor::all(color),
-                                        BorderRadius::all(Val::Px(4.0)),
                                         SliderBar,
                                     ))
                                     .with_children(|bar_parent| {
@@ -94,10 +94,10 @@ pub(crate) fn spawn_arcanorouter_display(mut commands: Commands, state: Res<Arca
                                             Node {
                                                 width: Val::Percent(100.0),
                                                 height: Val::Px(fill_height),
+                                                border_radius: BorderRadius::all(Val::Px(2.0)),
                                                 ..default()
                                             },
                                             BackgroundColor(color),
-                                            BorderRadius::all(Val::Px(2.0)),
                                             SliderFill { slider_type },
                                         ));
                                     });

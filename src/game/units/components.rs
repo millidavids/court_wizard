@@ -860,7 +860,7 @@ impl WalkingAnimation {
     /// Creates a new WalkingAnimation with a random stagger offset.
     pub fn new_staggered(rng: &mut impl Rng) -> Self {
         Self {
-            elapsed: rng.r#gen::<f32>() * Self::FRAME_DURATION,
+            elapsed: rng.random::<f32>() * Self::FRAME_DURATION,
             ..Default::default()
         }
     }
@@ -1071,8 +1071,8 @@ impl PulsingAnimation {
         rng: &mut impl Rng,
     ) -> Self {
         Self {
-            current_frame: rng.gen_range(0..columns),
-            elapsed: rng.r#gen::<f32>() * frame_duration,
+            current_frame: rng.random_range(0..columns),
+            elapsed: rng.random::<f32>() * frame_duration,
             columns,
             frame_uv,
             frame_duration,

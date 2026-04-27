@@ -94,7 +94,7 @@ fn scaled_count(base: usize, count_mult: f32) -> usize {
 
 /// Returns 2 if Spell Echo triggers (30% chance), 1 otherwise.
 fn spell_echo_multiplier(rng: &mut impl Rng, spell_echo: bool) -> usize {
-    if spell_echo && rng.r#gen::<f32>() < SPELL_ECHO_CHANCE {
+    if spell_echo && rng.random::<f32>() < SPELL_ECHO_CHANCE {
         return 2;
     }
     1
@@ -152,7 +152,7 @@ fn find_random_targets_in_range(
     // Shuffle and take up to count
     let len = candidates.len();
     for i in (1..len).rev() {
-        let j = rng.gen_range(0..=i);
+        let j = rng.random_range(0..=i);
         candidates.swap(i, j);
     }
     candidates.truncate(count);
@@ -177,7 +177,7 @@ fn find_random_enemies_in_range(
 
     let len = candidates.len();
     for i in (1..len).rev() {
-        let j = rng.gen_range(0..=i);
+        let j = rng.random_range(0..=i);
         candidates.swap(i, j);
     }
     candidates.truncate(count);
@@ -909,7 +909,7 @@ pub(super) fn detect_beam_hits(
                 let rng = &mut game_rng.0;
                 let len = candidates.len();
                 for i in (1..len).rev() {
-                    let j = rng.gen_range(0..=i);
+                    let j = rng.random_range(0..=i);
                     candidates.swap(i, j);
                 }
 
@@ -965,7 +965,7 @@ pub(super) fn detect_beam_hits(
                 let rng = &mut game_rng.0;
                 let len = candidates.len();
                 for i in (1..len).rev() {
-                    let j = rng.gen_range(0..=i);
+                    let j = rng.random_range(0..=i);
                     candidates.swap(i, j);
                 }
                 candidates.truncate(needed);
@@ -1193,7 +1193,7 @@ pub(super) fn detect_magic_missile_hits(
                     let initial_velocity = direction * speed;
 
                     let rng = &mut game_rng.0;
-                    let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
+                    let wobble_offset = rng.random_range(0.0..std::f32::consts::TAU);
 
                     spawn_crystal_mini_missile(
                         &mut commands,
@@ -1676,7 +1676,7 @@ fn auto_cast_magic_missiles(
         let speed = magic_missile_constants::BASE_SPEED * SPEED_SCALE;
         let initial_velocity = direction * speed;
 
-        let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
+        let wobble_offset = rng.random_range(0.0..std::f32::consts::TAU);
 
         spawn_crystal_mini_missile(
             commands,
@@ -2074,7 +2074,7 @@ pub(super) fn auto_crystal_fire(
         let mini_radius = magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE;
 
         let rng = &mut game_rng.0;
-        let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
+        let wobble_offset = rng.random_range(0.0..std::f32::consts::TAU);
 
         spawn_crystal_mini_missile(
             &mut commands,
@@ -2176,7 +2176,7 @@ pub(super) fn crystal_network_chain(
                             let direction = (*tp - target_crystal.position).normalize();
                             let speed = magic_missile_constants::BASE_SPEED * SPEED_SCALE;
                             let rng = &mut game_rng.0;
-                            let wobble = rng.gen_range(0.0..std::f32::consts::TAU);
+                            let wobble = rng.random_range(0.0..std::f32::consts::TAU);
                             spawn_crystal_mini_missile(
                                 &mut commands,
                                 &visual_assets,

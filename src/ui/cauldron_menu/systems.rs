@@ -207,11 +207,11 @@ fn spawn_detail_panel(
                     padding: UiRect::all(Val::Px(DETAIL_PADDING)),
                     row_gap: Val::Px(10.0),
                     border: UiRect::all(Val::Px(DETAIL_BORDER_WIDTH)),
+                    border_radius: BorderRadius::all(Val::Px(DETAIL_BORDER_RADIUS)),
                     ..default()
                 },
                 BackgroundColor(DETAIL_BG),
                 BorderColor::all(DETAIL_BORDER),
-                BorderRadius::all(Val::Px(DETAIL_BORDER_RADIUS)),
             ))
             .with_children(|panel| {
                 if is_brewing {
@@ -400,11 +400,11 @@ fn spawn_ingredient_list(
                 overflow: Overflow::scroll_y(),
                 border: UiRect::all(Val::Px(LIST_BORDER_WIDTH)),
                 padding: UiRect::all(Val::Px(LIST_PADDING)),
+                border_radius: BorderRadius::all(Val::Px(LIST_BORDER_RADIUS)),
                 ..default()
             },
             BackgroundColor(LIST_BG),
             BorderColor::all(LIST_BORDER),
-            BorderRadius::all(Val::Px(LIST_BORDER_RADIUS)),
             ScrollPosition::default(),
         ))
         .with_children(|list| {
@@ -705,11 +705,11 @@ pub(super) fn update_detail_panel_on_selection_change(
                 padding: UiRect::all(Val::Px(DETAIL_PADDING)),
                 row_gap: Val::Px(10.0),
                 border: UiRect::all(Val::Px(DETAIL_BORDER_WIDTH)),
+                border_radius: BorderRadius::all(Val::Px(DETAIL_BORDER_RADIUS)),
                 ..default()
             },
             BackgroundColor(DETAIL_BG),
             BorderColor::all(DETAIL_BORDER),
-            BorderRadius::all(Val::Px(DETAIL_BORDER_RADIUS)),
         ))
         .with_children(|panel| {
             if selection.is_empty() {

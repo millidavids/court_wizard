@@ -278,7 +278,7 @@ pub fn aerialist_movement(
                 desired_dir.normalize()
             } else {
                 // Random initial direction
-                let angle = game_rng.0.r#gen::<f32>() * std::f32::consts::TAU;
+                let angle = game_rng.0.random::<f32>() * std::f32::consts::TAU;
                 Vec3::new(angle.cos(), 0.0, angle.sin())
             };
             velocity.x = dir.x * speed;
@@ -356,7 +356,7 @@ pub(in crate::game) fn spawn_single_attacker_aerialist(
     };
     let anim = WalkingAnimation {
         current_frame: 0,
-        elapsed: rng.r#gen::<f32>() * 0.125, // stagger start
+        elapsed: rng.random::<f32>() * 0.125, // stagger start
         columns: AERIALIST_FLYING_FRAMES,
         frame_uv: sprite_frame_uv(SPRITE_SHEET_IMAGE_HEIGHT),
         direction_rows: SPRITE_DIRECTION_ROWS,

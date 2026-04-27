@@ -550,8 +550,8 @@ pub fn tick_banished_units(
         // Displacement: randomize return position, clamped to battlefield
         if let Some(displace) = displacement {
             let half = BATTLEFIELD_SIZE / 2.0;
-            let angle = game_rng.0.r#gen::<f32>() * std::f32::consts::TAU;
-            let dist = displace.radius * 0.5 + game_rng.0.r#gen::<f32>() * displace.radius * 0.5;
+            let angle = game_rng.0.random::<f32>() * std::f32::consts::TAU;
+            let dist = displace.radius * 0.5 + game_rng.0.random::<f32>() * displace.radius * 0.5;
             transform.translation.x =
                 (transform.translation.x + angle.cos() * dist).clamp(-half, half);
             transform.translation.z =

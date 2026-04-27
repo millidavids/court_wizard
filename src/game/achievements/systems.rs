@@ -504,7 +504,7 @@ pub(crate) fn check_random_magic_surge(
 ) {
     use rand::Rng;
     for _ in msg.read() {
-        if game_rng.0.gen_range(1..=100) == 1 {
+        if game_rng.0.random_range(1..=100) == 1 {
             do_unlock(&mut res, &mut events);
             unlock_and_notify_wizard_type(WizardType::Randomancer, &mut wizard_unlocked);
         }

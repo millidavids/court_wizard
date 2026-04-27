@@ -19,7 +19,7 @@ pub fn handle_spin_trigger(
             RoulettePhase::Idle | RoulettePhase::Selected { .. }
         ) {
             let rng = &mut game_rng.0;
-            let result_index = rng.gen_range(0..state.wheel_spells.len());
+            let result_index = rng.random_range(0..state.wheel_spells.len());
             state.phase = RoulettePhase::Spinning {
                 elapsed: 0.0,
                 current_highlight: 0,

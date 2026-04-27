@@ -318,7 +318,7 @@ pub fn brute_rock_throw(
             rock_events.write(BoulderThrownMessage {
                 origin: brute_transform.translation,
                 target: target_pos,
-                sprite_index: game_rng.0.gen_range(0..BOULDER_SPRITE_COUNT as u8),
+                sprite_index: game_rng.0.random_range(0..BOULDER_SPRITE_COUNT as u8),
             });
             cooldown.reset(ROCK_THROW_COOLDOWN);
         }

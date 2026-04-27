@@ -89,7 +89,7 @@ pub fn collect_spell_effect_snapshots(
         let rot_y = transform.rotation.to_euler(EulerRot::YXZ).0;
 
         // Use NetworkEntityId if assigned, otherwise use Entity index
-        let id = net_id.map_or(entity.index(), |n| n.0);
+        let id = net_id.map_or(entity.index_u32(), |n| n.0);
 
         let extra = match effect.kind {
             SpellEffectKind::SpikeGrowthZone => {

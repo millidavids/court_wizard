@@ -365,8 +365,8 @@ pub(super) fn spawn_ice_projectiles(
             storm.reset_spawn_timer();
 
             // Random position within storm circle (on XZ plane)
-            let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-            let distance = rng.gen_range(0.0..storm.radius);
+            let angle = rng.random_range(0.0..std::f32::consts::TAU);
+            let distance = rng.random_range(0.0..storm.radius);
             let offset = Vec3::new(angle.cos() * distance, 0.0, angle.sin() * distance);
 
             let spawn_pos = Vec3::new(
@@ -377,7 +377,7 @@ pub(super) fn spawn_ice_projectiles(
 
             // Determine if this is a hailstone (Tier 2 talent)
             let is_hailstone =
-                storm.talent_params.hailstones && rng.gen_range(0.0..1.0) < HAILSTONE_CHANCE;
+                storm.talent_params.hailstones && rng.random_range(0.0..1.0) < HAILSTONE_CHANCE;
 
             // Calculate damage with talent modifiers
             let base_damage = FROST_DAMAGE * storm.empowerment * storm.talent_params.damage_mult;
@@ -632,9 +632,9 @@ pub(super) fn update_ice_explosions(
         {
             use rand::Rng;
             let dir = Vec3::new(
-                game_rng.0.gen_range(-1.0..1.0_f32),
-                game_rng.0.gen_range(0.2..1.0_f32),
-                game_rng.0.gen_range(-1.0..1.0_f32),
+                game_rng.0.random_range(-1.0..1.0_f32),
+                game_rng.0.random_range(0.2..1.0_f32),
+                game_rng.0.random_range(-1.0..1.0_f32),
             )
             .normalize_or(Vec3::Y);
             let surface_pos = explosion.origin + dir * current_radius;
@@ -1055,9 +1055,9 @@ pub(super) fn spawn_snow_particles(
             let seed = time_secs * 7.1 + i as f32 * 1.618_034;
 
             // Random position within storm radius
-            let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-            let distance = rng.gen_range(0.0..storm.radius);
-            let height = rng.gen_range(SNOW_MIN_HEIGHT..SNOW_MAX_HEIGHT);
+            let angle = rng.random_range(0.0..std::f32::consts::TAU);
+            let distance = rng.random_range(0.0..storm.radius);
+            let height = rng.random_range(SNOW_MIN_HEIGHT..SNOW_MAX_HEIGHT);
 
             let spawn_pos = Vec3::new(
                 storm.position.x + angle.cos() * distance,
@@ -1074,8 +1074,8 @@ pub(super) fn spawn_snow_particles(
             );
 
             let phase = seed * std::f32::consts::PI + (seed * 41.7).sin();
-            let lifetime = SNOW_LIFETIME * rng.gen_range(0.7..1.3);
-            let base_size = SNOW_BASE_SIZE * rng.gen_range(0.5..1.5);
+            let lifetime = SNOW_LIFETIME * rng.random_range(0.7..1.3);
+            let base_size = SNOW_BASE_SIZE * rng.random_range(0.5..1.5);
 
             commands.spawn((
                 SnowParticle {

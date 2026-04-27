@@ -80,11 +80,11 @@ pub(super) fn spawn_concentration_ui(
                     border: UiRect::all(Val::Px(2.0)),
                     justify_content: JustifyContent::Center,
                     align_items: AlignItems::Center,
+                    border_radius: BorderRadius::all(Val::Px(4.0)),
                     ..default()
                 },
                 BackgroundColor(BUTTON_BACKGROUND),
                 BorderColor::all(BUTTON_BORDER),
-                BorderRadius::all(Val::Px(4.0)),
                 crate::ui::components::ButtonColors {
                     background: BUTTON_BACKGROUND,
                     border: BUTTON_BORDER,

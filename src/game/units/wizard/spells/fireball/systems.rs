@@ -515,12 +515,12 @@ fn spawn_explosion_with_talents(
     let pending: Vec<PendingBubble> = (0..constants::EXPLOSION_BUBBLE_COUNT)
         .map(|_| {
             let direction = Vec3::new(
-                rng.gen_range(-1.0..1.0_f32),
-                rng.gen_range(0.0..1.0_f32),
-                rng.gen_range(-1.0..1.0_f32),
+                rng.random_range(-1.0..1.0_f32),
+                rng.random_range(0.0..1.0_f32),
+                rng.random_range(-1.0..1.0_f32),
             )
             .normalize_or(Vec3::Y);
-            let offset_frac = rng.gen_range(
+            let offset_frac = rng.random_range(
                 constants::BUBBLE_OFFSET_FRACTION_MIN..constants::BUBBLE_OFFSET_FRACTION_MAX,
             );
             let distance = max_r * offset_frac;
@@ -601,8 +601,8 @@ fn spawn_cluster_bombs(
     use rand::Rng;
 
     for _ in 0..3 {
-        let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-        let distance = rng.gen_range(100.0..300.0);
+        let angle = rng.random_range(0.0..std::f32::consts::TAU);
+        let distance = rng.random_range(100.0..300.0);
         let flight_time = 0.4;
         let horizontal_speed = distance / flight_time;
         let vy = -(origin.y.max(5.0)) / flight_time;
@@ -732,9 +732,9 @@ pub fn update_explosions(
             && explosion.time_since_last_tick >= constants::DAMAGE_TICK_INTERVAL
         {
             let dir = Vec3::new(
-                rng.gen_range(-1.0..1.0_f32),
-                rng.gen_range(0.2..1.0_f32),
-                rng.gen_range(-1.0..1.0_f32),
+                rng.random_range(-1.0..1.0_f32),
+                rng.random_range(0.2..1.0_f32),
+                rng.random_range(-1.0..1.0_f32),
             )
             .normalize_or(Vec3::Y);
             let surface_pos = explosion.origin + dir * current_radius;

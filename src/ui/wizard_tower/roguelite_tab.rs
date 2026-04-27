@@ -329,7 +329,7 @@ pub(crate) struct RogueliteScrollableLeft;
 // ===========================================================================
 
 fn random_seed() -> u64 {
-    rand::thread_rng().gen_range(0..MAX_SEED)
+    rand::rng().random_range(0..MAX_SEED)
 }
 
 // ===========================================================================
@@ -671,10 +671,10 @@ fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text: &str) {
                     border: UiRect::all(Val::Px(1.0)),
                     padding: UiRect::horizontal(Val::Px(8.0)),
                     align_items: AlignItems::Center,
+                    border_radius: BorderRadius::all(Val::Px(4.0)),
                     ..default()
                 },
                 BorderColor::all(Color::hsla(270.0, 0.35, 0.35, 1.0)),
-                BorderRadius::all(Val::Px(4.0)),
                 BackgroundColor(seed_bg),
                 SeedInputBox,
                 crate::ui::focus::Focusable,
@@ -698,10 +698,10 @@ fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text: &str) {
                     padding: UiRect::horizontal(Val::Px(12.0)),
                     justify_content: JustifyContent::Center,
                     align_items: AlignItems::Center,
+                    border_radius: BorderRadius::all(Val::Px(4.0)),
                     ..default()
                 },
                 BorderColor::all(Color::hsla(270.0, 0.35, 0.35, 1.0)),
-                BorderRadius::all(Val::Px(4.0)),
                 BackgroundColor(Color::hsla(270.0, 0.08, 0.10, 1.0)),
                 ButtonColors {
                     background: Color::hsla(270.0, 0.08, 0.10, 1.0),
@@ -792,11 +792,11 @@ fn spawn_toggle_row(
                     border: UiRect::all(Val::Px(1.0)),
                     padding: UiRect::all(Val::Px(6.0)),
                     row_gap: Val::Px(4.0),
+                    border_radius: BorderRadius::all(Val::Px(6.0)),
                     ..default()
                 },
                 BackgroundColor(bg),
                 BorderColor::all(border),
-                BorderRadius::all(Val::Px(6.0)),
                 ButtonColors {
                     background: bg,
                     border,
@@ -867,10 +867,10 @@ fn spawn_toggle_row(
                     border: UiRect::all(Val::Px(1.0)),
                     justify_content: JustifyContent::Center,
                     align_items: AlignItems::Center,
+                    border_radius: BorderRadius::all(Val::Px(4.0)),
                     ..default()
                 },
                 BorderColor::all(expand_border),
-                BorderRadius::all(Val::Px(4.0)),
                 BackgroundColor(expand_bg),
                 ButtonColors {
                     background: expand_bg,
@@ -982,11 +982,11 @@ fn spawn_unlock_popup(commands: &mut Commands, toggle: ToggleModifier) {
                         row_gap: Val::Px(20.0),
                         border: UiRect::all(Val::Px(2.0)),
                         min_width: Val::Px(350.0),
+                        border_radius: BorderRadius::all(Val::Px(8.0)),
                         ..default()
                     },
                     BackgroundColor(POPUP_BOX_BG),
                     BorderColor::all(POPUP_BOX_BORDER),
-                    BorderRadius::all(Val::Px(8.0)),
                 ))
                 .with_children(|popup| {
                     popup.spawn((

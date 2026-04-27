@@ -226,7 +226,6 @@ pub fn apply_3d_button_structure(
             Entity,
             &ButtonColors,
             &Node,
-            Option<&BorderRadius>,
             Option<&BorderColor>,
             Option<&Children>,
             Has<ButtonActive>,
@@ -236,7 +235,7 @@ pub fn apply_3d_button_structure(
 ) {
     let depth = -BUTTON_3D_OFFSET_REST;
 
-    for (entity, colors, node, radius, border_color, children, is_active) in &new_buttons {
+    for (entity, colors, node, border_color, children, is_active) in &new_buttons {
         // Skip transparent/utility buttons — the 3D effect doesn't suit them
         // and restructuring breaks click behavior for small nested buttons.
         let bg_hsla = Hsla::from(colors.background);
@@ -244,7 +243,11 @@ pub fn apply_3d_button_structure(
             continue;
         }
 
-        let br = radius.copied().unwrap_or(BorderRadius::all(Val::Px(4.0)));
+        let br = if node.border_radius == BorderRadius::ZERO {
+            BorderRadius::all(Val::Px(4.0))
+        } else {
+            node.border_radius
+        };
         let bc = border_color
             .copied()
             .unwrap_or(BorderColor::all(colors.border));
@@ -284,10 +287,10 @@ pub fn apply_3d_button_structure(
                     position_type: PositionType::Absolute,
                     left: Val::Px(0.0),
                     top: Val::Px(0.0),
+                    border_radius: br,
                     ..default()
                 },
                 BackgroundColor(edge_color(colors.background)),
-                br,
                 Outline::new(Val::Px(1.0), Val::Px(1.0), edge_outline_color),
             ))
             .id();
@@ -308,6 +311,7 @@ pub fn apply_3d_button_structure(
             overflow: node.overflow,
             position_type: PositionType::Relative,
             top: Val::Px(initial_offset),
+            border_radius: br,
             ..default()
         };
         if has_fixed_height {
@@ -323,7 +327,6 @@ pub fn apply_3d_button_structure(
                 front_node,
                 BackgroundColor(opaque(colors.background)),
                 front_border,
-                br,
             ))
             .id();
 
@@ -687,13 +690,17 @@ pub fn apply_frosted_glass_overlays(
 // Page container (shared by settings, progress, instructions, and overlays)
 // ---------------------------------------------------------------------------
 
-/// Returns the shared styling bundle for inner scrollable areas.
-/// Callers should also add `ScrollPosition::default()` and their marker component.
-pub(crate) fn scroll_area_style() -> (BackgroundColor, BorderColor, BorderRadius, BoxShadow) {
+/// Returns the shared styling bundle for inner scrollable areas, with
+/// scroll-area border-radius baked into the supplied `Node`. Callers add
+/// `ScrollPosition::default()` and their marker component alongside.
+pub(crate) fn scroll_area_style(
+    mut node: Node,
+) -> (Node, BackgroundColor, BorderColor, BoxShadow) {
+    node.border_radius = BorderRadius::all(Val::Px(4.0));
     (
+        node,
         BackgroundColor(SCROLL_BG),
         BorderColor::all(SCROLL_BORDER),
-        BorderRadius::all(Val::Px(4.0)),
         BoxShadow(vec![
             ShadowStyle {
                 color: SCROLL_SHADOW_COLOR,
@@ -750,11 +757,11 @@ pub fn spawn_left_detail_panel(parent: &mut ChildSpawnerCommands) -> Entity {
                         row_gap: Val::Px(12.0),
                         border: UiRect::all(Val::Px(1.0)),
                         flex_grow: 1.0,
+                        border_radius: BorderRadius::all(Val::Px(PANEL_BORDER_RADIUS)),
                         ..default()
                     },
                     BackgroundColor(DETAIL_BG),
                     BorderColor::all(DETAIL_BORDER),
-                    BorderRadius::all(Val::Px(PANEL_BORDER_RADIUS)),
                     Outline::new(
                         Val::Px(FRAME_OUTLINE_WIDTH),
                         Val::Px(1.0),
@@ -808,11 +815,11 @@ pub fn spawn_right_scroll_panel<M: Component>(
                 overflow: Overflow::scroll_y(),
                 border: UiRect::all(Val::Px(1.0)),
                 padding: UiRect::all(Val::Px(12.0)),
+                border_radius: BorderRadius::all(Val::Px(PANEL_BORDER_RADIUS)),
                 ..default()
             },
             BackgroundColor(LIST_BG),
             BorderColor::all(LIST_BORDER),
-            BorderRadius::all(Val::Px(PANEL_BORDER_RADIUS)),
             ScrollPosition::default(),
             marker,
         ))
@@ -834,8 +841,9 @@ pub fn spawn_page_container<M: Component>(
     commands: &mut Commands,
     screen_marker: M,
     pause_menu: bool,
-    content_node: Node,
+    mut content_node: Node,
 ) -> Entity {
+    content_node.border_radius = BorderRadius::all(Val::Px(6.0));
     let mut root = commands.spawn((
         Node {
             width: Val::Percent(100.0),
@@ -865,7 +873,6 @@ pub fn spawn_page_container<M: Component>(
             content_node,
             BackgroundColor(CONTENT_BG),
             BorderColor::all(CONTENT_BORDER),
-            BorderRadius::all(Val::Px(6.0)),
             // Middle ring via outline with gap
             Outline::new(
                 Val::Px(FRAME_OUTLINE_WIDTH),
@@ -1069,10 +1076,10 @@ pub fn spawn_button(
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 position_type: PositionType::Relative,
+                border_radius: BorderRadius::all(Val::Px(8.0)),
                 ..default()
             },
             BackgroundColor(Color::NONE),
-            BorderRadius::all(Val::Px(8.0)),
             BoxShadow(vec![ShadowStyle {
                 color: BUTTON_SHADOW_COLOR,
                 x_offset: Val::Px(0.0),
@@ -1102,10 +1109,10 @@ pub fn spawn_button(
                     position_type: PositionType::Absolute,
                     left: Val::Px(0.0),
                     top: Val::Px(0.0),
+                    border_radius: BorderRadius::all(Val::Px(8.0)),
                     ..default()
                 },
                 BackgroundColor(edge_color(style.background)),
-                BorderRadius::all(Val::Px(8.0)),
                 Outline::new(Val::Px(1.0), Val::Px(1.0), BUTTON_REST_OUTLINE),
             ));
 
@@ -1122,11 +1129,11 @@ pub fn spawn_button(
                         overflow: Overflow::clip(),
                         position_type: PositionType::Relative,
                         top: Val::Px(BUTTON_3D_OFFSET_REST),
+                        border_radius: BorderRadius::all(Val::Px(8.0)),
                         ..default()
                     },
                     BackgroundColor(opaque(style.background)),
                     BorderColor::all(style.border),
-                    BorderRadius::all(Val::Px(8.0)),
                 ))
                 .with_children(|front| {
                     if style.text_shadow {
@@ -1430,10 +1437,10 @@ pub(crate) fn spawn_slider_row<
                             border: UiRect::all(Val::Px(SLIDER_BORDER_WIDTH)),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
+                            border_radius: BorderRadius::all(Val::Px(4.0)),
                             ..default()
                         },
                         BorderColor::all(SLIDER_BUTTON_BORDER_COLOR),
-                        BorderRadius::all(Val::Px(4.0)),
                         BackgroundColor(SLIDER_BUTTON_BG),
                         ButtonColors {
                             background: SLIDER_BUTTON_BG,
@@ -1460,10 +1467,10 @@ pub(crate) fn spawn_slider_row<
                             justify_content: JustifyContent::FlexStart,
                             align_items: AlignItems::Center,
                             position_type: PositionType::Relative,
+                            border_radius: BorderRadius::all(Val::Px(6.0)),
                             ..default()
                         },
                         BorderColor::all(SLIDER_BUTTON_BORDER_COLOR),
-                        BorderRadius::all(Val::Px(6.0)),
                         BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
                         Interaction::default(),
                         RelativeCursorPosition::default(),
@@ -1475,13 +1482,13 @@ pub(crate) fn spawn_slider_row<
                             Node {
                                 width: Val::Percent(normalized * 100.0),
                                 height: Val::Percent(100.0),
+                                border_radius: BorderRadius {
+                                    top_left: Val::Px(6.0),
+                                    bottom_left: Val::Px(6.0),
+                                    top_right: Val::Px(0.0),
+                                    bottom_right: Val::Px(0.0),
+                                },
                                 ..default()
-                            },
-                            BorderRadius {
-                                top_left: Val::Px(6.0),
-                                bottom_left: Val::Px(6.0),
-                                top_right: Val::Px(0.0),
-                                bottom_right: Val::Px(0.0),
                             },
                             BackgroundColor(SLIDER_BUTTON_BORDER_COLOR),
                             slider_fill,
@@ -1495,9 +1502,9 @@ pub(crate) fn spawn_slider_row<
                                 position_type: PositionType::Absolute,
                                 left: Val::Px(normalized * SLIDER_TRACK_WIDTH - 2.0),
                                 top: Val::Px(-4.0),
+                                border_radius: BorderRadius::all(Val::Px(2.0)),
                                 ..default()
                             },
-                            BorderRadius::all(Val::Px(2.0)),
                             BackgroundColor(Color::WHITE),
                             BorderColor::all(SLIDER_BUTTON_BORDER_COLOR),
                             Interaction::default(),
@@ -1516,10 +1523,10 @@ pub(crate) fn spawn_slider_row<
                             border: UiRect::all(Val::Px(SLIDER_BORDER_WIDTH)),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
+                            border_radius: BorderRadius::all(Val::Px(4.0)),
                             ..default()
                         },
                         BorderColor::all(SLIDER_BUTTON_BORDER_COLOR),
-                        BorderRadius::all(Val::Px(4.0)),
                         BackgroundColor(SLIDER_BUTTON_BG),
                         ButtonColors {
                             background: SLIDER_BUTTON_BG,

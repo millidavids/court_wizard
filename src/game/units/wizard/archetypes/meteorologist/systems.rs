@@ -295,7 +295,7 @@ pub fn storm_lightning(
         return;
     }
     let rng = &mut game_rng.0;
-    let target_index = rng.gen_range(0..target_count);
+    let target_index = rng.random_range(0..target_count);
 
     let Some((entity, transform, mut health, temp_hp, has_shield)) =
         targets.iter_mut().nth(target_index)
@@ -653,8 +653,8 @@ pub fn spawn_weather_particles(
             });
 
             for _ in 0..count {
-                let x = rng.gen_range(-PARTICLE_SPAWN_HALF_SIZE..PARTICLE_SPAWN_HALF_SIZE);
-                let z = rng.gen_range(-PARTICLE_SPAWN_HALF_SIZE..PARTICLE_SPAWN_HALF_SIZE);
+                let x = rng.random_range(-PARTICLE_SPAWN_HALF_SIZE..PARTICLE_SPAWN_HALF_SIZE);
+                let z = rng.random_range(-PARTICLE_SPAWN_HALF_SIZE..PARTICLE_SPAWN_HALF_SIZE);
                 let pos = Vec3::new(x, PARTICLE_SPAWN_HEIGHT, z);
 
                 commands.spawn((
@@ -680,13 +680,13 @@ pub fn spawn_weather_particles(
             });
 
             for _ in 0..count {
-                let x = rng.gen_range(-PARTICLE_SPAWN_HALF_SIZE..PARTICLE_SPAWN_HALF_SIZE);
-                let z = rng.gen_range(-PARTICLE_SPAWN_HALF_SIZE..PARTICLE_SPAWN_HALF_SIZE);
+                let x = rng.random_range(-PARTICLE_SPAWN_HALF_SIZE..PARTICLE_SPAWN_HALF_SIZE);
+                let z = rng.random_range(-PARTICLE_SPAWN_HALF_SIZE..PARTICLE_SPAWN_HALF_SIZE);
                 let pos = Vec3::new(x, PARTICLE_SPAWN_HEIGHT, z);
 
                 // Snow drifts more horizontally with random wobble
-                let vx = SNOW_WIND_SPEED + rng.gen_range(-200.0..200.0);
-                let vz = rng.gen_range(-300.0..300.0);
+                let vx = SNOW_WIND_SPEED + rng.random_range(-200.0..200.0);
+                let vz = rng.random_range(-300.0..300.0);
 
                 commands.spawn((
                     WeatherParticle {

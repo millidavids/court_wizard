@@ -51,7 +51,7 @@ pub fn spawn_ogre(
 
     let anim = WalkingAnimation {
         current_frame: 0,
-        elapsed: rng.r#gen::<f32>() * 0.125,
+        elapsed: rng.random::<f32>() * 0.125,
         columns: OGRE_SPRITE_COLUMNS,
         frame_uv: OGRE_FRAME_UV,
         direction_rows: OGRE_WALKING_DIRECTION_ROWS,

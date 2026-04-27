@@ -445,10 +445,10 @@ pub(in crate::game) fn spawn_arrow(
     // Add random variations for realism
 
     // Random power variation (±5%)
-    let power_multiplier = 1.0 + rng.gen_range(-ARROW_POWER_VARIATION..ARROW_POWER_VARIATION);
+    let power_multiplier = 1.0 + rng.random_range(-ARROW_POWER_VARIATION..ARROW_POWER_VARIATION);
 
     // Random angle variation (±1 degree)
-    let angle_offset = rng.gen_range(-ARROW_ANGLE_VARIATION_DEGREES..ARROW_ANGLE_VARIATION_DEGREES);
+    let angle_offset = rng.random_range(-ARROW_ANGLE_VARIATION_DEGREES..ARROW_ANGLE_VARIATION_DEGREES);
     let launch_angle = (ARROW_LAUNCH_ANGLE_DEGREES + angle_offset).to_radians();
 
     // Calculate velocity needed to hit target at launch angle, accounting for height difference.

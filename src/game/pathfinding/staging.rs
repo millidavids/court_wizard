@@ -78,7 +78,7 @@ pub fn compute_wave_staging(plan: &mut WaveStagingPlan, seed: u64, level: u32, w
         (SpawnTunnel::Left, LEFT_TUNNEL_STAGING),
         (SpawnTunnel::Right, RIGHT_TUNNEL_STAGING),
     ] {
-        let count = rng.gen_range(MIN_POINTS_PER_TUNNEL..=MAX_POINTS_PER_TUNNEL);
+        let count = rng.random_range(MIN_POINTS_PER_TUNNEL..=MAX_POINTS_PER_TUNNEL);
         let mut candidates: Vec<u8> = range.to_vec();
         candidates.shuffle(&mut rng);
         let chosen: Vec<u8> = candidates.into_iter().take(count).collect();

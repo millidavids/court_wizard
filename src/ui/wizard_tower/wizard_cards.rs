@@ -178,11 +178,11 @@ fn spawn_compact_card(parent: &mut ChildSpawnerCommands, wizard_type: WizardType
                 padding: UiRect::all(Val::Px(10.0)),
                 border: UiRect::all(Val::Px(CARD_BORDER_WIDTH)),
                 row_gap: Val::Px(4.0),
+                border_radius: BorderRadius::all(Val::Px(CARD_BORDER_RADIUS)),
                 ..default()
             },
             BackgroundColor(CARD_BG),
             BorderColor::all(CARD_BORDER),
-            BorderRadius::all(Val::Px(CARD_BORDER_RADIUS)),
             WizardCardContainer(wizard_type),
             crate::ui::focus::ScrollRevealBounds,
         ))
@@ -289,11 +289,11 @@ fn spawn_locked_card(parent: &mut ChildSpawnerCommands, wizard_type: WizardType)
                 padding: UiRect::all(Val::Px(10.0)),
                 border: UiRect::all(Val::Px(CARD_BORDER_WIDTH)),
                 row_gap: Val::Px(4.0),
+                border_radius: BorderRadius::all(Val::Px(CARD_BORDER_RADIUS)),
                 ..default()
             },
             BackgroundColor(LOCKED_CARD_BG),
             BorderColor::all(LOCKED_CARD_BORDER),
-            BorderRadius::all(Val::Px(CARD_BORDER_RADIUS)),
         ))
         .with_children(|card| {
             card.spawn((

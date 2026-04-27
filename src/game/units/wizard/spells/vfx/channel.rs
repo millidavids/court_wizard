@@ -41,8 +41,8 @@ pub(in crate::game) fn spawn_channel_particle_batch(
     let radius = spec.start_radius + (spec.max_radius - spec.start_radius) * p;
     let speed = radius / spec.lifetime;
     for _ in 0..spec.count_per_spawn {
-        let theta = rng.gen_range(0.0..std::f32::consts::TAU);
-        let z = rng.gen_range(-1.0_f32..1.0);
+        let theta = rng.random_range(0.0..std::f32::consts::TAU);
+        let z = rng.random_range(-1.0_f32..1.0);
         let r_xy = (1.0 - z * z).sqrt();
         let dir = Vec3::new(r_xy * theta.cos(), z, r_xy * theta.sin());
         let spawn_pos = center + dir * radius;

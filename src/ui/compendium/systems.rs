@@ -87,12 +87,12 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands) {
                 border: UiRect::all(Val::Px(1.0)),
                 overflow: Overflow::scroll_y(),
                 flex_shrink: 0.0,
+                border_radius: BorderRadius::all(Val::Px(6.0)),
                 ..default()
             },
             ScrollPosition::default(),
             BackgroundColor(DETAIL_BG),
             BorderColor::all(DETAIL_BORDER),
-            BorderRadius::all(Val::Px(6.0)),
             DetailPanel,
             crate::ui::focus::GamepadScrollTarget,
         ))
@@ -195,11 +195,11 @@ fn spawn_right_panel(parent: &mut ChildSpawnerCommands) {
                                 border: UiRect::all(Val::Px(1.0)),
                                 justify_content: JustifyContent::Center,
                                 align_items: AlignItems::Center,
+                                border_radius: BorderRadius::all(Val::Px(4.0)),
                                 ..default()
                             },
                             BackgroundColor(bg),
                             BorderColor::all(border),
-                            BorderRadius::all(Val::Px(4.0)),
                             ButtonColors {
                                 background: bg,
                                 border,
@@ -226,12 +226,12 @@ fn spawn_right_panel(parent: &mut ChildSpawnerCommands) {
                         flex_grow: 1.0,
                         flex_basis: Val::Px(0.0),
                         overflow: Overflow::scroll_y(),
+                        border_radius: BorderRadius::all(Val::Px(6.0)),
                         ..default()
                     },
                     ScrollPosition::default(),
                     ScrollableCompendiumContainer,
                     BackgroundColor(SECTION_BG),
-                    BorderRadius::all(Val::Px(6.0)),
                 ))
                 .with_children(|scroll| {
                     scroll.spawn((
@@ -1222,11 +1222,11 @@ fn spawn_roguelite_run_detail(
                 margin: UiRect::bottom(Val::Px(8.0)),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
+                border_radius: BorderRadius::all(Val::Px(4.0)),
                 ..default()
             },
             BackgroundColor(ITEM_BG),
             BorderColor::all(btn_color),
-            BorderRadius::all(Val::Px(4.0)),
             ButtonColors {
                 background: ITEM_BG,
                 border: btn_color,
@@ -1293,11 +1293,11 @@ fn spawn_roguelite_run_detail(
                             border: UiRect::all(Val::Px(1.0)),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
+                            border_radius: BorderRadius::all(Val::Px(3.0)),
                             ..default()
                         },
                         BackgroundColor(ITEM_BG),
                         BorderColor::all(Color::srgb(0.3, 0.6, 0.9)),
-                        BorderRadius::all(Val::Px(3.0)),
                         ButtonColors {
                             background: ITEM_BG,
                             border: Color::srgb(0.3, 0.6, 0.9),
@@ -1409,11 +1409,11 @@ fn spawn_item_button(
                 width: Val::Percent(100.0),
                 padding: UiRect::new(Val::Px(10.0), Val::Px(10.0), Val::Px(6.0), Val::Px(6.0)),
                 border: UiRect::all(Val::Px(1.0)),
+                border_radius: BorderRadius::all(Val::Px(4.0)),
                 ..default()
             },
             BackgroundColor(ITEM_BG),
             BorderColor::all(ITEM_BORDER),
-            BorderRadius::all(Val::Px(4.0)),
             ButtonColors {
                 background: ITEM_BG,
                 border: ITEM_BORDER,

@@ -260,7 +260,7 @@ pub fn spawn_hags(rng: &mut impl Rng, mut commands: Commands, hag_assets: Res<Ha
 
     // Initialize eye transfer timer
     let initial_interval =
-        EYE_TRANSFER_BASE_INTERVAL + rng.gen_range(-EYE_TRANSFER_VARIANCE..EYE_TRANSFER_VARIANCE);
+        EYE_TRANSFER_BASE_INTERVAL + rng.random_range(-EYE_TRANSFER_VARIANCE..EYE_TRANSFER_VARIANCE);
     commands.insert_resource(EyeTransferTimer {
         time_remaining: initial_interval,
     });
@@ -268,10 +268,10 @@ pub fn spawn_hags(rng: &mut impl Rng, mut commands: Commands, hag_assets: Res<Ha
 
     // Assign each eye to a random hag at spawn (different hags)
     if spawned_entities.len() >= 2 {
-        let invuln_idx = rng.gen_range(0..spawned_entities.len());
-        let mut ability_idx = rng.gen_range(0..spawned_entities.len());
+        let invuln_idx = rng.random_range(0..spawned_entities.len());
+        let mut ability_idx = rng.random_range(0..spawned_entities.len());
         while ability_idx == invuln_idx {
-            ability_idx = rng.gen_range(0..spawned_entities.len());
+            ability_idx = rng.random_range(0..spawned_entities.len());
         }
 
         let invuln_entity = spawned_entities[invuln_idx];
@@ -757,7 +757,7 @@ pub fn tick_eye_transfer(
     timer.time_remaining = EYE_TRANSFER_BASE_INTERVAL
         + game_rng
             .0
-            .gen_range(-EYE_TRANSFER_VARIANCE..EYE_TRANSFER_VARIANCE);
+            .random_range(-EYE_TRANSFER_VARIANCE..EYE_TRANSFER_VARIANCE);
 
     let living_hags: Vec<Entity> = hags.iter().map(|(e, _, _)| e).collect();
     if living_hags.len() < 2 {
@@ -790,7 +790,7 @@ pub fn tick_eye_transfer(
         if candidates.is_empty() {
             current_invuln_holder // Only one hag alive, keep it
         } else {
-            Some(candidates[game_rng.0.gen_range(0..candidates.len())])
+            Some(candidates[game_rng.0.random_range(0..candidates.len())])
         }
     } else {
         None
@@ -805,7 +805,7 @@ pub fn tick_eye_transfer(
         if candidates.is_empty() {
             current_ability_holder // No valid candidate, keep it
         } else {
-            Some(candidates[game_rng.0.gen_range(0..candidates.len())])
+            Some(candidates[game_rng.0.random_range(0..candidates.len())])
         }
     } else {
         None
@@ -1323,7 +1323,7 @@ pub fn justina_fireball(
         let hag_pos = transform.translation;
 
         for _ in 0..FIREBALL_COUNT {
-            let idx = game_rng.0.gen_range(0..defender_positions.len());
+            let idx = game_rng.0.random_range(0..defender_positions.len());
             let target_pos = defender_positions[idx];
 
             let direction = (target_pos - hag_pos).normalize_or_zero();
@@ -1447,7 +1447,7 @@ pub fn josephina_leap(
                     continue;
                 }
 
-                let idx = game_rng.0.gen_range(0..defender_positions.len());
+                let idx = game_rng.0.random_range(0..defender_positions.len());
                 let target = defender_positions[idx];
 
                 *leap = LeapState::InAir {
@@ -1804,12 +1804,12 @@ pub fn martina_teleport_pull(
 
         // Pull random regular defenders first
         while pulled < TELEPORT_PULL_COUNT && !regular_defenders.is_empty() {
-            let idx = game_rng.0.gen_range(0..regular_defenders.len());
+            let idx = game_rng.0.random_range(0..regular_defenders.len());
             let entity = regular_defenders.swap_remove(idx);
 
             if let Ok((_, mut def_transform, _, _, _)) = defenders.get_mut(entity) {
-                def_transform.translation.x = pull_pos.x + game_rng.0.gen_range(-20.0..20.0);
-                def_transform.translation.z = pull_pos.z + game_rng.0.gen_range(-20.0..20.0);
+                def_transform.translation.x = pull_pos.x + game_rng.0.random_range(-20.0..20.0);
+                def_transform.translation.z = pull_pos.z + game_rng.0.random_range(-20.0..20.0);
             }
             pulled += 1;
         }
@@ -1819,8 +1819,8 @@ pub fn martina_teleport_pull(
             && let Some(king_e) = king_entity
             && let Ok((_, mut king_transform, _, _, _)) = defenders.get_mut(king_e)
         {
-            king_transform.translation.x = pull_pos.x + game_rng.0.gen_range(-20.0..20.0);
-            king_transform.translation.z = pull_pos.z + game_rng.0.gen_range(-20.0..20.0);
+            king_transform.translation.x = pull_pos.x + game_rng.0.random_range(-20.0..20.0);
+            king_transform.translation.z = pull_pos.z + game_rng.0.random_range(-20.0..20.0);
             // Guards will snap to king via their existing system
         }
     }

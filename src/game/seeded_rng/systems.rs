@@ -8,7 +8,7 @@ use crate::config::GameConfig;
 pub fn init_game_seed(mut commands: Commands, config: Res<GameConfig>) {
     let seed = config
         .seed
-        .unwrap_or_else(|| rand::thread_rng().gen_range(0..u64::MAX));
+        .unwrap_or_else(|| rand::rng().random_range(0..u64::MAX));
     let game_seed = GameSeed(seed);
     commands.insert_resource(GameRng::new(&game_seed));
     commands.insert_resource(game_seed);

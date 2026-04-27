@@ -384,10 +384,10 @@ pub fn process_pending_damage_effects(
                     for _ in 0..DRY_BURNING_PATCH_COUNT {
                         let offset_x = game_rng
                             .0
-                            .gen_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
+                            .random_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
                         let offset_z = game_rng
                             .0
-                            .gen_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
+                            .random_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
                         let patch_pos = Vec3::new(
                             impact_pos.x + offset_x,
                             0.5, // Just above ground
@@ -708,7 +708,7 @@ pub fn update_electric_charge(
         }
 
         // Roll for arc
-        let roll: f32 = game_rng.0.r#gen();
+        let roll: f32 = game_rng.0.random();
         if roll >= charge.arc_chance {
             continue;
         }
@@ -1162,13 +1162,13 @@ pub fn create_corpse_sprite_materials(
     texture: Handle<Image>,
     tint: Color,
 ) -> [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS] {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let anim = WalkingAnimation::default();
     let rows = (SPRITE_SHEET_IMAGE_HEIGHT / SPRITE_FRAME_SIZE) as usize;
     let total_frames = anim.columns * rows;
 
     std::array::from_fn(|_| {
-        let frame = rng.gen_range(0..total_frames);
+        let frame = rng.random_range(0..total_frames);
         let col = frame % anim.columns;
         let row = frame / anim.columns;
         let uv_offset = Vec2::new(col as f32 * anim.frame_uv.x, row as f32 * anim.frame_uv.y);

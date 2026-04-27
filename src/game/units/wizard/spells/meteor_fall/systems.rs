@@ -389,8 +389,8 @@ pub(super) fn spawn_meteor_projectiles(
             storm.reset_spawn_timer();
 
             // Random position within storm circle (on XZ plane)
-            let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-            let distance = rng.gen_range(0.0..storm.radius);
+            let angle = rng.random_range(0.0..std::f32::consts::TAU);
+            let distance = rng.random_range(0.0..storm.radius);
             let offset = Vec3::new(angle.cos() * distance, 0.0, angle.sin() * distance);
 
             let spawn_pos = Vec3::new(

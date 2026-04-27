@@ -281,7 +281,7 @@ fn init_crt_pipeline(
     fullscreen_shader: Res<FullscreenShader>,
     pipeline_cache: Res<PipelineCache>,
 ) {
-    let layout = render_device.create_bind_group_layout(
+    let layout_desc = BindGroupLayoutDescriptor::new(
         "crt_effect_bind_group_layout",
         &BindGroupLayoutEntries::sequential(
             ShaderStages::FRAGMENT,
@@ -299,7 +299,7 @@ fn init_crt_pipeline(
 
     let pipeline_id = pipeline_cache.queue_render_pipeline(RenderPipelineDescriptor {
         label: Some("crt_effect_pipeline".into()),
-        layout: vec![layout.clone()],
+        layout: vec![layout_desc.clone()],
         vertex: vertex_state,
         fragment: Some(FragmentState {
             shader,
@@ -314,7 +314,7 @@ fn init_crt_pipeline(
     });
 
     commands.insert_resource(CrtEffectPipeline {
-        layout,
+        layout: pipeline_cache.get_bind_group_layout(&layout_desc),
         sampler,
         pipeline_id,
     });
@@ -403,7 +403,7 @@ fn init_lensing_pipeline(
     fullscreen_shader: Res<FullscreenShader>,
     pipeline_cache: Res<PipelineCache>,
 ) {
-    let layout = render_device.create_bind_group_layout(
+    let layout_desc = BindGroupLayoutDescriptor::new(
         "lensing_bind_group_layout",
         &BindGroupLayoutEntries::sequential(
             ShaderStages::FRAGMENT,
@@ -421,7 +421,7 @@ fn init_lensing_pipeline(
 
     let pipeline_id = pipeline_cache.queue_render_pipeline(RenderPipelineDescriptor {
         label: Some("lensing_pipeline".into()),
-        layout: vec![layout.clone()],
+        layout: vec![layout_desc.clone()],
         vertex: vertex_state,
         fragment: Some(FragmentState {
             shader,
@@ -436,7 +436,7 @@ fn init_lensing_pipeline(
     });
 
     commands.insert_resource(LensingPipeline {
-        layout,
+        layout: pipeline_cache.get_bind_group_layout(&layout_desc),
         sampler,
         pipeline_id,
     });
@@ -525,7 +525,7 @@ fn init_heat_distortion_pipeline(
     fullscreen_shader: Res<FullscreenShader>,
     pipeline_cache: Res<PipelineCache>,
 ) {
-    let layout = render_device.create_bind_group_layout(
+    let layout_desc = BindGroupLayoutDescriptor::new(
         "heat_distortion_bind_group_layout",
         &BindGroupLayoutEntries::sequential(
             ShaderStages::FRAGMENT,
@@ -543,7 +543,7 @@ fn init_heat_distortion_pipeline(
 
     let pipeline_id = pipeline_cache.queue_render_pipeline(RenderPipelineDescriptor {
         label: Some("heat_distortion_pipeline".into()),
-        layout: vec![layout.clone()],
+        layout: vec![layout_desc.clone()],
         vertex: vertex_state,
         fragment: Some(FragmentState {
             shader,
@@ -558,7 +558,7 @@ fn init_heat_distortion_pipeline(
     });
 
     commands.insert_resource(HeatDistortionPipeline {
-        layout,
+        layout: pipeline_cache.get_bind_group_layout(&layout_desc),
         sampler,
         pipeline_id,
     });
@@ -651,7 +651,7 @@ fn init_teleport_distortion_pipeline(
     fullscreen_shader: Res<FullscreenShader>,
     pipeline_cache: Res<PipelineCache>,
 ) {
-    let layout = render_device.create_bind_group_layout(
+    let layout_desc = BindGroupLayoutDescriptor::new(
         "teleport_distortion_bind_group_layout",
         &BindGroupLayoutEntries::sequential(
             ShaderStages::FRAGMENT,
@@ -669,7 +669,7 @@ fn init_teleport_distortion_pipeline(
 
     let pipeline_id = pipeline_cache.queue_render_pipeline(RenderPipelineDescriptor {
         label: Some("teleport_distortion_pipeline".into()),
-        layout: vec![layout.clone()],
+        layout: vec![layout_desc.clone()],
         vertex: vertex_state,
         fragment: Some(FragmentState {
             shader,
@@ -684,7 +684,7 @@ fn init_teleport_distortion_pipeline(
     });
 
     commands.insert_resource(TeleportDistortionPipeline {
-        layout,
+        layout: pipeline_cache.get_bind_group_layout(&layout_desc),
         sampler,
         pipeline_id,
     });
@@ -783,7 +783,7 @@ fn init_colorblind_pipeline(
     fullscreen_shader: Res<FullscreenShader>,
     pipeline_cache: Res<PipelineCache>,
 ) {
-    let layout = render_device.create_bind_group_layout(
+    let layout_desc = BindGroupLayoutDescriptor::new(
         "colorblind_correction_bind_group_layout",
         &BindGroupLayoutEntries::sequential(
             ShaderStages::FRAGMENT,
@@ -801,7 +801,7 @@ fn init_colorblind_pipeline(
 
     let pipeline_id = pipeline_cache.queue_render_pipeline(RenderPipelineDescriptor {
         label: Some("colorblind_correction_pipeline".into()),
-        layout: vec![layout.clone()],
+        layout: vec![layout_desc.clone()],
         vertex: vertex_state,
         fragment: Some(FragmentState {
             shader,
@@ -816,7 +816,7 @@ fn init_colorblind_pipeline(
     });
 
     commands.insert_resource(ColorblindCorrectionPipeline {
-        layout,
+        layout: pipeline_cache.get_bind_group_layout(&layout_desc),
         sampler,
         pipeline_id,
     });
@@ -950,7 +950,7 @@ fn init_high_contrast_pipeline(
     fullscreen_shader: Res<FullscreenShader>,
     pipeline_cache: Res<PipelineCache>,
 ) {
-    let layout = render_device.create_bind_group_layout(
+    let layout_desc = BindGroupLayoutDescriptor::new(
         "high_contrast_bind_group_layout",
         &BindGroupLayoutEntries::sequential(
             ShaderStages::FRAGMENT,
@@ -968,7 +968,7 @@ fn init_high_contrast_pipeline(
 
     let pipeline_id = pipeline_cache.queue_render_pipeline(RenderPipelineDescriptor {
         label: Some("high_contrast_pipeline".into()),
-        layout: vec![layout.clone()],
+        layout: vec![layout_desc.clone()],
         vertex: vertex_state,
         fragment: Some(FragmentState {
             shader,
@@ -983,7 +983,7 @@ fn init_high_contrast_pipeline(
     });
 
     commands.insert_resource(HighContrastPipeline {
-        layout,
+        layout: pipeline_cache.get_bind_group_layout(&layout_desc),
         sampler,
         pipeline_id,
     });

@@ -1096,9 +1096,9 @@ pub(crate) fn from_base64(s: &str) -> Option<Vec<u8>> {
 /// Format: "{timestamp}-{random_hex}" (e.g., "1704067200-a3f9c2")
 fn generate_id() -> String {
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let timestamp = current_timestamp();
-    let random: u32 = rng.r#gen();
+    let random: u32 = rng.random();
     format!("{}-{:06x}", timestamp, random & 0xFFFFFF)
 }
 

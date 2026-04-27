@@ -282,7 +282,7 @@ pub fn combat(
                     use super::units::wizard::spells::fog_cloud::systems::is_in_fog_zone;
                     let attacker_pos = attacker_transform.translation;
                     if is_in_fog_zone(attacker_pos, &disorienting_snapshot)
-                        && game_rng.0.r#gen::<f32>() < super::units::wizard::spells::fog_cloud::constants::DISORIENTING_VAPORS_CHANCE
+                        && game_rng.0.random::<f32>() < super::units::wizard::spells::fog_cloud::constants::DISORIENTING_VAPORS_CHANCE
                     {
                         // Find a random same-team unit to attack instead
                         let count = units_snapshot
@@ -290,7 +290,7 @@ pub fn combat(
                             .filter(|(e, _, _, t)| *e != attacker_entity && *t == *attacker_team)
                             .count();
                         if count > 0 {
-                            let idx = game_rng.0.gen_range(0..count);
+                            let idx = game_rng.0.random_range(0..count);
                             if let Some((e, _, _, _)) = units_snapshot
                                 .iter()
                                 .filter(|(e, _, _, t)| *e != attacker_entity && *t == *attacker_team)
@@ -321,7 +321,7 @@ pub fn combat(
                 {
                     // Check fog evasion
                     if let Some(evasion) = fog_evasion {
-                        let roll = game_rng.0.r#gen::<f32>();
+                        let roll = game_rng.0.random::<f32>();
                         if roll < evasion.evasion_chance {
                             // Attack evaded - still record the attack timing
                             attack_timing.record_attack(current_time);
@@ -714,7 +714,7 @@ pub fn convert_dead_to_corpses(
                 // Billboard stays so sprite faces camera during death animation
             } else {
                 // No death animation: instant corpse swap (king, boss, fallback)
-                let idx = game_rng.0.gen_range(0..CORPSE_MATERIAL_VARIANTS);
+                let idx = game_rng.0.random_range(0..CORPSE_MATERIAL_VARIANTS);
 
                 let (mat, mesh) = if is_king.is_some() {
                     (

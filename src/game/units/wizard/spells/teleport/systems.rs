@@ -1088,8 +1088,8 @@ pub fn update_circle_animations(
 
 /// Generates a random position within a circle, clamped to battlefield bounds.
 fn random_position_in_circle(rng: &mut impl Rng, center: Vec3, radius: f32, y: f32) -> Vec3 {
-    let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-    let random_radius = rng.gen_range(0.0..radius);
+    let angle = rng.random_range(0.0..std::f32::consts::TAU);
+    let random_radius = rng.random_range(0.0..radius);
 
     let new_x = (center.x + angle.cos() * random_radius)
         .clamp(-BATTLEFIELD_SIZE / 2.0, BATTLEFIELD_SIZE / 2.0);

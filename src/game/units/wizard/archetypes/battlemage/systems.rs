@@ -546,11 +546,11 @@ pub(super) fn spawn_health_bar(
                 height: Val::Px(16.0),
                 margin: UiRect::left(Val::Px(-100.0)), // center
                 border: UiRect::all(Val::Px(2.0)),
+                border_radius: BorderRadius::all(Val::Px(3.0)),
                 ..default()
             },
             BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.8)),
             BorderColor::all(Color::srgba(0.3, 0.3, 0.8, 1.0)),
-            BorderRadius::all(Val::Px(3.0)),
             BattlemageHealthBar,
             OnGameplayScreen,
         ))
@@ -559,10 +559,10 @@ pub(super) fn spawn_health_bar(
                 Node {
                     width: Val::Percent(100.0),
                     height: Val::Percent(100.0),
+                    border_radius: BorderRadius::all(Val::Px(2.0)),
                     ..default()
                 },
                 BackgroundColor(Color::srgb(0.3, 0.4, 1.0)),
-                BorderRadius::all(Val::Px(2.0)),
                 BattlemageHealthBarFill,
             ));
         });
@@ -619,10 +619,10 @@ pub(crate) fn spawn_enter_fray_button(mut commands: Commands) {
                         border: UiRect::all(Val::Px(2.0)),
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,
+                        border_radius: BorderRadius::all(Val::Px(8.0)),
                         ..default()
                     },
                     BorderColor::all(Color::srgba(0.4, 0.5, 1.0, 1.0)),
-                    BorderRadius::all(Val::Px(8.0)),
                     BackgroundColor(Color::srgba(0.15, 0.15, 0.4, 0.9)),
                     EnterFrayButton,
                 ))

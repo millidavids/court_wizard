@@ -577,7 +577,7 @@ fn spawn_mp_infantry(
             } else {
                 calculate_mp_guest_defender_grid_position(*row, *col)
             };
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             let (final_x, final_z) = random_position_in_cell(&mut rng, spawn_x, spawn_z);
 
             let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
@@ -657,7 +657,7 @@ fn spawn_mp_archer(
             } else {
                 calculate_mp_guest_defender_grid_position(archer_row, cell_idx)
             };
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             let (final_x, final_z) = random_position_in_cell(&mut rng, spawn_x, spawn_z);
 
             let hitbox = Hitbox::new(ARCHER_RADIUS, DEFENDER_HITBOX_HEIGHT);

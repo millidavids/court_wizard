@@ -462,7 +462,7 @@ pub fn update_ray_eye_movement(
 
         // Random angular drift so eyes don't converge on the same path
         let rng = &mut game_rng.0;
-        let drift = (rng.r#gen::<f32>() - 0.5) * RAY_EYE_DRIFT_RATE * delta;
+        let drift = (rng.random::<f32>() - 0.5) * RAY_EYE_DRIFT_RATE * delta;
         let cos_d = drift.cos();
         let sin_d = drift.sin();
         let drifted = Vec2::new(
@@ -516,11 +516,11 @@ pub fn spawn_ray_stalk_particles(
     for (eye_entity, eye_tf, _) in &eyes {
         let to_eye = eye_tf.translation - body_pos;
         let dir = to_eye.normalize_or_zero();
-        let wobble_offset = rng.r#gen::<f32>() * std::f32::consts::TAU;
+        let wobble_offset = rng.random::<f32>() * std::f32::consts::TAU;
 
         // Initial velocity toward the eye with some spread
-        let spread_x = rng.r#gen::<f32>() * 0.3 - 0.15;
-        let spread_z = rng.r#gen::<f32>() * 0.3 - 0.15;
+        let spread_x = rng.random::<f32>() * 0.3 - 0.15;
+        let spread_z = rng.random::<f32>() * 0.3 - 0.15;
         let initial_vel = (dir + Vec3::new(spread_x, 0.0, spread_z)).normalize_or_zero()
             * RAY_STALK_PARTICLE_SPEED;
 
@@ -585,9 +585,9 @@ pub fn update_ray_stalk_particles(
         // Random shudder
         let rng = &mut game_rng.0;
         let shudder = Vec3::new(
-            (rng.r#gen::<f32>() - 0.5) * 2.0,
-            (rng.r#gen::<f32>() - 0.5) * 2.0,
-            (rng.r#gen::<f32>() - 0.5) * 2.0,
+            (rng.random::<f32>() - 0.5) * 2.0,
+            (rng.random::<f32>() - 0.5) * 2.0,
+            (rng.random::<f32>() - 0.5) * 2.0,
         ) * RAY_STALK_PARTICLE_SHUDDER;
 
         transform.translation += (particle.velocity + wobble + shudder) * delta;
@@ -732,7 +732,7 @@ pub fn ray_disintegration_sweep(
             };
 
             // Random velocity direction carrying it away from the target
-            let angle = rng.r#gen::<f32>() * std::f32::consts::TAU;
+            let angle = rng.random::<f32>() * std::f32::consts::TAU;
             sweep.tip_velocity = Vec2::new(angle.cos(), angle.sin()) * DISINTEGRATION_RETICLE_SPEED;
 
             let ground_target = Vec3::new(sweep.tip_position.x, 0.0, sweep.tip_position.y);
@@ -1735,8 +1735,8 @@ pub fn ray_teleport_eye(
 
         let rng = &mut game_rng.0;
         for &(entity, _, _) in &defender_dists {
-            let scatter_x = rng.gen_range(VISIBLE_MIN_X * 0.6..VISIBLE_MAX_X * 0.6);
-            let scatter_z = rng.gen_range(VISIBLE_MIN_Z * 0.6..VISIBLE_MAX_Z * 0.6);
+            let scatter_x = rng.random_range(VISIBLE_MIN_X * 0.6..VISIBLE_MAX_X * 0.6);
+            let scatter_z = rng.random_range(VISIBLE_MIN_Z * 0.6..VISIBLE_MAX_Z * 0.6);
             if let Ok((_, def_tf, _, _, _)) = defenders.get(entity) {
                 commands.entity(entity).insert(Transform::from_xyz(
                     scatter_x,

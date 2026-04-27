@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use rand::Rng;
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 
 use crate::config::save_data::{load_unified_save, unlock_ingredient};
 use crate::game::cauldron::brews::Ingredient;
@@ -63,7 +63,7 @@ pub(super) fn spawn_ingredient_drops(
 
     for event in drop_events.read() {
         // Roll for drop chance
-        if game_rng.0.r#gen::<f64>() > drop_chance {
+        if game_rng.0.random::<f64>() > drop_chance {
             continue;
         }
 

@@ -140,11 +140,11 @@ fn spawn_king_health_bar(parent: &mut ChildSpawnerCommands) {
                         border: UiRect::all(Val::Px(2.0)),
                         flex_direction: FlexDirection::Column,
                         justify_content: JustifyContent::FlexEnd, // Fill grows upward from bottom
+                        border_radius: BorderRadius::all(Val::Px(3.0)),
                         ..default()
                     },
                     BackgroundColor(KING_HEALTH_BAR_BG_COLOR),
                     BorderColor::all(KING_HEALTH_BAR_BORDER_COLOR),
-                    BorderRadius::all(Val::Px(3.0)),
                 ))
                 .with_children(|bar| {
                     // Health bar fill (anchored to bottom, height = percentage)
@@ -152,10 +152,10 @@ fn spawn_king_health_bar(parent: &mut ChildSpawnerCommands) {
                         Node {
                             width: Val::Percent(100.0),
                             height: Val::Percent(100.0),
+                            border_radius: BorderRadius::all(Val::Px(2.0)),
                             ..default()
                         },
                         BackgroundColor(KING_HEALTH_BAR_FILL_COLOR),
-                        BorderRadius::all(Val::Px(2.0)),
                         KingHealthBarFill,
                     ));
                 });
@@ -967,21 +967,21 @@ fn spawn_simple_boss_bar(
                 width: BOSS_HEALTH_BAR_WIDTH,
                 height: BOSS_HEALTH_BAR_HEIGHT,
                 border: UiRect::all(Val::Px(2.0)),
+                border_radius: BorderRadius::all(Val::Px(3.0)),
                 ..default()
             },
             BackgroundColor(BOSS_HEALTH_BAR_BG_COLOR),
             BorderColor::all(border_color),
-            BorderRadius::all(Val::Px(3.0)),
         ))
         .with_children(|bar| {
             bar.spawn((
                 Node {
                     width: Val::Percent(initial_percent),
                     height: Val::Percent(100.0),
+                    border_radius: BorderRadius::all(Val::Px(2.0)),
                     ..default()
                 },
                 BackgroundColor(fill_color),
-                BorderRadius::all(Val::Px(2.0)),
                 BossHealthBarFill,
             ));
 
@@ -1033,11 +1033,11 @@ fn spawn_hag_bar_section(
                         width: Val::Percent(100.0),
                         height: Val::Percent(100.0),
                         border: UiRect::all(Val::Px(1.0)),
+                        border_radius: BorderRadius::all(Val::Px(2.0)),
                         ..default()
                     },
                     BackgroundColor(BOSS_HEALTH_BAR_BG_COLOR),
                     BorderColor::all(BOSS_HEALTH_BAR_BORDER_COLOR),
-                    BorderRadius::all(Val::Px(2.0)),
                 ))
                 .with_children(|bar| {
                     // Fill
@@ -1045,10 +1045,10 @@ fn spawn_hag_bar_section(
                         Node {
                             width: Val::Percent(100.0),
                             height: Val::Percent(100.0),
+                            border_radius: BorderRadius::all(Val::Px(1.0)),
                             ..default()
                         },
                         BackgroundColor(fill_color),
-                        BorderRadius::all(Val::Px(1.0)),
                         HagHealthBarFill { identity },
                     ));
 
@@ -1099,21 +1099,21 @@ fn spawn_ray_eye_bar_section(
                         width: Val::Percent(100.0),
                         height: Val::Percent(100.0),
                         border: UiRect::all(Val::Px(1.0)),
+                        border_radius: BorderRadius::all(Val::Px(2.0)),
                         ..default()
                     },
                     BackgroundColor(BOSS_HEALTH_BAR_BG_COLOR),
                     BorderColor::all(BOSS_HEALTH_BAR_BORDER_COLOR),
-                    BorderRadius::all(Val::Px(2.0)),
                 ))
                 .with_children(|bar| {
                     bar.spawn((
                         Node {
                             width: Val::Percent(100.0),
                             height: Val::Percent(100.0),
+                            border_radius: BorderRadius::all(Val::Px(1.0)),
                             ..default()
                         },
                         BackgroundColor(fill_color),
-                        BorderRadius::all(Val::Px(1.0)),
                         RayEyeHealthBarFill { eye_type },
                     ));
 
@@ -1531,11 +1531,11 @@ pub(super) fn update_buff_tracker(
                         align_items: AlignItems::Center,
                         border: UiRect::all(Val::Px(BUFF_BOX_BORDER_WIDTH)),
                         row_gap: Val::Px(2.0),
+                        border_radius: BorderRadius::all(Val::Px(4.0)),
                         ..default()
                     },
                     BackgroundColor(bg_color),
                     BorderColor::all(BUFF_BOX_BORDER_COLOR),
-                    BorderRadius::all(Val::Px(4.0)),
                     BuffTrackerBox(i),
                 ))
                 .with_children(|box_node| {
@@ -1603,11 +1603,11 @@ pub(super) fn show_buff_tooltip(
                             max_width: Val::Px(BUFF_TOOLTIP_MAX_WIDTH),
                             padding: UiRect::all(Val::Px(BUFF_TOOLTIP_PADDING)),
                             border: UiRect::all(Val::Px(1.0)),
+                            border_radius: BorderRadius::all(Val::Px(4.0)),
                             ..default()
                         },
                         BackgroundColor(BUFF_TOOLTIP_BG),
                         BorderColor::all(BUFF_TOOLTIP_BORDER),
-                        BorderRadius::all(Val::Px(4.0)),
                         GlobalZIndex(999),
                         BuffTooltip,
                         Pickable::IGNORE,

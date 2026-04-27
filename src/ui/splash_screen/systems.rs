@@ -94,10 +94,10 @@ pub(super) fn setup_language(mut commands: Commands, splash_assets: Res<SplashAs
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,
                         border: UiRect::all(Val::ZERO),
+                        border_radius: BorderRadius::all(Val::Percent(50.0)),
                         ..default()
                     },
                     BackgroundColor(RUST_CIRCLE_COLOR),
-                    BorderRadius::all(Val::Percent(50.0)),
                 ))
                 .with_children(|circle| {
                     circle.spawn((

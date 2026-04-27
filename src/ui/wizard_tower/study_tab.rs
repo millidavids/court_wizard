@@ -480,11 +480,11 @@ fn spawn_study_panels(
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
                             border: UiRect::all(Val::Px(2.0)),
+                            border_radius: BorderRadius::all(Val::Percent(50.0)),
                             ..default()
                         },
                         BackgroundColor(GRAPH_NODE_BG),
                         BorderColor::all(GRAPH_NODE_FREE_BORDER),
-                        BorderRadius::all(Val::Percent(50.0)),
                         ZIndex(1),
                         FreeNode,
                     ))
@@ -536,11 +536,11 @@ fn spawn_study_panels(
                                 align_items: AlignItems::Center,
                                 border: UiRect::all(Val::Px(2.0)),
                                 overflow: Overflow::clip(),
+                                border_radius: BorderRadius::all(Val::Percent(50.0)),
                                 ..default()
                             },
                             BackgroundColor(bg),
                             BorderColor::all(border),
-                            BorderRadius::all(Val::Percent(50.0)),
                             ZIndex(1),
                             SpellGraphNode {
                                 spell,
@@ -629,11 +629,11 @@ fn spawn_study_panels(
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,
                         border: UiRect::all(Val::Px(2.0)),
+                        border_radius: BorderRadius::all(Val::Percent(50.0)),
                         ..default()
                     },
                     BackgroundColor(INSIGHT_NODE_BG),
                     BorderColor::all(INSIGHT_ANCHOR_BORDER),
-                    BorderRadius::all(Val::Percent(50.0)),
                     ZIndex(1),
                     InsightConstellationAnchor,
                 ));
@@ -663,11 +663,11 @@ fn spawn_study_panels(
                                 align_items: AlignItems::Center,
                                 border: UiRect::all(Val::Px(2.0)),
                                 overflow: Overflow::clip(),
+                                border_radius: BorderRadius::all(Val::Percent(50.0)),
                                 ..default()
                             },
                             BackgroundColor(INSIGHT_NODE_BG),
                             BorderColor::all(border),
-                            BorderRadius::all(Val::Percent(50.0)),
                             ZIndex(1),
                             InsightBonusNode {
                                 stat,
@@ -1621,10 +1621,10 @@ fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spell) {
                 Node {
                     width: Val::Px(TALENT_BAR_WIDTH),
                     flex_direction: FlexDirection::Column,
+                    border_radius: BorderRadius::all(Val::Px(3.0)),
                     ..default()
                 },
                 BackgroundColor(TALENT_BAR_BG),
-                BorderRadius::all(Val::Px(3.0)),
             ))
             .with_children(|bar| {
                 // Fill from top
@@ -1637,10 +1637,10 @@ fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spell) {
                     Node {
                         width: Val::Percent(100.0),
                         height: Val::Percent(fill_frac * 100.0),
+                        border_radius: BorderRadius::all(Val::Px(3.0)),
                         ..default()
                     },
                     BackgroundColor(TALENT_BAR_FILL),
-                    BorderRadius::all(Val::Px(3.0)),
                     TalentProgressBarFill { spell },
                 ));
             });
@@ -1714,12 +1714,12 @@ fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spell) {
                                         padding: UiRect::all(Val::Px(3.0)),
                                         justify_content: JustifyContent::Center,
                                         align_items: AlignItems::Center,
+                                        border_radius: BorderRadius::all(Val::Px(4.0)),
                                         ..default()
                                     },
                                     Button,
                                     BackgroundColor(bg_color),
                                     BorderColor::all(border_color),
-                                    BorderRadius::all(Val::Px(4.0)),
                                     ButtonColors {
                                         background: bg_color,
                                         border: border_color,
@@ -1979,10 +1979,10 @@ fn spawn_insight_bonus_slider(
                 justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::Center,
                 position_type: PositionType::Relative,
+                border_radius: BorderRadius::all(Val::Px(8.0)),
                 ..default()
             },
             BorderColor::all(INSIGHT_NODE_BORDER),
-            BorderRadius::all(Val::Px(8.0)),
             BackgroundColor(SLIDER_TRACK_BG),
             Interaction::default(),
             RelativeCursorPosition::default(),
@@ -1996,13 +1996,13 @@ fn spawn_insight_bonus_slider(
                     position_type: PositionType::Absolute,
                     left: Val::Px(0.0),
                     top: Val::Px(0.0),
+                    border_radius: BorderRadius {
+                        top_left: Val::Px(8.0),
+                        bottom_left: Val::Px(8.0),
+                        top_right: Val::Px(0.0),
+                        bottom_right: Val::Px(0.0),
+                    },
                     ..default()
-                },
-                BorderRadius {
-                    top_left: Val::Px(8.0),
-                    bottom_left: Val::Px(8.0),
-                    top_right: Val::Px(0.0),
-                    bottom_right: Val::Px(0.0),
                 },
                 BackgroundColor(INSIGHT_PROGRESS_FILL),
                 InsightBonusProgressFill,
@@ -2028,9 +2028,9 @@ fn spawn_insight_bonus_slider(
                     position_type: PositionType::Absolute,
                     left: Val::Px(handle_pos * SLIDER_TRACK_WIDTH - SLIDER_HANDLE_WIDTH / 2.0),
                     top: Val::Px(-(SLIDER_HANDLE_HEIGHT - SLIDER_TRACK_HEIGHT) / 2.0),
+                    border_radius: BorderRadius::all(Val::Px(4.0)),
                     ..default()
                 },
-                BorderRadius::all(Val::Px(4.0)),
                 BackgroundColor(SLIDER_HANDLE_COLOR),
                 Interaction::default(),
                 RelativeCursorPosition::default(),
@@ -2065,10 +2065,10 @@ fn spawn_detail_unified_slider(
                 justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::Center,
                 position_type: PositionType::Relative,
+                border_radius: BorderRadius::all(Val::Px(8.0)),
                 ..default()
             },
             BorderColor::all(SLIDER_TRACK_BORDER),
-            BorderRadius::all(Val::Px(8.0)),
             BackgroundColor(SLIDER_TRACK_BG),
             Interaction::default(),
             RelativeCursorPosition::default(),
@@ -2083,13 +2083,13 @@ fn spawn_detail_unified_slider(
                     position_type: PositionType::Absolute,
                     left: Val::Px(0.0),
                     top: Val::Px(0.0),
+                    border_radius: BorderRadius {
+                        top_left: Val::Px(8.0),
+                        bottom_left: Val::Px(8.0),
+                        top_right: Val::Px(0.0),
+                        bottom_right: Val::Px(0.0),
+                    },
                     ..default()
-                },
-                BorderRadius {
-                    top_left: Val::Px(8.0),
-                    bottom_left: Val::Px(8.0),
-                    top_right: Val::Px(0.0),
-                    bottom_right: Val::Px(0.0),
                 },
                 BackgroundColor(PROGRESS_BAR_FILL),
                 StudyProgressFill,
@@ -2117,9 +2117,9 @@ fn spawn_detail_unified_slider(
                     position_type: PositionType::Absolute,
                     left: Val::Px(handle_pos * SLIDER_TRACK_WIDTH - SLIDER_HANDLE_WIDTH / 2.0),
                     top: Val::Px(-(SLIDER_HANDLE_HEIGHT - SLIDER_TRACK_HEIGHT) / 2.0),
+                    border_radius: BorderRadius::all(Val::Px(4.0)),
                     ..default()
                 },
-                BorderRadius::all(Val::Px(4.0)),
                 BackgroundColor(SLIDER_HANDLE_COLOR),
                 Interaction::default(),
                 RelativeCursorPosition::default(),
@@ -2724,11 +2724,11 @@ pub(super) fn spawn_study_cursor_on_area_added(
                     left: Val::Px(-STUDY_CURSOR_SIZE * 0.5),
                     top: Val::Px(-STUDY_CURSOR_SIZE * 0.5),
                     border: UiRect::all(Val::Px(2.0)),
+                    border_radius: BorderRadius::all(Val::Percent(50.0)),
                     ..default()
                 },
                 BackgroundColor(STUDY_CURSOR_IDLE_BG),
                 BorderColor::all(STUDY_CURSOR_IDLE_BORDER),
-                BorderRadius::all(Val::Percent(50.0)),
                 ZIndex(1000),
                 StudyCursorReticle,
                 // Let mouse clicks pass through the reticle to the spell

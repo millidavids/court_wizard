@@ -138,10 +138,10 @@ pub(super) fn spawn_action_bar(
                                 },
                                 align_items: AlignItems::Center,
                                 padding: UiRect::all(Val::Px(init_padding)),
+                                border_radius: BorderRadius::all(Val::Px(4.0)),
                                 ..default()
                             },
                             BorderColor::all(SLOT_BUTTON_STYLE.border),
-                            BorderRadius::all(Val::Px(4.0)),
                             BackgroundColor(bg_color),
                             ButtonColors {
                                 background: bg_color,
@@ -208,10 +208,10 @@ pub(super) fn spawn_action_bar(
                             border: UiRect::all(Val::Px(1.0)),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
+                            border_radius: BorderRadius::all(Val::Px(4.0)),
                             ..default()
                         },
                         BorderColor::all(DEBUG_BUTTON_BORDER),
-                        BorderRadius::all(Val::Px(4.0)),
                         BackgroundColor(DEBUG_BUTTON_BG_OFF),
                         ButtonColors {
                             background: DEBUG_BUTTON_BG_OFF,

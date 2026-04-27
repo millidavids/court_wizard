@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.38] - 2026-04-27
+
+### Changed
+- **Updated to the latest game engine** — Court Wizard has been moved onto the newest version of its underlying engine. This is an under-the-hood refresh that lays the groundwork for future features and brings in upstream performance and stability fixes
+- **Quieter screen filters** — the CRT, gravitational lensing, heat distortion, teleport distortion, color-blind correction, and high-contrast filters all do a tiny bit less setup work each frame, freeing up a sliver of performance for the rest of the game
+- **Refreshed support libraries** — random number generation, networking, and several other supporting libraries were updated to current releases at the same time so nothing falls behind
+
 ## [v0.7.37] - 2026-04-27
 
 ### Added

@@ -103,11 +103,11 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
                             border: UiRect::all(Val::Px(1.0)),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
+                            border_radius: BorderRadius::all(Val::Px(4.0)),
                             ..default()
                         },
                         BackgroundColor(bg),
                         BorderColor::all(border),
-                        BorderRadius::all(Val::Px(4.0)),
                         ButtonColors {
                             background: bg,
                             border,
@@ -134,15 +134,14 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
         // Scrollable content area
         parent
             .spawn((
-                Node {
+                crate::ui::systems::scroll_area_style(Node {
                     width: Val::Percent(100.0),
                     flex_grow: 1.0,
                     flex_direction: FlexDirection::Column,
                     overflow: Overflow::scroll_y(),
                     border: UiRect::all(Val::Px(1.0)),
                     ..default()
-                },
-                crate::ui::systems::scroll_area_style(),
+                }),
                 ScrollPosition::default(),
                 ScrollableManualContainer,
                 crate::ui::focus::GamepadScrollTarget,

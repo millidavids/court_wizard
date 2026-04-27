@@ -351,18 +351,18 @@ pub(crate) fn spawn_ring_particle(
     center: Vec3,
     radius: f32,
 ) {
-    let angle = rng.r#gen::<f32>() * std::f32::consts::TAU;
-    let dist = radius * rng.r#gen::<f32>().sqrt() * 0.9;
+    let angle = rng.random::<f32>() * std::f32::consts::TAU;
+    let dist = radius * rng.random::<f32>().sqrt() * 0.9;
     let x = center.x + angle.cos() * dist;
     let z = center.z + angle.sin() * dist;
 
-    let yaw = rng.r#gen::<f32>() * std::f32::consts::TAU;
-    let tilt = 0.3 + rng.r#gen::<f32>() * RING_MAX_TILT;
+    let yaw = rng.random::<f32>() * std::f32::consts::TAU;
+    let tilt = 0.3 + rng.random::<f32>() * RING_MAX_TILT;
     let rotation = Quat::from_rotation_y(yaw) * Quat::from_rotation_x(tilt);
 
-    let max_scale = RING_MIN_SCALE + rng.r#gen::<f32>() * (RING_MAX_SCALE - RING_MIN_SCALE);
+    let max_scale = RING_MIN_SCALE + rng.random::<f32>() * (RING_MAX_SCALE - RING_MIN_SCALE);
     let y = -max_scale * 0.3 * tilt.sin();
-    let lifetime = RING_LIFETIME * (0.7 + rng.r#gen::<f32>() * 0.6);
+    let lifetime = RING_LIFETIME * (0.7 + rng.random::<f32>() * 0.6);
 
     commands.spawn((
         Mesh3d(mesh),
