@@ -13,7 +13,7 @@ jobs:
       version: ${{ steps.get_version.outputs.version }}
       should_release: ${{ steps.check_tag.outputs.should_release }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -41,7 +41,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -73,9 +73,11 @@ jobs:
     needs: [check-version, release]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
+    env:
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Extract latest changelog entry
         id: changelog
@@ -92,7 +94,6 @@ jobs:
       - name: Post to Discord
         if: env.DISCORD_WEBHOOK_URL != ''
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           FULL_TITLE: ${{ steps.changelog.outputs.full_title }}
           BODY: ${{ steps.changelog.outputs.body }}
         run: |
