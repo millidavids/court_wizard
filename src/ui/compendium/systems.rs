@@ -4,8 +4,9 @@ use crate::config::WizardType;
 use crate::config::save_data::{AchievementId, load_unified_save};
 use crate::game::cauldron::brews::Ingredient;
 use crate::game::units::UnitType;
+use crate::game::units::components::{CompendiumSpriteSpec, SHEET_ROW_FORWARD_FACING};
 use crate::game::units::wizard::components::{Spell, SpellCategory};
-use crate::ui::components::{ButtonColors, ButtonFront};
+use crate::ui::components::{ButtonColors, ButtonFront, UnitCompendiumSpriteAssets};
 use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
 
 use super::components::*;
@@ -97,16 +98,24 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands) {
             crate::ui::focus::GamepadScrollTarget,
         ))
         .with_children(|panel| {
-            // Spell icon (hidden by default, shown when a spell is selected)
+            // Detail icon (hidden by default, shown when an item is selected).
+            // Centered horizontally and pushed down so the corona stays inside
+            // the panel. Locked silhouettes get the white corona via BoxShadow.
             panel.spawn((
                 ImageNode::default(),
                 Node {
                     width: Val::Px(DETAIL_ICON_SIZE),
                     height: Val::Px(DETAIL_ICON_SIZE),
-                    margin: UiRect::bottom(Val::Px(4.0)),
+                    align_self: AlignSelf::Center,
+                    margin: UiRect {
+                        top: Val::Px(DETAIL_ICON_TOP_MARGIN),
+                        bottom: Val::Px(8.0),
+                        ..default()
+                    },
                     display: Display::None,
                     ..default()
                 },
+                BoxShadow(vec![]),
                 DetailIcon,
             ));
 
@@ -349,7 +358,10 @@ pub(super) fn handle_copy_seed(
 pub(super) fn rebuild_on_state_change(
     mut commands: Commands,
     mut state: ResMut<CompendiumState>,
-    icon_assets: Res<crate::ui::components::SpellIconAssets>,
+    detail_icons: (
+        Res<crate::ui::components::SpellIconAssets>,
+        Res<UnitCompendiumSpriteAssets>,
+    ),
     items_container: Query<Entity, With<ItemsContainer>>,
     tab_buttons: Query<(&TabButton, Entity, &Children)>,
     mut tab_bg: Query<(&mut BackgroundColor, &mut BorderColor, &mut ButtonColors)>,
@@ -394,7 +406,7 @@ pub(super) fn rebuild_on_state_change(
         ),
     >,
     mut detail_cat_color: Query<&mut TextColor, (With<DetailCategory>, Without<DetailTitle>)>,
-    mut detail_icon: Query<(&mut ImageNode, &mut Node), With<DetailIcon>>,
+    mut detail_icon: Query<(&mut ImageNode, &mut Node, &mut BoxShadow), With<DetailIcon>>,
     level_history: Query<Entity, With<LevelHistoryContainer>>,
     mut detail_desc_node: Query<
         &mut Node,
@@ -418,9 +430,9 @@ pub(super) fn rebuild_on_state_change(
         return;
     }
 
-    let tab_changed = state.prev_tab != state.active_tab;
+    let tab_changed = state.prev_tab != Some(state.active_tab);
     if tab_changed {
-        state.prev_tab = state.active_tab;
+        state.prev_tab = Some(state.active_tab);
     }
 
     // Update tab button visuals (wrapper ButtonColors + front face colors).
@@ -494,9 +506,11 @@ pub(super) fn rebuild_on_state_change(
     }
 
     // Update detail panel (including icon)
+    let (icon_assets, unit_sprite_assets) = (&detail_icons.0, &detail_icons.1);
     update_detail_panel(
         &state,
-        &icon_assets,
+        icon_assets,
+        unit_sprite_assets,
         &unlocked_content.spells,
         &unlocked_content.ingredients,
         &unlocked_content.units,
@@ -1588,6 +1602,7 @@ use crate::ui::constants::efficiency_color;
 fn update_detail_panel(
     state: &CompendiumState,
     icon_assets: &crate::ui::components::SpellIconAssets,
+    unit_sprite_assets: &UnitCompendiumSpriteAssets,
     unlocked_spells: &[String],
     unlocked_ingredients: &[String],
     unlocked_units: &[String],
@@ -1630,14 +1645,32 @@ fn update_detail_panel(
         ),
     >,
     cat_color_q: &mut Query<&mut TextColor, (With<DetailCategory>, Without<DetailTitle>)>,
-    detail_icon: &mut Query<(&mut ImageNode, &mut Node), With<DetailIcon>>,
+    detail_icon: &mut Query<(&mut ImageNode, &mut Node, &mut BoxShadow), With<DetailIcon>>,
 ) {
-    // Helper to hide icon
-    let hide_icon = |detail_icon: &mut Query<(&mut ImageNode, &mut Node), With<DetailIcon>>| {
-        if let Ok((_, mut node)) = detail_icon.single_mut() {
-            node.display = Display::None;
-        }
-    };
+    // Helper to hide the icon and reset all per-item state so subsequent
+    // shows start from a clean baseline (no leftover tint/atlas/size/corona).
+    let hide_icon =
+        |detail_icon: &mut Query<(&mut ImageNode, &mut Node, &mut BoxShadow), With<DetailIcon>>| {
+            if let Ok((mut img, mut node, mut shadow)) = detail_icon.single_mut() {
+                node.display = Display::None;
+                node.width = Val::Px(DETAIL_ICON_SIZE);
+                node.height = Val::Px(DETAIL_ICON_SIZE);
+                img.color = Color::WHITE;
+                img.texture_atlas = None;
+                shadow.0.clear();
+            }
+        };
+
+    let apply_locked_appearance =
+        |img: &mut ImageNode, shadow: &mut BoxShadow, is_unlocked: bool, base_tint: Color| {
+            if is_unlocked {
+                img.color = base_tint;
+                shadow.0.clear();
+            } else {
+                img.color = Color::BLACK;
+                shadow.0 = vec![locked_silhouette_corona()];
+            }
+        };
 
     let Some(ref item) = state.selected_item else {
         hide_icon(detail_icon);
@@ -1672,17 +1705,21 @@ fn update_detail_panel(
                 let is_unlocked =
                     spell.research_cost() == 0 || unlocked_spells.contains(debug_name);
 
-                // Show spell icon if unlocked and icon exists
-                if let Ok((mut img, mut node)) = detail_icon.single_mut() {
-                    if is_unlocked {
-                        if let Some(handle) = icon_assets.get(spell) {
+                // Show spell icon — silhouette + corona when locked, full color when unlocked.
+                if let Ok((mut img, mut node, mut shadow)) = detail_icon.single_mut() {
+                    match icon_assets.get(spell) {
+                        Some(handle) => {
                             img.image = handle.clone();
+                            img.texture_atlas = None;
+                            node.width = Val::Px(DETAIL_ICON_SIZE);
+                            node.height = Val::Px(DETAIL_ICON_SIZE);
                             node.display = Display::Flex;
-                        } else {
-                            node.display = Display::None;
+                            apply_locked_appearance(&mut img, &mut shadow, is_unlocked, Color::WHITE);
                         }
-                    } else {
-                        node.display = Display::None;
+                        None => {
+                            node.display = Display::None;
+                            shadow.0.clear();
+                        }
                     }
                 }
 
@@ -1757,12 +1794,52 @@ fn update_detail_panel(
             }
         }
         CompendiumItemId::Unit(debug_name) => {
-            hide_icon(detail_icon);
             let unit_type = UnitType::all()
                 .iter()
                 .find(|u| format!("{:?}", u) == *debug_name);
             if let Some(unit_type) = unit_type {
                 let is_unlocked = unlocked_units.contains(debug_name);
+
+                // Render the unit portrait — colored when unlocked, BLACK silhouette
+                // with a white corona when locked.
+                if let Ok((mut img, mut node, mut shadow)) = detail_icon.single_mut() {
+                    match unit_sprite_assets.images.get(unit_type) {
+                        Some(image_handle) => {
+                            let spec = unit_type.compendium_sprite();
+                            img.image = image_handle.clone();
+                            img.texture_atlas = match spec {
+                                CompendiumSpriteSpec::Atlas {
+                                    sheet_size,
+                                    frame_px,
+                                    ..
+                                } => unit_sprite_assets.layouts.get(unit_type).map(|layout| {
+                                    let cols = (sheet_size.0 / frame_px) as usize;
+                                    TextureAtlas {
+                                        layout: layout.clone(),
+                                        index: SHEET_ROW_FORWARD_FACING * cols,
+                                    }
+                                }),
+                                CompendiumSpriteSpec::Static { .. } => None,
+                            };
+                            let (base_tint, size_mul) = match spec {
+                                CompendiumSpriteSpec::Static {
+                                    size_multiplier, ..
+                                } => (Color::WHITE, size_multiplier),
+                                CompendiumSpriteSpec::Atlas {
+                                    tint,
+                                    size_multiplier,
+                                    ..
+                                } => (tint, size_multiplier),
+                            };
+                            apply_locked_appearance(&mut img, &mut shadow, is_unlocked, base_tint);
+                            let px = DETAIL_UNIT_ICON_SIZE * size_mul;
+                            node.width = Val::Px(px);
+                            node.height = Val::Px(px);
+                            node.display = Display::Flex;
+                        }
+                        None => hide_icon(detail_icon),
+                    }
+                }
                 if let Ok(mut t) = title_q.single_mut() {
                     **t = if is_unlocked {
                         unit_type.display_name().to_string()

@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use bevy::asset::AssetId;
 use bevy::prelude::*;
 
+use crate::game::units::UnitType;
+use crate::game::units::components::CompendiumSpriteSpec;
 use crate::game::units::wizard::components::Spell;
 
 /// Replaces Bevy's built-in default font (FiraMono) with PressStart2P.
@@ -87,6 +89,50 @@ pub fn load_gun_icon_assets(mut commands: Commands, asset_server: Res<AssetServe
         icons.insert(gun, asset_server.load(path));
     }
     commands.insert_resource(GunIconAssets { icons });
+}
+
+/// Pre-loaded unit portrait handles for the compendium detail panel.
+///
+/// Holds an `Image` handle per unit, plus a `TextureAtlasLayout` handle for
+/// units whose portrait is a sprite-sheet frame (everything except the boss
+/// static portraits).
+#[derive(Resource)]
+pub struct UnitCompendiumSpriteAssets {
+    pub images: HashMap<UnitType, Handle<Image>>,
+    pub layouts: HashMap<UnitType, Handle<TextureAtlasLayout>>,
+}
+
+pub fn load_unit_compendium_sprite_assets(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+) {
+    let mut images = HashMap::new();
+    let mut layouts = HashMap::new();
+    for unit in UnitType::all() {
+        match unit.compendium_sprite() {
+            CompendiumSpriteSpec::Static { path, .. } => {
+                images.insert(*unit, asset_server.load(path));
+            }
+            CompendiumSpriteSpec::Atlas {
+                path,
+                sheet_size,
+                frame_px,
+                ..
+            } => {
+                images.insert(*unit, asset_server.load(path));
+                let layout = TextureAtlasLayout::from_grid(
+                    UVec2::splat(frame_px),
+                    sheet_size.0 / frame_px,
+                    sheet_size.1 / frame_px,
+                    None,
+                    None,
+                );
+                layouts.insert(*unit, atlas_layouts.add(layout));
+            }
+        }
+    }
+    commands.insert_resource(UnitCompendiumSpriteAssets { images, layouts });
 }
 
 /// Tracks the 3D push animation state for a button's front face.

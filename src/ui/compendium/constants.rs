@@ -45,3 +45,17 @@ pub(super) const LEFT_PANEL_PERCENT: f32 = 33.33;
 pub(super) const RIGHT_PANEL_PERCENT: f32 = 66.67;
 pub(super) const COLUMN_GAP: f32 = 12.0;
 pub(super) const DETAIL_ICON_SIZE: f32 = 64.0;
+pub(super) const DETAIL_UNIT_ICON_SIZE: f32 = 128.0;
+pub(super) const DETAIL_ICON_TOP_MARGIN: f32 = 24.0;
+
+/// White corona drawn behind a locked silhouette in the detail panel.
+/// Spread + blur are tuned to stay inside the detail panel's padding.
+pub(super) fn locked_silhouette_corona() -> ShadowStyle {
+    ShadowStyle {
+        color: Color::srgba(1.0, 1.0, 1.0, 0.7),
+        x_offset: Val::Px(0.0),
+        y_offset: Val::Px(0.0),
+        spread_radius: Val::Px(3.0),
+        blur_radius: Val::Px(10.0),
+    }
+}

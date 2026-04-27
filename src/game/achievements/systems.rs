@@ -619,9 +619,12 @@ use crate::game::units::boss::hags::components::Hag;
 use crate::game::units::boss::lich::components::Lich;
 use crate::game::units::boss::ogre::components::OgreEnrageState;
 use crate::game::units::boss::ray::Ray;
+use crate::game::units::aerialist::components::Aerialist;
+use crate::game::units::assassin::components::Assassin;
 use crate::game::units::brute::components::Brute;
 use crate::game::units::dispeller::components::Dispeller;
 use crate::game::units::healer::components::Healer;
+use crate::game::units::shielder::components::Shielder;
 use crate::game::units::{Commander, EliteHealthBonus};
 
 /// Macro to generate an encounter-detection system for a unit type.
@@ -688,6 +691,27 @@ encounter_system!(
     LichEncounterAchievement,
     UnitType::Lich
 );
+
+/// Macro for unit encounters that just record the unlock — no achievement.
+/// The `Local<bool>` latches after the first detection to avoid hitting the
+/// save file on subsequent frames (`unlock_unit` reads the save unconditionally).
+macro_rules! encounter_unlock_only {
+    ($fn_name:ident, $marker:ty, $unit_type:expr) => {
+        pub(crate) fn $fn_name(query: Query<(), With<$marker>>, mut done: Local<bool>) {
+            if *done {
+                return;
+            }
+            if !query.is_empty() {
+                unlock_unit($unit_type);
+                *done = true;
+            }
+        }
+    };
+}
+
+encounter_unlock_only!(check_shielder_encounter, Shielder, UnitType::Shielder);
+encounter_unlock_only!(check_assassin_encounter, Assassin, UnitType::Assassin);
+encounter_unlock_only!(check_aerialist_encounter, Aerialist, UnitType::Aerialist);
 
 pub(crate) fn check_dark_mage_encounter(
     query: Query<(), With<DarkMage>>,

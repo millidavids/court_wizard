@@ -210,6 +210,9 @@ impl Plugin for AchievementsPlugin {
                         .run_if(achievement_locked::<DarkMageEncounterAchievement>),
                     systems::check_ray_encounter
                         .run_if(achievement_locked::<RayEncounterAchievement>),
+                    systems::check_shielder_encounter,
+                    systems::check_assassin_encounter,
+                    systems::check_aerialist_encounter,
                     systems::mark_bosses_seen,
                 )
                     .run_if(is_gameplay_active),

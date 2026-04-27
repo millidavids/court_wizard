@@ -13,7 +13,10 @@ use super::achievement_popup::AchievementPopupPlugin;
 use super::action_bar::ActionBarPlugin;
 use super::arcanorouter_display::ArcanoRouterDisplayPlugin;
 use super::cauldron_menu::CauldronMenuPlugin;
-use super::components::{load_gun_icon_assets, load_spell_icon_assets, set_default_font};
+use super::components::{
+    load_gun_icon_assets, load_spell_icon_assets, load_unit_compendium_sprite_assets,
+    set_default_font,
+};
 use super::concentration::ConcentrationUIPlugin;
 use super::focus::FocusPlugin;
 use super::game_over::GameOverPlugin;
@@ -83,6 +86,7 @@ impl Plugin for UiPlugin {
                 set_default_font,
                 load_spell_icon_assets,
                 load_gun_icon_assets,
+                load_unit_compendium_sprite_assets,
             ),
         )
         .add_systems(

@@ -173,6 +173,101 @@ impl UnitType {
             UnitType::Lich => "The dead whisper of a master.",
         }
     }
+
+    /// Portrait spec for the compendium detail panel.
+    pub(crate) fn compendium_sprite(&self) -> CompendiumSpriteSpec {
+        use CompendiumSpriteSpec::*;
+        match self {
+            UnitType::Hag => Static {
+                path: "images/static_sprites/hag.png",
+                size_multiplier: 2.0,
+            },
+            UnitType::Ogre => Static {
+                path: "images/static_sprites/ogre.png",
+                size_multiplier: 2.0,
+            },
+
+            UnitType::Infantry => atlas_infantry(Color::srgb(1.3, 1.3, 1.5), 1.0),
+            UnitType::KingsGuard => atlas_infantry(Color::srgb(1.2, 0.45, 0.35), 1.2),
+            UnitType::King => atlas_infantry(Color::srgb(1.4, 1.15, 0.4), 1.5),
+            UnitType::Brute => atlas_infantry(Color::srgb(0.7, 0.2, 1.0), 2.5),
+            UnitType::Elite => atlas_infantry(Color::srgb(1.0, 0.15, 0.1), 1.3),
+            UnitType::Commander => atlas_infantry(Color::srgb(1.0, 0.6, 0.1), 1.6),
+
+            UnitType::Archer => atlas_64(
+                "images/sprite_sheets/archer-walking_9-frames.png",
+                Color::srgb(0.75, 0.65, 0.65),
+                1.0,
+            ),
+            UnitType::Healer => atlas_64(
+                "images/sprite_sheets/healer-walking_9-frames.png",
+                Color::WHITE,
+                1.0,
+            ),
+            UnitType::Dispeller => atlas_64(
+                "images/sprite_sheets/dispeller-walking_9-frames.png",
+                Color::WHITE,
+                1.0,
+            ),
+            UnitType::Shielder => atlas_64(
+                "images/sprite_sheets/shielder-walking_9-frames.png",
+                Color::WHITE,
+                1.0,
+            ),
+            UnitType::Assassin => atlas_64(
+                "images/sprite_sheets/assassin-walking_9-frames.png",
+                Color::WHITE,
+                1.0,
+            ),
+            UnitType::Aerialist => atlas_64(
+                "images/sprite_sheets/aerialist-flying_2-frames.png",
+                Color::WHITE,
+                1.0,
+            ),
+            UnitType::Lich => atlas_64(
+                "images/sprite_sheets/undead-walking_9-frames.png",
+                Color::WHITE,
+                1.0,
+            ),
+        }
+    }
+}
+
+/// Specifies how to display a unit's portrait in the compendium detail panel.
+#[derive(Clone, Copy)]
+pub(crate) enum CompendiumSpriteSpec {
+    /// Use a pre-made static portrait image (Hag, Ogre).
+    Static {
+        path: &'static str,
+        size_multiplier: f32,
+    },
+    /// Crop frame 0 from a walking sprite sheet.
+    Atlas {
+        path: &'static str,
+        sheet_size: (u32, u32),
+        frame_px: u32,
+        tint: Color,
+        /// Display size relative to baseline infantry (1.0 = DETAIL_UNIT_ICON_SIZE).
+        size_multiplier: f32,
+    },
+}
+
+fn atlas_64(path: &'static str, tint: Color, size_multiplier: f32) -> CompendiumSpriteSpec {
+    CompendiumSpriteSpec::Atlas {
+        path,
+        sheet_size: (832, 256),
+        frame_px: 64,
+        tint,
+        size_multiplier,
+    }
+}
+
+fn atlas_infantry(tint: Color, size_multiplier: f32) -> CompendiumSpriteSpec {
+    atlas_64(
+        "images/sprite_sheets/infantry-walking_9-frames.png",
+        tint,
+        size_multiplier,
+    )
 }
 
 /// Trait for modifier components with a timed duration that can expire.
@@ -804,6 +899,8 @@ pub const SPRITE_SHEET_IMAGE_WIDTH: f32 = 832.0;
 pub const SPRITE_SHEET_IMAGE_HEIGHT: f32 = 256.0;
 pub const SPRITE_FRAME_SIZE: f32 = 64.0;
 pub const SPRITE_COLUMNS: usize = 9;
+/// Sheet row index of the face-visible (forward-facing) sprite direction.
+pub const SHEET_ROW_FORWARD_FACING: usize = 2;
 pub const ATTACK_SPRITE_COLUMNS: usize = 6;
 pub const SHOOTING_SPRITE_COLUMNS: usize = 12;
 pub const CASTING_SPRITE_COLUMNS: usize = 7;

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.47] - 2026-04-27
+
+### Added
+- **Unit portraits in the Compendium** — every unit now has its own portrait in the detail panel. Bosses are rendered larger to match their stature, defenders show off their colors, and the various attacker variants (Brute, Elite, Commander, etc.) are tinted to make them easy to tell apart at a glance
+- **Silhouettes for locked entries in the Compendium** — units you haven't fought yet now show as a black silhouette with a soft white glow behind them, so you can see the shape and size without spoiling what they look like up close. The same treatment applies to locked spells, which previously showed an empty space in the detail panel
+
+### Fixed
+- **Compendium opens with content showing immediately** — previously, opening the Compendium left the right panel empty until you switched tabs and came back. The list now appears straight away on first open
+- **A few enemy types now mark as encountered** — Shielder, Assassin, and Aerialist were being missed by the encounter tracker, so they stayed silhouetted in the Compendium even after you'd seen them in battle. They now light up after their first appearance
+
 ## [v0.7.38] - 2026-04-27
 
 ### Changed
