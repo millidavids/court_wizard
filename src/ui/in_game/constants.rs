@@ -56,7 +56,7 @@ pub const BOSS_HEALTH_TEXT_FONT_SIZE: f32 = 9.0;
 /// Hag health bar section colors (per identity).
 pub const HAG_JUSTINA_BAR_COLOR: Color = Color::srgba(0.9, 0.4, 0.1, 0.8);
 pub const HAG_MARTINA_BAR_COLOR: Color = Color::srgba(0.5, 0.15, 0.7, 0.8);
-pub const HAG_JOSEPHINA_BAR_COLOR: Color = Color::srgba(0.6, 0.35, 0.15, 0.8);
+pub const HAG_JOSEPHINA_BAR_COLOR: Color = Color::srgba(0.25, 0.75, 0.2, 0.8);
 
 /// Gap between hag health bar sections.
 pub const HAG_BAR_SECTION_GAP: f32 = 3.0;

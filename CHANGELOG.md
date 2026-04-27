@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.37] - 2026-04-27
+
+### Added
+- **Hand-drawn Hag sprites** — Justina, Martina, and Josephina are now full sprite-sheet characters instead of flat colored shapes. They walk, turn, and face the right direction while moving toward the king
+- **Floating eye icons above the Hags** — the Invulnerability and Ability eyes now appear as small pulsing orbs hovering over the Hag who currently holds them, matching the eye look on Ray
+- **Josephina swing animation on melee hits** — every time Josephina lands a melee attack she plays a quick swing animation
+- **Casting animation on Hag spells** — Justina's chain lightning, Justina's fireballs, and Martina's teleport pull all play a casting animation when they fire
+- **Josephina leap pose** — Josephina now visibly winds up while flying through the air and slams down on landing, instead of flat-walking through the leap
+- **Color-matched Hag overlays** — each Hag's sprite has a subtle hue (orange / purple / green) that matches her health-bar segment so you can immediately tell who's who at a glance
+
+### Changed
+- **Hags walk to staging like normal attackers** — all three Hags now path through the tunnels to the center staging point during the buildup phase. They no longer wander aimlessly or use any eye abilities until the wave activates
+- **Hags spread out on spawn** — the three Hags now spawn at staggered depths behind the wall instead of two of them landing on top of each other in the same tunnel
+- **Justina kites at range** — Justina now stops advancing once she's within 800 units of the king and fights from there with chain lightning and fireballs instead of charging into melee
+- **Justina's fireball blasts are bigger** — the explosion radius is roughly tripled, so the fireballs feel like proper boss spells
+- **Martina only casts teleport pull near the king** — she has to be within 800 units of the king to teleport defenders to her position; otherwise she walks closer first. Once she casts, any defender on the map can be yanked
+- **Martina's mind control aura is wider** — slightly bigger pull radius
+- **Hag movement speed doubled** — the Hags close distance noticeably faster
+- **Hag damage resistance doubled** — Hags now soak twice as much damage from incoming hits
+- **Hag separation tightened up** — Hags push each other apart more firmly when they're about to overlap so their sprites no longer clip through each other when bunched up
+- **Brighter, more obvious mind-control overlay** — units under mind control now glow a stronger, more saturated magenta so it's easy to spot who's been turned
+- **Smaller, higher-floating Hag eyes** — the Invulnerability/Ability eye icons are now smaller and float higher above each Hag's head
+- **Josephina is green on her health bar** — the Josephina segment swapped from brown to green so it's no longer easy to confuse with Justina's orange
+
+### Fixed
+- **Hags no longer clip into the ground** — they now sit cleanly on top of the battlefield instead of being half-buried
+- **Hag sprites no longer rapid-flicker between facing directions** — when a Hag moves at a 45° angle there's now a buffer zone before her facing animation can flip, plus smoothing on the velocity used to pick the animation. No more vibrating between "walking down" and "walking left"
+- **Hags walk toward the camera with the correct sprite** — previously they showed the back-facing sprite while moving toward the camera and vice versa; the rows are now mapped correctly
+- **Eye transfers don't start during staging** — the Invulnerability and Ability eyes now stay on the Hags they were assigned to until the wave activates, so they no longer shuffle around during the buildup
+- **Blind Hag walks straight at the king** — the eyeless Hag no longer drifts randomly; she follows the same path as the others, just without abilities
+- **Josephina no longer floats higher each time she leaps** — if her Ability eye was yanked mid-air, she previously got stuck at whatever height she was at and the next leap stacked on top of that. She now drops back to ground height every time the leap ends, no matter how it ends
+- **Hags approach the king on activation** — when a wave activates two Hags would sometimes be flung outward by the separation force instead of moving toward the king. The separation push is now scaled correctly so flow-field guidance toward the king dominates
+
 ## [v0.7.8] - 2026-04-24
 
 ### Added

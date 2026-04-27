@@ -10,15 +10,18 @@ use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
+use crate::game::units::boss::utils::{EYE_FRAME_UV, EYE_PULSE_FRAME_DURATION, EYE_SHEET_COLUMNS};
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::Knockback;
 use crate::game::units::components::{
-    AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
-    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrozenSolidModifier,
-    HasteModifier, Health, Hitbox, InMelee, Invulnerable, KingsGuard, MindControlled,
-    MovementSpeed, PolymorphedModifier, RetaliationTarget, RootedModifier, RoughTerrainModifier,
-    SickenedModifier, SleepModifier, Sleepwalking, SlowMovementModifier, TargetingVelocity, Team,
-    Teleportable, TemporaryHitPoints, apply_damage_to_unit,
+    AnimationOverride, AttackTiming, BanishedModifier, CombatAnimation, CommanderAuraSpeedModifier,
+    Corpse, DamageMultiplier, Effectiveness, EliteSpeedBonus, FacingDirection, FacingDwell,
+    FacingHysteresisBoost, FlockingModifier, FlockingVelocity, FrozenSolidModifier, HasteModifier,
+    Health, Hitbox, InMelee, Invulnerable, KingsGuard, MindControlled, MovementSpeed,
+    PolymorphedModifier, PulsingAnimation, RetaliationTarget, RootedModifier, RoughTerrainModifier,
+    SickenedModifier, SleepModifier, Sleepwalking, SlowMovementModifier, SmoothedFacingVelocity,
+    TargetingVelocity, Team, Teleportable, TemporaryHitPoints, WalkingAnimation,
+    apply_damage_to_unit,
 };
 use crate::game::units::king::components::King;
 use crate::game::units::random_position_in_cell;
@@ -38,6 +41,93 @@ type MindControlTargetFilter = (
     Without<Wizard>,
     Without<BanishedModifier>,
 );
+
+/// Builds a `WalkingAnimation` configured for the hag sprite sheet (4×4 frames).
+fn hag_walking_animation(rng: &mut impl Rng) -> WalkingAnimation {
+    let mut anim = WalkingAnimation::new_staggered(rng);
+    anim.columns = HAG_SHEET_COLUMNS;
+    anim.frame_uv = HAG_FRAME_UV;
+    anim.direction_rows = HAG_DIRECTION_ROWS;
+    anim
+}
+
+/// Builds a `CombatAnimation` for a hag using one of her sprite sheets
+/// (attack or cast). All hag sheets share the same frame size; only the
+/// row order, column count, and combat texture differ.
+fn hag_combat_animation(
+    hag_assets: &HagAssets,
+    columns: usize,
+    direction_rows: [usize; 4],
+    combat_texture: Handle<Image>,
+) -> CombatAnimation {
+    CombatAnimation {
+        current_frame: 0,
+        elapsed: 0.0,
+        columns,
+        frame_uv: HAG_FRAME_UV,
+        direction_rows,
+        combat_texture,
+        walking_texture: hag_assets.walking_texture.clone(),
+        started: false,
+    }
+}
+
+fn hag_attack_animation(hag_assets: &HagAssets) -> CombatAnimation {
+    hag_combat_animation(
+        hag_assets,
+        HAG_ATTACK_COLUMNS,
+        HAG_DIRECTION_ROWS,
+        hag_assets.attacking_texture.clone(),
+    )
+}
+
+fn hag_casting_animation(hag_assets: &HagAssets) -> CombatAnimation {
+    hag_combat_animation(
+        hag_assets,
+        HAG_CASTING_COLUMNS,
+        HAG_CASTING_DIRECTION_ROWS,
+        hag_assets.casting_texture.clone(),
+    )
+}
+
+/// Pins a hag's material to a specific frame of the attacking sprite sheet
+/// for her current facing direction. Used to lock Josephina's leap pose.
+fn set_hag_attack_pose_frame(
+    materials: &mut Assets<StandardMaterial>,
+    material_handle: &MeshMaterial3d<StandardMaterial>,
+    hag_assets: &HagAssets,
+    facing: FacingDirection,
+    frame_idx: usize,
+) {
+    if let Some(mat) = materials.get_mut(material_handle) {
+        let row = HAG_DIRECTION_ROWS[facing as usize] as f32;
+        let offset = Vec2::new(frame_idx as f32 * HAG_FRAME_UV.x, row * HAG_FRAME_UV.y);
+        mat.base_color_texture = Some(hag_assets.attacking_texture.clone());
+        mat.uv_transform =
+            bevy::math::Affine2::from_scale_angle_translation(HAG_FRAME_UV, 0.0, offset);
+    }
+}
+
+/// Restores a hag's material to the walking sheet, frame 0 in her facing direction.
+fn restore_hag_walking_pose(
+    materials: &mut Assets<StandardMaterial>,
+    material_handle: &MeshMaterial3d<StandardMaterial>,
+    hag_assets: &HagAssets,
+    facing: FacingDirection,
+) {
+    if let Some(mat) = materials.get_mut(material_handle) {
+        let row = HAG_DIRECTION_ROWS[facing as usize] as f32;
+        let offset = Vec2::new(0.0, row * HAG_FRAME_UV.y);
+        mat.base_color_texture = Some(hag_assets.walking_texture.clone());
+        mat.uv_transform =
+            bevy::math::Affine2::from_scale_angle_translation(HAG_FRAME_UV, 0.0, offset);
+    }
+}
+
+/// Builds a `PulsingAnimation` for an eye sprite (4-frame in-place loop).
+fn eye_pulsing_animation() -> PulsingAnimation {
+    PulsingAnimation::new(EYE_SHEET_COLUMNS, EYE_FRAME_UV, EYE_PULSE_FRAME_DURATION)
+}
 
 /// Spawns all 3 hags at their designated grid positions.
 pub fn spawn_hags(rng: &mut impl Rng, mut commands: Commands, hag_assets: Res<HagAssets>) {
@@ -62,11 +152,15 @@ pub fn spawn_hags(rng: &mut impl Rng, mut commands: Commands, hag_assets: Res<Ha
     let mut spawned_entities = Vec::new();
 
     for (idx, (identity, _col, material)) in hags.iter().enumerate() {
-        let (spawn_x, spawn_z) = attacker_spawn_position(idx as u32, 0.0);
+        // Stagger each hag deeper behind the wall so the two that share a
+        // tunnel (idx 0 and idx 2 both map to spawn point 0) don't land on
+        // top of each other.
+        let depth_offset = idx as f32 * 250.0;
+        let (spawn_x, spawn_z) = attacker_spawn_position(idx as u32, depth_offset);
         let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 
         let hitbox = Hitbox::new(HAG_RADIUS, HAG_HITBOX_HEIGHT);
-        let spawn_y = hitbox.height / 2.0 + (HAG_ELLIPSE_DEPTH / 2.0) + 1.0;
+        let spawn_y = hitbox.height / 2.0 + (HAG_ELLIPSE_DEPTH / 2.0) + 60.0;
 
         // Initial velocity toward castle
         let to_center = Vec3::new(
@@ -79,7 +173,7 @@ pub fn spawn_hags(rng: &mut impl Rng, mut commands: Commands, hag_assets: Res<Ha
         let entity = commands
             .spawn((
                 // Rendering
-                Mesh3d(hag_assets.mesh.clone()),
+                Mesh3d(hag_assets.sprite_mesh.clone()),
                 MeshMaterial3d((*material).clone()),
                 Transform::from_xyz(final_x, spawn_y, final_z),
                 // Physics
@@ -103,7 +197,6 @@ pub fn spawn_hags(rng: &mut impl Rng, mut commands: Commands, hag_assets: Res<Ha
             .insert((
                 HagEyeState::new(),
                 HagAttackCooldown::new(),
-                BlindWanderState::new(),
                 // Movement systems
                 TargetingVelocity::default(),
                 FlowFieldVelocity::default(),
@@ -116,6 +209,20 @@ pub fn spawn_hags(rng: &mut impl Rng, mut commands: Commands, hag_assets: Res<Ha
                 Teleportable,
                 Billboard,
                 OnGameplayScreen,
+            ))
+            .insert((
+                hag_walking_animation(rng),
+                FacingDirection::default(),
+                // Strong stickiness — separation/flow forces jitter the velocity
+                // and would otherwise make hags flicker between facing rows.
+                // Boost = 1.0 → 8° buffer past the 45° axis boundary.
+                // Larger values widen the buffer further if needed.
+                FacingHysteresisBoost(1.0),
+                // After every facing change, lock in for 3.0s before another flip.
+                FacingDwell::new(3.0),
+                // Smoothed (low-pass) velocity for the facing decision so
+                // tunnel/flow-field oscillations don't drive the choice.
+                SmoothedFacingVelocity::new(0.4),
             ))
             .id();
 
@@ -213,7 +320,12 @@ pub fn update_hag_targeting(
             &mut TargetingVelocity,
             &HagEyeState,
         ),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
     all_units: Query<
         (Entity, &Transform, &Team),
@@ -250,18 +362,26 @@ pub fn update_hag_targeting(
 #[allow(clippy::type_complexity)]
 pub fn hag_combat(
     time: Res<Time>,
+    mut commands: Commands,
+    hag_assets: Res<HagAssets>,
     mut hags: Query<
         (
             Entity,
             &Transform,
             &Hitbox,
             &Team,
+            &HagIdentity,
             &HagEyeState,
             &mut HagAttackCooldown,
             Option<&MaulingState>,
             Option<&CorpseConsumeState>,
         ),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
     mut targets: Query<
         (
@@ -288,6 +408,7 @@ pub fn hag_combat(
         hag_transform,
         hag_hitbox,
         hag_team,
+        identity,
         eye_state,
         mut cooldown,
         mauling,
@@ -375,6 +496,13 @@ pub fn hag_combat(
             && let Ok((_, _, _, _, mut health, mut temp_hp)) = targets.get_mut(target_entity)
         {
             apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), HAG_ATTACK_DAMAGE);
+
+            // Josephina plays the melee swing animation on each landed attack.
+            if *identity == HagIdentity::Josephina {
+                commands
+                    .entity(hag_entity)
+                    .insert(hag_attack_animation(&hag_assets));
+            }
         }
     }
 }
@@ -383,7 +511,6 @@ pub fn hag_combat(
 #[allow(clippy::type_complexity)]
 pub fn hag_movement(
     time: Res<Time>,
-    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut hags: Query<
         (
             &mut Velocity,
@@ -392,8 +519,6 @@ pub fn hag_movement(
             &TargetingVelocity,
             &FlockingVelocity,
             &FlowFieldVelocity,
-            &HagEyeState,
-            &mut BlindWanderState,
             Option<&InMelee>,
             Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
@@ -418,8 +543,6 @@ pub fn hag_movement(
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
 ) {
-    let delta = time.delta_secs();
-
     for (
         mut velocity,
         mut acceleration,
@@ -427,8 +550,6 @@ pub fn hag_movement(
         targeting_velocity,
         flocking_velocity,
         flow_field_velocity,
-        eye_state,
-        mut wander_state,
         in_melee,
         aura_modifier,
         terrain_modifier,
@@ -480,41 +601,25 @@ pub fn hag_movement(
             elite_speed.map(|e| e.0),
         );
 
-        // Blind hags deflect their movement direction with random noise (lazy drift)
-        // This rotates the velocity without increasing speed
-        if eye_state.is_blind() {
-            wander_state.timer -= delta;
-            if wander_state.timer <= 0.0 {
-                let angle = game_rng.0.gen_range(0.0..std::f32::consts::TAU);
-                wander_state.direction_x = angle.cos();
-                wander_state.direction_z = angle.sin();
-                wander_state.timer = BLIND_WANDER_DIRECTION_INTERVAL;
-            }
-            // Blend flow field direction with random noise, keeping original speed
-            let speed = (velocity.x * velocity.x + velocity.z * velocity.z).sqrt();
-            if speed > 0.01 {
-                let flow_dir_x = velocity.x / speed;
-                let flow_dir_z = velocity.z / speed;
-                // Mix: 60% flow field, 40% random noise
-                let blended_x = flow_dir_x * 0.6 + wander_state.direction_x * 0.4;
-                let blended_z = flow_dir_z * 0.6 + wander_state.direction_z * 0.4;
-                let blend_len = (blended_x * blended_x + blended_z * blended_z).sqrt();
-                if blend_len > 0.01 {
-                    velocity.x = (blended_x / blend_len) * speed;
-                    velocity.z = (blended_z / blend_len) * speed;
-                }
-            }
-        }
     }
 }
 
-/// Applies a strong separation force between hags to keep them spread apart.
+/// Applies a gentle separation force between hags to keep them spread apart.
+/// Skipped during staging — all three hags share the center staging point and
+/// shouldn't be shoved apart on the way there.
 pub fn hag_separation(
+    time: Res<Time>,
     mut hags: Query<
         (Entity, &Transform, &mut Velocity),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
 ) {
+    let delta = time.delta_secs();
     let positions: Vec<(Entity, Vec3)> = hags.iter().map(|(e, t, _)| (e, t.translation)).collect();
 
     for (entity, _transform, mut velocity) in &mut hags {
@@ -533,13 +638,49 @@ pub fn hag_separation(
             let dist = (dx * dx + dz * dz).sqrt();
 
             if dist < HAG_SEPARATION_DISTANCE && dist > 0.1 {
-                // Stronger push the closer they are
-                let factor = 1.0 - (dist / HAG_SEPARATION_DISTANCE);
-                let push_x = (dx / dist) * HAG_SEPARATION_STRENGTH * factor;
-                let push_z = (dz / dist) * HAG_SEPARATION_STRENGTH * factor;
+                // Quadratic falloff — soft at the outer edge so flow-field
+                // guidance dominates, but ramps up sharply when the sprites
+                // are about to overlap. Per-second so it's frame-rate independent.
+                let linear = 1.0 - (dist / HAG_SEPARATION_DISTANCE);
+                let factor = linear * linear;
+                let push_x = (dx / dist) * HAG_SEPARATION_STRENGTH * factor * delta;
+                let push_z = (dz / dist) * HAG_SEPARATION_STRENGTH * factor * delta;
                 velocity.x += push_x;
                 velocity.z += push_z;
             }
+        }
+    }
+}
+
+/// Stops Justina advancing once she's within `JUSTINA_KITE_DISTANCE` of the king,
+/// so she kites with her ranged abilities instead of charging into melee.
+pub fn justina_kite_distance(
+    mut justina_query: Query<
+        (&Transform, &HagIdentity, &mut Velocity),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
+    >,
+    king_query: Query<&Transform, (With<King>, Without<Hag>, Without<Corpse>)>,
+) {
+    let Ok(king_transform) = king_query.single() else {
+        return;
+    };
+    let king_pos = king_transform.translation;
+    let kite_dist_sq = JUSTINA_KITE_DISTANCE * JUSTINA_KITE_DISTANCE;
+
+    for (transform, identity, mut velocity) in &mut justina_query {
+        if *identity != HagIdentity::Justina {
+            continue;
+        }
+        let dx = transform.translation.x - king_pos.x;
+        let dz = transform.translation.z - king_pos.z;
+        if dx * dx + dz * dz <= kite_dist_sq {
+            velocity.x = 0.0;
+            velocity.z = 0.0;
         }
     }
 }
@@ -552,15 +693,9 @@ fn spawn_eye_visual(
     hag_assets: &HagAssets,
     has_other_eye: bool,
 ) {
-    let (mesh, material) = match eye_type {
-        EyeType::Invulnerability => (
-            hag_assets.eye_mesh.clone(),
-            hag_assets.invulnerability_eye_material.clone(),
-        ),
-        EyeType::Ability => (
-            hag_assets.eye_mesh.clone(),
-            hag_assets.ability_eye_material.clone(),
-        ),
+    let material = match eye_type {
+        EyeType::Invulnerability => hag_assets.invulnerability_eye_material.clone(),
+        EyeType::Ability => hag_assets.ability_eye_material.clone(),
     };
 
     // Offset X if the hag has both eyes
@@ -575,10 +710,11 @@ fn spawn_eye_visual(
 
     let eye_entity = commands
         .spawn((
-            Mesh3d(mesh),
+            Mesh3d(hag_assets.eye_sprite_mesh.clone()),
             MeshMaterial3d(material),
             Transform::from_xyz(x_offset, EYE_VISUAL_OFFSET_Y, 0.0),
             EyeVisual { eye_type },
+            eye_pulsing_animation(),
         ))
         .id();
 
@@ -595,12 +731,23 @@ pub fn tick_eye_transfer(
     mut timer: ResMut<EyeTransferTimer>,
     mut hags: Query<
         (Entity, &Transform, &mut HagEyeState),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
     eye_visuals: Query<(Entity, &ChildOf, &EyeVisual)>,
     hag_assets: Res<HagAssets>,
     death_tracker: Res<HagDeathTracker>,
 ) {
+    // Don't tick the timer until at least one hag has finished staging —
+    // otherwise eyes would shuffle around before the fight even starts.
+    if hags.is_empty() {
+        return;
+    }
+
     timer.time_remaining -= time.delta_secs();
     if timer.time_remaining > 0.0 {
         return;
@@ -686,11 +833,12 @@ pub fn tick_eye_transfer(
                 let start_pos =
                     source_transform.translation + Vec3::new(0.0, EYE_VISUAL_OFFSET_Y, 0.0);
                 commands.spawn((
-                    Mesh3d(hag_assets.eye_mesh.clone()),
+                    Mesh3d(hag_assets.eye_sprite_mesh.clone()),
                     MeshMaterial3d(hag_assets.invulnerability_eye_material.clone()),
                     Transform::from_translation(start_pos),
                     Billboard,
                     OnGameplayScreen,
+                    eye_pulsing_animation(),
                     EyeInFlight {
                         eye_type: EyeType::Invulnerability,
                         target: new_holder,
@@ -737,11 +885,12 @@ pub fn tick_eye_transfer(
                 let start_pos =
                     source_transform.translation + Vec3::new(0.0, EYE_VISUAL_OFFSET_Y, 0.0);
                 commands.spawn((
-                    Mesh3d(hag_assets.eye_mesh.clone()),
+                    Mesh3d(hag_assets.eye_sprite_mesh.clone()),
                     MeshMaterial3d(hag_assets.ability_eye_material.clone()),
                     Transform::from_translation(start_pos),
                     Billboard,
                     OnGameplayScreen,
+                    eye_pulsing_animation(),
                     EyeInFlight {
                         eye_type: EyeType::Ability,
                         target: new_holder,
@@ -814,7 +963,12 @@ pub fn update_eye_flight(
     mut eyes: Query<(Entity, &mut EyeInFlight, &mut Transform), Without<Hag>>,
     mut hags: Query<
         (Entity, &Transform, &mut HagEyeState, &Health),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
     hag_assets: Res<HagAssets>,
     existing_eye_visuals: Query<(Entity, &ChildOf, &EyeVisual), Without<EyeInFlight>>,
@@ -890,7 +1044,12 @@ pub fn update_eye_flight(
 pub fn resurrect_eyed_hags(
     mut dying_hags: Query<
         (&HagEyeState, &mut Health),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
 ) {
     for (eye_state, mut health) in &mut dying_hags {
@@ -906,7 +1065,12 @@ pub fn intercept_blind_hag_death(
     hag_corpses: Query<Entity, (With<Hag>, With<Corpse>, Without<PermanentlyDead>)>,
     mut living_eye_states: Query<
         (Entity, &mut HagEyeState),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
     mut death_tracker: ResMut<HagDeathTracker>,
     eye_visuals: Query<(Entity, &ChildOf, &EyeVisual)>,
@@ -981,16 +1145,23 @@ pub fn apply_enrage_to_last_hag(
 pub fn justina_chain_lightning(
     time: Res<Time>,
     mut commands: Commands,
+    hag_assets: Res<HagAssets>,
     death_tracker: Res<HagDeathTracker>,
     mut justina_query: Query<
         (
+            Entity,
             &Transform,
             &Team,
             &HagIdentity,
             &HagEyeState,
             &mut ChainLightningCooldown,
         ),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
     targets: Query<
         (Entity, &Transform, &Team),
@@ -1013,7 +1184,7 @@ pub fn justina_chain_lightning(
     let delta = time.delta_secs();
     let enraged = death_tracker.permanent_deaths >= 2;
 
-    for (transform, team, identity, eye_state, mut cooldown) in &mut justina_query {
+    for (hag_entity, transform, team, identity, eye_state, mut cooldown) in &mut justina_query {
         if *identity != HagIdentity::Justina || (!eye_state.has_ability_eye && !enraged) {
             continue;
         }
@@ -1023,6 +1194,9 @@ pub fn justina_chain_lightning(
             continue;
         }
         cooldown.time_remaining = CHAIN_LIGHTNING_COOLDOWN;
+        commands
+            .entity(hag_entity)
+            .insert(hag_casting_animation(&hag_assets));
 
         let hag_pos = transform.translation;
 
@@ -1087,16 +1261,23 @@ pub fn justina_chain_lightning(
 pub fn justina_fireball(
     time: Res<Time>,
     mut commands: Commands,
+    hag_assets: Res<HagAssets>,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     death_tracker: Res<HagDeathTracker>,
     mut justina_query: Query<
         (
+            Entity,
             &HagIdentity,
             &HagEyeState,
             &Transform,
             &mut FireballCooldown,
         ),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
     defender_teams: Query<
         (&Transform, &Team),
@@ -1114,7 +1295,7 @@ pub fn justina_fireball(
 
     let enraged = death_tracker.permanent_deaths >= 2;
 
-    for (identity, eye_state, transform, mut cooldown) in &mut justina_query {
+    for (hag_entity, identity, eye_state, transform, mut cooldown) in &mut justina_query {
         if *identity != HagIdentity::Justina || (!eye_state.has_ability_eye && !enraged) {
             continue;
         }
@@ -1124,6 +1305,9 @@ pub fn justina_fireball(
             continue;
         }
         cooldown.time_remaining = FIREBALL_COOLDOWN;
+        commands
+            .entity(hag_entity)
+            .insert(hag_casting_animation(&hag_assets));
 
         // Collect defender positions
         let defender_positions: Vec<Vec3> = defender_teams
@@ -1169,8 +1353,11 @@ pub fn justina_fireball(
 #[allow(clippy::type_complexity)]
 pub fn josephina_leap(
     time: Res<Time>,
+    mut commands: Commands,
+    hag_assets: Res<HagAssets>,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     death_tracker: Res<HagDeathTracker>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     mut josephina_query: Query<
         (
             Entity,
@@ -1180,8 +1367,15 @@ pub fn josephina_leap(
             &HagEyeState,
             &mut LeapState,
             &mut Velocity,
+            &FacingDirection,
+            &MeshMaterial3d<StandardMaterial>,
         ),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
     defenders: Query<
         (&Transform, &Team),
@@ -1196,18 +1390,35 @@ pub fn josephina_leap(
 ) {
     let delta = time.delta_secs();
 
-    for (_entity, mut transform, team, identity, eye_state, mut leap, mut velocity) in
-        &mut josephina_query
+    for (
+        hag_entity,
+        mut transform,
+        team,
+        identity,
+        eye_state,
+        mut leap,
+        mut velocity,
+        facing,
+        material_handle,
+    ) in &mut josephina_query
     {
         let enraged = death_tracker.permanent_deaths >= 2;
         if *identity != HagIdentity::Josephina || (!eye_state.has_ability_eye && !enraged) {
-            // If eye transferred away mid-leap, cancel and land
-            if let LeapState::InAir { target, .. } = &*leap {
+            // If eye transferred away mid-leap, cancel and land — also reset Y
+            // back to the pre-leap height so successive leaps don't stack
+            // elevation each time the eye is yanked mid-air.
+            if let LeapState::InAir {
+                target, start_pos, ..
+            } = &*leap
+            {
                 transform.translation.x = target.x;
+                transform.translation.y = start_pos.y;
                 transform.translation.z = target.z;
                 *leap = LeapState::Idle {
                     cooldown: LEAP_COOLDOWN,
                 };
+                restore_hag_walking_pose(&mut materials, material_handle, &hag_assets, *facing);
+                commands.entity(hag_entity).remove::<AnimationOverride>();
             }
             continue;
         }
@@ -1244,6 +1455,17 @@ pub fn josephina_leap(
                     start_pos: transform.translation,
                     progress: 0.0,
                 };
+                // Pin to the second frame (index 1) of the attack sheet for the
+                // duration of the leap. AnimationOverride keeps update_walking_animation
+                // from clobbering the pose.
+                commands.entity(hag_entity).insert(AnimationOverride);
+                set_hag_attack_pose_frame(
+                    &mut materials,
+                    material_handle,
+                    &hag_assets,
+                    *facing,
+                    1,
+                );
 
                 // Zero velocity during leap
                 velocity.x = 0.0;
@@ -1266,6 +1488,14 @@ pub fn josephina_leap(
                         timer: 0.3,
                         knockback_applied: false,
                     };
+                    // Hold the third frame (index 2) of the attack sheet on landing.
+                    set_hag_attack_pose_frame(
+                        &mut materials,
+                        material_handle,
+                        &hag_assets,
+                        *facing,
+                        2,
+                    );
                 } else {
                     // Parabolic arc interpolation
                     let t = *progress;
@@ -1285,6 +1515,8 @@ pub fn josephina_leap(
                     *leap = LeapState::Idle {
                         cooldown: LEAP_COOLDOWN,
                     };
+                    restore_hag_walking_pose(&mut materials, material_handle, &hag_assets, *facing);
+                    commands.entity(hag_entity).remove::<AnimationOverride>();
                 }
             }
         }
@@ -1296,7 +1528,12 @@ pub fn josephina_leap_knockback(
     mut commands: Commands,
     mut josephina_query: Query<
         (&Transform, &Team, &HagIdentity, &mut LeapState),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
     targets: Query<
         (Entity, &Transform, &Team),
@@ -1356,7 +1593,12 @@ pub fn josephina_vicious_mauling(
     death_tracker: Res<HagDeathTracker>,
     mut josephina_query: Query<
         (&HagIdentity, &HagEyeState, &LeapState, &mut MaulingState),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();
@@ -1394,7 +1636,12 @@ pub fn josephina_corpse_consume(
             &mut Health,
             Option<&mut CorpseConsumeState>,
         ),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
     corpses: Query<(Entity, &Transform), With<Corpse>>,
 ) {
@@ -1463,17 +1710,25 @@ pub fn josephina_corpse_consume(
 #[allow(clippy::type_complexity)]
 pub fn martina_teleport_pull(
     time: Res<Time>,
+    mut commands: Commands,
+    hag_assets: Res<HagAssets>,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     death_tracker: Res<HagDeathTracker>,
     mut martina_query: Query<
         (
+            Entity,
             &Transform,
             &Team,
             &HagIdentity,
             &HagEyeState,
             &mut TeleportPullCooldown,
         ),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
     mut defenders: Query<
         (
@@ -1496,7 +1751,26 @@ pub fn martina_teleport_pull(
 
     let enraged = death_tracker.permanent_deaths >= 2;
 
-    for (transform, _team, identity, eye_state, mut cooldown) in &mut martina_query {
+    // Single-pass: find the king and categorize defenders simultaneously.
+    let mut king_pos: Option<Vec3> = None;
+    let mut king_entity: Option<Entity> = None;
+    let mut regular_defenders: Vec<Entity> = Vec::new();
+    let mut guard_entities: Vec<Entity> = Vec::new();
+    for (entity, def_transform, team, king, guard) in &defenders {
+        if *team != Team::Defenders {
+            continue;
+        }
+        if king.is_some() {
+            king_entity = Some(entity);
+            king_pos = Some(def_transform.translation);
+        } else if guard.is_some() {
+            guard_entities.push(entity);
+        } else {
+            regular_defenders.push(entity);
+        }
+    }
+
+    for (hag_entity, transform, _team, identity, eye_state, mut cooldown) in &mut martina_query {
         if *identity != HagIdentity::Martina || (!eye_state.has_ability_eye && !enraged) {
             continue;
         }
@@ -1505,27 +1779,26 @@ pub fn martina_teleport_pull(
         if cooldown.time_remaining > 0.0 {
             continue;
         }
+
+        // Only cast when Martina is within `TELEPORT_PULL_KING_RANGE` of the king.
+        let Some(king_pos) = king_pos else {
+            continue;
+        };
+        let dx = transform.translation.x - king_pos.x;
+        let dz = transform.translation.z - king_pos.z;
+        let king_range_sq = TELEPORT_PULL_KING_RANGE * TELEPORT_PULL_KING_RANGE;
+        if dx * dx + dz * dz > king_range_sq {
+            continue;
+        }
+
         cooldown.time_remaining = TELEPORT_PULL_COOLDOWN;
+        commands
+            .entity(hag_entity)
+            .insert(hag_casting_animation(&hag_assets));
 
         let pull_pos = transform.translation;
-
-        // Collect defender entities (excluding king and guards for special handling)
-        let mut regular_defenders: Vec<Entity> = Vec::new();
-        let mut king_entity: Option<Entity> = None;
-        let mut guard_entities: Vec<Entity> = Vec::new();
-
-        for (entity, _, team, king, guard) in &defenders {
-            if *team != Team::Defenders {
-                continue;
-            }
-            if king.is_some() {
-                king_entity = Some(entity);
-            } else if guard.is_some() {
-                guard_entities.push(entity);
-            } else {
-                regular_defenders.push(entity);
-            }
-        }
+        // Local mutable copy so multiple Martina instances each consume targets.
+        let mut regular_defenders = regular_defenders.clone();
 
         let mut pulled = 0u32;
 
@@ -1558,7 +1831,12 @@ pub fn martina_mind_control(
     mut commands: Commands,
     martina_query: Query<
         (&Transform, &HagIdentity),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<StagingAttacker>,
+        ),
     >,
     defenders: Query<MindControlTargetData, MindControlTargetFilter>,
     existing_controlled: Query<&MindControlled, Without<Corpse>>,

@@ -20,7 +20,11 @@ impl Plugin for TutorialPlugin {
         // the tower swaps overlays cleanly.
         app.add_systems(
             OnEnter(MetaGameState::WizardTower),
-            (trigger_controller_menus_tutorial, trigger_kbm_menus_tutorial).chain(),
+            (
+                trigger_controller_menus_tutorial,
+                trigger_kbm_menus_tutorial,
+            )
+                .chain(),
         )
         // Per-tab tutorials fire the first time each Wizard Tower tab is
         // opened. The watcher runs in Update so it catches both the initial

@@ -796,11 +796,12 @@ pub fn manage_staging_speedup(
 
     // Any in-game menu overlay — SpellBook, CauldronMenu, Paused, etc. —
     // suppresses the speedup. Only `Running` (SP) or `Running` (MP) keeps it on.
-    let in_menu_overlay = sp_state.as_ref().is_some_and(|s| {
-        !matches!(*s.get(), crate::state::InGameState::Running)
-    }) || mp_state.as_ref().is_some_and(|s| {
-        !matches!(*s.get(), crate::state::MultiplayerGameState::Running)
-    });
+    let in_menu_overlay = sp_state
+        .as_ref()
+        .is_some_and(|s| !matches!(*s.get(), crate::state::InGameState::Running))
+        || mp_state
+            .as_ref()
+            .is_some_and(|s| !matches!(*s.get(), crate::state::MultiplayerGameState::Running));
 
     let should_speedup = speed_eligible && !in_menu_overlay;
 

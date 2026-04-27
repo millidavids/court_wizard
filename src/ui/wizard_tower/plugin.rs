@@ -124,10 +124,12 @@ impl Plugin for WizardTowerPlugin {
             .add_systems(
                 Update,
                 (
-                    super::study_tab::handle_graph_pan
-                        .run_if(not(resource_exists::<crate::ui::tutorial::resources::ActiveTutorial>)),
-                    super::study_tab::handle_graph_zoom
-                        .run_if(not(resource_exists::<crate::ui::tutorial::resources::ActiveTutorial>)),
+                    super::study_tab::handle_graph_pan.run_if(not(resource_exists::<
+                        crate::ui::tutorial::resources::ActiveTutorial,
+                    >)),
+                    super::study_tab::handle_graph_zoom.run_if(not(resource_exists::<
+                        crate::ui::tutorial::resources::ActiveTutorial,
+                    >)),
                     super::study_tab::animate_graph_view
                         .run_if(resource_exists::<GraphViewAnimation>),
                     // Position/layout systems only need to run when the view
@@ -225,7 +227,9 @@ impl Plugin for WizardTowerPlugin {
                     .run_if(study_tab_active)
                     .run_if(resource_exists::<super::study_tab::StudyCursorMode>)
                     .run_if(resource_exists::<crate::ui::focus::FocusNavInhibit>)
-                    .run_if(not(resource_exists::<crate::ui::tutorial::resources::ActiveTutorial>)),
+                    .run_if(not(resource_exists::<
+                        crate::ui::tutorial::resources::ActiveTutorial,
+                    >)),
             )
             // Reticle appearance (including show/hide based on mode) runs
             // regardless of inhibit state so the visual can vanish when the

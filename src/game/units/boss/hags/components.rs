@@ -86,26 +86,6 @@ pub struct EyeInFlight {
     pub progress: f32,
 }
 
-/// Random wandering state for blind (eyeless) hags.
-#[derive(Component)]
-pub struct BlindWanderState {
-    /// Time until next direction change.
-    pub timer: f32,
-    /// Current wandering direction (normalized XZ).
-    pub direction_x: f32,
-    pub direction_z: f32,
-}
-
-impl BlindWanderState {
-    pub fn new() -> Self {
-        Self {
-            timer: 0.0,
-            direction_x: 0.0,
-            direction_z: 1.0,
-        }
-    }
-}
-
 /// Marker component for hags that are permanently dead (killed while blind).
 #[derive(Component)]
 pub struct PermanentlyDead;

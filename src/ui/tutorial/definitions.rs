@@ -148,9 +148,7 @@ impl TutorialId {
             TutorialId::ControllerMenusIntro | TutorialId::ControllerInGameIntro => {
                 TutorialModality::Gamepad
             }
-            TutorialId::KbmMenusIntro | TutorialId::InGameIntro => {
-                TutorialModality::MouseKeyboard
-            }
+            TutorialId::KbmMenusIntro | TutorialId::InGameIntro => TutorialModality::MouseKeyboard,
             _ => TutorialModality::Any,
         }
     }
@@ -250,7 +248,9 @@ static STUDY_TAB_STEPS: &[TutorialStep] = &[
     TutorialStep {
         target: HighlightTarget::RightPanel,
         text: "The right panel is the spell web. Drag to pan around it; scroll to zoom in and out.",
-        text_kbm: Some("The right panel is the spell web. Click and drag to pan around it; scroll the mouse wheel to zoom."),
+        text_kbm: Some(
+            "The right panel is the spell web. Click and drag to pan around it; scroll the mouse wheel to zoom.",
+        ),
         anchor: PanelAnchor::CenterLeft,
     },
     TutorialStep {
@@ -558,15 +558,15 @@ static KBM_MENUS_STEPS: &[TutorialStep] = &[
     TutorialStep {
         target: HighlightTarget::None,
         text: "",
-        text_kbm: Some(
-            "Welcome! Click any button to interact, hover over things for tooltips.",
-        ),
+        text_kbm: Some("Welcome! Click any button to interact, hover over things for tooltips."),
         anchor: PanelAnchor::Center,
     },
     TutorialStep {
         target: HighlightTarget::None,
         text: "",
-        text_kbm: Some("Press Esc at any time to back out of a menu or return to the previous screen."),
+        text_kbm: Some(
+            "Press Esc at any time to back out of a menu or return to the previous screen.",
+        ),
         anchor: PanelAnchor::Center,
     },
     TutorialStep {
@@ -597,7 +597,9 @@ static WIZARD_SELECT_STEPS: &[TutorialStep] = &[
     TutorialStep {
         target: HighlightTarget::WizardSelectGrid,
         text: "Scroll the grid to see every wizard. Pick one to set them as your active archetype, then back out to start a run.",
-        text_kbm: Some("Scroll with the mouse wheel to see every wizard. Click one to set them as your active archetype, then close the panel to start a run."),
+        text_kbm: Some(
+            "Scroll with the mouse wheel to see every wizard. Click one to set them as your active archetype, then close the panel to start a run.",
+        ),
         anchor: PanelAnchor::CenterLeft,
     },
 ];

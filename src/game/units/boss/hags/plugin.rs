@@ -19,6 +19,7 @@ impl Plugin for HagsPlugin {
                     update_hag_targeting.in_set(VelocitySystemSet),
                     hag_movement.in_set(MovementCalculationSet),
                     hag_separation.after(MovementCalculationSet),
+                    justina_kite_distance.after(hag_separation),
                     hag_combat.in_set(MovementCalculationSet),
                 )
                     .run_if(is_gameplay_running)

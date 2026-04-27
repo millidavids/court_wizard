@@ -8,6 +8,7 @@ use crate::config::GameConfig;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
+use crate::game::units::boss::utils::{EYE_FRAME_UV, EYE_PULSE_FRAME_DURATION, EYE_SHEET_COLUMNS};
 use crate::game::seeded_rng::resources::GameRng;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::Flying;
@@ -15,7 +16,8 @@ use crate::game::units::components::apply_spell_damage;
 use crate::game::units::components::{
     AttackTiming, BerserkerRageModifier, Corpse, DamageMultiplier, Effectiveness, FearModifier,
     FlockingModifier, FlockingVelocity, Health, Hitbox, MindControlled, MovementSpeed,
-    OriginalMaterial, Petrified, TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
+    OriginalMaterial, Petrified, PulsingAnimation, TargetingVelocity, Team, Teleportable,
+    TemporaryHitPoints,
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::{King, SpellShield};
@@ -121,7 +123,7 @@ pub fn spawn_ray(rng: &mut impl Rng, mut commands: Commands, assets: Res<RayAsse
         let eye_y = RAY_EYE_FLOAT_HEIGHT;
 
         commands.spawn((
-            Mesh3d(assets.eye_mesh.clone()),
+            Mesh3d(assets.eye_sprite_mesh.clone()),
             MeshMaterial3d(assets.eye_materials[eye_type.index()].clone()),
             Transform::from_xyz(eye_x, eye_y, eye_z),
             Hitbox::new(RAY_EYE_RADIUS, RAY_EYE_HITBOX_HEIGHT),
@@ -133,6 +135,12 @@ pub fn spawn_ray(rng: &mut impl Rng, mut commands: Commands, assets: Res<RayAsse
                 eye_type,
                 heading: Vec2::new(angle.cos(), angle.sin()),
             },
+            PulsingAnimation::new_staggered(
+                EYE_SHEET_COLUMNS,
+                EYE_FRAME_UV,
+                EYE_PULSE_FRAME_DURATION,
+                rng,
+            ),
             Flying,
             Billboard,
             OnGameplayScreen,
@@ -689,9 +697,10 @@ pub fn ray_disintegration_sweep(
 
         let has_targets = defenders.iter().any(|(entity, def_transform, _, _, _, _)| {
             if let Ok(team) = team_query.get(entity)
-                && *team != Team::Defenders {
-                    return false;
-                }
+                && *team != Team::Defenders
+            {
+                return false;
+            }
             let horizontal = Vec2::new(
                 def_transform.translation.x - boss_pos.x,
                 def_transform.translation.z - boss_pos.z,
@@ -920,9 +929,10 @@ pub fn ray_petrification_beam(
 
         let has_targets = defenders.iter().any(|(entity, def_transform, _, _, _, _)| {
             if let Ok(team) = team_query.get(entity)
-                && *team != Team::Defenders {
-                    return false;
-                }
+                && *team != Team::Defenders
+            {
+                return false;
+            }
             let horizontal = Vec2::new(
                 def_transform.translation.x - boss_pos.x,
                 def_transform.translation.z - boss_pos.z,
@@ -979,63 +989,64 @@ pub fn ray_petrification_beam(
         }
 
         if let Some(beam_entity) = sweep.beam_entity
-            && let Ok(mut beam) = beams.get_mut(beam_entity) {
-                beam.origin = eye_pos;
-                beam.channel_progress += delta / PETRIFY_CHANNEL_TIME;
+            && let Ok(mut beam) = beams.get_mut(beam_entity)
+        {
+            beam.origin = eye_pos;
+            beam.channel_progress += delta / PETRIFY_CHANNEL_TIME;
 
-                // Track target during channel: steer toward nearest defender
-                if !beam.has_fired
-                    && let Some(target_pos) =
-                        find_nearest_defender_position(boss_pos, &defenders, &team_query)
-                    {
-                        let desired = (target_pos - eye_pos).normalize_or_zero();
-                        if desired != Vec3::ZERO {
-                            let current = beam.direction;
-                            let dot = current.dot(desired).clamp(-1.0, 1.0);
-                            let angle = dot.acos();
-                            let max_turn = PETRIFY_TURN_RATE * delta;
-                            beam.direction = if angle <= max_turn {
-                                desired
-                            } else {
-                                let t = max_turn / angle;
-                                (current.lerp(desired, t)).normalize_or_zero()
-                            };
-                            beam.length = (target_pos - eye_pos).length().max(1.0);
-                        }
-                    }
-
-                if beam.channel_progress >= 1.0 && !beam.has_fired {
-                    beam.has_fired = true;
-
-                    let volume = ray_sfx_volume(eye_pos, &game_config);
-                    if volume > 0.0 {
-                        commands.spawn((
-                            bevy::audio::AudioPlayer::new(sfx_assets.finger_of_death_cast.clone()),
-                            bevy::audio::PlaybackSettings::ONCE
-                                .with_volume(bevy::audio::Volume::Linear(volume)),
-                            OnGameplayScreen,
-                        ));
-                    }
-
-                    let cone_base_radius = PETRIFY_BEAM_WIDTH * 0.15 * 0.7;
-                    let targets = find_units_in_cone(
-                        eye_pos,
-                        beam.direction,
-                        beam.length,
-                        cone_base_radius,
-                        &defenders,
-                        &team_query,
-                    );
-                    for &entity in &targets {
-                        commands
-                            .entity(entity)
-                            .insert(Petrified::new(PETRIFY_DURATION));
-                    }
-
-                    despawn_petrify_beam(&mut commands, &mut sweep);
-                    sweep.cooldown = PETRIFY_BEAM_COOLDOWN;
+            // Track target during channel: steer toward nearest defender
+            if !beam.has_fired
+                && let Some(target_pos) =
+                    find_nearest_defender_position(boss_pos, &defenders, &team_query)
+            {
+                let desired = (target_pos - eye_pos).normalize_or_zero();
+                if desired != Vec3::ZERO {
+                    let current = beam.direction;
+                    let dot = current.dot(desired).clamp(-1.0, 1.0);
+                    let angle = dot.acos();
+                    let max_turn = PETRIFY_TURN_RATE * delta;
+                    beam.direction = if angle <= max_turn {
+                        desired
+                    } else {
+                        let t = max_turn / angle;
+                        (current.lerp(desired, t)).normalize_or_zero()
+                    };
+                    beam.length = (target_pos - eye_pos).length().max(1.0);
                 }
             }
+
+            if beam.channel_progress >= 1.0 && !beam.has_fired {
+                beam.has_fired = true;
+
+                let volume = ray_sfx_volume(eye_pos, &game_config);
+                if volume > 0.0 {
+                    commands.spawn((
+                        bevy::audio::AudioPlayer::new(sfx_assets.finger_of_death_cast.clone()),
+                        bevy::audio::PlaybackSettings::ONCE
+                            .with_volume(bevy::audio::Volume::Linear(volume)),
+                        OnGameplayScreen,
+                    ));
+                }
+
+                let cone_base_radius = PETRIFY_BEAM_WIDTH * 0.15 * 0.7;
+                let targets = find_units_in_cone(
+                    eye_pos,
+                    beam.direction,
+                    beam.length,
+                    cone_base_radius,
+                    &defenders,
+                    &team_query,
+                );
+                for &entity in &targets {
+                    commands
+                        .entity(entity)
+                        .insert(Petrified::new(PETRIFY_DURATION));
+                }
+
+                despawn_petrify_beam(&mut commands, &mut sweep);
+                sweep.cooldown = PETRIFY_BEAM_COOLDOWN;
+            }
+        }
     }
 }
 
@@ -1138,9 +1149,10 @@ pub fn ray_mind_control_beam(
 
         let has_targets = defender_positions.iter().any(|(entity, def_transform, _)| {
             if let Ok(team) = team_query.get(entity)
-                && *team != Team::Defenders {
-                    return false;
-                }
+                && *team != Team::Defenders
+            {
+                return false;
+            }
             let horizontal = Vec2::new(
                 def_transform.translation.x - boss_pos.x,
                 def_transform.translation.z - boss_pos.z,
@@ -1198,71 +1210,73 @@ pub fn ray_mind_control_beam(
         }
 
         if let Some(beam_entity) = sweep.beam_entity
-            && let Ok(mut beam) = beams.get_mut(beam_entity) {
-                beam.origin = eye_pos;
-                beam.channel_progress += delta / MIND_CONTROL_CHANNEL_TIME;
+            && let Ok(mut beam) = beams.get_mut(beam_entity)
+        {
+            beam.origin = eye_pos;
+            beam.channel_progress += delta / MIND_CONTROL_CHANNEL_TIME;
 
-                // Track target during channel
-                if !beam.has_fired
-                    && let Some(target_pos) = find_nearest_defender_position_filtered(
-                        boss_pos,
-                        &defender_positions,
-                        &team_query,
-                    ) {
-                        let desired = (target_pos - eye_pos).normalize_or_zero();
-                        if desired != Vec3::ZERO {
-                            let current = beam.direction;
-                            let dot = current.dot(desired).clamp(-1.0, 1.0);
-                            let angle = dot.acos();
-                            let max_turn = MIND_CONTROL_TURN_RATE * delta;
-                            beam.direction = if angle <= max_turn {
-                                desired
-                            } else {
-                                let t = max_turn / angle;
-                                (current.lerp(desired, t)).normalize_or_zero()
-                            };
-                            beam.length = (target_pos - eye_pos).length().max(1.0);
-                        }
-                    }
-
-                if beam.channel_progress >= 1.0 && !beam.has_fired {
-                    beam.has_fired = true;
-
-                    let volume = ray_sfx_volume(eye_pos, &game_config);
-                    if volume > 0.0 {
-                        commands.spawn((
-                            bevy::audio::AudioPlayer::new(sfx_assets.mind_control_cast.clone()),
-                            bevy::audio::PlaybackSettings::ONCE
-                                .with_volume(bevy::audio::Volume::Linear(volume)),
-                            OnGameplayScreen,
-                        ));
-                    }
-
-                    let cone_base_radius = MIND_CONTROL_BEAM_WIDTH * 0.15 * 0.7;
-                    let targets = find_units_in_cone_filtered(
-                        eye_pos,
-                        beam.direction,
-                        beam.length,
-                        cone_base_radius,
-                        &defenders,
-                        &team_query,
-                    );
-                    for (entity, unit_pos) in &targets {
-                        commands.entity(*entity).insert((
-                            MindControlled {
-                                time_elapsed: 0.0,
-                                wear_off_duration: MIND_CONTROL_DURATION,
-                                original_spawn_pos: Some(Vec2::new(unit_pos.x, unit_pos.z)),
-                                damage_multiplier: 1.0,
-                            },
-                            FlowFieldInfluence::Attacker,
-                        ));
-                    }
-
-                    despawn_mind_control_beam(&mut commands, &mut sweep);
-                    sweep.cooldown = MIND_CONTROL_BEAM_COOLDOWN;
+            // Track target during channel
+            if !beam.has_fired
+                && let Some(target_pos) = find_nearest_defender_position_filtered(
+                    boss_pos,
+                    &defender_positions,
+                    &team_query,
+                )
+            {
+                let desired = (target_pos - eye_pos).normalize_or_zero();
+                if desired != Vec3::ZERO {
+                    let current = beam.direction;
+                    let dot = current.dot(desired).clamp(-1.0, 1.0);
+                    let angle = dot.acos();
+                    let max_turn = MIND_CONTROL_TURN_RATE * delta;
+                    beam.direction = if angle <= max_turn {
+                        desired
+                    } else {
+                        let t = max_turn / angle;
+                        (current.lerp(desired, t)).normalize_or_zero()
+                    };
+                    beam.length = (target_pos - eye_pos).length().max(1.0);
                 }
             }
+
+            if beam.channel_progress >= 1.0 && !beam.has_fired {
+                beam.has_fired = true;
+
+                let volume = ray_sfx_volume(eye_pos, &game_config);
+                if volume > 0.0 {
+                    commands.spawn((
+                        bevy::audio::AudioPlayer::new(sfx_assets.mind_control_cast.clone()),
+                        bevy::audio::PlaybackSettings::ONCE
+                            .with_volume(bevy::audio::Volume::Linear(volume)),
+                        OnGameplayScreen,
+                    ));
+                }
+
+                let cone_base_radius = MIND_CONTROL_BEAM_WIDTH * 0.15 * 0.7;
+                let targets = find_units_in_cone_filtered(
+                    eye_pos,
+                    beam.direction,
+                    beam.length,
+                    cone_base_radius,
+                    &defenders,
+                    &team_query,
+                );
+                for (entity, unit_pos) in &targets {
+                    commands.entity(*entity).insert((
+                        MindControlled {
+                            time_elapsed: 0.0,
+                            wear_off_duration: MIND_CONTROL_DURATION,
+                            original_spawn_pos: Some(Vec2::new(unit_pos.x, unit_pos.z)),
+                            damage_multiplier: 1.0,
+                        },
+                        FlowFieldInfluence::Attacker,
+                    ));
+                }
+
+                despawn_mind_control_beam(&mut commands, &mut sweep);
+                sweep.cooldown = MIND_CONTROL_BEAM_COOLDOWN;
+            }
+        }
     }
 }
 
@@ -1336,9 +1350,10 @@ fn find_nearest_defender_position_filtered(
     let mut best: Option<(Vec3, f32, u8)> = None;
     for (entity, transform, has_fear) in defenders.iter() {
         if let Ok(team) = team_query.get(entity)
-            && *team != Team::Defenders {
-                continue;
-            }
+            && *team != Team::Defenders
+        {
+            continue;
+        }
         let to = Vec2::new(
             transform.translation.x - boss_pos.x,
             transform.translation.z - boss_pos.z,
@@ -1387,9 +1402,10 @@ fn find_units_in_cone_filtered(
 
     for (entity, transform, hitbox) in defenders.iter() {
         if let Ok(team) = team_query.get(entity)
-            && *team != Team::Defenders {
-                continue;
-            }
+            && *team != Team::Defenders
+        {
+            continue;
+        }
         let to_unit = transform.translation - origin;
         let forward_dist = to_unit.dot(dir_norm);
         if forward_dist < 0.0 || forward_dist > length {
@@ -1524,35 +1540,37 @@ pub fn ray_fear_beam(
 
         // Update beam position + apply fear
         if let Some(beam_entity) = sweep.beam_entity
-            && let Ok(mut beam) = beams.get_mut(beam_entity) {
-                beam.origin = eye_pos;
-                beam.length = eye_pos.y.max(1.0);
-                beam.time_alive += delta;
+            && let Ok(mut beam) = beams.get_mut(beam_entity)
+        {
+            beam.origin = eye_pos;
+            beam.length = eye_pos.y.max(1.0);
+            beam.time_alive += delta;
 
-                // Apply fear to units under the beam
-                sweep.fear_cooldown -= delta;
-                if sweep.fear_cooldown <= 0.0 {
-                    sweep.fear_cooldown = FEAR_BEAM_COOLDOWN;
+            // Apply fear to units under the beam
+            sweep.fear_cooldown -= delta;
+            if sweep.fear_cooldown <= 0.0 {
+                sweep.fear_cooldown = FEAR_BEAM_COOLDOWN;
 
-                    let ground_pos = Vec2::new(eye_pos.x, eye_pos.z);
-                    for (entity, def_tf, hitbox, has_rage, is_mind_controlled) in &defenders {
-                        if has_rage || is_mind_controlled {
-                            continue;
-                        }
-                        if let Ok(team) = team_query.get(entity)
-                            && *team != Team::Defenders {
-                                continue;
-                            }
-                        let unit_xz = Vec2::new(def_tf.translation.x, def_tf.translation.z);
-                        let dist = (unit_xz - ground_pos).length();
-                        if dist <= FEAR_BEAM_GROUND_RADIUS + hitbox.radius {
-                            commands
-                                .entity(entity)
-                                .insert(FearModifier::new(FEAR_DURATION, boss_pos));
-                        }
+                let ground_pos = Vec2::new(eye_pos.x, eye_pos.z);
+                for (entity, def_tf, hitbox, has_rage, is_mind_controlled) in &defenders {
+                    if has_rage || is_mind_controlled {
+                        continue;
+                    }
+                    if let Ok(team) = team_query.get(entity)
+                        && *team != Team::Defenders
+                    {
+                        continue;
+                    }
+                    let unit_xz = Vec2::new(def_tf.translation.x, def_tf.translation.z);
+                    let dist = (unit_xz - ground_pos).length();
+                    if dist <= FEAR_BEAM_GROUND_RADIUS + hitbox.radius {
+                        commands
+                            .entity(entity)
+                            .insert(FearModifier::new(FEAR_DURATION, boss_pos));
                     }
                 }
             }
+        }
     }
 }
 
@@ -1658,9 +1676,10 @@ pub fn ray_teleport_eye(
         // Only activate when a defender is in melee range of Ray's body
         let any_in_melee = defenders.iter().any(|(entity, def_tf, _, _, _)| {
             if let Ok(team) = team_query.get(entity)
-                && *team != Team::Defenders {
-                    return false;
-                }
+                && *team != Team::Defenders
+            {
+                return false;
+            }
             let dist = Vec2::new(
                 def_tf.translation.x - boss_pos.x,
                 def_tf.translation.z - boss_pos.z,
@@ -1688,9 +1707,10 @@ pub fn ray_teleport_eye(
                     return None;
                 }
                 if let Ok(team) = team_query.get(entity)
-                    && *team != Team::Defenders {
-                        return None;
-                    }
+                    && *team != Team::Defenders
+                {
+                    return None;
+                }
                 let dist = Vec2::new(
                     def_tf.translation.x - boss_pos.x,
                     def_tf.translation.z - boss_pos.z,
@@ -1817,9 +1837,10 @@ fn find_units_in_cone(
 
     for (entity, transform, hitbox, _, _, _) in defenders.iter() {
         if let Ok(team) = team_query.get(entity)
-            && *team != Team::Defenders {
-                continue;
-            }
+            && *team != Team::Defenders
+        {
+            continue;
+        }
 
         // Project unit center onto the 3D beam axis
         let to_unit = transform.translation - origin;
@@ -1862,9 +1883,10 @@ fn find_nearest_defender_direction_from(
     let mut best: Option<(Vec2, f32)> = None;
     for (entity, transform, _, _, _, _) in defenders.iter() {
         if let Ok(team) = team_query.get(entity)
-            && *team != Team::Defenders {
-                continue;
-            }
+            && *team != Team::Defenders
+        {
+            continue;
+        }
         let to = Vec2::new(
             transform.translation.x - from_pos.x,
             transform.translation.z - from_pos.y,
@@ -1948,9 +1970,10 @@ fn find_nearest_defender_position(
     let mut best: Option<(Vec3, f32)> = None;
     for (entity, transform, _, _, _, _) in defenders.iter() {
         if let Ok(team) = team_query.get(entity)
-            && *team != Team::Defenders {
-                continue;
-            }
+            && *team != Team::Defenders
+        {
+            continue;
+        }
         let to = Vec2::new(
             transform.translation.x - boss_pos.x,
             transform.translation.z - boss_pos.z,

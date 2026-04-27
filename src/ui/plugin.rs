@@ -16,8 +16,8 @@ use super::cauldron_menu::CauldronMenuPlugin;
 use super::components::{load_gun_icon_assets, load_spell_icon_assets, set_default_font};
 use super::concentration::ConcentrationUIPlugin;
 use super::focus::FocusPlugin;
-use super::gamepad_glyphs::GamepadGlyphsPlugin;
 use super::game_over::GameOverPlugin;
+use super::gamepad_glyphs::GamepadGlyphsPlugin;
 use super::in_game::plugin::InGamePlugin;
 use super::loading::LoadingUiPlugin;
 use super::main_menu::MainMenuPlugin;
@@ -79,7 +79,11 @@ impl Plugin for UiPlugin {
         )
         .add_systems(
             Startup,
-            (set_default_font, load_spell_icon_assets, load_gun_icon_assets),
+            (
+                set_default_font,
+                load_spell_icon_assets,
+                load_gun_icon_assets,
+            ),
         )
         .add_systems(
             Update,

@@ -39,8 +39,16 @@ fn screen_key(
     }
 }
 
-type FocusableQuery<'w, 's, F> =
-    Query<'w, 's, (Entity, &'static UiGlobalTransform, Option<&'static InheritedVisibility>), F>;
+type FocusableQuery<'w, 's, F> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static UiGlobalTransform,
+        Option<&'static InheritedVisibility>,
+    ),
+    F,
+>;
 
 /// Body-panel navigation excludes tab buttons (cycled via LB/RB) and header
 /// back buttons (reachable only via the B/East button on gamepad).
@@ -169,11 +177,7 @@ fn gather_focusables(
         .collect()
 }
 
-fn is_descendant_of_any(
-    entity: Entity,
-    ancestors: &[Entity],
-    child_of: &Query<&ChildOf>,
-) -> bool {
+fn is_descendant_of_any(entity: Entity, ancestors: &[Entity], child_of: &Query<&ChildOf>) -> bool {
     let mut current = entity;
     if ancestors.contains(&current) {
         return true;
@@ -427,14 +431,16 @@ pub(super) fn tab_cycle(
         .filter(|(_, _, vis, _)| vis.map(|v| v.get()).unwrap_or(true))
         .map(|(e, transform, _, is_active)| (e, transform.translation, is_active))
         .collect();
-    sorted.sort_by(|(_, a, _), (_, b, _)| {
-        a.x.partial_cmp(&b.x).unwrap_or(std::cmp::Ordering::Equal)
-    });
+    sorted
+        .sort_by(|(_, a, _), (_, b, _)| a.x.partial_cmp(&b.x).unwrap_or(std::cmp::Ordering::Equal));
     if sorted.is_empty() {
         return;
     }
 
-    let current_idx = sorted.iter().position(|(_, _, active)| *active).unwrap_or(0);
+    let current_idx = sorted
+        .iter()
+        .position(|(_, _, active)| *active)
+        .unwrap_or(0);
 
     let next_idx = if forward {
         (current_idx + 1) % sorted.len()
@@ -443,7 +449,9 @@ pub(super) fn tab_cycle(
     };
 
     let next_entity = sorted[next_idx].0;
-    clicks.write(MouseClicked { button: next_entity });
+    clicks.write(MouseClicked {
+        button: next_entity,
+    });
 }
 
 /// Forces the focused entity's `Interaction` to `Hovered`/`Pressed` so the
@@ -585,8 +593,7 @@ pub(super) fn autoscroll_to_focused(
     let mut current = entity;
     while let Ok(child_of) = child_of_query.get(current) {
         let parent = child_of.parent();
-        if let Ok((scroll, container_node, container_xform, node)) =
-            scroll_containers.get(parent)
+        if let Ok((scroll, container_node, container_xform, node)) = scroll_containers.get(parent)
             && node.overflow.y == OverflowAxis::Scroll
         {
             let inv_sf = container_node.inverse_scale_factor();
@@ -624,9 +631,9 @@ pub(super) fn autoscroll_to_focused(
                 break; // already visible
             };
 
-            commands
-                .entity(parent)
-                .insert(ScrollAnimation { target_y: new_target });
+            commands.entity(parent).insert(ScrollAnimation {
+                target_y: new_target,
+            });
             break;
         }
         if reveal_bounds.contains(parent) && reveal_entity == entity {

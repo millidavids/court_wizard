@@ -12,9 +12,9 @@ use super::commander::CommanderPlugin;
 use super::components::{
     Airborne, BerserkerRageModifier, CombatAnimation, DeathAnimationFinished, DyingAnimation,
     FacingDirection, FearModifier, FireDoT, FogEvasionModifier, FrozenSolidModifier, HasteModifier,
-    Knockback, MarkedForDeathModifier, Petrified, PoisonedModifier, RootedModifier,
-    SickenedModifier, SlowMovementModifier, SmellyModifier, Stunned, TemporaryHitPoints,
-    WalkingAnimation,
+    Knockback, MarkedForDeathModifier, Petrified, PoisonedModifier, PulsingAnimation,
+    RootedModifier, SickenedModifier, SlowMovementModifier, SmellyModifier, Stunned,
+    TemporaryHitPoints, WalkingAnimation,
 };
 use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
@@ -97,6 +97,9 @@ impl Plugin for UnitsPlugin {
                     systems::update_walking_animation
                         .after(ApplyTransformsSet)
                         .run_if(any_with_component::<WalkingAnimation>),
+                    systems::update_pulsing_animation
+                        .after(ApplyTransformsSet)
+                        .run_if(any_with_component::<PulsingAnimation>),
                     systems::update_combat_animation
                         .after(ApplyTransformsSet)
                         .run_if(any_with_component::<CombatAnimation>),

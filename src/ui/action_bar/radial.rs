@@ -20,8 +20,7 @@ use crate::ui::components::ButtonColors;
 /// Linear target position (screen-space `left`, `bottom`) of slot `i` — the
 /// row in the bottom-left corner that matches the mouse/keyboard layout.
 pub(super) fn linear_pos(i: u8) -> Vec2 {
-    let left =
-        ACTION_BAR_LEFT_MARGIN + i as f32 * (SLOT_BUTTON_STYLE.width + SLOT_GAP);
+    let left = ACTION_BAR_LEFT_MARGIN + i as f32 * (SLOT_BUTTON_STYLE.width + SLOT_GAP);
     Vec2::new(left, ACTION_BAR_BOTTOM_MARGIN)
 }
 
@@ -107,7 +106,10 @@ pub(super) fn animate_action_bar_layout(
     // keeps the system from marking every Node as Changed every frame and
     // triggering a full UI re-layout + visible flicker. We still always
     // apply on first run and on every in-flight frame of the morph.
-    if last_applied.map(|v| (v - progress.0).abs() < f32::EPSILON).unwrap_or(false) {
+    if last_applied
+        .map(|v| (v - progress.0).abs() < f32::EPSILON)
+        .unwrap_or(false)
+    {
         return;
     }
     *last_applied = Some(progress.0);

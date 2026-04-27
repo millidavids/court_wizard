@@ -597,7 +597,10 @@ pub(crate) fn try_start_cast_with_indicator(
 pub(crate) fn tick_global_cast_cooldown(
     time: Res<Time>,
     mut commands: Commands,
-    mut query: Query<(Entity, &mut crate::game::units::wizard::components::GlobalCastCooldown)>,
+    mut query: Query<(
+        Entity,
+        &mut crate::game::units::wizard::components::GlobalCastCooldown,
+    )>,
 ) {
     for (entity, mut cd) in &mut query {
         cd.remaining -= time.delta_secs();
@@ -641,11 +644,11 @@ pub(crate) fn insert_global_cooldown_on_cast(
         crate::game::units::wizard::components::CastingState::Resting
     );
     if was_casting && now_resting && mana_decreased {
-        commands
-            .entity(entity)
-            .insert(crate::game::units::wizard::components::GlobalCastCooldown {
+        commands.entity(entity).insert(
+            crate::game::units::wizard::components::GlobalCastCooldown {
                 remaining: crate::game::units::wizard::components::GLOBAL_CAST_COOLDOWN_SECS,
-            });
+            },
+        );
     }
     *prev_state = Some(*state);
     *prev_mana = Some(mana.current);

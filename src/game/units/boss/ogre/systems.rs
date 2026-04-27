@@ -119,6 +119,11 @@ pub fn spawn_ogre(
 /// Overrides the ogre's facing direction to strongly prefer forward/backward.
 /// Runs after the shared `update_facing_direction` to correct left/right
 /// picks when the ogre is moving at a slight angle.
+///
+/// Filters on `With<OgreEnrageState>` (an ogre-only marker) — `With<Boss>`
+/// would also match hags / dark mage / ray, which have their own facing logic
+/// and would otherwise have their hysteresis-buffered facing clobbered each
+/// frame by this raw-velocity override.
 pub fn update_ogre_facing(
     camera_query: Query<&Transform, (With<Camera3d>, Without<Boss>)>,
     mut bosses: Query<
@@ -128,7 +133,11 @@ pub fn update_ogre_facing(
             &WalkingAnimation,
             &MeshMaterial3d<StandardMaterial>,
         ),
-        (With<Boss>, Without<Corpse>, Without<CombatAnimation>),
+        (
+            With<OgreEnrageState>,
+            Without<Corpse>,
+            Without<CombatAnimation>,
+        ),
     >,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {

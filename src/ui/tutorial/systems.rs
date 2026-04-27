@@ -17,8 +17,9 @@ use crate::ui::wizard_tower::{
 };
 
 use super::components::{
-    GlowAnimation, HighlightOverlay, HighlightOverlayGlow, TutorialHighlightable, TutorialNextButton, TutorialOverlay,
-    TutorialPanel, TutorialSkipButton, TutorialStepCounter, TutorialText,
+    GlowAnimation, HighlightOverlay, HighlightOverlayGlow, TutorialHighlightable,
+    TutorialNextButton, TutorialOverlay, TutorialPanel, TutorialSkipButton, TutorialStepCounter,
+    TutorialText,
 };
 use super::constants::*;
 use super::definitions::{HighlightTarget, PanelAnchor, TutorialId};
@@ -58,8 +59,9 @@ fn try_start_tutorial(
         }
         let _ = pending;
         commands.queue(move |world: &mut bevy::prelude::World| {
-            let mut q = world
-                .get_resource_or_insert_with::<super::resources::PendingTutorials>(Default::default);
+            let mut q = world.get_resource_or_insert_with::<super::resources::PendingTutorials>(
+                Default::default,
+            );
             if !q.queue.contains(&tutorial) {
                 q.queue.push_back(tutorial);
             }
@@ -554,10 +556,7 @@ fn despawn_overlay(commands: &mut Commands, overlay_query: &Query<Entity, With<T
 pub(super) fn apply_highlight(
     mut commands: Commands,
     active: Res<ActiveTutorial>,
-    highlightables: Query<
-        (Entity, &TutorialHighlightable),
-        Without<HighlightOverlay>,
-    >,
+    highlightables: Query<(Entity, &TutorialHighlightable), Without<HighlightOverlay>>,
 ) {
     let steps = active.tutorial.steps();
     let target = steps[active.step].target;
@@ -600,9 +599,7 @@ pub(super) fn apply_highlight(
             child_id = Some(id);
         });
         if let Some(child) = child_id {
-            commands
-                .entity(entity)
-                .insert(HighlightOverlay { child });
+            commands.entity(entity).insert(HighlightOverlay { child });
         }
     }
 }
@@ -779,7 +776,11 @@ pub(super) fn update_tutorial_content(
         // try_*, the deferred command panics when applied to the gone entity.
         commands.entity(text_entity).try_insert(Text::default());
         let gp = active_input.is_gamepad();
-        let text = if gp { step.text } else { step.text_kbm.unwrap_or(step.text) };
+        let text = if gp {
+            step.text
+        } else {
+            step.text_kbm.unwrap_or(step.text)
+        };
         let style = glyph_style.0;
         let fonts = glyph_fonts.as_deref().cloned();
         commands.entity(text_entity).with_children(|p| {

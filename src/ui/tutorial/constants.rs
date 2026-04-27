@@ -74,7 +74,6 @@ pub(super) const MUTED_TEXT_COLOR: Color = TEXT_MUTED;
 /// Glow animation speed (radians per second).
 pub(super) const GLOW_ANIMATION_SPEED: f32 = 3.0;
 
-
 /// GlobalZIndex for the tutorial overlay.
 pub(super) const TUTORIAL_Z_INDEX: i32 = 1000;
 

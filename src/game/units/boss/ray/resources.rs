@@ -1,14 +1,17 @@
+use bevy::math::Affine2;
 use bevy::prelude::*;
 
 use super::constants::{
-    CHARM_BEAM_COLOR, DISINTEGRATE_BEAM_COLOR, FEAR_BEAM_COLOR, PETRIFY_BEAM_COLOR,
-    RAY_BODY_RADIUS, RAY_COLOR, RAY_EYE_RADIUS, RAY_STALK_PARTICLE_RADIUS, TELEPORT_BEAM_COLOR,
+    CHARM_BEAM_COLOR, DISINTEGRATE_BEAM_COLOR, FEAR_BEAM_COLOR, PETRIFY_BEAM_COLOR, RAY_BODY_RADIUS,
+    RAY_COLOR, RAY_EYE_SPRITE_SIZE, RAY_STALK_PARTICLE_RADIUS, TELEPORT_BEAM_COLOR,
 };
+use crate::game::units::boss::utils::EYE_FRAME_UV;
 
 #[derive(Resource)]
 pub struct RayAssets {
     pub body_mesh: Handle<Mesh>,
-    pub eye_mesh: Handle<Mesh>,
+    /// Quad mesh for eye sprites (Ray's 5 boss eyes).
+    pub eye_sprite_mesh: Handle<Mesh>,
     pub particle_mesh: Handle<Mesh>,
     pub particle_material: Handle<StandardMaterial>,
     pub material_phase0: Handle<StandardMaterial>,
@@ -21,7 +24,11 @@ pub(super) fn preload_ray_assets(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
 ) {
+    let eye_texture: Handle<Image> =
+        asset_server.load("images/sprite_sheets/eye-pulsing_4-frames.png");
+    let eye_uv_transform = Affine2::from_scale_angle_translation(EYE_FRAME_UV, 0.0, Vec2::ZERO);
     let beam_colors = [
         PETRIFY_BEAM_COLOR,
         DISINTEGRATE_BEAM_COLOR,
@@ -43,7 +50,7 @@ pub(super) fn preload_ray_assets(
 
     let assets = RayAssets {
         body_mesh: meshes.add(Circle::new(RAY_BODY_RADIUS)),
-        eye_mesh: meshes.add(Circle::new(RAY_EYE_RADIUS)),
+        eye_sprite_mesh: meshes.add(Rectangle::new(RAY_EYE_SPRITE_SIZE, RAY_EYE_SPRITE_SIZE)),
         particle_mesh: meshes.add(Sphere::new(RAY_STALK_PARTICLE_RADIUS)),
         particle_material: materials.add(StandardMaterial {
             base_color: Color::srgba(0.9, 1.0, 0.9, 0.4),
@@ -69,15 +76,23 @@ pub(super) fn preload_ray_assets(
                 let c = eye_hues[i].to_srgba();
                 materials.add(StandardMaterial {
                     base_color: eye_hues[i],
+                    base_color_texture: Some(eye_texture.clone()),
                     emissive: LinearRgba::new(c.red * 2.5, c.green * 2.5, c.blue * 2.5, 1.0),
+                    alpha_mode: AlphaMode::Mask(0.5),
                     unlit: true,
+                    cull_mode: None,
+                    uv_transform: eye_uv_transform,
                     ..default()
                 })
             })
         },
         eye_inactive_material: materials.add(StandardMaterial {
             base_color: Color::srgba(0.3, 0.3, 0.3, 0.5),
+            base_color_texture: Some(eye_texture.clone()),
+            alpha_mode: AlphaMode::Blend,
             unlit: true,
+            cull_mode: None,
+            uv_transform: eye_uv_transform,
             ..default()
         }),
         beam_materials: beam_mats,

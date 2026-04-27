@@ -73,10 +73,10 @@ pub const ELECTRIC_EFFECT_MIN_INTENSITY: f32 = 0.05;
 pub const WET_EFFECT_COLOR: Color = Color::srgb(0.15, 0.2, 0.35);
 /// Blend strength for wet tint (constant, no pulsing).
 pub const WET_EFFECT_INTENSITY: f32 = 0.3;
-/// Color overlay for mind control effect (bright pink).
-pub const MIND_CONTROL_EFFECT_COLOR: Color = Color::srgb(1.0, 0.2, 0.7);
+/// Color overlay for mind control effect (saturated magenta).
+pub const MIND_CONTROL_EFFECT_COLOR: Color = Color::srgb(1.0, 0.05, 0.85);
 /// Blend strength for mind control tint (constant, no pulsing).
-pub const MIND_CONTROL_EFFECT_INTENSITY: f32 = 0.45;
+pub const MIND_CONTROL_EFFECT_INTENSITY: f32 = 0.8;
 
 // ===== Poison =====
 

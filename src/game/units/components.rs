@@ -753,15 +753,51 @@ pub enum FacingDirection {
 /// Minimum velocity squared to count as "moving" for animation purposes (5.0 units/sec).
 pub const ANIMATION_MOVE_THRESHOLD_SQ: f32 = 25.0;
 
-/// Hysteresis factor for direction switching. The current direction's axis gets
-/// this multiplier bonus, preventing rapid flipping near diagonal angles.
-/// 1.3 ≈ 8° overlap per side around the 45° boundary.
-pub(super) const DIRECTION_HYSTERESIS_FACTOR: f32 = 1.3;
+/// Optional per-entity multiplier on the global facing-axis angular buffer.
+/// Used by units whose velocity oscillates from external forces (e.g. hag
+/// separation) and would otherwise flicker between facing rows.
+#[derive(Component, Clone, Copy)]
+pub struct FacingHysteresisBoost(pub f32);
 
-/// Sign hysteresis threshold: within an axis, the dot product must cross this
-/// magnitude past zero before flipping direction (e.g., Forward→Back).
-/// Prevents flickering when velocity is nearly perpendicular to the axis.
-pub(super) const SIGN_HYSTERESIS_THRESHOLD: f32 = 2.0;
+/// Minimum dwell time (seconds) before a facing direction can change again.
+/// Inserted at spawn for jittery units; ticks down in `update_facing_direction`
+/// and is reset to its configured duration whenever the facing actually flips.
+#[derive(Component, Clone, Copy)]
+pub struct FacingDwell {
+    pub duration: f32,
+    pub time_remaining: f32,
+}
+
+impl FacingDwell {
+    pub fn new(duration: f32) -> Self {
+        Self {
+            duration,
+            time_remaining: 0.0,
+        }
+    }
+}
+
+/// Low-passed velocity used by `update_facing_direction` to pick the facing row.
+/// Smoothing eliminates frame-to-frame velocity noise (e.g. flow-field cell
+/// transitions, separation force, steering wobble) so the facing decision is
+/// made against the unit's *trend* of motion, not its instantaneous velocity.
+///
+/// `time_constant` is the seconds for a step input to reach ~63% of its target;
+/// larger = smoother but laggier. Hags use ~0.4s.
+#[derive(Component, Clone, Copy)]
+pub struct SmoothedFacingVelocity {
+    pub velocity: bevy::math::Vec3,
+    pub time_constant: f32,
+}
+
+impl SmoothedFacingVelocity {
+    pub fn new(time_constant: f32) -> Self {
+        Self {
+            velocity: bevy::math::Vec3::ZERO,
+            time_constant,
+        }
+    }
+}
 
 // Combined sprite sheet constants (shared by infantry and archer sheets).
 pub const SPRITE_SHEET_IMAGE_WIDTH: f32 = 832.0;
@@ -998,6 +1034,71 @@ impl DyingAnimation {
 /// `finalize_dying_to_corpse` to lay the corpse flat.
 #[derive(Component)]
 pub struct DeathAnimationFinished;
+
+/// Marker that pauses `update_walking_animation` for an entity so a system
+/// can hold its sprite on a chosen frame (used e.g. for Josephina's leap pose).
+#[derive(Component)]
+pub struct AnimationOverride;
+
+/// Looping in-place sprite-sheet animation for entities that don't move
+/// (e.g. eyes, idle props). Single row, no facing direction.
+#[derive(Component)]
+pub struct PulsingAnimation {
+    pub current_frame: usize,
+    pub elapsed: f32,
+    pub columns: usize,
+    pub frame_uv: Vec2,
+    pub frame_duration: f32,
+}
+
+impl PulsingAnimation {
+    pub fn new(columns: usize, frame_uv: Vec2, frame_duration: f32) -> Self {
+        Self {
+            current_frame: 0,
+            elapsed: 0.0,
+            columns,
+            frame_uv,
+            frame_duration,
+        }
+    }
+
+    /// Creates a new pulsing animation with a random elapsed-time stagger so
+    /// multiple instances don't pulse in lockstep.
+    pub fn new_staggered(
+        columns: usize,
+        frame_uv: Vec2,
+        frame_duration: f32,
+        rng: &mut impl Rng,
+    ) -> Self {
+        Self {
+            current_frame: rng.gen_range(0..columns),
+            elapsed: rng.r#gen::<f32>() * frame_duration,
+            columns,
+            frame_uv,
+            frame_duration,
+        }
+    }
+
+    pub fn tick(&mut self, delta: f32) -> bool {
+        self.elapsed += delta;
+        if self.elapsed >= self.frame_duration {
+            self.elapsed -= self.frame_duration;
+            let old = self.current_frame;
+            self.current_frame = (self.current_frame + 1) % self.columns;
+            old != self.current_frame
+        } else {
+            false
+        }
+    }
+
+    pub fn uv_offset(&self) -> Vec2 {
+        Vec2::new(self.current_frame as f32 * self.frame_uv.x, 0.0)
+    }
+
+    pub fn uv_transform(&self) -> Affine2 {
+        Affine2::from_scale_angle_translation(self.frame_uv, 0.0, self.uv_offset())
+    }
+}
 
 /// Marker component for dead units (corpses).
 ///

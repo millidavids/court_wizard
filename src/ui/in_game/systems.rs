@@ -68,9 +68,7 @@ pub(super) fn gamepad_hud_shortcuts(
     let Ok(gamepad) = gamepads.get(gp_entity) else {
         return;
     };
-    if gamepad.just_pressed(GamepadButton::West)
-        && !config.wizard_type.uses_exclusive_casting()
-    {
+    if gamepad.just_pressed(GamepadButton::West) && !config.wizard_type.uses_exclusive_casting() {
         if let Some(ref mut next_sp) = next_in_game_state {
             next_sp.set(InGameState::SpellBook);
         }

@@ -11,6 +11,8 @@ pub const RAY_BODY_HITBOX_HEIGHT: f32 = 50.0 * UNIT_SCALE;
 pub const RAY_BODY_HOVER_HEIGHT: f32 = 10.0 * UNIT_SCALE;
 
 pub const RAY_EYE_RADIUS: f32 = 12.0 * UNIT_SCALE;
+/// Visual sprite quad size for Ray eyes (matches the original circle's diameter).
+pub(super) const RAY_EYE_SPRITE_SIZE: f32 = RAY_EYE_RADIUS * 2.0;
 pub const RAY_EYE_HITBOX_HEIGHT: f32 = 20.0 * UNIT_SCALE;
 pub const RAY_EYE_FLOAT_HEIGHT: f32 = 80.0 * UNIT_SCALE;
 pub const RAY_EYE_WANDER_RADIUS: f32 = 120.0 * UNIT_SCALE;

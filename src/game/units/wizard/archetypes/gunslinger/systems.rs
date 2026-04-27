@@ -214,8 +214,8 @@ pub fn fire_magnum(
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
 ) {
-    let just_pressed = mouse.just_pressed(MouseButton::Left)
-        || gamepad_pressed.read().next().is_some();
+    let just_pressed =
+        mouse.just_pressed(MouseButton::Left) || gamepad_pressed.read().next().is_some();
     if gun_state.selected_gun != GunType::Magnum || !just_pressed {
         return;
     }
@@ -272,8 +272,8 @@ pub fn fire_rocket(
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
 ) {
-    let just_pressed = mouse.just_pressed(MouseButton::Left)
-        || gamepad_pressed.read().next().is_some();
+    let just_pressed =
+        mouse.just_pressed(MouseButton::Left) || gamepad_pressed.read().next().is_some();
     if gun_state.selected_gun != GunType::RocketLauncher || !just_pressed {
         return;
     }
@@ -332,8 +332,8 @@ pub fn fire_shotgun(
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
 ) {
-    let just_pressed = mouse.just_pressed(MouseButton::Left)
-        || gamepad_pressed.read().next().is_some();
+    let just_pressed =
+        mouse.just_pressed(MouseButton::Left) || gamepad_pressed.read().next().is_some();
     if gun_state.selected_gun != GunType::Shotgun || !just_pressed {
         return;
     }

@@ -3,9 +3,9 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    ANIMATION_MOVE_THRESHOLD_SQ, CORPSE_MATERIAL_VARIANTS, CombatAnimation,
-    DIRECTION_HYSTERESIS_FACTOR, DyingAnimation, FacingDirection, SIGN_HYSTERESIS_THRESHOLD,
-    SPRITE_FRAME_SIZE, SPRITE_SHEET_IMAGE_HEIGHT, WalkingAnimation,
+    ANIMATION_MOVE_THRESHOLD_SQ, AnimationOverride, CORPSE_MATERIAL_VARIANTS, CombatAnimation,
+    DyingAnimation, FacingDirection, FacingDwell, FacingHysteresisBoost, PulsingAnimation,
+    SPRITE_FRAME_SIZE, SPRITE_SHEET_IMAGE_HEIGHT, SmoothedFacingVelocity, WalkingAnimation,
 };
 use super::components::{
     Airborne, BanishedModifier, Corpse, Effectiveness, ElectricCharge, FALL_DAMAGE_SCALE,
@@ -1353,6 +1353,7 @@ pub fn update_walking_animation(
             Without<Corpse>,
             Without<CombatAnimation>,
             Without<DyingAnimation>,
+            Without<AnimationOverride>,
         ),
     >,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -1379,6 +1380,24 @@ pub fn update_walking_animation(
             && let Some(mat) = materials.get_mut(material_handle)
         {
             mat.uv_transform = anim.uv_transform(*facing);
+        }
+    }
+}
+
+/// Advances looping in-place pulsing animations and updates UV transforms.
+/// Used for non-moving entities (eyes, idle props) that don't need facing direction.
+pub fn update_pulsing_animation(
+    time: Res<Time>,
+    mut anim_query: Query<(&mut PulsingAnimation, &MeshMaterial3d<StandardMaterial>)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let delta = time.delta_secs();
+
+    for (mut anim, material_handle) in &mut anim_query {
+        if anim.tick(delta)
+            && let Some(mat) = materials.get_mut(material_handle)
+        {
+            mat.uv_transform = anim.uv_transform();
         }
     }
 }
@@ -1601,12 +1620,16 @@ pub fn update_airborne_units(
 /// Updates facing direction based on velocity relative to camera, updating UV row.
 pub fn update_facing_direction(
     camera_query: Query<&Transform, With<Camera3d>>,
+    time: Res<Time>,
     mut unit_query: Query<
         (
             &Velocity,
             &mut FacingDirection,
             &WalkingAnimation,
             &MeshMaterial3d<StandardMaterial>,
+            Option<&FacingHysteresisBoost>,
+            Option<&mut FacingDwell>,
+            Option<&mut SmoothedFacingVelocity>,
         ),
         Without<Corpse>,
     >,
@@ -1620,62 +1643,102 @@ pub fn update_facing_direction(
     let cam_forward = camera_transform.forward();
     let cam_forward_xz = Vec3::new(cam_forward.x, 0.0, cam_forward.z).normalize_or_zero();
     let cam_right = Vec3::new(-cam_forward_xz.z, 0.0, cam_forward_xz.x);
+    let dt = time.delta_secs();
 
-    for (velocity, mut facing, anim, material_handle) in &mut unit_query {
-        let vel_xz = Vec3::new(velocity.x, 0.0, velocity.z);
-        if vel_xz.length_squared() < ANIMATION_MOVE_THRESHOLD_SQ {
+    // Base angular buffer past the 45° axis boundary. With `buffer = 8°`,
+    // a unit currently on the forward-back axis only switches to left-right
+    // when the velocity is more than `45 + 8 = 53°` off-axis, and vice versa.
+    // `FacingHysteresisBoost` widens the buffer further for jittery units.
+    const BASE_BUFFER_DEG: f32 = 8.0;
+    let default_buffer_ratio = (45.0_f32 + BASE_BUFFER_DEG).to_radians().tan();
+
+    for (
+        velocity,
+        mut facing,
+        anim,
+        material_handle,
+        hysteresis_boost,
+        mut dwell,
+        mut smoothed,
+    ) in &mut unit_query
+    {
+        let raw_vel = Vec3::new(velocity.x, 0.0, velocity.z);
+
+        // Update the smoothed velocity (low-pass filter) every frame, even when
+        // the dwell is locking the facing — keeps the trend representative.
+        let smoothed_vel = if let Some(s) = smoothed.as_mut() {
+            let alpha = if s.time_constant > 0.0 {
+                (dt / s.time_constant).clamp(0.0, 1.0)
+            } else {
+                1.0
+            };
+            s.velocity = s.velocity.lerp(raw_vel, alpha);
+            s.velocity
+        } else {
+            raw_vel
+        };
+
+        // Tick dwell timer regardless of velocity so it expires while the unit
+        // is briefly stationary; while non-zero the facing is locked in.
+        if let Some(d) = dwell.as_mut() {
+            d.time_remaining = (d.time_remaining - dt).max(0.0);
+            if d.time_remaining > 0.0 {
+                continue;
+            }
+        }
+
+        if smoothed_vel.length_squared() < ANIMATION_MOVE_THRESHOLD_SQ {
             continue;
         }
 
-        // Project velocity onto camera axes
-        let forward_dot = vel_xz.dot(cam_forward_xz);
-        let right_dot = vel_xz.dot(cam_right);
+        // Project the smoothed velocity onto camera axes.
+        let forward_dot = smoothed_vel.dot(cam_forward_xz);
+        let right_dot = smoothed_vel.dot(cam_right);
+        let abs_fwd = forward_dot.abs();
+        let abs_right = right_dot.abs();
 
-        // Apply hysteresis: boost the current direction's axis so it's "sticky"
-        let current_is_forward_back =
-            matches!(*facing, FacingDirection::Forward | FacingDirection::Back);
-        let (eff_fwd, eff_right) = if current_is_forward_back {
-            (
-                forward_dot.abs() * DIRECTION_HYSTERESIS_FACTOR,
-                right_dot.abs(),
-            )
-        } else {
-            (
-                forward_dot.abs(),
-                right_dot.abs() * DIRECTION_HYSTERESIS_FACTOR,
-            )
+        // Buffer ratio = tan(45° + buffer). At buffer=8°, ratio ≈ 1.327: the
+        // new axis must dominate by 32.7% before we switch. Precomputed for the
+        // default; boosted entities (rare) recompute per-entity.
+        let buffer_ratio = match hysteresis_boost {
+            Some(boost) if (boost.0 - 1.0).abs() > f32::EPSILON => {
+                (45.0_f32 + BASE_BUFFER_DEG * boost.0)
+                    .clamp(45.0, 89.0)
+                    .to_radians()
+                    .tan()
+            }
+            _ => default_buffer_ratio,
         };
 
-        // Pick direction within the winning axis, with sign hysteresis:
-        // keep the current direction unless the dot clearly opposes it.
-        let new_facing = if eff_fwd > eff_right {
-            match *facing {
-                FacingDirection::Forward if forward_dot > -SIGN_HYSTERESIS_THRESHOLD => {
-                    FacingDirection::Forward
-                }
-                FacingDirection::Back if forward_dot < SIGN_HYSTERESIS_THRESHOLD => {
-                    FacingDirection::Back
-                }
-                _ if forward_dot < 0.0 => FacingDirection::Back,
-                _ => FacingDirection::Forward,
-            }
+        let current_is_forward_back =
+            matches!(*facing, FacingDirection::Forward | FacingDirection::Back);
+        let on_forward_back = if current_is_forward_back {
+            // Stay on FB axis unless |right| is more than buffer_ratio × |fwd|.
+            abs_right < abs_fwd * buffer_ratio
         } else {
-            match *facing {
-                FacingDirection::Right if right_dot > -SIGN_HYSTERESIS_THRESHOLD => {
-                    FacingDirection::Right
-                }
-                FacingDirection::Left if right_dot < SIGN_HYSTERESIS_THRESHOLD => {
-                    FacingDirection::Left
-                }
-                _ if right_dot > 0.0 => FacingDirection::Right,
-                _ => FacingDirection::Left,
+            // On LR axis: switch to FB only if |fwd| beats |right| by buffer_ratio.
+            abs_fwd > abs_right * buffer_ratio
+        };
+
+        let new_facing = if on_forward_back {
+            if forward_dot >= 0.0 {
+                FacingDirection::Forward
+            } else {
+                FacingDirection::Back
             }
+        } else if right_dot >= 0.0 {
+            FacingDirection::Right
+        } else {
+            FacingDirection::Left
         };
 
         if *facing != new_facing {
             *facing = new_facing;
             if let Some(mat) = materials.get_mut(material_handle) {
                 mat.uv_transform = anim.uv_transform(new_facing);
+            }
+            if let Some(d) = dwell.as_mut() {
+                d.time_remaining = d.duration;
             }
         }
     }

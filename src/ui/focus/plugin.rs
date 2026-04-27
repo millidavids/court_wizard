@@ -38,9 +38,7 @@ fn nav_enabled(
     inhibit.is_none() || active_tutorial.is_some()
 }
 
-fn no_active_tutorial(
-    active: Option<Res<crate::ui::tutorial::resources::ActiveTutorial>>,
-) -> bool {
+fn no_active_tutorial(active: Option<Res<crate::ui::tutorial::resources::ActiveTutorial>>) -> bool {
     active.is_none()
 }
 
@@ -58,10 +56,20 @@ impl Plugin for FocusPlugin {
                 (
                     clear_focus_on_device_switch.run_if(resource_changed::<ActiveInputDevice>),
                     update_focus_memory.run_if(gamepad_active),
-                    track_modal_focus_restore.run_if(gamepad_active).run_if(focus_enabled),
-                    restore_focus_on_screen_change.run_if(gamepad_active).run_if(focus_enabled),
-                    auto_refocus.run_if(gamepad_active).run_if(focus_enabled).run_if(nav_enabled),
-                    focus_navigation.run_if(gamepad_active).run_if(focus_enabled).run_if(nav_enabled),
+                    track_modal_focus_restore
+                        .run_if(gamepad_active)
+                        .run_if(focus_enabled),
+                    restore_focus_on_screen_change
+                        .run_if(gamepad_active)
+                        .run_if(focus_enabled),
+                    auto_refocus
+                        .run_if(gamepad_active)
+                        .run_if(focus_enabled)
+                        .run_if(nav_enabled),
+                    focus_navigation
+                        .run_if(gamepad_active)
+                        .run_if(focus_enabled)
+                        .run_if(nav_enabled),
                     // Bumpers cycle tabs regardless of `FocusNavInhibit` so
                     // tab switching still works when a full-screen cursor
                     // mode (e.g. Study spell web) is active. Tab cycling is
@@ -73,7 +81,10 @@ impl Plugin for FocusPlugin {
                         .run_if(focus_enabled)
                         .run_if(no_active_tutorial),
                     clear_focus_on_back.run_if(focus_enabled),
-                    autoscroll_to_focused.run_if(gamepad_active).run_if(focus_enabled).run_if(nav_enabled),
+                    autoscroll_to_focused
+                        .run_if(gamepad_active)
+                        .run_if(focus_enabled)
+                        .run_if(nav_enabled),
                 )
                     .chain(),
             )
