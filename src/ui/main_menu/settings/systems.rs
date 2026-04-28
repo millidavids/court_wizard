@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
-use crate::config::{ColorblindType, DisplayMode, GameConfig, VsyncMode};
+use crate::config::{ColorblindType, ControllerGlyphStyle, DisplayMode, GameConfig, VsyncMode};
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
@@ -25,10 +25,12 @@ use super::constants::{
     SECTION_FONT_SIZE, SELECTED_BACKGROUND, SELECTED_BORDER, TAB_BORDER_COLOR, TAB_FONT_SIZE,
     TAB_HEIGHT, TAB_PADDING_H, TEXT_COLOR, TITLE_FONT_SIZE,
 };
+use super::controller_diagrams::spawn_controller_diagram_section;
 use crate::config::SavedWindowedGeometry;
 use crate::config::input_bindings::{
     BindingAction, BindingContext, is_bindable_key, key_display_name, key_name,
 };
+use crate::ui::gamepad_glyphs::{CurrentControllerGlyphStyle, GamepadGlyphFonts};
 use bevy::window::PrimaryWindow;
 
 /// Sets up the settings menu UI with a tabbed interface.
@@ -600,8 +602,14 @@ fn spawn_accessibility_tab(parent: &mut ChildSpawnerCommands, game_config: &Game
     });
 }
 
-/// Spawns Controller tab content: sensitivity / deadzone / response curve sliders + rumble toggle.
-fn spawn_controller_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
+/// Spawns Controller tab content: sensitivity / deadzone / response curve sliders + rumble toggle,
+/// followed by a controller-binding diagram that follows the active gamepad's vendor style.
+fn spawn_controller_tab(
+    parent: &mut ChildSpawnerCommands,
+    game_config: &GameConfig,
+    glyph_fonts: Option<&GamepadGlyphFonts>,
+    glyph_style: ControllerGlyphStyle,
+) {
     let mut wrapper = parent.spawn(Node {
         width: Val::Percent(100.0),
         flex_direction: FlexDirection::Column,
@@ -647,6 +655,10 @@ fn spawn_controller_tab(parent: &mut ChildSpawnerCommands, game_config: &GameCon
                 !game_config.rumble_enabled,
             );
         });
+
+        if let Some(fonts) = glyph_fonts {
+            spawn_controller_diagram_section(section, fonts, glyph_style);
+        }
     });
 }
 
@@ -1315,6 +1327,8 @@ pub fn handle_settings_tab_click(
 pub fn rebuild_settings_content(
     mut commands: Commands,
     state: Res<SettingsTabState>,
+    glyph_style: Res<CurrentControllerGlyphStyle>,
+    glyph_fonts: Option<Res<GamepadGlyphFonts>>,
     game_config: Res<GameConfig>,
     saved_geometry: Res<SavedWindowedGeometry>,
     bindings: Res<crate::config::InputBindings>,
@@ -1329,7 +1343,10 @@ pub fn rebuild_settings_content(
         ),
     >,
 ) {
-    if !state.is_changed() {
+    let state_changed = state.is_changed();
+    let glyph_style_changed =
+        glyph_style.is_changed() && state.active_tab == SettingsTab::Controller;
+    if !state_changed && !glyph_style_changed {
         return;
     }
 
@@ -1376,7 +1393,9 @@ pub fn rebuild_settings_content(
             SettingsTab::Audio => spawn_audio_tab(parent, &game_config),
             SettingsTab::Game => spawn_game_tab(parent, &game_config),
             SettingsTab::Controls => spawn_controls_tab(parent, &bindings),
-            SettingsTab::Controller => spawn_controller_tab(parent, &game_config),
+            SettingsTab::Controller => {
+                spawn_controller_tab(parent, &game_config, glyph_fonts.as_deref(), glyph_style.0)
+            }
             SettingsTab::Accessibility => spawn_accessibility_tab(parent, &game_config),
         });
 }

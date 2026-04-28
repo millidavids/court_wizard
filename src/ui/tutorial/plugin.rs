@@ -20,11 +20,7 @@ impl Plugin for TutorialPlugin {
         // the tower swaps overlays cleanly.
         app.add_systems(
             OnEnter(MetaGameState::WizardTower),
-            (
-                trigger_controller_menus_tutorial,
-                trigger_kbm_menus_tutorial,
-            )
-                .chain(),
+            trigger_kbm_menus_tutorial,
         )
         // Per-tab tutorials fire the first time each Wizard Tower tab is
         // opened. The watcher runs in Update so it catches both the initial
@@ -56,14 +52,7 @@ impl Plugin for TutorialPlugin {
                         .and(resource_changed::<crate::ui::wizard_tower::SelectedStudySpell>),
                 ),
         )
-        .add_systems(
-            OnEnter(InGameState::Running),
-            (
-                trigger_controller_in_game_tutorial,
-                trigger_in_game_tutorial,
-            )
-                .chain(),
-        )
+        .add_systems(OnEnter(InGameState::Running), trigger_in_game_tutorial)
         .add_systems(OnEnter(InGameState::SpellBook), trigger_spell_book_tutorial)
         .add_systems(
             OnEnter(InGameState::CauldronMenu),
@@ -113,7 +102,6 @@ impl Plugin for TutorialPlugin {
             (
                 enforce_tutorial_modality,
                 drain_pending_tutorials,
-                trigger_controller_menus_tutorial.run_if(in_state(MetaGameState::WizardTower)),
                 trigger_kbm_menus_tutorial.run_if(in_state(MetaGameState::WizardTower)),
             )
                 .chain()

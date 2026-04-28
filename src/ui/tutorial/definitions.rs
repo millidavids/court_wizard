@@ -91,13 +91,6 @@ pub(crate) enum TutorialId {
     InGameIntro,
     SpellBookIntro,
     CauldronIntro,
-    /// Controller-specific menu navigation primer. Shown once on the first
-    /// time the Wizard Tower is entered while a gamepad is the active
-    /// input device.
-    ControllerMenusIntro,
-    /// Controller-specific in-game combat primer. Shown once on the first
-    /// gameplay session entered while a gamepad is the active input device.
-    ControllerInGameIntro,
     /// Mouse + keyboard menu navigation primer. Shown once on the first
     /// time the Wizard Tower is entered while mouse/keyboard is the active
     /// input device.
@@ -117,7 +110,6 @@ pub(crate) enum TutorialId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TutorialModality {
     Any,
-    Gamepad,
     MouseKeyboard,
 }
 
@@ -134,8 +126,6 @@ impl TutorialId {
             TutorialId::InGameIntro => "in_game_intro",
             TutorialId::SpellBookIntro => "spell_book_intro",
             TutorialId::CauldronIntro => "cauldron_intro",
-            TutorialId::ControllerMenusIntro => "controller_menus_intro",
-            TutorialId::ControllerInGameIntro => "controller_in_game_intro",
             TutorialId::KbmMenusIntro => "kbm_menus_intro",
             TutorialId::WizardSelectIntro => "wizard_select_intro",
             TutorialId::StudySpellSelectedIntro => "study_spell_selected_intro",
@@ -145,9 +135,6 @@ impl TutorialId {
     /// Returns the input modality this tutorial is tailored for.
     pub(crate) fn modality(&self) -> TutorialModality {
         match self {
-            TutorialId::ControllerMenusIntro | TutorialId::ControllerInGameIntro => {
-                TutorialModality::Gamepad
-            }
             TutorialId::KbmMenusIntro | TutorialId::InGameIntro => TutorialModality::MouseKeyboard,
             _ => TutorialModality::Any,
         }
@@ -165,8 +152,6 @@ impl TutorialId {
             TutorialId::InGameIntro => IN_GAME_STEPS,
             TutorialId::SpellBookIntro => SPELL_BOOK_STEPS,
             TutorialId::CauldronIntro => CAULDRON_STEPS,
-            TutorialId::ControllerMenusIntro => CONTROLLER_MENUS_STEPS,
-            TutorialId::ControllerInGameIntro => CONTROLLER_IN_GAME_STEPS,
             TutorialId::KbmMenusIntro => KBM_MENUS_STEPS,
             TutorialId::WizardSelectIntro => WIZARD_SELECT_STEPS,
             TutorialId::StudySpellSelectedIntro => STUDY_SPELL_SELECTED_STEPS,
@@ -461,91 +446,6 @@ static CAULDRON_STEPS: &[TutorialStep] = &[
     TutorialStep {
         target: HighlightTarget::BrewButton,
         text: "Click Brew to start. Brews take time but provide powerful temporary buffs.",
-        text_kbm: None,
-        anchor: PanelAnchor::Center,
-    },
-];
-
-// Controller menu navigation primer. Text-only; covers focus nav, confirm,
-// back, tab switching, and pause.
-static CONTROLLER_MENUS_STEPS: &[TutorialStep] = &[
-    TutorialStep {
-        target: HighlightTarget::None,
-        text: "Controller detected! Here's how to get around menus.",
-        text_kbm: None,
-        anchor: PanelAnchor::Center,
-    },
-    TutorialStep {
-        target: HighlightTarget::None,
-        text: "Press {east} to go back or close a menu.",
-        text_kbm: None,
-        anchor: PanelAnchor::Center,
-    },
-    TutorialStep {
-        target: HighlightTarget::TabRow,
-        text: "Press {lb} or {rb} to cycle between tabs.",
-        text_kbm: None,
-        // Keep the window centered — moving it up would cover the
-        // highlighted tab row.
-        anchor: PanelAnchor::Center,
-    },
-    TutorialStep {
-        target: HighlightTarget::None,
-        text: "Press {start} at any time during battle to pause.",
-        text_kbm: None,
-        anchor: PanelAnchor::Center,
-    },
-];
-
-// Controller in-game combat primer. Teaches the aim + cast + radial + HUD
-// shortcuts tied to the controller layout. Fires with `paused_gameplay: true`
-// so the player can read it without the battle running behind.
-static CONTROLLER_IN_GAME_STEPS: &[TutorialStep] = &[
-    TutorialStep {
-        target: HighlightTarget::None,
-        text: "Combat on a controller: let's go through the battle controls.",
-        text_kbm: None,
-        anchor: PanelAnchor::Center,
-    },
-    TutorialStep {
-        target: HighlightTarget::None,
-        text: "{lstick} aims. A thin line from your staff shows where your spell will land.",
-        text_kbm: None,
-        anchor: PanelAnchor::Center,
-    },
-    TutorialStep {
-        target: HighlightTarget::ActionBar,
-        text: "Hold {rstick} in a direction and press {rt} to pick that spell from the action bar.",
-        text_kbm: None,
-        anchor: PanelAnchor::TopCenter,
-    },
-    TutorialStep {
-        target: HighlightTarget::None,
-        text: "Once a spell is primed, tap or hold {rt} to cast it.",
-        text_kbm: None,
-        anchor: PanelAnchor::Center,
-    },
-    TutorialStep {
-        target: HighlightTarget::None,
-        text: "Press {lt} to cancel an in-progress cast.",
-        text_kbm: None,
-        anchor: PanelAnchor::Center,
-    },
-    TutorialStep {
-        target: HighlightTarget::SpellBookButton,
-        text: "Press {west} to open the Spell Book and swap spells.",
-        text_kbm: None,
-        anchor: PanelAnchor::CenterRight,
-    },
-    TutorialStep {
-        target: HighlightTarget::CauldronButton,
-        text: "Press {north} to open the Cauldron and brew buffs.",
-        text_kbm: None,
-        anchor: PanelAnchor::CenterRight,
-    },
-    TutorialStep {
-        target: HighlightTarget::None,
-        text: "Press {start} to pause. That's everything — good luck!",
         text_kbm: None,
         anchor: PanelAnchor::Center,
     },

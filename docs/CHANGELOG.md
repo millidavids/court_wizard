@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.60] - 2026-04-28
+
+### Added
+- **Controller bindings diagram in Settings** — the Controls tab in Settings now shows a quick reference card at the bottom listing every gamepad binding (Aim, Cast Spell, Cancel Cast, Pick Spell, Confirm, Back, Spell Book, Cauldron, Cycle Tabs, Pause) with the actual button icons for your controller. The diagram automatically switches between Xbox, PlayStation, Switch, and Steam button artwork based on which gamepad is plugged in, and falls back to Xbox if none is connected
+
+### Changed
+- **No more controller-button popup tutorials** — the two pop-up walkthroughs that explained gamepad navigation on your first Wizard Tower visit and your first battle have been removed. The new bindings diagram in Settings serves the same purpose without interrupting play
+
 ## [v0.7.50] - 2026-04-28
 
 ### Changed
