@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.49] - 2026-04-28
+
+### Added
+- **Native Linux build** — Court Wizard now runs on Linux alongside Windows and macOS, so players on Linux desktops can launch the game directly without any workarounds
+- **Updated credits screen** — the credits now list the original artwork (spell icons, static sprites, and the menu backdrop) and the fonts used in the game (Press Start 2P, Oxford Runes), with attribution to their authors
+
 ## [v0.7.48] - 2026-04-27
 
 ### Changed

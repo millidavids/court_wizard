@@ -35,6 +35,12 @@ All character and unit sprites are from the **Liberated Pixel Cup (LPC)** projec
 - **Licenses**: OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
 - **Full attribution**: See `SPRITE_CREDITS.csv` in the game directory for detailed per-file credits listing all contributing artists.
 
+## Original Artwork
+
+Spell icons (`assets/images/icons/`) and static sprites (`assets/images/static_sprites/`) — including the menu backdrop, castle walls, and roulette wheel — were drawn by David Yurek for this project.
+
+- **License**: GPL-3.0 (same as the rest of the project source)
+
 ## Music
 
 Music tracks are sourced from [OpenGameArt.org](https://opengameart.org/) and are licensed under [CC-BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Tracks have been re-encoded/looped for use in this game.
@@ -45,6 +51,15 @@ Music tracks are sourced from [OpenGameArt.org](https://opengameart.org/) and ar
 - **"Sunshine Skirmish"** by Trevor Lentz (battle music)
   - Source: https://opengameart.org/content/sunshine-skirmish-loop
   - License: CC-BY-SA 3.0 — https://creativecommons.org/licenses/by-sa/3.0/
+
+## Fonts
+
+- **Press Start 2P** by Cody "CodeMan38" Boisclair (in-game UI)
+  - Source: https://fonts.google.com/specimen/Press+Start+2P
+  - License: SIL Open Font License 1.1 — https://scripts.sil.org/OFL
+- **Oxford Runes** by Tilman Schalmey ([fontasy.de](http://www.fontasy.de/)) (rune symbols)
+  - Source: https://www.dafont.com/oxford-runes.font
+  - License: Free (DaFont "100% Free" category)
 
 ## Controller Glyphs
 
@@ -68,6 +83,8 @@ Sound effects are sourced from [Pixabay](https://pixabay.com/).
 - Trevor Lentz and the music contributors on OpenGameArt.org
 - Pixabay and its sound effect contributors
 - Kenney for the controller-glyph fonts
+- Cody Boisclair for the Press Start 2P font
+- Tilman Schalmey for the Oxford Runes font
 
 ---
 
