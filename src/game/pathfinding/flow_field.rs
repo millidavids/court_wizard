@@ -478,7 +478,7 @@ mod tests {
 
         // Block a wall from (5, 0) to (5, 9)
         for z in 0..10 {
-            field.mark_blocked(&[(5, z)]);
+            field.costs[z * field.width + 5] = f32::INFINITY;
         }
 
         field.generate(7, 5, 0); // Goal on right side of wall

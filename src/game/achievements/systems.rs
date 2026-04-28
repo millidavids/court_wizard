@@ -614,13 +614,13 @@ pub(crate) fn check_friendly_thorns(
 // ---------------------------------------------------------------------------
 
 use crate::game::units::UnitType;
+use crate::game::units::aerialist::components::Aerialist;
+use crate::game::units::assassin::components::Assassin;
 use crate::game::units::boss::dark_mage::components::DarkMage;
 use crate::game::units::boss::hags::components::Hag;
 use crate::game::units::boss::lich::components::Lich;
 use crate::game::units::boss::ogre::components::OgreEnrageState;
 use crate::game::units::boss::ray::Ray;
-use crate::game::units::aerialist::components::Aerialist;
-use crate::game::units::assassin::components::Assassin;
 use crate::game::units::brute::components::Brute;
 use crate::game::units::dispeller::components::Dispeller;
 use crate::game::units::healer::components::Healer;

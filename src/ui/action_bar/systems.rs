@@ -87,17 +87,15 @@ pub(super) fn spawn_action_bar(
 
                     // For gunslinger, render gun icons (no name fallback);
                     // every gun has a dedicated icon now.
-                    let (slot_name, has_icon, icon_handle): (&str, bool, Option<Handle<Image>>) =
-                        if is_gunslinger {
-                            let gun = guns[slot as usize];
-                            let icon = gun_icon_assets.get(&gun).cloned();
-                            ("", icon.is_some(), icon)
-                        } else {
-                            let spell = config.action_bar_slots[slot as usize];
-                            let icon = spell.and_then(|s| icon_assets.get(&s).cloned());
-                            let name = spell.map(|s| s.name()).unwrap_or("");
-                            (name, icon.is_some(), icon)
-                        };
+                    let (slot_name, icon_handle): (&str, Option<Handle<Image>>) = if is_gunslinger {
+                        let gun = guns[slot as usize];
+                        ("", gun_icon_assets.get(&gun).cloned())
+                    } else {
+                        let spell = config.action_bar_slots[slot as usize];
+                        let icon = spell.and_then(|s| icon_assets.get(&s).cloned());
+                        let name = spell.map(|s| s.name()).unwrap_or("");
+                        (name, icon)
+                    };
 
                     // Compute initial position from the already-settled
                     // layout progress (set by `reset_layout_progress` on

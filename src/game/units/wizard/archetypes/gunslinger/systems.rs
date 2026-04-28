@@ -392,7 +392,6 @@ pub fn fire_flamethrower(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut gun_state: ResMut<GunState>,
-    visual_assets: Res<SpellVisualAssets>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     sfx: Res<SpellSfxAssets>,

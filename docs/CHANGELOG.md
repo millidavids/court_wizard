@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.50] - 2026-04-28
+
+### Changed
+- **Code-quality cleanup** — an internal pass removed dead code and unused imports and tidied formatting across the project. No effect on gameplay
+
 ## [v0.7.49] - 2026-04-28
 
 ### Added

@@ -412,8 +412,10 @@ fn spawn_magic_missile_with_talents(
     };
 
     // Random initial velocity
-    let horizontal_x = rng.random_range(constants::HORIZONTAL_VEL_MIN..constants::HORIZONTAL_VEL_MAX);
-    let horizontal_z = rng.random_range(constants::HORIZONTAL_VEL_MIN..constants::HORIZONTAL_VEL_MAX);
+    let horizontal_x =
+        rng.random_range(constants::HORIZONTAL_VEL_MIN..constants::HORIZONTAL_VEL_MAX);
+    let horizontal_z =
+        rng.random_range(constants::HORIZONTAL_VEL_MIN..constants::HORIZONTAL_VEL_MAX);
     let vertical = rng.random_range(constants::VERTICAL_VEL_MIN..constants::VERTICAL_VEL_MAX);
     let mut initial_velocity = Vec3::new(horizontal_x, vertical, horizontal_z);
 

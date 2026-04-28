@@ -31,11 +31,6 @@ impl HagEyeState {
             has_ability_eye: false,
         }
     }
-
-    /// Returns true if this hag has no eyes (blind).
-    pub fn is_blind(&self) -> bool {
-        !self.has_invulnerability_eye && !self.has_ability_eye
-    }
 }
 
 /// Cooldown timer for hag melee attacks (independent of global cycle).

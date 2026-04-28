@@ -10,8 +10,8 @@ use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
-use crate::game::units::boss::utils::{EYE_FRAME_UV, EYE_PULSE_FRAME_DURATION, EYE_SHEET_COLUMNS};
 use crate::game::units::boss::components::Boss;
+use crate::game::units::boss::utils::{EYE_FRAME_UV, EYE_PULSE_FRAME_DURATION, EYE_SHEET_COLUMNS};
 use crate::game::units::components::Knockback;
 use crate::game::units::components::{
     AnimationOverride, AttackTiming, BanishedModifier, CombatAnimation, CommanderAuraSpeedModifier,
@@ -259,8 +259,8 @@ pub fn spawn_hags(rng: &mut impl Rng, mut commands: Commands, hag_assets: Res<Ha
     }
 
     // Initialize eye transfer timer
-    let initial_interval =
-        EYE_TRANSFER_BASE_INTERVAL + rng.random_range(-EYE_TRANSFER_VARIANCE..EYE_TRANSFER_VARIANCE);
+    let initial_interval = EYE_TRANSFER_BASE_INTERVAL
+        + rng.random_range(-EYE_TRANSFER_VARIANCE..EYE_TRANSFER_VARIANCE);
     commands.insert_resource(EyeTransferTimer {
         time_remaining: initial_interval,
     });
@@ -600,7 +600,6 @@ pub fn hag_movement(
             haste_modifier.map(|m| m.modifier),
             elite_speed.map(|e| e.0),
         );
-
     }
 }
 
@@ -1142,6 +1141,7 @@ pub fn apply_enrage_to_last_hag(
 /// Justina's fire arc — cone AOE damage to enemies in front.
 /// Justina's chain lightning — spawns a chain lightning bolt from her position
 /// that bounces between nearby enemies using the existing chain lightning system.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn justina_chain_lightning(
     time: Res<Time>,
     mut commands: Commands,
@@ -1258,6 +1258,7 @@ pub fn justina_chain_lightning(
 }
 
 /// Justina's fireball — shoots fireballs at random defenders.
+#[allow(clippy::too_many_arguments)]
 pub fn justina_fireball(
     time: Res<Time>,
     mut commands: Commands,
@@ -1350,7 +1351,7 @@ pub fn justina_fireball(
 // ===== Phase 4: Josephina Abilities =====
 
 /// Josephina's leap — parabolic arc jump to a random defender, knockback on landing.
-#[allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn josephina_leap(
     time: Res<Time>,
     mut commands: Commands,
@@ -1459,13 +1460,7 @@ pub fn josephina_leap(
                 // duration of the leap. AnimationOverride keeps update_walking_animation
                 // from clobbering the pose.
                 commands.entity(hag_entity).insert(AnimationOverride);
-                set_hag_attack_pose_frame(
-                    &mut materials,
-                    material_handle,
-                    &hag_assets,
-                    *facing,
-                    1,
-                );
+                set_hag_attack_pose_frame(&mut materials, material_handle, &hag_assets, *facing, 1);
 
                 // Zero velocity during leap
                 velocity.x = 0.0;
@@ -1623,6 +1618,7 @@ pub fn josephina_vicious_mauling(
 }
 
 /// Josephina's corpse consume — stationary for 3s near a corpse, heals, despawns corpse.
+#[allow(clippy::type_complexity)]
 pub fn josephina_corpse_consume(
     time: Res<Time>,
     mut commands: Commands,

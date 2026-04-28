@@ -8,9 +8,9 @@ use crate::config::GameConfig;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
-use crate::game::units::boss::utils::{EYE_FRAME_UV, EYE_PULSE_FRAME_DURATION, EYE_SHEET_COLUMNS};
 use crate::game::seeded_rng::resources::GameRng;
 use crate::game::units::boss::components::Boss;
+use crate::game::units::boss::utils::{EYE_FRAME_UV, EYE_PULSE_FRAME_DURATION, EYE_SHEET_COLUMNS};
 use crate::game::units::components::Flying;
 use crate::game::units::components::apply_spell_damage;
 use crate::game::units::components::{

@@ -7,8 +7,6 @@ use crate::game::units::wizard::components::Spell;
 pub(super) enum SpellBookButtonAction {
     /// Preview a spell in the detail panel (click in right list).
     SelectSpell(Spell),
-    /// Prime the selected spell and return to gameplay.
-    CastSpell,
     /// Close the spell book without priming.
     Close,
 }

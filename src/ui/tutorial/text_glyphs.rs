@@ -135,6 +135,7 @@ pub(super) fn parse_tutorial_text(text: &str) -> Vec<TextSegment<'_>> {
 
 /// Spawns a segmented `Text` entity as a child of `parent`, returning its
 /// entity id so callers can attach markers.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn spawn_segmented_text(
     parent: &mut ChildSpawnerCommands,
     text: &str,
@@ -145,9 +146,6 @@ pub(super) fn spawn_segmented_text(
     style: ControllerGlyphStyle,
     glyph_fonts: Option<&GamepadGlyphFonts>,
 ) -> Entity {
-    let segments = parse_tutorial_text(text);
-    let glyph_font_size = base_font_size * 4.8;
-
     let mut entity = parent.spawn((
         Text::default(),
         TextFont::from_font_size(base_font_size),

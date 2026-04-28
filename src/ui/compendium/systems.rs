@@ -1714,7 +1714,12 @@ fn update_detail_panel(
                             node.width = Val::Px(DETAIL_ICON_SIZE);
                             node.height = Val::Px(DETAIL_ICON_SIZE);
                             node.display = Display::Flex;
-                            apply_locked_appearance(&mut img, &mut shadow, is_unlocked, Color::WHITE);
+                            apply_locked_appearance(
+                                &mut img,
+                                &mut shadow,
+                                is_unlocked,
+                                Color::WHITE,
+                            );
                         }
                         None => {
                             node.display = Display::None;

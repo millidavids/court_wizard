@@ -59,11 +59,7 @@ pub(super) const RADIAL_RING_RADIUS: f32 = 60.0;
 pub(super) const RADIAL_SLOT_SCALE: f32 = 0.65;
 /// Seconds for a full linear ↔ radial transition.
 pub(super) const RADIAL_TRANSITION_SECS: f32 = 0.35;
-/// Yellow background color painted on a radial slot during its commit flash.
-pub(super) const RADIAL_COMMIT_FLASH_COLOR: Color = Color::srgba(1.0, 0.95, 0.4, 0.9);
 /// Duration of the commit flash.
 pub(super) const RADIAL_COMMIT_FLASH_SECS: f32 = 0.18;
 /// Border color shown on the radial slot the right stick is currently pointing at.
 pub(super) const RADIAL_HOVER_COLOR: Color = Color::srgba(1.0, 0.95, 0.4, 1.0);
-/// Thicker border applied to the hovered radial slot.
-pub(super) const RADIAL_HOVER_BORDER: f32 = 2.0;

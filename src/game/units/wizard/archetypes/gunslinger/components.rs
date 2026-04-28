@@ -24,17 +24,6 @@ impl GunType {
         ]
     }
 
-    /// Returns the display name for this gun.
-    pub const fn display_name(&self) -> &'static str {
-        match self {
-            GunType::MachineGun => "Machine\nGun",
-            GunType::Magnum => "Magnum",
-            GunType::RocketLauncher => "Rocket\nLauncher",
-            GunType::Shotgun => "Shotgun",
-            GunType::Flamethrower => "Flame-\nthrower",
-        }
-    }
-
     /// Returns max ammo for this gun.
     pub const fn max_ammo(&self) -> u32 {
         match self {

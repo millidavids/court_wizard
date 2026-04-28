@@ -381,17 +381,6 @@ pub(super) fn button_action(
                         spell: spell.primed_config(),
                     });
                 }
-                SpellBookButtonAction::CastSpell => {
-                    prime_spell.write(PrimeSpellMessage {
-                        spell: selected.0.primed_config(),
-                    });
-                    if let Some(ref mut next_sp) = next_in_game_state {
-                        next_sp.set(InGameState::Running);
-                    }
-                    if let Some(ref mut next_mp) = next_mp_state {
-                        next_mp.set(MultiplayerGameState::Running);
-                    }
-                }
                 SpellBookButtonAction::Close => {
                     if let Some(ref mut next_sp) = next_in_game_state {
                         next_sp.set(InGameState::Running);

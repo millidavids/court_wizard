@@ -39,12 +39,6 @@ impl Default for CurrentControllerGlyphStyle {
     }
 }
 
-impl CurrentControllerGlyphStyle {
-    pub(crate) fn font_handle(&self, fonts: &GamepadGlyphFonts) -> Handle<Font> {
-        fonts.font_for(self.0)
-    }
-}
-
 /// Returns the Kenney-font codepoint for the given `GamepadButton` in the
 /// given style, or `None` if that particular button has no assigned glyph
 /// (dpad diagonals, mode, etc. — the game currently doesn't prompt for

@@ -9,4 +9,4 @@ pub use components::InfiniteMana;
 pub use plugin::ActionBarPlugin;
 
 // Re-exports for tutorial system
-pub(crate) use components::{ActionBarRoot, ActionBarSlot};
+pub(crate) use components::ActionBarSlot;

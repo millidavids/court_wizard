@@ -218,7 +218,7 @@ pub(super) enum AllocTarget {
 /// insight units (positive to increase, negative to decrease).
 #[derive(Component, Debug, Clone, Copy)]
 pub(crate) struct StudyAllocAdjustButton {
-    pub target: AllocTarget,
+    pub(super) target: AllocTarget,
     pub delta: i32,
 }
 

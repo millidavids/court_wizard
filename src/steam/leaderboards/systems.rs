@@ -253,8 +253,10 @@ mod tests {
             Some(&ActiveToggles::default())
         ));
 
-        let mut bumped = RogueliteModifiers::default();
-        bumped.game_speed = 1.5;
+        let bumped = RogueliteModifiers {
+            game_speed: 1.5,
+            ..Default::default()
+        };
         assert!(!is_pure_run(Some(&bumped), None));
 
         let with_toggle = ActiveToggles::new(vec![ToggleModifier::GlassCannon]);

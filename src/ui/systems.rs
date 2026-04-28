@@ -693,9 +693,7 @@ pub fn apply_frosted_glass_overlays(
 /// Returns the shared styling bundle for inner scrollable areas, with
 /// scroll-area border-radius baked into the supplied `Node`. Callers add
 /// `ScrollPosition::default()` and their marker component alongside.
-pub(crate) fn scroll_area_style(
-    mut node: Node,
-) -> (Node, BackgroundColor, BorderColor, BoxShadow) {
+pub(crate) fn scroll_area_style(mut node: Node) -> (Node, BackgroundColor, BorderColor, BoxShadow) {
     node.border_radius = BorderRadius::all(Val::Px(4.0));
     (
         node,

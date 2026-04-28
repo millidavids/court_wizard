@@ -1652,15 +1652,8 @@ pub fn update_facing_direction(
     const BASE_BUFFER_DEG: f32 = 8.0;
     let default_buffer_ratio = (45.0_f32 + BASE_BUFFER_DEG).to_radians().tan();
 
-    for (
-        velocity,
-        mut facing,
-        anim,
-        material_handle,
-        hysteresis_boost,
-        mut dwell,
-        mut smoothed,
-    ) in &mut unit_query
+    for (velocity, mut facing, anim, material_handle, hysteresis_boost, mut dwell, mut smoothed) in
+        &mut unit_query
     {
         let raw_vel = Vec3::new(velocity.x, 0.0, velocity.z);
 
@@ -1701,12 +1694,11 @@ pub fn update_facing_direction(
         // new axis must dominate by 32.7% before we switch. Precomputed for the
         // default; boosted entities (rare) recompute per-entity.
         let buffer_ratio = match hysteresis_boost {
-            Some(boost) if (boost.0 - 1.0).abs() > f32::EPSILON => {
-                (45.0_f32 + BASE_BUFFER_DEG * boost.0)
-                    .clamp(45.0, 89.0)
-                    .to_radians()
-                    .tan()
-            }
+            Some(boost) if (boost.0 - 1.0).abs() > f32::EPSILON => (45.0_f32
+                + BASE_BUFFER_DEG * boost.0)
+                .clamp(45.0, 89.0)
+                .to_radians()
+                .tan(),
             _ => default_buffer_ratio,
         };
 

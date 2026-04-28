@@ -257,7 +257,6 @@ pub(super) fn trigger_kbm_menus_tutorial(
 pub(super) fn enforce_tutorial_modality(
     mut commands: Commands,
     active: Option<Res<ActiveTutorial>>,
-    pending: Option<Res<super::resources::PendingTutorials>>,
     active_input: Res<crate::game::input::gamepad::resources::ActiveInputDevice>,
     overlay_query: Query<Entity, With<TutorialOverlay>>,
     mut highlighted: Query<(Entity, &HighlightOverlay)>,
@@ -677,7 +676,6 @@ pub(super) fn handle_skip_button(
     mut button_clicked: MessageReader<MouseClicked>,
     skip_buttons: Query<Entity, With<TutorialSkipButton>>,
     active: Option<Res<ActiveTutorial>>,
-    pending: Option<Res<super::resources::PendingTutorials>>,
     mut progress: ResMut<TutorialProgress>,
     overlay_query: Query<Entity, With<TutorialOverlay>>,
     mut highlighted: Query<(Entity, &HighlightOverlay)>,
@@ -851,6 +849,7 @@ pub(crate) fn reset_tutorial_progress() {
 // ---------------------------------------------------------------------------
 
 /// Tags Wizard Tower UI entities with TutorialHighlightable.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn tag_wizard_tower_entities(
     mut commands: Commands,
     level_displays: Query<Entity, (With<LevelDisplay>, Without<TutorialHighlightable>)>,
@@ -991,7 +990,8 @@ pub(super) fn tag_study_entities(
     for (entity, action) in &study_buttons {
         let target = match action {
             StudyButtonAction::Commit => HighlightTarget::CommitButton,
-            _ => continue,
+            #[cfg(debug_assertions)]
+            StudyButtonAction::DebugGrantInsight => continue,
         };
         commands
             .entity(entity)
