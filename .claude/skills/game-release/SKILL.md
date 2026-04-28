@@ -12,7 +12,7 @@ Perform a full release of the game. Execute these steps in order, stopping if an
 
 1. Run `git diff` to see all uncommitted changes (staged + unstaged)
 2. Analyze the diff to understand what changed from the player's perspective
-3. Read the top of `CHANGELOG.md` to match the existing format and version style
+3. Read the top of `docs/CHANGELOG.md` to match the existing format and version style
 4. Get the current version from `Cargo.toml`
 5. Add a new entry at the top of the changelog (below the header) with today's date and the current version
 6. Follow these rules:
@@ -30,7 +30,7 @@ Perform a full release of the game. Execute these steps in order, stopping if an
 
 ## Step 3: Sync and Deploy Website Changelog
 
-The marketing site at `../court_wizard_website` mirrors `CHANGELOG.md`, `CREDITS.md`, and `INSTRUCTIONS.md` into its `content/` directory and renders them at runtime. After the game commit lands, publish the updated content to the website:
+The marketing site at `../court_wizard_website` mirrors `docs/CHANGELOG.md`, `docs/CREDITS.md`, and `docs/INSTRUCTIONS.md` into its `content/` directory and renders them at runtime. After the game commit lands, publish the updated content to the website:
 
 1. From the website repo root, run `./scripts/sync_content.sh` to copy the three markdown files from the game repo into `content/`.
 2. Check `git status` in the website repo. If `content/` has changes:

@@ -112,7 +112,7 @@ else
 fi
 
 # Copy SPRITE_CREDITS.csv alongside binary for attribution
-CREDITS_SRC="./credits/SPRITE_CREDITS.csv"
+CREDITS_SRC="./docs/SPRITE_CREDITS.csv"
 if [ -f "$CREDITS_SRC" ]; then
     cp "$CREDITS_SRC" "$BIN_DIR/"
     echo "Sprite credits CSV copied."

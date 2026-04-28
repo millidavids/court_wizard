@@ -40,7 +40,7 @@ Play as a powerful wizard defending your castle from waves of attackers.
 
 If the game crashes, a `crash.log` file is written to the save data folder with details about what went wrong. Please include this file when reporting bugs.
 
-[View Changelog](CHANGELOG.md)
+[View Changelog](docs/CHANGELOG.md)
 
 ## Development
 
@@ -64,4 +64,4 @@ Built with:
 
 ## Credits
 
-See [CREDITS.md](CREDITS.md) for full attribution.
+See [CREDITS.md](docs/CREDITS.md) for full attribution.

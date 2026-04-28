@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.48] - 2026-04-27
+
+### Changed
+- **Cleaner project layout** — supporting documentation files have been tidied into a dedicated folder. No effect on gameplay or the game itself
+
 ## [v0.7.47] - 2026-04-27
 
 ### Added

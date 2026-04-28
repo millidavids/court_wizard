@@ -15,12 +15,12 @@ use crate::ui::constants::{
 use crate::ui::markdown::{MarkdownBlock, parse_markdown, spawn_markdown};
 use crate::ui::systems::spawn_page_header;
 
-const INSTRUCTIONS_TEXT: &str = include_str!("../../../INSTRUCTIONS.md");
-const CHANGELOG_TEXT: &str = include_str!("../../../CHANGELOG.md");
-const CREDITS_TEXT: &str = include_str!("../../../CREDITS.md");
+const INSTRUCTIONS_TEXT: &str = include_str!("../../../docs/INSTRUCTIONS.md");
+const CHANGELOG_TEXT: &str = include_str!("../../../docs/CHANGELOG.md");
+const CREDITS_TEXT: &str = include_str!("../../../docs/CREDITS.md");
 const LICENSE_TEXT: &str = include_str!("../../../LICENSE");
-const HEALTH_WARNING_TEXT: &str = include_str!("../../../HEALTH_WARNING.md");
-const PRIVACY_POLICY_TEXT: &str = include_str!("../../../PRIVACY_POLICY.md");
+const HEALTH_WARNING_TEXT: &str = include_str!("../../../docs/HEALTH_WARNING.md");
+const PRIVACY_POLICY_TEXT: &str = include_str!("../../../docs/PRIVACY_POLICY.md");
 
 /// Pre-parsed markdown blocks for each tab, computed once at setup.
 #[derive(Resource)]

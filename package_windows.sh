@@ -34,7 +34,7 @@ trap 'rm -rf "$STAGING"' EXIT
 mkdir -p "$STAGING/court_wizard"
 cp "$BIN_DIR/court_wizard.exe" "$STAGING/court_wizard/"
 cp -r "$BIN_DIR/assets" "$STAGING/court_wizard/"
-cp PLAYER_README.txt "$STAGING/court_wizard/README.txt"
+cp docs/PLAYER_README.txt "$STAGING/court_wizard/README.txt"
 
 # Steam redistributable DLL
 if [ -f "$BIN_DIR/steam_api64.dll" ]; then
