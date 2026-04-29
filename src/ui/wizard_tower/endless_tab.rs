@@ -72,9 +72,14 @@ pub(super) fn build_endless_right_panel(
                     })
                     .with_children(|left_col| {
                         // Buttons stacked vertically
+                        let continue_label = if config.highest_level_achieved <= 1 {
+                            "Start"
+                        } else {
+                            "Continue Playing"
+                        };
                         spawn_button(
                             left_col,
-                            "Continue Playing",
+                            continue_label,
                             EndlessAction::ContinuePlay,
                             &BUTTON_STYLE,
                         );

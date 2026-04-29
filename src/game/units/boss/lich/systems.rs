@@ -45,6 +45,7 @@ const LICH_POST_WAVE_SPAWN_DELAY: f32 = 0.5;
 /// Checks if it's time to spawn the Lich mid-game.
 /// The Lich spawns as an extra wave after all normal waves have been dispatched
 /// and every attacker (including staging) is dead.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn check_lich_spawn(
     time: Res<Time>,
     mut commands: Commands,
@@ -244,6 +245,7 @@ fn resolve_raise_dead(
             undead_assets.sprite_texture.clone(),
             undead_assets.sprite_mesh.clone(),
             materials,
+            Some(undead_assets.death_texture.clone()),
         );
         raised += 1;
     }

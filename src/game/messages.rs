@@ -45,3 +45,10 @@ pub(crate) struct ComboDiscoveredMessage {
     /// Flavor text description.
     pub(crate) description: &'static str,
 }
+
+/// Message sent when a spell's talent progress crosses a tier threshold.
+#[derive(Message)]
+pub(crate) struct TalentTierUnlockedMessage {
+    pub(crate) spell: Spell,
+    pub(crate) tier: u8,
+}

@@ -747,37 +747,15 @@ pub(crate) fn unlock_unit(unit_type: UnitType) -> bool {
     true
 }
 
-/// Clear all achievements, lifetime stats, wizard progress, and reset unlocked content to defaults.
+/// Clear all progress and start a fresh save, keeping the previous save as a
+/// single rollback backup at `<save>.cleared` (overwriting any prior backup).
 pub(crate) fn clear_progress() {
-    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
-    save_file.player.unlocked_achievements.clear();
-    save_file.player.unlocked_content = UnlockedContent::default();
-    save_file.player.total_levels_completed = 0;
-    save_file.player.total_games_played = 0;
-    save_file.player.total_defenders_killed = 0;
-    save_file.player.total_attackers_killed = 0;
-    save_file.player.total_undead_killed = 0;
-    save_file.player.arcane_insight = 0;
-    save_file.player.spell_research_progress.clear();
-    save_file.player.spell_talent_progress.clear();
-    save_file.player.spell_talent_selections.clear();
-    save_file.player.completed_tutorials.clear();
-    save_file.player.unlocked_toggles.clear();
-    save_file.player.insight_bonuses.clear();
-
-    // Reset all wizard saves to level 1
-    for wizard in &mut save_file.wizards {
-        wizard.current_level = 1;
-        wizard.highest_level_achieved = 1;
-        wizard.efficiency_ratios.clear();
-        wizard.action_bar_slots = [None; 5];
-        wizard.saved_walls.clear();
-        wizard.saved_crystals.clear();
-        wizard.saved_flora.clear();
-        wizard.saved_trampling = SavedTrampling::default();
+    flush_save_cache();
+    if let Err(e) = storage::move_unified_save_to_cleared_backup() {
+        warn!("Failed to back up save before clearing progress: {e}");
     }
-
-    save_unified(&save_file);
+    save_unified(&new_unified_save());
+    flush_save_cache();
 }
 
 /// Serializable wall placement data for permanent walls.
@@ -1815,19 +1793,33 @@ pub(crate) fn get_spell_talent_progress(spell: Spell) -> u32 {
         .unwrap_or(0)
 }
 
-/// Add talent progress to a spell and persist.
-pub(crate) fn add_spell_talent_progress(spell: Spell, amount: u32) {
+/// Apply many talent-progress increments at once, returning the pre-increment
+/// value for each spell. One save load + one save write regardless of input size.
+pub(crate) fn add_spell_talent_progress_batch(
+    increments: &HashMap<Spell, u32>,
+) -> HashMap<Spell, u32> {
+    let mut prev_values = HashMap::new();
     let Some(mut save_file) = load_unified_save() else {
-        return;
+        return prev_values;
     };
-    let name = format!("{:?}", spell);
-    let entry = save_file
-        .player
-        .spell_talent_progress
-        .entry(name)
-        .or_insert(0);
-    *entry += amount;
-    save_unified(&save_file);
+    let mut dirty = false;
+    for (&spell, &amount) in increments {
+        if amount == 0 {
+            continue;
+        }
+        let entry = save_file
+            .player
+            .spell_talent_progress
+            .entry(format!("{:?}", spell))
+            .or_insert(0);
+        prev_values.insert(spell, *entry);
+        *entry += amount;
+        dirty = true;
+    }
+    if dirty {
+        save_unified(&save_file);
+    }
+    prev_values
 }
 
 /// Returns the talent selections for a spell as [Option<u8>; 3].

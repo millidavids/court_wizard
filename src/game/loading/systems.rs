@@ -47,6 +47,11 @@ pub fn init_loading_progress(
         current_level.0 = config.current_level;
     }
 
+    // Why: not every entry path (e.g. roguelite Continue Run, victory → tower → next level)
+    // resets kill_stats, and any stale values get re-accumulated into lifetime totals
+    // by send_battle_ended.
+    kill_stats.reset();
+
     let mut queue = SpawnQueue::new();
     let level = current_level.0;
 

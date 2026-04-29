@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::game::messages::TalentTierUnlockedMessage;
 use crate::state::{AppState, InGameState};
 
 use super::resources::{ActiveTalents, BattleTalentProgress};
@@ -8,7 +9,8 @@ pub struct TalentsPlugin;
 
 impl Plugin for TalentsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(InGameState::Running), init_talent_resources)
+        app.add_message::<TalentTierUnlockedMessage>()
+            .add_systems(OnEnter(InGameState::Running), init_talent_resources)
             .add_systems(OnExit(AppState::InGame), cleanup_talent_resources)
             .add_systems(OnExit(AppState::MultiplayerGame), cleanup_talent_resources);
     }

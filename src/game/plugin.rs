@@ -279,13 +279,17 @@ impl Plugin for GamePlugin {
                 systems::update_billboards
                     .run_if(in_state(AppState::InGame).or(in_state(AppState::MultiplayerGame))),
             )
-            // SP-only win/lose check — runs after combat chain, gated to InGameState
+            // SP-only win/lose check — runs after combat chain, gated to gameplay states
+            // only. Must NOT run during InGameState::ScoreScreen: bevy_state 0.18's
+            // NextState::set re-fires OnEnter on identity transitions, so re-detecting
+            // the same victory/defeat each frame would rebuild the score screen and
+            // re-accumulate kills every frame.
             // (MP has its own check_mp_king_death registered in MultiplayerGamePlugin)
             .add_systems(
                 Update,
                 win_lose_systems::check_win_lose_conditions
                     .after(PostCombatSet)
-                    .run_if(in_state(AppState::InGame)),
+                    .run_if(is_gameplay_running),
             )
             // Debug hitbox visualization (F2 toggle)
             .add_systems(

@@ -754,6 +754,7 @@ pub fn process_pending_undead_raises(
                 undead_assets.sprite_texture.clone(),
                 undead_assets.sprite_mesh.clone(),
                 &mut materials,
+                Some(undead_assets.death_texture.clone()),
             );
         }
     }

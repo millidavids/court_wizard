@@ -72,6 +72,13 @@ pub(crate) struct CloseCallMessage;
 #[derive(Message)]
 pub(crate) struct StormbringerMessage;
 
-/// Message sent when a wizard type is newly unlocked via `unlock_wizard_type()`.
+/// Message sent every time `unlock_wizard_type()` is called. `newly_unlocked` is
+/// false when the wizard type was already on the player's unlock list — readers
+/// that only care about first-time unlocks (e.g. notification toasts) should gate
+/// on it. Counters that should fire even on re-unlock (e.g. Grand Council) can
+/// ignore it.
 #[derive(Message)]
-pub(crate) struct WizardTypeUnlockedMessage;
+pub(crate) struct WizardTypeUnlockedMessage {
+    pub wizard_type: crate::config::WizardType,
+    pub newly_unlocked: bool,
+}

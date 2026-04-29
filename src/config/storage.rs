@@ -154,3 +154,17 @@ pub(super) fn load_unified_save() -> ConfigResult<String> {
 pub(super) fn unified_save_exists() -> bool {
     file_exists(UNIFIED_SAVE_FILENAME)
 }
+
+/// Move the current unified save file aside as a "cleared" backup, replacing any
+/// previous cleared backup. No-op if the primary save doesn't exist.
+pub(super) fn move_unified_save_to_cleared_backup() -> ConfigResult<()> {
+    let dir = save_dir()?;
+    let primary = dir.join(UNIFIED_SAVE_FILENAME);
+    let backup = dir.join(format!("{UNIFIED_SAVE_FILENAME}.cleared"));
+    if !primary.exists() {
+        return Ok(());
+    }
+    let _ = std::fs::remove_file(&backup);
+    std::fs::rename(&primary, &backup)?;
+    Ok(())
+}

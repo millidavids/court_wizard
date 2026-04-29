@@ -1,14 +1,18 @@
 use bevy::prelude::*;
 
-use crate::config::save_data::AchievementId;
+use crate::config::WizardType;
 use crate::game::cauldron::brews::Ingredient;
 use crate::game::units::wizard::components::Spell;
 
-/// A queued popup entry — achievement, ingredient, spell research, combo discovery, or toast.
-pub(crate) enum PopupEntry {
-    Achievement(AchievementId),
+/// A queued notification entry — wizard unlock, ingredient, spell research, talent tier, combo, or settings toast.
+pub(crate) enum NotificationEntry {
+    WizardUnlocked(WizardType),
     IngredientCollected(Ingredient),
     SpellResearched(Spell),
+    TalentTierUnlocked {
+        spell: Spell,
+        tier: u8,
+    },
     ComboDiscovered {
         name: &'static str,
         description: &'static str,
@@ -18,24 +22,24 @@ pub(crate) enum PopupEntry {
     },
 }
 
-/// Marker for the popup root entity.
+/// Marker for the notification root entity.
 #[derive(Component)]
-pub(super) struct AchievementPopup;
+pub(super) struct Notification;
 
-/// Queue of popups waiting to be displayed.
+/// Queue of notifications waiting to be displayed.
 #[derive(Resource, Default)]
-pub(crate) struct PopupQueue {
-    pub queue: Vec<PopupEntry>,
+pub(crate) struct NotificationQueue {
+    pub queue: Vec<NotificationEntry>,
 }
 
-impl PopupQueue {
+impl NotificationQueue {
     /// Add an entry to the queue.
-    pub fn push(&mut self, entry: PopupEntry) {
+    pub fn push(&mut self, entry: NotificationEntry) {
         self.queue.push(entry);
     }
 
     /// Get the next entry to display (if any).
-    pub fn pop(&mut self) -> Option<PopupEntry> {
+    pub fn pop(&mut self) -> Option<NotificationEntry> {
         if self.queue.is_empty() {
             None
         } else {
@@ -49,15 +53,15 @@ impl PopupQueue {
     }
 }
 
-/// Timer that controls popup display and fade-out.
+/// Timer that controls notification display and fade-out.
 #[derive(Component)]
-pub(super) struct AchievementPopupTimer {
+pub(super) struct NotificationTimer {
     pub elapsed: f32,
     pub display_duration: f32,
     pub fade_duration: f32,
 }
 
-impl AchievementPopupTimer {
+impl NotificationTimer {
     pub fn new(display_duration: f32, fade_duration: f32) -> Self {
         Self {
             elapsed: 0.0,
@@ -81,7 +85,7 @@ impl AchievementPopupTimer {
         }
     }
 
-    /// Returns true when the popup should be despawned.
+    /// Returns true when the notification should be despawned.
     pub fn is_expired(&self) -> bool {
         self.elapsed >= self.total_duration()
     }

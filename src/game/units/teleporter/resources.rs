@@ -9,10 +9,11 @@ use super::constants::{TELEPORTER_BOLT_COLOR, TELEPORTER_BOLT_RADIUS};
 
 #[derive(Resource)]
 #[allow(dead_code)]
-pub(in crate::game) struct TeleporterAssets {
+pub struct TeleporterAssets {
     pub sprite_mesh: Handle<Mesh>,
     pub sprite_texture: Handle<Image>,
     pub casting_texture: Handle<Image>,
+    pub death_texture: Handle<Image>,
     pub attacker_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
     pub channel_particle_material: Handle<StandardMaterial>,
     pub bolt_mesh: Handle<Mesh>,
@@ -27,6 +28,7 @@ pub(super) fn preload_teleporter_assets(
 ) {
     let sprite_texture = asset_server.load("images/sprite_sheets/teleporter-walking_9-frames.png");
     let casting_texture = asset_server.load("images/sprite_sheets/teleporter-casting_7-frames.png");
+    let death_texture = asset_server.load("images/sprite_sheets/teleporter-death_6-frames.png");
 
     let attacker_corpse_materials = create_corpse_sprite_materials(
         &mut materials,
@@ -53,6 +55,7 @@ pub(super) fn preload_teleporter_assets(
         sprite_mesh: meshes.add(Rectangle::new(DEFAULT_SPRITE_WIDTH, DEFAULT_SPRITE_HEIGHT)),
         sprite_texture,
         casting_texture,
+        death_texture,
         attacker_corpse_materials,
         channel_particle_material,
         bolt_mesh,

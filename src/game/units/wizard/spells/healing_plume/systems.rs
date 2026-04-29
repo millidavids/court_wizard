@@ -458,6 +458,7 @@ pub fn font_of_life_resurrect(
                 infantry_assets.sprite_texture.clone(),
                 infantry_assets.sprite_mesh.clone(),
                 &mut materials,
+                None,
             );
 
             commands.entity(entity).remove::<FontOfLifePending>();

@@ -1645,6 +1645,7 @@ fn spawn_confirmation_popup(commands: &mut Commands, action: SettingsButtonActio
 }
 
 /// Handles confirm/cancel clicks on the confirmation popup.
+#[allow(clippy::too_many_arguments)]
 pub fn handle_confirmation_popup(
     mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
@@ -1652,7 +1653,10 @@ pub fn handle_confirmation_popup(
     action_query: Query<&ConfirmationAction>,
     popup_query: Query<Entity, With<ConfirmationPopup>>,
     mut tutorial_progress: ResMut<crate::ui::tutorial::resources::TutorialProgress>,
-    mut popup_queue: ResMut<crate::ui::achievement_popup::PopupQueue>,
+    mut popup_queue: ResMut<crate::ui::notification::NotificationQueue>,
+    mut clear_progress_msg: MessageWriter<
+        crate::game::achievements::messages::ClearProgressMessage,
+    >,
 ) {
     if !popup_query.is_empty() && back_msgs.read().next().is_some() {
         for entity in &popup_query {
@@ -1667,13 +1671,16 @@ pub fn handle_confirmation_popup(
                     SettingsButtonAction::ResetTutorials => {
                         tutorial_progress.reset();
                         crate::ui::tutorial::systems::reset_tutorial_progress();
-                        popup_queue.push(crate::ui::achievement_popup::PopupEntry::Toast {
+                        popup_queue.push(crate::ui::notification::NotificationEntry::Toast {
                             message: "Tutorials have been reset.",
                         });
                     }
                     SettingsButtonAction::ClearProgress => {
                         crate::config::save_data::clear_progress();
-                        popup_queue.push(crate::ui::achievement_popup::PopupEntry::Toast {
+                        clear_progress_msg.write(
+                            crate::game::achievements::messages::ClearProgressMessage,
+                        );
+                        popup_queue.push(crate::ui::notification::NotificationEntry::Toast {
                             message: "All progress has been cleared.",
                         });
                     }

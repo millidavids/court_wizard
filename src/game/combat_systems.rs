@@ -578,6 +578,7 @@ pub fn convert_dead_to_corpses(
                 Option<&super::units::aerialist::Aerialist>,
                 Option<&super::units::brute::components::Brute>,
                 Has<Flying>,
+                Option<&super::units::teleporter::components::Teleporter>,
             ),
         ),
         (
@@ -597,6 +598,7 @@ pub fn convert_dead_to_corpses(
         Res<super::units::shielder::resources::ShielderAssets>,
         Res<super::units::healer::resources::HealerAssets>,
         Res<super::units::aerialist::resources::AerialistAssets>,
+        Res<super::units::teleporter::resources::TeleporterAssets>,
     ),
     mut velocity_query: Query<&mut Velocity>,
 ) {
@@ -608,7 +610,7 @@ pub fn convert_dead_to_corpses(
         undead_assets,
         king_assets,
     ) = &death_assets;
-    let (shielder_assets, healer_assets, aerialist_assets) = &death_assets_2;
+    let (shielder_assets, healer_assets, aerialist_assets, teleporter_assets) = &death_assets_2;
     for (
         entity,
         health,
@@ -623,7 +625,7 @@ pub fn convert_dead_to_corpses(
         is_king,
         _is_boss,
         spell_damaged,
-        (residual_fire_damaged, marked_for_death, is_aerialist, is_brute, is_flying),
+        (residual_fire_damaged, marked_for_death, is_aerialist, is_brute, is_flying, is_teleporter),
     ) in &query
     {
         if health.is_dead() {
@@ -692,6 +694,8 @@ pub fn convert_dead_to_corpses(
                 Some(assassin_assets.death_texture.clone())
             } else if is_aerialist.is_some() {
                 Some(aerialist_assets.death_texture.clone())
+            } else if is_teleporter.is_some() {
+                Some(teleporter_assets.death_texture.clone())
             } else if is_brute.is_some() {
                 Some(infantry_assets.death_texture.clone())
             } else {

@@ -3,7 +3,7 @@
 //! This module provides the user interface systems and components,
 //! organized by menu/screen type.
 
-mod achievement_popup;
+mod notification;
 pub(crate) mod action_bar;
 pub(crate) mod arcanorouter_display;
 mod cauldron_menu;

@@ -405,6 +405,7 @@ fn raise_corpse_as_undead(
         undead_assets.sprite_texture.clone(),
         undead_assets.sprite_mesh.clone(),
         materials,
+        Some(undead_assets.death_texture.clone()),
     );
 
     let mut entity_cmds = commands.entity(corpse_entity);

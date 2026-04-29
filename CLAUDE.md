@@ -2,12 +2,12 @@
 
 ## Project Overview
 
-Court Wizard is a real-time strategy game built with Rust and the Bevy game engine (v0.17.3). The game targets native desktop platforms (Windows, Linux, macOS).
+Court Wizard is a real-time strategy game built with Rust and the Bevy game engine (v0.18.1). The game targets native desktop platforms (Windows, Linux, macOS).
 
 ## Technology Stack
 
 - **Language**: Rust (edition 2024)
-- **Game Engine**: Bevy 0.17.3
+- **Game Engine**: Bevy 0.18.1
 - **Target Platforms**: Native (Windows, Linux, macOS)
 - **Key Dependencies**: serde, toml, thiserror, anyhow, rand, dirs
 

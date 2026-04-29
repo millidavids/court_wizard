@@ -6,7 +6,7 @@ use crate::config::save_data::{
     increment_games_played, increment_levels_completed, unlock_achievement, unlock_unit,
 };
 use crate::config::{GameConfig, InputBindings, WizardType};
-use crate::game::messages::AchievementUnlockedMessage;
+use crate::game::messages::{AchievementUnlockedMessage, TalentTierUnlockedMessage};
 use crate::game::resources::{
     BattleInsightData, CurrentLevel, GameOutcome, KillStats, RetryTracker,
 };
@@ -37,8 +37,11 @@ fn unlock_and_notify_wizard_type(
     wizard_type: WizardType,
     msg: &mut MessageWriter<WizardTypeUnlockedMessage>,
 ) {
-    crate::config::save_data::unlock_wizard_type(wizard_type);
-    msg.write(WizardTypeUnlockedMessage);
+    let newly_unlocked = crate::config::save_data::unlock_wizard_type(wizard_type);
+    msg.write(WizardTypeUnlockedMessage {
+        wizard_type,
+        newly_unlocked,
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -60,6 +63,7 @@ pub(crate) fn send_battle_ended(
         Res<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
     active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
+    mut talent_tier_msg: MessageWriter<TalentTierUnlockedMessage>,
 ) {
     let is_victory = *game_outcome == GameOutcome::Victory;
 
@@ -117,9 +121,11 @@ pub(crate) fn send_battle_ended(
     battle_insight.insight_earned = insight;
     grant_insight(insight);
 
-    // Flush accumulated talent progress to save data
+    // Flush accumulated talent progress and notify per crossed tier threshold.
     if let Some(tp) = &talent_progress {
-        tp.flush_to_save();
+        for (spell, tier) in tp.flush_to_save() {
+            talent_tier_msg.write(TalentTierUnlockedMessage { spell, tier });
+        }
     }
 
     message.write(BattleEndedMessage {
@@ -384,7 +390,10 @@ pub(crate) fn check_accidental_regicide(
     for m in msg.read() {
         if m.outcome != GameOutcome::Victory && m.king_killed_by_spell {
             do_unlock(&mut res, &mut events);
-            unlock_and_notify_wizard_type(WizardType::Psychopath, &mut wizard_unlocked);
+            unlock_and_notify_wizard_type(
+                WizardType::Psychopath,
+                &mut wizard_unlocked,
+            );
         }
     }
 }
@@ -461,7 +470,10 @@ pub(crate) fn check_slider_fiddler(
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        unlock_and_notify_wizard_type(WizardType::Arcanorouter, &mut wizard_unlocked);
+        unlock_and_notify_wizard_type(
+            WizardType::Arcanorouter,
+            &mut wizard_unlocked,
+        );
     }
 }
 
@@ -506,7 +518,10 @@ pub(crate) fn check_random_magic_surge(
     for _ in msg.read() {
         if game_rng.0.random_range(1..=100) == 1 {
             do_unlock(&mut res, &mut events);
-            unlock_and_notify_wizard_type(WizardType::Randomancer, &mut wizard_unlocked);
+            unlock_and_notify_wizard_type(
+                WizardType::Randomancer,
+                &mut wizard_unlocked,
+            );
         }
     }
 }
@@ -533,7 +548,10 @@ pub(crate) fn check_qwer(
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        unlock_and_notify_wizard_type(WizardType::RuneCaster, &mut wizard_unlocked);
+        unlock_and_notify_wizard_type(
+            WizardType::RuneCaster,
+            &mut wizard_unlocked,
+        );
     }
 }
 
@@ -828,7 +846,10 @@ pub(crate) fn check_master_brewer(
 
         if all_collected {
             do_unlock(&mut res, &mut events);
-            unlock_and_notify_wizard_type(WizardType::Alchemist, &mut wizard_unlocked);
+            unlock_and_notify_wizard_type(
+                WizardType::Alchemist,
+                &mut wizard_unlocked,
+            );
         }
     }
 }
@@ -841,7 +862,10 @@ pub(crate) fn check_soiled_surprise(
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        unlock_and_notify_wizard_type(WizardType::Excremage, &mut wizard_unlocked);
+        unlock_and_notify_wizard_type(
+            WizardType::Excremage,
+            &mut wizard_unlocked,
+        );
     }
 }
 
@@ -853,7 +877,10 @@ pub(crate) fn check_right_to_bear_arms(
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        unlock_and_notify_wizard_type(WizardType::Warglock, &mut wizard_unlocked);
+        unlock_and_notify_wizard_type(
+            WizardType::Warglock,
+            &mut wizard_unlocked,
+        );
     }
 }
 
@@ -869,7 +896,10 @@ pub(crate) fn check_close_call(
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        unlock_and_notify_wizard_type(WizardType::Battlemage, &mut wizard_unlocked);
+        unlock_and_notify_wizard_type(
+            WizardType::Battlemage,
+            &mut wizard_unlocked,
+        );
     }
 }
 
@@ -907,7 +937,10 @@ pub(crate) fn check_stormbringer(
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        unlock_and_notify_wizard_type(WizardType::Meteorologist, &mut wizard_unlocked);
+        unlock_and_notify_wizard_type(
+            WizardType::Meteorologist,
+            &mut wizard_unlocked,
+        );
     }
 }
 
@@ -924,7 +957,10 @@ pub(crate) fn check_pacifist(
     for m in msg.read() {
         if m.outcome == GameOutcome::Victory && !m.wizard_damaged_enemies {
             do_unlock(&mut res, &mut events);
-            unlock_and_notify_wizard_type(WizardType::Shepherd, &mut wizard_unlocked);
+            unlock_and_notify_wizard_type(
+                WizardType::Shepherd,
+                &mut wizard_unlocked,
+            );
         }
     }
 }

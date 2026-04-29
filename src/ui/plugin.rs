@@ -9,7 +9,7 @@ use bevy::window::PrimaryWindow;
 
 use super::systems::{FrostedGlassMaterial, ParchmentMaterial};
 
-use super::achievement_popup::AchievementPopupPlugin;
+use super::notification::NotificationPlugin;
 use super::action_bar::ActionBarPlugin;
 use super::arcanorouter_display::ArcanoRouterDisplayPlugin;
 use super::cauldron_menu::CauldronMenuPlugin;
@@ -52,7 +52,7 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             FocusPlugin,
-            AchievementPopupPlugin,
+            NotificationPlugin,
             SplashScreenPlugin,
             MainMenuPlugin,
             LoadingUiPlugin,

@@ -102,12 +102,21 @@ impl BattleTalentProgress {
         *self.progress.entry(spell).or_insert(0) += amount;
     }
 
-    /// Flush all accumulated progress to save data.
-    pub fn flush_to_save(&self) {
-        for (&spell, &amount) in &self.progress {
-            if amount > 0 {
-                save_data::add_spell_talent_progress(spell, amount);
+    /// Flush all accumulated progress to save data and return any tier thresholds
+    /// that were crossed by this flush.
+    pub fn flush_to_save(&self) -> Vec<(Spell, u8)> {
+        let prev_values = save_data::add_spell_talent_progress_batch(&self.progress);
+        let mut crossed = Vec::new();
+        for (&spell, &prev) in &prev_values {
+            let amount = self.progress.get(&spell).copied().unwrap_or(0);
+            let new_total = prev + amount;
+            let thresholds = tier_thresholds(spell);
+            for (i, &threshold) in thresholds.iter().enumerate() {
+                if prev < threshold && new_total >= threshold {
+                    crossed.push((spell, i as u8));
+                }
             }
         }
+        crossed
     }
 }

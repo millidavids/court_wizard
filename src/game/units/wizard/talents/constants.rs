@@ -42,6 +42,16 @@ pub(crate) fn tier_thresholds(spell: Spell) -> [u32; 3] {
     }
 }
 
+/// Returns the flavor name for a talent tier (0-indexed).
+pub(crate) fn tier_name(tier: u8) -> &'static str {
+    match tier {
+        0 => "Apprentice",
+        1 => "Adept",
+        2 => "Master",
+        _ => "Unknown",
+    }
+}
+
 /// Returns a human-readable label for what increments this spell's talent progress.
 pub(crate) fn progress_metric_label(spell: Spell) -> &'static str {
     match spell {

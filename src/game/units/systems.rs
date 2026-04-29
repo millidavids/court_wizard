@@ -5,7 +5,8 @@ use rand::Rng;
 use super::components::{
     ANIMATION_MOVE_THRESHOLD_SQ, AnimationOverride, CORPSE_MATERIAL_VARIANTS, CombatAnimation,
     DyingAnimation, FacingDirection, FacingDwell, FacingHysteresisBoost, PulsingAnimation,
-    SPRITE_FRAME_SIZE, SPRITE_SHEET_IMAGE_HEIGHT, SmoothedFacingVelocity, WalkingAnimation,
+    RisingAnimation, SPRITE_FRAME_SIZE, SPRITE_SHEET_IMAGE_HEIGHT, SmoothedFacingVelocity,
+    WalkingAnimation,
 };
 use super::components::{
     Airborne, BanishedModifier, Corpse, Effectiveness, ElectricCharge, FALL_DAMAGE_SCALE,
@@ -1276,6 +1277,7 @@ pub fn resurrect_corpse_as_infantry(
     sprite_texture: Handle<Image>,
     sprite_mesh: Handle<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    rising_death_texture: Option<Handle<Image>>,
 ) {
     use super::components::{
         AttackTiming, Effectiveness, FlockingVelocity, Hitbox, MovementSpeed, RoughTerrain,
@@ -1289,10 +1291,17 @@ pub fn resurrect_corpse_as_infantry(
     let upright_transform = Transform::from_xyz(position.x, spawn_y, position.z);
 
     let anim = WalkingAnimation::default();
-    let material = create_default_sprite_material(materials, sprite_texture, tint);
+    let material = create_default_sprite_material(materials, sprite_texture.clone(), tint);
 
-    commands
-        .entity(entity)
+    let mut entity_cmds = commands.entity(entity);
+    if let Some(death_tex) = rising_death_texture {
+        entity_cmds.insert(super::components::RisingAnimation::new(
+            death_tex,
+            sprite_texture,
+        ));
+    }
+
+    entity_cmds
         .remove::<Corpse>()
         .remove::<RoughTerrain>()
         // Strip all non-infantry unit markers so resurrected units
@@ -1340,6 +1349,7 @@ pub fn resurrect_corpse_as_infantry(
 
 /// Advances walking animation frames and updates UV transforms.
 /// Skips entities with active combat or dying animations.
+#[allow(clippy::type_complexity)]
 pub fn update_walking_animation(
     time: Res<Time>,
     mut anim_query: Query<
@@ -1353,6 +1363,7 @@ pub fn update_walking_animation(
             Without<Corpse>,
             Without<CombatAnimation>,
             Without<DyingAnimation>,
+            Without<RisingAnimation>,
             Without<AnimationOverride>,
         ),
     >,
@@ -1415,7 +1426,7 @@ pub fn update_combat_animation(
             &FacingDirection,
             Option<&WalkingAnimation>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<RisingAnimation>),
     >,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -1489,6 +1500,49 @@ pub fn update_dying_animation(
                 commands
                     .entity(entity)
                     .insert(super::components::DeathAnimationFinished);
+            }
+        }
+    }
+}
+
+/// Advances rising animations (death sheet played in reverse) and swaps the
+/// material back to the walking sprite when the animation finishes.
+pub fn update_rising_animation(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut anim_query: Query<(
+        Entity,
+        &mut super::components::RisingAnimation,
+        &MeshMaterial3d<StandardMaterial>,
+    )>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, mut anim, material_handle) in &mut anim_query {
+        let Some(mat) = materials.get_mut(material_handle) else {
+            continue;
+        };
+
+        if !anim.started {
+            anim.started = true;
+            mat.base_color_texture = Some(anim.death_texture.clone());
+            mat.uv_transform = anim.uv_transform();
+        }
+
+        if anim.tick(delta) {
+            if anim.finished() {
+                // Swap back to the walking sprite and reset UV so the walking
+                // animation system picks up cleanly from frame 0.
+                mat.base_color_texture = Some(anim.walking_texture.clone());
+                mat.uv_transform = Affine2::from_scale_angle_translation(
+                    anim.frame_uv,
+                    0.0,
+                    Vec2::ZERO,
+                );
+                commands.entity(entity).remove::<super::components::RisingAnimation>();
+            } else {
+                mat.uv_transform = anim.uv_transform();
             }
         }
     }

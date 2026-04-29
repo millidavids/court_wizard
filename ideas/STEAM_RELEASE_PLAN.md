@@ -61,7 +61,7 @@
 
 ### Dependencies
 - ~~Add `steamworks = "0.12"` to Cargo.toml~~
-- ~~Check if `bevy-steamworks` supports Bevy 0.17.3~~
+- ~~Check if `bevy-steamworks` supports Bevy 0.18.1~~
 - **DONE** — Using `bevy-steamworks = "0.15"` in `Cargo.toml`
 
 ### New Files

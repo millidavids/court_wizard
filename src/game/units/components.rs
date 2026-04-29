@@ -1131,6 +1131,65 @@ impl DyingAnimation {
 #[derive(Component)]
 pub struct DeathAnimationFinished;
 
+/// Plays a unit's death sprite sheet in reverse to make a corpse visually
+/// "stand up" when raised. While active, walking and combat animations are
+/// suspended; on completion the material's texture is swapped back to the
+/// walking sprite and the component is removed.
+#[derive(Component)]
+pub struct RisingAnimation {
+    /// Frame index, played in reverse (starts at `DEATH_SPRITE_COLUMNS - 1` and
+    /// decrements to -1 to indicate completion).
+    pub elapsed: f32,
+    pub current_frame: i32,
+    pub frame_uv: Vec2,
+    pub death_texture: Handle<Image>,
+    pub walking_texture: Handle<Image>,
+    pub started: bool,
+}
+
+impl RisingAnimation {
+    const FRAME_DURATION: f32 = 0.15;
+
+    pub fn new(death_texture: Handle<Image>, walking_texture: Handle<Image>) -> Self {
+        Self {
+            elapsed: 0.0,
+            current_frame: (DEATH_SPRITE_COLUMNS as i32) - 1,
+            frame_uv: sprite_frame_uv(DEATH_SHEET_IMAGE_HEIGHT),
+            death_texture,
+            walking_texture,
+            started: false,
+        }
+    }
+
+    /// Advances one tick. Returns true if the displayed frame changed.
+    pub fn tick(&mut self, delta: f32) -> bool {
+        if self.finished() {
+            return false;
+        }
+        self.elapsed += delta;
+        if self.elapsed >= Self::FRAME_DURATION {
+            self.elapsed -= Self::FRAME_DURATION;
+            self.current_frame -= 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn finished(&self) -> bool {
+        self.current_frame < 0
+    }
+
+    pub fn uv_offset(&self) -> Vec2 {
+        let col = self.current_frame.max(0) as f32;
+        Vec2::new(col * self.frame_uv.x, 0.0)
+    }
+
+    pub fn uv_transform(&self) -> Affine2 {
+        Affine2::from_scale_angle_translation(self.frame_uv, 0.0, self.uv_offset())
+    }
+}
+
 /// Marker that pauses `update_walking_animation` for an entity so a system
 /// can hold its sprite on a chosen frame (used e.g. for Josephina's leap pose).
 #[derive(Component)]

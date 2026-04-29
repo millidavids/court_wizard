@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 #[derive(Component)]
-pub(in crate::game) struct Teleporter;
+pub struct Teleporter;
 
 /// Channel state machine for the teleporter's ability.
 #[derive(Component, Default)]

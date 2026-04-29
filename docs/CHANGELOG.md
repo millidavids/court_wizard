@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.88] - 2026-04-29
+
+### Added
+- **Smaller, smarter notification toasts** — the popup that appears when you discover an ingredient, research a spell, brew a new combo, or unlock a new wizard is now a compact card in the top-right corner instead of a large banner. Toasts are shorter, less frequent, and more descriptive
+- **Talent tier unlock toasts** — when one of your spells crosses a talent threshold (Apprentice, Adept, or Master), a gold notification tells you the tier just opened up so you know to visit the Wizard Tower and pick a new talent
+- **First-time wizard toasts** — unlocking a brand new wizard archetype now shows its name and tagline as a purple toast. (Already-unlocked wizards re-triggered by an achievement no longer pop up redundantly)
+- **Teleporter death animation** — the teleporter enemy now plays a 6-frame death animation when it falls, matching the other troops
+- **Undead rise from corpses** — when Raise Dead, the Lich, or Lichdom (Finger of Death) raises a corpse, the body now visibly stands up by playing the death animation in reverse instead of popping upright instantly
+- **Save backup when Clearing Progress** — Settings → Clear Progress now keeps one rollback backup of your previous save next to the active save file. The Player README in the game folder explains where to find it and how to restore from it if you change your mind
+- **Endless tab "Start" button on fresh wizards** — for a wizard who hasn't beaten Level 1 yet, the right-hand button now says "Start" instead of "Continue Playing"
+
+### Changed
+- **Achievement popups removed from in-game** — earning an achievement no longer shows a popup over the battlefield. Steam's built-in achievement overlay handles the notification cleanly, so there's no longer two notifications fighting for the same moment
+- **Clear Progress fully resets in the same session** — clearing progress now also wipes the in-memory achievement state immediately, so you no longer need to restart the game to see a true fresh start
+
+### Fixed
+- **Score screen no longer freezes after a battle** — finishing a level was sometimes leaving the score screen stuck in a broken state where buttons couldn't be clicked, kills kept counting up forever, and the game appeared frozen. The win/lose check is now confined to active gameplay, so the score screen settles cleanly the first time and stays interactive
+- **Beating one level no longer skips ahead** — winning a level was occasionally advancing you two levels at once with the same stats recorded for both. Now each victory advances exactly one level
+- **Lifetime kill totals stay accurate** — the per-battle kill counter is now reset at the start of every battle no matter how you got there. Previously, certain entry paths (like starting a roguelite run from the tower) carried over the previous battle's kills, which then doubled or tripled the lifetime totals shown on the score screen
+
 ## [v0.7.74] - 2026-04-29
 
 ### Changed
