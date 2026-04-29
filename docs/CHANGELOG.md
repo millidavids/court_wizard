@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.74] - 2026-04-29
+
+### Changed
+- **Streamlined in-game Changelog tab** — the Manual's Changelog tab now shows only the 5 most recent updates instead of the entire history. A new "View full changelog on the web" button at the bottom opens the website where you can browse every release going back to the start
+
 ## [v0.7.72] - 2026-04-29
 
 ### Added

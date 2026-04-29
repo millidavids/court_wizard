@@ -3,8 +3,8 @@
 use bevy::prelude::*;
 
 use super::components::{
-    BackButton, ManualContentPanel, ManualTab, ManualTabButton, OnManualScreen,
-    ScrollableManualContainer,
+    BackButton, ChangelogWebsiteButton, ManualContentPanel, ManualTab, ManualTabButton,
+    OnManualScreen, ScrollableManualContainer,
 };
 use super::constants::*;
 use crate::ui::components::{ButtonActive, ButtonColors};
@@ -13,7 +13,7 @@ use crate::ui::constants::{
     TAB_FONT_SIZE, TAB_HEIGHT, TAB_PADDING_H, TEXT_BODY,
 };
 use crate::ui::markdown::{MarkdownBlock, parse_markdown, spawn_markdown};
-use crate::ui::systems::spawn_page_header;
+use crate::ui::systems::{spawn_button, spawn_page_header};
 
 const INSTRUCTIONS_TEXT: &str = include_str!("../../../docs/INSTRUCTIONS.md");
 const CHANGELOG_TEXT: &str = include_str!("../../../docs/CHANGELOG.md");
@@ -46,12 +46,35 @@ impl ParsedManualContent {
     }
 }
 
+// Skips blocks before the first H2 (drops the H1 title and intro paragraph),
+// then keeps up to `count` H2-bounded sections.
+fn truncate_changelog_to_recent(blocks: Vec<MarkdownBlock>, count: usize) -> Vec<MarkdownBlock> {
+    if count == 0 {
+        return Vec::new();
+    }
+
+    let mut h2_indices = blocks.iter().enumerate().filter_map(|(i, b)| match b {
+        MarkdownBlock::Heading { level: 2, .. } => Some(i),
+        _ => None,
+    });
+
+    let Some(start) = h2_indices.next() else {
+        return blocks;
+    };
+    let end = h2_indices.nth(count - 1).unwrap_or(blocks.len());
+
+    blocks.into_iter().skip(start).take(end - start).collect()
+}
+
 /// Spawns the manual screen UI.
 pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
     commands.insert_resource(ManualTab::default());
     commands.insert_resource(ParsedManualContent {
         instructions: parse_markdown(INSTRUCTIONS_TEXT),
-        changelog: parse_markdown(CHANGELOG_TEXT),
+        changelog: truncate_changelog_to_recent(
+            parse_markdown(CHANGELOG_TEXT),
+            RECENT_RELEASES_COUNT,
+        ),
         credits: parse_markdown(CREDITS_TEXT),
         license: parse_markdown(LICENSE_TEXT),
         health: parse_markdown(HEALTH_WARNING_TEXT),
@@ -190,6 +213,24 @@ pub(super) fn rebuild_content_on_tab_change(
 
     commands.entity(panel_entity).with_children(|content| {
         spawn_markdown(content, parsed.blocks_for(*tab));
+
+        if *tab == ManualTab::Changelog {
+            content
+                .spawn(Node {
+                    width: Val::Percent(100.0),
+                    justify_content: JustifyContent::Center,
+                    margin: UiRect::top(Val::Px(16.0)),
+                    ..default()
+                })
+                .with_children(|wrapper| {
+                    spawn_button(
+                        wrapper,
+                        "View full changelog on the web",
+                        ChangelogWebsiteButton,
+                        &CHANGELOG_LINK_BUTTON_STYLE,
+                    );
+                });
+        }
     });
 }
 
@@ -254,4 +295,119 @@ pub(super) fn update_tab_active_state(
 pub(super) fn cleanup_resources(mut commands: Commands) {
     commands.remove_resource::<ManualTab>();
     commands.remove_resource::<ParsedManualContent>();
+}
+
+pub(super) fn handle_changelog_website_click(
+    mut button_clicked: MessageReader<crate::game::input::messages::MouseClicked>,
+    button_query: Query<&ChangelogWebsiteButton>,
+) {
+    for event in button_clicked.read() {
+        if button_query.get(event.button).is_ok()
+            && let Err(e) = webbrowser::open(CHANGELOG_WEBSITE_URL)
+        {
+            warn!(
+                "Failed to open changelog URL {}: {}",
+                CHANGELOG_WEBSITE_URL, e
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn h2(text: &str) -> MarkdownBlock {
+        MarkdownBlock::Heading {
+            level: 2,
+            text: text.to_string(),
+        }
+    }
+
+    fn h3(text: &str) -> MarkdownBlock {
+        MarkdownBlock::Heading {
+            level: 3,
+            text: text.to_string(),
+        }
+    }
+
+    fn h1(text: &str) -> MarkdownBlock {
+        MarkdownBlock::Heading {
+            level: 1,
+            text: text.to_string(),
+        }
+    }
+
+    fn paragraph(text: &str) -> MarkdownBlock {
+        MarkdownBlock::Paragraph {
+            spans: vec![crate::ui::markdown::MarkdownSpan::Plain(text.to_string())],
+        }
+    }
+
+    #[test]
+    fn truncate_drops_h1_and_intro_paragraph() {
+        let blocks = vec![
+            h1("Changelog"),
+            paragraph("All notable changes..."),
+            h2("[v3] - 2026-04-29"),
+            h3("Added"),
+            h2("[v2] - 2026-04-28"),
+            h2("[v1] - 2026-04-27"),
+        ];
+        let result = truncate_changelog_to_recent(blocks, 5);
+        assert_eq!(result.len(), 4);
+        assert_eq!(result[0], h2("[v3] - 2026-04-29"));
+    }
+
+    #[test]
+    fn truncate_keeps_only_first_count_releases() {
+        let blocks = vec![
+            h1("Changelog"),
+            h2("[v6]"),
+            h3("Added"),
+            h2("[v5]"),
+            h2("[v4]"),
+            h2("[v3]"),
+            h2("[v2]"),
+            h2("[v1]"),
+        ];
+        let result = truncate_changelog_to_recent(blocks, 5);
+        let h2_count = result
+            .iter()
+            .filter(|b| matches!(b, MarkdownBlock::Heading { level: 2, .. }))
+            .count();
+        assert_eq!(h2_count, 5);
+        assert_eq!(result[0], h2("[v6]"));
+        assert!(!result.contains(&h2("[v1]")));
+    }
+
+    #[test]
+    fn truncate_handles_exactly_count_releases() {
+        let blocks = vec![h2("[v3]"), h3("Added"), h2("[v2]"), h2("[v1]")];
+        let result = truncate_changelog_to_recent(blocks, 3);
+        assert_eq!(result.len(), 4);
+        assert_eq!(result[0], h2("[v3]"));
+    }
+
+    #[test]
+    fn truncate_returns_all_when_fewer_than_count() {
+        let blocks = vec![h2("[v2]"), h2("[v1]")];
+        let result = truncate_changelog_to_recent(blocks, 5);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn truncate_returns_input_when_no_h2() {
+        let input = vec![h1("Changelog"), paragraph("Nothing released yet.")];
+        let expected = vec![h1("Changelog"), paragraph("Nothing released yet.")];
+        let result = truncate_changelog_to_recent(input, 5);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn truncate_count_zero_returns_empty() {
+        let blocks = vec![h2("[v1]")];
+        let result = truncate_changelog_to_recent(blocks, 0);
+        assert!(result.is_empty());
+    }
 }
