@@ -224,11 +224,10 @@ impl UnitType {
                 Color::WHITE,
                 1.0,
             ),
-            UnitType::Lich => atlas_64(
-                "images/sprite_sheets/undead-walking_9-frames.png",
-                Color::WHITE,
-                1.0,
-            ),
+            UnitType::Lich => CompendiumSpriteSpec::Static {
+                path: "images/static_sprites/lich.png",
+                size_multiplier: 2.0,
+            },
         }
     }
 }

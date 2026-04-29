@@ -83,7 +83,7 @@ fn magic_missile_talents() -> [[TalentDefinition; 3]; 3] {
                 implemented: true,
             },
             TalentDefinition {
-                name: "Arcane Barrage",
+                name: crate::game::units::wizard::spells::magic_missile::constants::ARCANE_BARRAGE_NAME,
                 description: "Click to begin automatically casting free volleys every 5s. Requires concentration.",
                 locked_text: "Hold the button. Keep holding. Don't stop.",
                 implemented: true,

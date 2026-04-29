@@ -11,9 +11,10 @@ use crate::game::resources::KillStats;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::boss::ogre::MeleeDamageReduction;
 use crate::game::units::components::{
-    AttackTiming, BanishedModifier, Corpse, DamageMultiplier, Effectiveness, FlockingModifier,
-    FlockingVelocity, Health, Hitbox, MovementSpeed, RoughTerrainModifier, SleepModifier,
-    TargetingVelocity, Team, Teleportable, TemporaryHitPoints, apply_spell_damage,
+    ANIMATION_MOVE_THRESHOLD_SQ, AttackTiming, BanishedModifier, Corpse, DamageMultiplier,
+    Effectiveness, FacingDirection, FlockingModifier, FlockingVelocity, Health, Hitbox,
+    MovementSpeed, RoughTerrainModifier, SleepModifier, TargetingVelocity, Team, Teleportable,
+    TemporaryHitPoints, WalkingAnimation, apply_spell_damage,
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::infantry::components::Infantry;
@@ -33,10 +34,19 @@ type LichBeamTargetData = (
 );
 type LichBeamTargetFilter = (Without<Corpse>, Without<Lich>, Without<Boss>);
 
+/// Minimum elapsed time (seconds) after `waves_complete` becomes true before
+/// the Lich is allowed to spawn. The wave-spawning system sets `waves_complete`
+/// in the same frame the final wave dispatches via `Commands::spawn`, which is
+/// deferred — so a query for living attackers in that frame can falsely return
+/// empty before the new attackers materialize. The debounce ensures the just-
+/// dispatched wave is in the world before we check for survivors.
+const LICH_POST_WAVE_SPAWN_DELAY: f32 = 0.5;
+
 /// Checks if it's time to spawn the Lich mid-game.
 /// The Lich spawns as an extra wave after all normal waves have been dispatched
 /// and every attacker (including staging) is dead.
-pub fn check_lich_spawn(
+pub(super) fn check_lich_spawn(
+    time: Res<Time>,
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     lich_assets: Res<LichAssets>,
@@ -44,6 +54,7 @@ pub fn check_lich_spawn(
     wave_state: Option<Res<crate::game::resources::WaveState>>,
     existing: Query<(), With<Lich>>,
     all_attackers: Query<&Team, Without<Corpse>>,
+    mut time_since_waves_complete: Local<f32>,
 ) {
     let Some(_pending) = pending else { return };
     if !existing.is_empty() {
@@ -51,8 +62,16 @@ pub fn check_lich_spawn(
     };
     let Some(wave_state) = wave_state else { return };
 
-    // Wait for all normal waves to finish spawning
-    if !wave_state.waves_complete {
+    // Track how long it's been since the final wave dispatched. Reset while
+    // waves are still ongoing so a fresh debounce runs on the actual final.
+    if wave_state.waves_complete {
+        *time_since_waves_complete += time.delta_secs();
+    } else {
+        *time_since_waves_complete = 0.0;
+        return;
+    }
+
+    if *time_since_waves_complete < LICH_POST_WAVE_SPAWN_DELAY {
         return;
     }
 
@@ -82,12 +101,13 @@ fn spawn_lich(
     let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(LICH_RADIUS, LICH_HITBOX_HEIGHT);
-    let spawn_y = hitbox.height / 2.0 + (LICH_ELLIPSE_DEPTH / 2.0) + 1.0;
+    // Sprite bottom at ground level; the float system layers hover on top.
+    let spawn_y = LICH_SPRITE_HEIGHT / 2.0;
 
     commands
         .spawn((
             Mesh3d(lich_assets.mesh.clone()),
-            MeshMaterial3d(lich_assets.material_summoning.clone()),
+            MeshMaterial3d(lich_assets.floating_material.clone()),
             Transform::from_xyz(final_x, spawn_y, final_z),
             Velocity::default(),
             Acceleration::new(),
@@ -121,12 +141,20 @@ fn spawn_lich(
             Teleportable,
             Billboard,
             OnGameplayScreen,
+            WalkingAnimation {
+                columns: LICH_SHEET_COLUMNS,
+                frame_uv: LICH_FRAME_UV,
+                direction_rows: LICH_DIRECTION_ROWS,
+                ..Default::default()
+            },
+            FacingDirection::Forward,
+            LichFloatBase { base_y: spawn_y },
         ));
 }
 
 /// Detects when the normal staging system has activated the Lich
 /// (removed StagingAttacker) and transitions to summoning phase.
-pub fn lich_approach_system(
+pub(super) fn lich_approach_system(
     mut query: Query<
         (&mut LichPhase, &mut Velocity, Has<StagingAttacker>),
         (With<Lich>, Without<Corpse>),
@@ -148,27 +176,19 @@ pub fn lich_approach_system(
     }
 }
 
-/// Phase 1b: Raises corpses as undead infantry (unlimited range).
-/// If not enough corpses exist, spawns fresh undead to fill the wave.
-pub fn lich_summoning_system(
+/// Phase 1: Ticks the summon timer and starts a Raise Dead cast wind-up when
+/// it expires. The actual undead spawn is deferred to `tick_lich_casting`,
+/// which runs after `LICH_RAISE_DEAD_CAST_DURATION` so the casting sprite has
+/// time to play.
+pub(super) fn lich_summoning_system(
     time: Res<Time>,
     mut commands: Commands,
     mut lich_query: Query<
-        (&Transform, &mut LichSummonTimer, &LichPhase),
-        (With<Lich>, Without<Corpse>),
+        (Entity, &mut LichSummonTimer, &LichPhase),
+        (With<Lich>, Without<Corpse>, Without<LichCasting>),
     >,
-    corpse_query: Query<
-        (Entity, &Transform),
-        (
-            With<Corpse>,
-            Without<crate::game::units::components::PermanentCorpse>,
-            Without<Lich>,
-        ),
-    >,
-    undead_assets: Res<UndeadAssets>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (transform, mut timer, phase) in &mut lich_query {
+    for (entity, mut timer, phase) in &mut lich_query {
         if *phase != LichPhase::Summoning {
             continue;
         }
@@ -179,49 +199,61 @@ pub fn lich_summoning_system(
         }
 
         timer.reset(SUMMON_INTERVAL);
+        commands.entity(entity).insert(LichCasting {
+            remaining: LICH_RAISE_DEAD_CAST_DURATION,
+            kind: LichCastKind::RaiseDead,
+        });
+    }
+}
 
-        let lich_pos = transform.translation;
-        let target = SUMMON_WAVE_SIZE as usize;
-        let mut raised = 0usize;
+/// Performs the actual Raise Dead resolution: raises nearby corpses and tops
+/// the wave off with freshly summoned undead around the Lich. Called from
+/// `tick_lich_casting` once the cast wind-up finishes.
+fn resolve_raise_dead(
+    commands: &mut Commands,
+    lich_pos: Vec3,
+    corpse_query: &Query<
+        (Entity, &Transform),
+        (
+            With<Corpse>,
+            Without<crate::game::units::components::PermanentCorpse>,
+            Without<Lich>,
+        ),
+    >,
+    undead_assets: &UndeadAssets,
+    materials: &mut Assets<StandardMaterial>,
+) {
+    let target = SUMMON_WAVE_SIZE as usize;
+    let mut raised = 0usize;
 
-        // Priority 1: Raise corpses from anywhere on the battlefield
-        let corpses: Vec<(Entity, Vec3)> = corpse_query
-            .iter()
-            .map(|(e, t)| (e, t.translation))
-            .take(target)
-            .collect();
+    let corpses: Vec<(Entity, Vec3)> = corpse_query
+        .iter()
+        .map(|(e, t)| (e, t.translation))
+        .take(target)
+        .collect();
 
-        for (corpse_entity, position) in corpses {
-            crate::game::units::systems::resurrect_corpse_as_infantry(
-                &mut commands,
-                corpse_entity,
-                position,
-                Team::Undead,
-                SUMMONED_UNDEAD_HEALTH,
-                SUMMONED_UNDEAD_SPEED,
-                UNDEAD_SPRITE_TINT,
-                undead_assets.sprite_texture.clone(),
-                undead_assets.sprite_mesh.clone(),
-                &mut materials,
-            );
-            raised += 1;
-        }
+    for (corpse_entity, position) in corpses {
+        crate::game::units::systems::resurrect_corpse_as_infantry(
+            commands,
+            corpse_entity,
+            position,
+            Team::Undead,
+            SUMMONED_UNDEAD_HEALTH,
+            SUMMONED_UNDEAD_SPEED,
+            UNDEAD_SPRITE_TINT,
+            undead_assets.sprite_texture.clone(),
+            undead_assets.sprite_mesh.clone(),
+            materials,
+        );
+        raised += 1;
+    }
 
-        // Priority 2: Spawn fresh undead around the Lich for the remainder
-        let remaining = target.saturating_sub(raised);
-        for i in 0..remaining {
-            let angle = (i as f32 / remaining as f32) * std::f32::consts::TAU;
-            let spawn_x = lich_pos.x + SUMMON_SPAWN_RADIUS * angle.cos();
-            let spawn_z = lich_pos.z + SUMMON_SPAWN_RADIUS * angle.sin();
-
-            spawn_fresh_undead(
-                &mut commands,
-                &undead_assets,
-                &mut materials,
-                spawn_x,
-                spawn_z,
-            );
-        }
+    let remaining = target.saturating_sub(raised);
+    for i in 0..remaining {
+        let angle = (i as f32 / remaining as f32) * std::f32::consts::TAU;
+        let spawn_x = lich_pos.x + SUMMON_SPAWN_RADIUS * angle.cos();
+        let spawn_z = lich_pos.z + SUMMON_SPAWN_RADIUS * angle.sin();
+        spawn_fresh_undead(commands, undead_assets, materials, spawn_x, spawn_z);
     }
 }
 
@@ -273,7 +305,7 @@ fn spawn_fresh_undead(
 }
 
 /// Tracks undead kills and adds soul power to the Lich.
-pub fn track_soul_power(
+pub(super) fn track_soul_power(
     kill_stats: Res<KillStats>,
     mut query: Query<(&mut SoulPower, &LichPhase), (With<Lich>, Without<Corpse>)>,
 ) {
@@ -294,9 +326,8 @@ pub fn track_soul_power(
 }
 
 /// Checks if soul power is full and transitions to Phase 2.
-pub fn lich_phase_transition(
+pub(super) fn lich_phase_transition(
     mut commands: Commands,
-    lich_assets: Res<LichAssets>,
     mut query: Query<(Entity, &SoulPower, &mut LichPhase), (With<Lich>, Without<Corpse>)>,
 ) {
     for (entity, soul_power, mut phase) in &mut query {
@@ -304,20 +335,18 @@ pub fn lich_phase_transition(
             continue;
         }
 
-        // Transition to combat phase
         *phase = LichPhase::Combat;
 
         commands
             .entity(entity)
             .remove::<LichSummonTimer>()
-            .insert(LichFingerOfDeath::new())
-            .insert(MeshMaterial3d(lich_assets.material_combat.clone()));
+            .insert(LichFingerOfDeath::new());
     }
 }
 
 /// Phase 2 targeting: Updates the Lich's movement targeting toward nearest enemy.
 /// Only runs in Combat phase.
-pub fn update_lich_targeting(
+pub(super) fn update_lich_targeting(
     mut commands: Commands,
     mut lich_query: Query<
         (
@@ -361,7 +390,7 @@ pub fn update_lich_targeting(
 /// - Approaching: follows flow field toward staging point
 /// - Summoning: stationary
 /// - Combat: targeting + flow field toward defenders
-pub fn lich_movement(
+pub(super) fn lich_movement(
     time: Res<Time>,
     mut query: Query<
         (
@@ -436,8 +465,9 @@ pub fn lich_movement(
 }
 
 /// Phase 2: Selects a random defender as the beam target.
-/// Cannot target the King or King's Guard until 50% of defenders have died.
-pub fn lich_combat_targeting(
+/// The King is excluded until he is the last living defender — guards and any
+/// other defender are valid targets in the meantime.
+pub(super) fn lich_combat_targeting(
     kill_stats: Res<KillStats>,
     mut lich_query: Query<(&mut LichFingerOfDeath, &LichPhase), (With<Lich>, Without<Corpse>)>,
     defenders: Query<
@@ -457,89 +487,68 @@ pub fn lich_combat_targeting(
             Without<Corpse>,
         ),
     >,
-    guard_query: Query<
-        Entity,
-        (
-            With<crate::game::units::components::KingsGuard>,
-            Without<Corpse>,
-        ),
-    >,
 ) {
+    let king_entity = king_query.iter().next();
+
+    // Single pass over defenders: collect non-king entities, and detect whether
+    // the King is also alive. The King only becomes a valid FoD target once
+    // every other defender (including guards) is dead.
+    let mut non_king: Vec<Entity> = Vec::new();
+    let mut king_alive = false;
+    for (entity, team) in &defenders {
+        if *team != Team::Defenders {
+            continue;
+        }
+        if Some(entity) == king_entity {
+            king_alive = true;
+        } else {
+            non_king.push(entity);
+        }
+    }
+
+    let eligible: Vec<Entity> = if non_king.is_empty() && king_alive {
+        king_entity.into_iter().collect()
+    } else {
+        non_king
+    };
+
     for (mut fod, phase) in &mut lich_query {
         if *phase != LichPhase::Combat {
             continue;
         }
-
-        // Only pick a new target when cooldown is ready and no current target
         if fod.target.is_some() || !fod.is_ready() {
             continue;
         }
-
-        // Determine if King + King's Guard are targetable
-        let defender_death_ratio = if INITIAL_DEFENDER_COUNT > 0 {
-            kill_stats.defenders_killed as f32 / INITIAL_DEFENDER_COUNT as f32
-        } else {
-            0.0
-        };
-        let can_target_royalty = defender_death_ratio >= KING_TARGET_THRESHOLD;
-
-        let king_entity = king_query.iter().next();
-        let guard_entities: Vec<Entity> = guard_query.iter().collect();
-
-        // Collect eligible defender targets
-        let eligible: Vec<Entity> = defenders
-            .iter()
-            .filter(|(_, team)| **team == Team::Defenders)
-            .filter(|(entity, _)| {
-                if !can_target_royalty {
-                    // Skip king
-                    if let Some(king_e) = king_entity
-                        && *entity == king_e
-                    {
-                        return false;
-                    }
-                    // Skip king's guard
-                    if guard_entities.contains(entity) {
-                        return false;
-                    }
-                }
-                true
-            })
-            .map(|(entity, _)| entity)
-            .collect();
-
         if eligible.is_empty() {
             continue;
         }
-
-        // Pick a random target using a simple hash-based selection
         let index = (kill_stats.elapsed_time * 1000.0) as usize % eligible.len();
         fod.target = Some(eligible[index]);
     }
 }
 
-/// Phase 2: Fires the death beam at the current target using the wizard's
-/// Finger of Death visual system (same purple beam, screen darkening, casting effect).
-/// Beam originates from the top of the Lich's sprite and shoots toward the target.
-#[allow(clippy::too_many_arguments)]
-pub fn lich_fire_beam(
+/// Phase 2: Ticks the Finger of Death cooldown and starts a beam cast wind-up
+/// when ready. The actual beam fire is deferred to `tick_lich_casting`. The
+/// Lich will not fire until he has closed within `FOD_KING_RANGE` of the King.
+pub(super) fn lich_fire_beam(
     time: Res<Time>,
     mut commands: Commands,
-    spell_assets: Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
     mut lich_query: Query<
-        (&Transform, &Hitbox, &mut LichFingerOfDeath, &LichPhase),
-        (With<Lich>, Without<Corpse>),
+        (Entity, &Transform, &mut LichFingerOfDeath, &LichPhase),
+        (With<Lich>, Without<Corpse>, Without<LichCasting>),
     >,
-    target_query: Query<&Transform, Without<Lich>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut desaturate: MessageWriter<crate::game::crt_effect::ScreenDesaturateMessage>,
-    mut target_health: Query<LichBeamTargetData, LichBeamTargetFilter>,
+    king_query: Query<
+        &Transform,
+        (
+            With<crate::game::units::king::components::King>,
+            Without<Lich>,
+            Without<Corpse>,
+        ),
+    >,
 ) {
-    use crate::game::units::wizard::spells::finger_of_death::components::{
-        FingerOfDeathBeam, FodTalentParams, PendingUndeadRaise,
-    };
+    let king_pos = king_query.iter().next().map(|t| t.translation);
 
-    for (lich_transform, lich_hitbox, mut fod, phase) in &mut lich_query {
+    for (entity, lich_transform, mut fod, phase) in &mut lich_query {
         if *phase != LichPhase::Combat {
             continue;
         }
@@ -550,103 +559,290 @@ pub fn lich_fire_beam(
             continue;
         }
 
+        // Hold fire until the Lich is within range of the King.
+        let Some(king_pos) = king_pos else { continue };
+        if lich_transform.translation.distance(king_pos) > FOD_KING_RANGE {
+            continue;
+        }
+
         let Some(target_entity) = fod.target else {
             continue;
         };
 
-        let Ok(target_transform) = target_query.get(target_entity) else {
-            fod.target = None;
-            continue;
-        };
-
-        // Beam originates from the top of the Lich's sprite
-        let origin = Vec3::new(
-            lich_transform.translation.x,
-            lich_transform.translation.y + lich_hitbox.height * 0.5,
-            lich_transform.translation.z,
-        );
-
-        // Direction from origin toward the target
-        let to_target = target_transform.translation - origin;
-        let direction = to_target.normalize_or_zero();
-
-        if direction.length_squared() < 0.5 {
-            fod.target = None;
-            continue;
-        }
-
-        let beam_length = BEAM_LENGTH.min(to_target.length() + 200.0);
-
-        // Create a FoD beam that's already fired (instant cast, no charge-up)
-        let talent_params = FodTalentParams {
-            damage: BEAM_DAMAGE,
-            beam_width: BEAM_WIDTH,
-            beam_width_fired: BEAM_WIDTH,
-            ..Default::default()
-        };
-        let mut beam =
-            FingerOfDeathBeam::with_talents(origin, direction, beam_length, 1.0, talent_params);
-        beam.has_fired = true;
-        beam.cast_progress = 1.0;
-
-        // Spawn using the wizard's visual system (beam + glow + flare)
-        crate::game::units::wizard::spells::finger_of_death::systems::spawn_beam(
-            &mut commands,
-            &spell_assets,
-            &mut materials,
-            beam,
-        );
-
-        // Screen darkening effect
-        desaturate.write(crate::game::crt_effect::ScreenDesaturateMessage);
-
-        // Apply damage to defenders in the beam path
-        let mut kill_positions: Vec<Vec3> = Vec::new();
-
-        for (entity, t_transform, team, mut health, hitbox, temp_hp, is_king) in &mut target_health
-        {
-            if *team != Team::Defenders {
-                continue;
-            }
-
-            let to_point = t_transform.translation - origin;
-            let proj = to_point.dot(direction);
-            if proj < 0.0 || proj > beam_length {
-                continue;
-            }
-            let closest = origin + direction * proj;
-            let dist = t_transform.translation.distance(closest);
-            if dist <= BEAM_WIDTH + hitbox.radius {
-                // King has 70% damage resistance to Finger of Death
-                let damage = if is_king {
-                    BEAM_DAMAGE * KING_FOD_DAMAGE_MULTIPLIER
-                } else {
-                    BEAM_DAMAGE
-                };
-
-                let hp_before = health.current;
-                apply_spell_damage(
-                    &mut commands,
-                    entity,
-                    &mut health,
-                    temp_hp.map(|t| t.into_inner()),
-                    damage,
-                    DamageType::Necrotic,
-                    false,
-                );
-
-                // Track kills for Finger of Undeath raising
-                if hp_before > 0.0 && health.is_dead() {
-                    kill_positions.push(t_transform.translation);
-                }
-            }
-        }
-
-        // Queue undead raises for killed defenders (processed next frame)
-        if !kill_positions.is_empty() {
-            commands.insert_resource(PendingUndeadRaise { kill_positions });
-        }
-
+        commands.entity(entity).insert(LichCasting {
+            remaining: LICH_FINGER_OF_DEATH_CAST_DURATION,
+            kind: LichCastKind::FingerOfDeath {
+                target: target_entity,
+            },
+        });
         fod.reset(BEAM_COOLDOWN);
+    }
+}
+
+/// Spawns the Finger of Death beam, applies damage, and triggers the screen
+/// darkening effect. Called from `tick_lich_casting` when a FoD cast resolves.
+#[allow(clippy::too_many_arguments)]
+fn resolve_finger_of_death(
+    commands: &mut Commands,
+    lich_transform: &Transform,
+    lich_hitbox: &Hitbox,
+    target: Entity,
+    spell_assets: &crate::game::units::wizard::spells::visual_assets::SpellVisualAssets,
+    target_query: &Query<&Transform, Without<Lich>>,
+    materials: &mut Assets<StandardMaterial>,
+    desaturate: &mut MessageWriter<crate::game::crt_effect::ScreenDesaturateMessage>,
+    target_health: &mut Query<LichBeamTargetData, LichBeamTargetFilter>,
+    king_immune_to_fod: bool,
+) {
+    use crate::game::units::wizard::spells::finger_of_death::components::{
+        FingerOfDeathBeam, FodTalentParams, PendingUndeadRaise,
+    };
+
+    let Ok(target_transform) = target_query.get(target) else {
+        return;
+    };
+
+    let origin = Vec3::new(
+        lich_transform.translation.x,
+        lich_transform.translation.y + lich_hitbox.height * 0.5,
+        lich_transform.translation.z,
+    );
+
+    let to_target = target_transform.translation - origin;
+    let direction = to_target.normalize_or_zero();
+    if direction.length_squared() < 0.5 {
+        return;
+    }
+
+    let beam_length = BEAM_LENGTH.min(to_target.length() + 200.0);
+
+    let talent_params = FodTalentParams {
+        damage: BEAM_DAMAGE,
+        beam_width: BEAM_WIDTH,
+        beam_width_fired: BEAM_WIDTH,
+        ..Default::default()
+    };
+    let mut beam =
+        FingerOfDeathBeam::with_talents(origin, direction, beam_length, 1.0, talent_params);
+    beam.has_fired = true;
+    beam.cast_progress = 1.0;
+
+    crate::game::units::wizard::spells::finger_of_death::systems::spawn_beam(
+        commands,
+        spell_assets,
+        materials,
+        beam,
+    );
+
+    desaturate.write(crate::game::crt_effect::ScreenDesaturateMessage);
+
+    let mut kill_positions: Vec<Vec3> = Vec::new();
+    for (entity, t_transform, team, mut health, hitbox, temp_hp, is_king) in target_health.iter_mut()
+    {
+        if *team != Team::Defenders {
+            continue;
+        }
+
+        let to_point = t_transform.translation - origin;
+        let proj = to_point.dot(direction);
+        if proj < 0.0 || proj > beam_length {
+            continue;
+        }
+        let closest = origin + direction * proj;
+        let dist = t_transform.translation.distance(closest);
+        if dist <= BEAM_WIDTH + hitbox.radius {
+            // King is fully immune to FoD until enough defenders have fallen.
+            if is_king && king_immune_to_fod {
+                continue;
+            }
+
+            let damage = if is_king {
+                BEAM_DAMAGE * KING_FOD_DAMAGE_MULTIPLIER
+            } else {
+                BEAM_DAMAGE
+            };
+
+            let hp_before = health.current;
+            apply_spell_damage(
+                commands,
+                entity,
+                &mut health,
+                temp_hp.map(|t| t.into_inner()),
+                damage,
+                DamageType::Necrotic,
+                false,
+            );
+
+            if hp_before > 0.0 && health.is_dead() {
+                kill_positions.push(t_transform.translation);
+            }
+        }
+    }
+
+    if !kill_positions.is_empty() {
+        commands.insert_resource(PendingUndeadRaise { kill_positions });
+    }
+}
+
+/// Decrements the active cast's wind-up timer. When it expires, dispatches to
+/// the appropriate spell-resolution helper and removes `LichCasting` so the
+/// trigger systems can start the next cast on subsequent frames.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn tick_lich_casting(
+    time: Res<Time>,
+    kill_stats: Res<KillStats>,
+    mut commands: Commands,
+    mut lich_query: Query<
+        (Entity, &Transform, &Hitbox, &mut LichCasting),
+        (With<Lich>, Without<Corpse>),
+    >,
+    corpse_query: Query<
+        (Entity, &Transform),
+        (
+            With<Corpse>,
+            Without<crate::game::units::components::PermanentCorpse>,
+            Without<Lich>,
+        ),
+    >,
+    undead_assets: Res<UndeadAssets>,
+    spell_assets: Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
+    target_query: Query<&Transform, Without<Lich>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut desaturate: MessageWriter<crate::game::crt_effect::ScreenDesaturateMessage>,
+    mut target_health: Query<LichBeamTargetData, LichBeamTargetFilter>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, transform, hitbox, mut casting) in &mut lich_query {
+        casting.remaining -= delta;
+        if casting.remaining > 0.0 {
+            continue;
+        }
+
+        match casting.kind {
+            LichCastKind::RaiseDead => {
+                resolve_raise_dead(
+                    &mut commands,
+                    transform.translation,
+                    &corpse_query,
+                    &undead_assets,
+                    &mut materials,
+                );
+            }
+            LichCastKind::FingerOfDeath { target } => {
+                let defender_death_ratio = if INITIAL_DEFENDER_COUNT > 0 {
+                    kill_stats.defenders_killed as f32 / INITIAL_DEFENDER_COUNT as f32
+                } else {
+                    0.0
+                };
+                let king_immune_to_fod =
+                    defender_death_ratio < KING_FOD_IMMUNITY_THRESHOLD;
+
+                resolve_finger_of_death(
+                    &mut commands,
+                    transform,
+                    hitbox,
+                    target,
+                    &spell_assets,
+                    &target_query,
+                    &mut materials,
+                    &mut desaturate,
+                    &mut target_health,
+                    king_immune_to_fod,
+                );
+            }
+        }
+
+        commands.entity(entity).remove::<LichCasting>();
+    }
+}
+
+/// Swaps the Lich's bound material to the casting sheet on the frame
+/// `LichCasting` is inserted.
+pub(super) fn on_lich_cast_started(
+    lich_assets: Res<LichAssets>,
+    mut added: Query<&mut MeshMaterial3d<StandardMaterial>, (With<Lich>, Added<LichCasting>)>,
+) {
+    for mut mat in &mut added {
+        mat.0 = lich_assets.casting_material.clone();
+    }
+}
+
+/// Swaps the Lich's bound material back to the floating sheet on the frame
+/// `LichCasting` is removed. Split from `on_lich_cast_started` so each system
+/// has a single non-conflicting `&mut MeshMaterial3d` query.
+pub(super) fn on_lich_cast_ended(
+    lich_assets: Res<LichAssets>,
+    mut removed: RemovedComponents<LichCasting>,
+    mut lich_query: Query<&mut MeshMaterial3d<StandardMaterial>, With<Lich>>,
+) {
+    for entity in removed.read() {
+        if let Ok(mut mat) = lich_query.get_mut(entity) {
+            mat.0 = lich_assets.floating_material.clone();
+        }
+    }
+}
+
+/// Custom 2-direction facing for the Lich. Runs after the standard
+/// `update_facing_direction` and overrides its result. The Lich shows the
+/// rear-facing row only when moving in a 120° arc directly away from the
+/// camera; lateral movement collapses to the camera-facing row.
+pub(super) fn update_lich_facing(
+    camera_query: Query<&Transform, With<Camera3d>>,
+    mut lich_query: Query<
+        (
+            &Velocity,
+            &mut FacingDirection,
+            &WalkingAnimation,
+            &MeshMaterial3d<StandardMaterial>,
+        ),
+        (With<Lich>, Without<Corpse>),
+    >,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let Ok(cam) = camera_query.single() else {
+        return;
+    };
+    let cam_forward = cam.forward();
+    let cam_forward_xz = Vec3::new(cam_forward.x, 0.0, cam_forward.z).normalize_or_zero();
+
+    for (velocity, mut facing, anim, material_handle) in &mut lich_query {
+        let v = Vec3::new(velocity.x, 0.0, velocity.z);
+        let speed_sq = v.length_squared();
+        if speed_sq < ANIMATION_MOVE_THRESHOLD_SQ {
+            continue;
+        }
+
+        let speed = speed_sq.sqrt();
+        let forward_dot = v.dot(cam_forward_xz);
+        // Show the back-of-lich row only when the lich is moving in a 120° arc
+        // away from the camera. In Court Wizard, +cam_forward points into the
+        // screen, so positive forward_dot means moving away from the viewer.
+        let new_facing = if forward_dot > LICH_BACK_FACING_THRESHOLD * speed {
+            FacingDirection::Back
+        } else {
+            FacingDirection::Forward
+        };
+
+        if *facing != new_facing {
+            *facing = new_facing;
+            if let Some(mat) = materials.get_mut(material_handle) {
+                mat.uv_transform = anim.uv_transform(new_facing);
+            }
+        }
+    }
+}
+
+/// Hovers the Lich above the ground with a subtle sinusoidal bob. Writes
+/// `transform.translation.y` directly each frame, layering the bob on top of
+/// the spawn-time base Y. Should run after movement is applied.
+pub(super) fn update_lich_float(
+    time: Res<Time>,
+    mut lich_query: Query<(&LichFloatBase, &mut Transform), (With<Lich>, Without<Corpse>)>,
+) {
+    let bob = LICH_FLOAT_AMPLITUDE
+        * (time.elapsed_secs() * LICH_FLOAT_FREQUENCY_HZ * std::f32::consts::TAU).sin();
+    for (base, mut transform) in &mut lich_query {
+        transform.translation.y = base.base_y + LICH_FLOAT_BASE_OFFSET + bob;
     }
 }

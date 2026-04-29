@@ -1,26 +1,65 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{TINT_PURPLE, UNDEAD_BASE, UNIT_SCALE, tint};
+use crate::game::constants::UNIT_SCALE;
 
 // ===== Visual Appearance =====
 
-/// Lich body color — dark necrotic purple.
-pub const LICH_COLOR: Color = tint(UNDEAD_BASE, TINT_PURPLE, 0.5);
-
-/// Lich Phase 2 color — brighter, more menacing.
-pub const LICH_COMBAT_COLOR: Color = tint(UNDEAD_BASE, Color::srgb(0.3, 0.9, 0.3), 0.4);
-
-/// Lich ellipse width (ground shadow).
+/// Canonical ellipse width — drives the 4× sprite quad and the spawn-Y formula.
 pub const LICH_ELLIPSE_WIDTH: f32 = 35.0 * UNIT_SCALE;
 
-/// Lich ellipse depth (ground shadow).
+/// Canonical ellipse depth — drives the 4× sprite quad and the spawn-Y formula.
 pub const LICH_ELLIPSE_DEPTH: f32 = 50.0 * UNIT_SCALE;
 
-/// Collision/hitbox radius.
-pub const LICH_RADIUS: f32 = 35.0 * UNIT_SCALE;
+/// Collision/hitbox radius — sized to encompass the lich's robed body width.
+pub const LICH_RADIUS: f32 = 45.0 * UNIT_SCALE;
 
-/// Hitbox height for targeting.
-pub const LICH_HITBOX_HEIGHT: f32 = 55.0 * UNIT_SCALE;
+/// Hitbox height for targeting — matches ~90% of the 4× sprite quad height
+/// so the cylinder visually wraps the rendered lich.
+pub const LICH_HITBOX_HEIGHT: f32 = 180.0 * UNIT_SCALE;
+
+// ===== Sprite Sheet Layout =====
+// Both the floating and casting sheets are 4 columns × 2 rows.
+// Row 0 = facing the camera; row 1 = facing away.
+
+pub(super) const LICH_SHEET_COLUMNS: usize = 4;
+pub(super) const LICH_SHEET_ROWS: usize = 2;
+pub(super) const LICH_FRAME_UV: Vec2 = Vec2::new(
+    1.0 / LICH_SHEET_COLUMNS as f32,
+    1.0 / LICH_SHEET_ROWS as f32,
+);
+
+/// Maps `FacingDirection` `[Forward, Back, Left, Right]` to sprite-sheet rows.
+/// Lateral movement collapses to row 0 so the lich keeps facing the camera;
+/// only the rear-arc Back direction uses row 1 (lich's back to viewer).
+pub(super) const LICH_DIRECTION_ROWS: [usize; 4] = [0, 1, 0, 0];
+
+/// Sprite quad dimensions — match the hag pattern (ellipse-size × 4).
+pub(super) const LICH_SPRITE_WIDTH: f32 = LICH_ELLIPSE_WIDTH * 4.0;
+pub(super) const LICH_SPRITE_HEIGHT: f32 = LICH_ELLIPSE_DEPTH * 4.0;
+
+// ===== Float / Hover =====
+
+/// Base offset above the ground (added to the spawn-time Y).
+pub(super) const LICH_FLOAT_BASE_OFFSET: f32 = 30.0 * UNIT_SCALE;
+/// Sinusoidal bob amplitude.
+pub(super) const LICH_FLOAT_AMPLITUDE: f32 = 4.0 * UNIT_SCALE;
+/// Sinusoidal bob frequency in Hz.
+pub(super) const LICH_FLOAT_FREQUENCY_HZ: f32 = 1.2;
+
+// ===== Cast Wind-Up Timing =====
+
+/// Pre-cast wind-up before a Raise Dead summon resolves.
+pub(super) const LICH_RAISE_DEAD_CAST_DURATION: f32 = 3.0;
+/// Pre-cast wind-up before a Finger of Death beam fires.
+pub(super) const LICH_FINGER_OF_DEATH_CAST_DURATION: f32 = 0.6;
+
+/// Threshold on `velocity.dot(camera_forward) / |velocity|` above which the
+/// lich shows the back-of-lich row (sheet row 1). `cos(60°) = 0.5` ⇒ the
+/// rear-facing row is used only when the lich is moving in a 120° arc
+/// directly away from the camera. In Court Wizard's coordinate system,
+/// `camera_forward` points into the screen, so `forward_dot > 0` means the
+/// lich is moving away from the viewer — that's when the back is visible.
+pub(super) const LICH_BACK_FACING_THRESHOLD: f32 = 0.5;
 
 // ===== Movement =====
 
@@ -32,8 +71,8 @@ pub const LICH_MOVEMENT_SPEED: f32 = 185.0;
 /// Lich HP — very tanky in Phase 2.
 pub const LICH_HEALTH: f32 = 15000.0;
 
-/// Fraction of melee damage the Lich takes (0.3 = 70% reduction).
-pub const LICH_MELEE_DAMAGE_REDUCTION: f32 = 0.3;
+/// Fraction of melee damage the Lich takes (0.15 = 85% reduction).
+pub const LICH_MELEE_DAMAGE_REDUCTION: f32 = 0.15;
 
 /// Damage multiplier (negative = takes less damage from non-spell sources).
 pub const LICH_DAMAGE_MULTIPLIER: f32 = -0.5;
@@ -80,8 +119,14 @@ pub const BEAM_LENGTH: f32 = 5000.0;
 /// King takes only 30% of FoD damage (70% resistance).
 pub const KING_FOD_DAMAGE_MULTIPLIER: f32 = 0.3;
 
-/// Fraction of defenders that must die before the Lich can target the King.
-pub const KING_TARGET_THRESHOLD: f32 = 0.5;
+/// Maximum distance from the King at which the Lich is allowed to start
+/// casting Finger of Death. The Lich must close this gap before firing.
+pub const FOD_KING_RANGE: f32 = 800.0;
+
+/// Fraction of defenders that must die before the King can take Finger of
+/// Death damage. Below this threshold the King is fully immune to FoD even
+/// if he is caught in a beam targeting another defender.
+pub const KING_FOD_IMMUNITY_THRESHOLD: f32 = 0.8;
 
 // ===== Health Bar Colors =====
 

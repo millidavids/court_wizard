@@ -80,6 +80,28 @@ impl LichSummonTimer {
     }
 }
 
+/// Which spell the Lich is currently winding up.
+#[derive(Clone, Copy)]
+pub(super) enum LichCastKind {
+    RaiseDead,
+    FingerOfDeath { target: Entity },
+}
+
+/// Active spell-cast state. While present, the Lich plays the casting sprite.
+/// When `remaining` reaches zero, the spell resolves and the component is removed.
+#[derive(Component)]
+pub(super) struct LichCasting {
+    pub remaining: f32,
+    pub kind: LichCastKind,
+}
+
+/// Stores the lich's spawn-time ground Y so the float system can layer the
+/// hover offset and sinusoidal bob on top of it without losing the baseline.
+#[derive(Component)]
+pub(super) struct LichFloatBase {
+    pub base_y: f32,
+}
+
 /// Finger of Death attack state for Phase 2.
 #[derive(Component)]
 pub struct LichFingerOfDeath {

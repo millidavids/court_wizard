@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.72] - 2026-04-29
+
+### Added
+- **Hand-drawn Lich sprite** — the Lich boss is no longer a flat colored ellipse. He now has a proper pixel-art portrait in the Compendium and a full animated sprite in battle, complete with hooded skeleton face, flowing robes, and skeletal hands
+- **Lich floats above the battlefield** — the Lich now hovers slightly off the ground with a gentle bob, befitting an undead sorcerer
+- **Lich casting animation** — when channeling Raise Dead or charging up Finger of Death, the Lich plays a casting animation with a glowing magenta orb in his hand so you can see the spell coming
+- **Telegraph before Raise Dead** — the Lich now visibly winds up for 3 seconds before each undead wave appears, giving you a window to interrupt or reposition
+
+### Changed
+- **Lich is much tankier against melee** — his melee damage reduction increased from 70% to 85%, so swords and bows tickle him while spells remain effective
+- **Lich must close on the King to use Finger of Death** — he now has to walk within 800 units of the King before he can fire the death beam, instead of sniping from across the map
+- **King is the Lich's last priority** — the Lich won't aim Finger of Death at the King until every other defender (including the King's Guard) has fallen
+- **King is immune to Finger of Death until late** — even if the beam clips through the King while targeting another defender, he ignores the damage entirely until 80% of your defenders have died. After that he takes the existing 30% damage
+- **Lich hitbox now matches his sprite** — the collision/targeting cylinder around the Lich was tiny relative to his rendered size, so swords and arrows often missed visually-clear hits. The hitbox now wraps the visible figure so attacks register where you'd expect
+
+### Fixed
+- **Killing the Lich is a Victory, even in a tight finish** — if the King or last defender fell in the same exchange that killed the Lich, the level was being recorded as a Defeat. Slaying the boss now resolves the level as a Victory regardless of who else dies in the final blow
+- **Magic Missile no longer double-casts on hold** — holding the mouse / right-trigger to auto-cycle Magic Missile was firing two volleys in quick succession before settling into the cooldown rhythm. The cooldown gate is now airtight: only one volley per cooldown window, regardless of frame timing
+- **Lich waits for the last wave to fully die** — the Lich was occasionally spawning the same instant the final wave dispatched, before its attackers had even materialized. He now correctly waits until every attacker from the last wave is dead before he appears
+- **Lich faces the camera while approaching defenders** — the Lich's sprite was showing his back-of-hood whenever he walked toward the King. He now correctly shows his face when moving toward the camera and only flips to the back-facing sprite when retreating into the screen
+
 ## [v0.7.60] - 2026-04-28
 
 ### Added

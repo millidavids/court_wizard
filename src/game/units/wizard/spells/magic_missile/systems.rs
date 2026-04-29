@@ -117,7 +117,7 @@ pub fn handle_magic_missile_casting(
 ) {
     // Fire while the button is held so holding RT/mouse auto-cycles at the
     // cooldown rate. `MouseLeftHeld` fires every frame the button is down
-    // (including the press frame). The `MagicMissileCooldown` gate below
+    // (including the press frame). The hard-guard timestamp gate below
     // prevents spam.
     if mouse_left_held.read().next().is_none() {
         return;
@@ -133,16 +133,6 @@ pub fn handle_magic_missile_casting(
         return;
     }
 
-    // Check cooldown
-    if cooldown.is_some_and(|cd| cd.remaining > 0.0) {
-        return;
-    }
-    let now = time.elapsed_secs();
-    let min_gap = constants::COOLDOWN * 0.5;
-    if *last_cast_elapsed > 0.0 && now - *last_cast_elapsed < min_gap {
-        return;
-    }
-
     // Host/SP wizard targets attackers; guest wizard targets defenders
     let target_teams = if peer_id.is_some_and(|p| p.0 == PeerId::GUEST) {
         TargetTeams::DefendersAndUndead
@@ -152,6 +142,22 @@ pub fn handle_magic_missile_casting(
 
     let talents = active_talents.as_deref();
     let params = compute_missile_params(talents, wizard);
+
+    // Authoritative cooldown gate. The `MagicMissileCooldown` component is the
+    // in-world signal but its insert is deferred via `Commands`, so on the
+    // frame after a cast the component is invisible to this query. The
+    // `Local<f32>` timestamp is the source of truth — refuse re-entry until
+    // the talent-scaled cooldown has actually elapsed since the last cast.
+    let actual_cooldown = constants::COOLDOWN * params.cooldown_mult;
+    let now = time.elapsed_secs();
+    if *last_cast_elapsed > 0.0 && now - *last_cast_elapsed < actual_cooldown {
+        return;
+    }
+    // Backup gate against an out-of-band cooldown component from another
+    // codepath (e.g. spawn-time pre-cooldowns).
+    if cooldown.is_some_and(|cd| cd.remaining > 0.0) {
+        return;
+    }
 
     // Arcane Barrage (tier 2, choice 1): spawn concentration entity instead of normal cast
     let t2 = talents.and_then(|t| t.get_selection(Spell::MagicMissile, 1));
@@ -186,7 +192,7 @@ pub fn handle_magic_missile_casting(
                 empowerment: primed_spell.empowerment,
             },
             ConcentrationSpell {
-                spell_name: "Arcane Barrage",
+                spell_name: constants::ARCANE_BARRAGE_NAME,
                 mana_cost: constants::MANA_COST,
             },
             OnGameplayScreen,

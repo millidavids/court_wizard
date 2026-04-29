@@ -1,34 +1,48 @@
 use bevy::prelude::*;
 
 use super::constants::*;
+use crate::game::units::systems::create_sprite_material;
 
-/// Pre-loaded meshes and materials for the Lich boss.
+/// Pre-loaded mesh and materials for the Lich boss.
 #[derive(Resource)]
 pub struct LichAssets {
     pub mesh: Handle<Mesh>,
-    pub material_summoning: Handle<StandardMaterial>,
-    pub material_combat: Handle<StandardMaterial>,
+    pub floating_material: Handle<StandardMaterial>,
+    pub casting_material: Handle<StandardMaterial>,
 }
 
 /// System to pre-load Lich assets at startup.
 pub(super) fn preload_lich_assets(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let assets = LichAssets {
-        mesh: meshes.add(Ellipse::new(LICH_ELLIPSE_WIDTH, LICH_ELLIPSE_DEPTH)),
-        material_summoning: materials.add(StandardMaterial {
-            base_color: LICH_COLOR,
-            unlit: true,
-            ..default()
-        }),
-        material_combat: materials.add(StandardMaterial {
-            base_color: LICH_COMBAT_COLOR,
-            unlit: true,
-            ..default()
-        }),
-    };
+    let floating_texture =
+        asset_server.load("images/sprite_sheets/lich-floating_4-frames.png");
+    let casting_texture =
+        asset_server.load("images/sprite_sheets/lich-casting_4-frames.png");
 
-    commands.insert_resource(assets);
+    let mesh = meshes.add(Rectangle::new(LICH_SPRITE_WIDTH, LICH_SPRITE_HEIGHT));
+
+    let floating_material = create_sprite_material(
+        &mut materials,
+        floating_texture,
+        Color::WHITE,
+        LICH_FRAME_UV,
+        Vec2::ZERO,
+    );
+    let casting_material = create_sprite_material(
+        &mut materials,
+        casting_texture,
+        Color::WHITE,
+        LICH_FRAME_UV,
+        Vec2::ZERO,
+    );
+
+    commands.insert_resource(LichAssets {
+        mesh,
+        floating_material,
+        casting_material,
+    });
 }

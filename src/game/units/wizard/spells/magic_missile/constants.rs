@@ -96,6 +96,9 @@ pub const MISSILES_PER_CAST: u32 = 3;
 /// Cooldown between casts in seconds.
 pub const COOLDOWN: f32 = 1.0;
 
+/// Display name for the Arcane Barrage talent / concentration spell.
+pub const ARCANE_BARRAGE_NAME: &str = "Arcane Barrage";
+
 /// Power for inverse distance weighting in cursor targeting.
 /// Higher values = stronger preference for targets near cursor.
 /// 2.0 = inverse square, 1.0 = linear inverse
