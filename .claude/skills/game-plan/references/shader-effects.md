@@ -10,13 +10,21 @@ All shader effects are integrated into the existing **CRT post-processing pipeli
 
 ## File Locations
 
+The `src/game/crt_effect/` module is feature-sliced (post-Phase-8c):
+
 | File | Purpose |
 |------|---------|
 | `src/game/crt_effect/components.rs` | `CrtEffectSettings` struct (Rust ↔ GPU uniform) |
 | `src/game/crt_effect/constants.rs` | Default values and tuning constants |
-| `src/game/crt_effect/systems.rs` | Per-frame systems that update shader uniforms |
-| `src/game/crt_effect/plugin.rs` | System registration and render pipeline setup |
+| `src/game/crt_effect/barrel_correction.rs` | Cursor barrel-correction + UI hit-test override |
+| `src/game/crt_effect/settings.rs` | Per-frame uniform-update systems |
+| `src/game/crt_effect/messages_handlers.rs` | Flash, vignette pulse, channel-change handlers |
+| `src/game/crt_effect/render_node.rs` | View-node impl for the post-process pass |
+| `src/game/crt_effect/pipeline.rs` | Pipeline cache, bind-group layout, shader binding |
+| `src/game/crt_effect/plugin.rs` | Plugin registration only |
 | `assets/shaders/crt_effect.wgsl` | The WGSL fragment shader |
+
+When adding a new effect, place its uniform-update system in `settings.rs` (or a new feature file if the effect is large).
 
 ## Adding a New Effect — Step by Step
 

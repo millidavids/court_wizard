@@ -1,5 +1,7 @@
+pub(super) mod beams;
 pub(in crate::game) mod components;
 pub(in crate::game) mod constants;
+pub(super) mod movement;
 mod plugin;
 pub(in crate::game) mod resources;
 pub(in crate::game) mod systems;

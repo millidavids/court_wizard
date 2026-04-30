@@ -4,7 +4,9 @@
 
 mod components;
 mod constants;
+pub(super) mod interaction;
 mod plugin;
+pub(super) mod setup;
 mod systems;
 
 pub use plugin::SpellBookPlugin;

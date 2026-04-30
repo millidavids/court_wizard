@@ -10,6 +10,7 @@ use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
 use crate::game::units::components::{MindControlled, RetaliationTarget};
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::run_conditions::*;
+use crate::game::units::wizard::spells::utils::tick_spell_cooldown;
 
 pub struct MindControlPlugin;
 
@@ -18,7 +19,7 @@ impl Plugin for MindControlPlugin {
         app.add_systems(
             Update,
             (
-                systems::tick_mind_control_cooldown
+                tick_spell_cooldown::<MindControlCooldown>
                     .run_if(any_exist::<MindControlCooldown>())
                     .run_if(is_spell_effects_active),
                 systems::handle_mind_control_casting

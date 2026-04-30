@@ -62,9 +62,6 @@ pub const OGRE_CHARGE_LINE_THICKNESS: f32 = 4.0;
 pub const OGRE_CHARGE_INDICATOR_Y: f32 = 2.0;
 pub const OGRE_CHARGE_LINE_COLOR: Color = Color::srgba(0.8, 0.1, 0.05, 0.25);
 pub const OGRE_CHARGE_FILL_BASE_COLOR: Color = Color::srgba(0.6, 0.05, 0.02, 0.15);
-pub const OGRE_CHARGE_PULSE_FREQUENCY: f32 = 2.5;
-/// Peak emissive intensity at full charge (linear RGB scale).
-pub const OGRE_CHARGE_EMISSIVE_MAX: f32 = 8.0;
 
 /// Fraction of melee damage the ogre actually takes (0.15 = 85% reduction).
 /// Spells deal full damage, making magic the primary way to hurt him.

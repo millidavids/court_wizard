@@ -2,10 +2,8 @@
 //!
 //! Contains all game unit types: wizard, infantry, and archers.
 
-use bevy::prelude::*;
-use rand::Rng;
-
 pub(crate) mod aerialist;
+pub(crate) mod animation;
 pub(crate) mod archer;
 pub(crate) mod assassin;
 pub(crate) mod boss;
@@ -21,43 +19,22 @@ pub(in crate::game) mod infantry;
 pub(crate) mod king;
 pub(in crate::game) mod movement;
 pub(in crate::game) mod ranged_bolt;
+mod sets;
 pub(crate) mod shielder;
+mod spawning;
+pub(crate) mod status_effects;
 pub(in crate::game) mod systems;
 pub(in crate::game) mod teleporter;
 pub(crate) mod undead;
+pub(in crate::game) mod unit_type;
 pub(crate) mod wizard;
 
 mod plugin;
 
+pub use commander::Commander;
 pub use components::UnitType;
 pub use damage::DamageType;
+pub use elite::EliteHealthBonus;
 pub use plugin::UnitsPlugin;
-
-// Re-export commander types for future use
-#[allow(unused_imports)]
-pub use commander::{AuraDamageBuff, AuraSpeedBuff, Commander, TeamFilter};
-
-// Re-export elite types for future use
-#[allow(unused_imports)]
-pub use elite::{EliteDamageBonus, EliteHealthBonus, EliteSpeedBonus};
-
-/// System set for calculating unit movement (acceleration, velocity).
-/// All unit-specific movement calculations should be in this set.
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct MovementCalculationSet;
-
-/// System set for applying transforms based on calculated movement.
-/// This set runs after MovementCalculationSet.
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ApplyTransformsSet;
-
-/// Generates a random position within a tight spread around a cell center.
-/// Used for spawning units randomly within their assigned grid cell.
-/// Returns (x, z) coordinates offset from the center point.
-pub(crate) fn random_position_in_cell(rng: &mut impl Rng, cell_x: f32, cell_z: f32) -> (f32, f32) {
-    use crate::game::constants::GRID_ROW_DEPTH;
-    let spread = GRID_ROW_DEPTH / 8.0;
-    let final_x = cell_x + rng.random_range(-spread..spread);
-    let final_z = cell_z + rng.random_range(-spread..spread);
-    (final_x, final_z)
-}
+pub use sets::{ApplyTransformsSet, MovementCalculationSet};
+pub(crate) use spawning::random_position_in_cell;

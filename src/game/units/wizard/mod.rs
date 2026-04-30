@@ -8,9 +8,11 @@ pub(crate) mod components;
 pub(in crate::game) mod constants;
 pub(crate) mod messages;
 mod plugin;
+mod spell_enum;
 mod spell_range_indicator;
 pub(crate) mod spells;
 pub(in crate::game) mod systems;
 pub(crate) mod talents;
+mod wizard_state;
 
 pub use plugin::WizardPlugin;

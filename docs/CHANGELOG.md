@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.294] - 2026-04-30
+
+### Changed
+- **Behind-the-scenes cleanup** — this update is a large internal reorganization of the game's code. Hundreds of files were broken up into smaller, more focused pieces and a lot of unused leftover code was removed. There are no gameplay changes — this groundwork makes future updates faster to ship and bugs easier to track down
+
 ## [v0.7.88] - 2026-04-29
 
 ### Added

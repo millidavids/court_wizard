@@ -5,6 +5,7 @@ use super::super::run_conditions::*;
 use super::components::{ArcaneBarrage, MagicMissile, MagicMissileCooldown};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
+use crate::game::units::wizard::spells::utils::tick_spell_cooldown;
 
 /// Plugin that handles magic missile spell casting and behavior.
 pub struct MagicMissilePlugin;
@@ -14,7 +15,7 @@ impl Plugin for MagicMissilePlugin {
         app.add_systems(
             Update,
             (
-                systems::tick_magic_missile_cooldown
+                tick_spell_cooldown::<MagicMissileCooldown>
                     .run_if(any_exist::<MagicMissileCooldown>())
                     .run_if(is_spell_effects_active),
                 systems::handle_magic_missile_casting

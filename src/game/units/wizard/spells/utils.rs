@@ -592,6 +592,36 @@ pub(crate) fn try_start_cast_with_indicator(
     }
 }
 
+/// Trait for cooldown-style components with a `remaining: f32` countdown field.
+///
+/// Implementing this trait lets a component be ticked by the generic
+/// [`tick_spell_cooldown`] system, eliminating the need for a per-cooldown
+/// tick function.
+pub(crate) trait HasCooldownRemaining {
+    fn remaining_mut(&mut self) -> &mut f32;
+}
+
+/// Generic per-frame countdown system. Decrements the `remaining` field of
+/// every entity's cooldown component, and removes the component when it expires.
+///
+/// Register one instance per cooldown type, e.g.:
+/// `app.add_systems(Update, tick_spell_cooldown::<MagicMissileCooldown>)`.
+pub(crate) fn tick_spell_cooldown<C>(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut cooldowns: Query<(Entity, &mut C)>,
+) where
+    C: Component<Mutability = bevy::ecs::component::Mutable> + HasCooldownRemaining,
+{
+    for (entity, mut cd) in &mut cooldowns {
+        let remaining = cd.remaining_mut();
+        *remaining -= time.delta_secs();
+        if *remaining <= 0.0 {
+            commands.entity(entity).remove::<C>();
+        }
+    }
+}
+
 /// Ticks `GlobalCastCooldown` down each frame, removing the component when
 /// it expires so spell input is unblocked.
 pub(crate) fn tick_global_cast_cooldown(

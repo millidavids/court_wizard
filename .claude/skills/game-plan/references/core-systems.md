@@ -4,18 +4,33 @@ For adding game-wide systems that don't fit neatly into spell/unit/UI categories
 
 ## Module Structure
 
-Core systems live directly under `src/game/`:
+Core systems live directly under `src/game/`. Use **feature-sliced layout**: one file per concern.
 
+**Simple system** (one cohesive concept, e.g., seeded_rng):
 ```
 system_name/
-├── mod.rs           # Module definition
-├── plugin.rs        # Plugin registration
-├── components.rs    # Components (if entity-based)
-├── resources.rs     # Resources (if global state)
-├── messages.rs      # Messages for inter-system communication
-├── constants.rs     # Configuration values
-└── systems.rs       # System implementations
+├── mod.rs        # mod declarations + pub use re-exports
+├── plugin.rs     # Plugin registration only
+└── core.rs       # The component(s) + resource + system + constants
 ```
+
+**Multi-feature system** (e.g., pathfinding, achievements, multiplayer):
+```
+system_name/
+├── mod.rs
+├── plugin.rs
+├── feature_one.rs # one concern: components + systems + constants
+├── feature_two.rs # another concern
+├── feature_three.rs
+├── messages.rs    # only if messages span features
+└── constants.rs   # only if many cross-feature constants
+```
+
+**Hard rules:**
+- `plugin.rs` does registration only.
+- `mod.rs` does `mod` + `pub use` only.
+- Files >300 lines split further by concern.
+- Components, systems, and constants for a single concern live together.
 
 ## Component Design
 

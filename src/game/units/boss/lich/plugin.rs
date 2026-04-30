@@ -43,8 +43,7 @@ impl Plugin for LichPlugin {
                 (
                     on_lich_cast_started,
                     on_lich_cast_ended,
-                    update_lich_facing
-                        .after(crate::game::units::systems::update_facing_direction),
+                    update_lich_facing.after(crate::game::units::systems::update_facing_direction),
                     update_lich_float.after(ApplyTransformsSet),
                 )
                     .run_if(is_gameplay_running)

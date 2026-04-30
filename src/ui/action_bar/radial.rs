@@ -295,11 +295,11 @@ pub(super) fn tick_commit_flash(
     >,
     mut edge_query: Query<&mut Outline, With<crate::ui::components::ButtonEdge>>,
 ) {
+    use crate::ui::color_utils::border_bright;
     use crate::ui::constants::{
         BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_PRESSED_OUTLINE,
         BUTTON_REST_OUTLINE,
     };
-    use crate::ui::styles::border_bright;
 
     for (entity, mut flash, colors, children, anim) in &mut slots {
         let was_fresh = flash.remaining == RADIAL_COMMIT_FLASH_SECS;

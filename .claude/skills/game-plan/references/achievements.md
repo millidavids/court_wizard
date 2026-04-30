@@ -4,17 +4,23 @@ Achievements are tracked via per-achievement resources using a macro system. The
 
 ## Key Files
 
-- `src/game/achievements/resources.rs` - Achievement resource definitions (macro-generated)
-- `src/game/achievements/systems.rs` - Achievement trigger/check systems
-- `src/game/achievements/messages.rs` - AchievementUnlockedMessage, ClearProgressMessage
-- `src/game/achievements/plugin.rs` - System registration
-- `src/config/save_data.rs` - AchievementId enum and save format
+The `src/game/achievements/` module is feature-sliced:
+
+- `src/game/achievements/resources.rs` — Achievement resource definitions (macro-generated)
+- `src/game/achievements/tracking.rs` — Kill counts, milestone counters, in-run stats
+- `src/game/achievements/unlocks.rs` — Unlock-condition systems (one per achievement)
+- `src/game/achievements/notifications.rs` — Popup/UI announcement systems
+- `src/game/achievements/messages.rs` — AchievementUnlockedMessage, ClearProgressMessage
+- `src/game/achievements/plugin.rs` — System registration only
+- `src/config/save/achievement_id.rs` — `AchievementId` enum (post-Phase-11). Pre-phase: `src/config/save_data.rs`.
+
+When adding a new achievement, place its trigger system in the file matching its concern (`tracking.rs` for stat-based, `unlocks.rs` for milestone-based, `notifications.rs` for UI behavior).
 
 ## Step-by-Step
 
 ### 1. Add AchievementId
 
-In `src/config/save_data.rs`, add variant to `AchievementId` enum:
+In `src/config/save/achievement_id.rs` (post-Phase-11; pre-phase: `src/config/save_data.rs`), add variant to `AchievementId` enum:
 ```rust
 pub enum AchievementId {
     // ... existing

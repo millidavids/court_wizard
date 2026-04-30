@@ -4,16 +4,41 @@ Wizard archetypes are unique playstyles that modify how the wizard interacts wit
 
 ## Directory Structure
 
+Use **feature-sliced layout**. The shape depends on archetype complexity:
+
+**Simple archetype** (e.g., shepherd, an empty plugin):
 ```
 archetype_name/
-├── mod.rs           # Module definition and re-exports
-├── plugin.rs        # Plugin with system registration
-├── components.rs    # Archetype-specific components
-├── constants.rs     # Balance values and configuration
-├── resources.rs     # Archetype state resource
-├── systems.rs       # Core archetype logic
-└── run_conditions.rs # Archetype-active check (optional)
+├── mod.rs        # mod declarations + pub use re-exports
+└── plugin.rs     # Plugin registration only
 ```
+
+**Standard archetype** (one mechanic, e.g., runes, roulette, arcanorouter):
+```
+archetype_name/
+├── mod.rs
+├── plugin.rs       # Plugin registration only
+├── state.rs        # Resource + run condition + tuning constants
+└── mechanic.rs     # The mechanic's components + systems
+```
+
+**Complex archetype** (multiple distinct features, e.g., gunslinger with 5 guns):
+```
+archetype_name/
+├── mod.rs
+├── plugin.rs
+├── state.rs        # Resource, run conditions, shared types
+├── feature_one.rs  # e.g., gun selection / slot UI
+├── feature_two.rs  # e.g., bullet projectile + collision
+├── feature_three.rs # e.g., reload mechanic
+└── constants.rs    # only if many shared constants
+```
+
+**Hard rules:**
+- `plugin.rs` does registration only.
+- `mod.rs` does `mod` + `pub use` only.
+- Files >300 lines split further.
+- Components, systems, and constants for a single feature live together.
 
 ## Existing Archetypes for Reference
 
@@ -38,41 +63,50 @@ In `src/config/resources.rs`:
 
 **mod.rs:**
 ```rust
-pub(crate) mod components;
-pub(crate) mod constants;
+pub(crate) mod state;
+pub(crate) mod mechanic;
 mod plugin;
-pub(crate) mod resources;
-pub(crate) mod systems;
 
 pub use plugin::ArchetypeNamePlugin;
 ```
 
-**resources.rs:**
+**state.rs** (resource + run condition + tuning constants):
 ```rust
 use bevy::prelude::*;
+use crate::config::resources::{GameConfig, WizardType};
 
 /// Runtime state for the archetype.
 #[derive(Resource, Debug, Clone, Default)]
 pub struct ArchetypeNameState {
     // Archetype-specific state fields
 }
-```
-
-**run_conditions.rs** (optional):
-```rust
-use bevy::prelude::*;
-use crate::config::resources::{GameConfig, WizardType};
 
 /// Returns true when this archetype is selected.
-pub fn is_archetype_name(config: Res<GameConfig>) -> bool {
+pub(in crate::game::units::wizard::archetypes::archetype_name) fn is_archetype_name(
+    config: Res<GameConfig>,
+) -> bool {
     config.wizard_type == WizardType::ArchetypeName
+}
+
+// Tuning constants
+pub(in crate::game::units::wizard::archetypes::archetype_name) const SOMETHING: f32 = 1.0;
+```
+
+**mechanic.rs** (the archetype's components + systems):
+```rust
+use bevy::prelude::*;
+use super::state::ArchetypeNameState;
+
+pub(in crate::game::units::wizard::archetypes::archetype_name) fn update_archetype_logic(/* ... */) {
+    // ...
 }
 ```
 
-**plugin.rs:**
+**plugin.rs** (registration only):
 ```rust
 use bevy::prelude::*;
-use super::{resources::ArchetypeNameState, systems};
+use super::state::{ArchetypeNameState, is_archetype_name};
+use super::mechanic;
 use crate::game::run_conditions::{is_gameplay_active, is_gameplay_running};
 
 pub struct ArchetypeNamePlugin;
@@ -82,12 +116,10 @@ impl Plugin for ArchetypeNamePlugin {
         app.init_resource::<ArchetypeNameState>()
             .add_systems(
                 Update,
-                (
-                    systems::update_archetype_logic,
-                )
+                mechanic::update_archetype_logic
                     .run_if(is_gameplay_active)
                     .run_if(is_gameplay_running)
-                    .run_if(super::run_conditions::is_archetype_name),
+                    .run_if(is_archetype_name),
             );
     }
 }

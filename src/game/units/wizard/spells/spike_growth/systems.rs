@@ -25,7 +25,7 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     self, SpellCircleIndicator, TargetAssistWorldPos, UniqueHitTracker, apply_target_assist,
     build_wizard_input, clamp_cursor_to_spell_range, cleanup_spell_caster, handle_spell_release,
-    spawn_circle_indicator, update_indicator_position, xz_distance,
+    try_start_cast_with_indicator, update_indicator_position, xz_distance,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -153,22 +153,19 @@ pub fn handle_spike_growth_casting(
 
     match *casting_state {
         CastingState::Resting => {
-            if (input.just_pressed || input.pressed)
-                && caster_query.get(wizard_entity).is_err()
-                && mana.can_afford(effective_mana_cost)
-            {
-                let circle_entity = spawn_circle_indicator(
+            if input.just_pressed || input.pressed {
+                try_start_cast_with_indicator(
                     &mut commands,
                     &mut meshes,
                     visual_assets.spike_growth_indicator.clone(),
+                    wizard_entity,
+                    &mut casting_state,
+                    &mana,
+                    effective_mana_cost,
                     clamped_cursor,
                     effective_radius,
-                )
-                .id();
-                commands
-                    .entity(wizard_entity)
-                    .insert(SpellCaster::with_indicator(circle_entity));
-                casting_state.start_cast();
+                    &caster_query,
+                );
             }
         }
         CastingState::Casting { .. } => {

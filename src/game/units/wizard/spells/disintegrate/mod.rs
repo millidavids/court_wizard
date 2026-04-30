@@ -2,6 +2,8 @@
 //!
 //! Handles disintegrate beam spell that damages enemies in a continuous line.
 
+pub(crate) mod beam;
+pub(crate) mod casting;
 pub(crate) mod components;
 pub(crate) mod constants;
 mod plugin;

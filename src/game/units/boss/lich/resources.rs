@@ -18,10 +18,8 @@ pub(super) fn preload_lich_assets(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let floating_texture =
-        asset_server.load("images/sprite_sheets/lich-floating_4-frames.png");
-    let casting_texture =
-        asset_server.load("images/sprite_sheets/lich-casting_4-frames.png");
+    let floating_texture = asset_server.load("images/sprite_sheets/lich-floating_4-frames.png");
+    let casting_texture = asset_server.load("images/sprite_sheets/lich-casting_4-frames.png");
 
     let mesh = meshes.add(Rectangle::new(LICH_SPRITE_WIDTH, LICH_SPRITE_HEIGHT));
 

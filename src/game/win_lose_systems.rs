@@ -47,11 +47,7 @@ pub fn check_win_lose_conditions(
     // recorded as a defeat just because the king or last defender fell in the
     // same exchange that killed the Lich.
     let lich_slain = !dead_lich.is_empty();
-    if lich_slain
-        && attackers_alive == 0
-        && undead_alive == 0
-        && wave_state.waves_complete
-    {
+    if lich_slain && attackers_alive == 0 && undead_alive == 0 && wave_state.waves_complete {
         *game_outcome = GameOutcome::Victory;
         next_state.set(InGameState::ScoreScreen);
         return;

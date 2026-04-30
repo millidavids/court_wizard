@@ -1,3 +1,4 @@
+pub(crate) mod achievement_id;
 mod error;
 pub(crate) mod input_bindings;
 pub(crate) mod messages;
@@ -5,6 +6,7 @@ mod plugin;
 pub(crate) mod progress;
 mod resources;
 pub(crate) mod save_data;
+pub(crate) mod save_encoding;
 pub(crate) mod storage;
 mod systems;
 

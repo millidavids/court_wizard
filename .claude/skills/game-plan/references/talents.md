@@ -40,9 +40,9 @@ Works with Tier Z talents:
 
 ## File Structure
 
-Talent definitions live in `src/game/units/wizard/talents/definitions.rs`. Each spell gets a function returning `[[TalentDefinition; 3]; 3]` (outer = tiers, inner = choices).
+Talent definitions live in `src/game/units/wizard/talents/definitions/` (split per school: `fire.rs`, `electric.rs`, `force.rs`, `necrotic.rs`, `frost.rs`, `nature.rs`, `utility.rs`). Each spell gets a function returning `[[TalentDefinition; 3]; 3]` (outer = tiers, inner = choices). The dispatcher `talent_definitions()` matches `Spell` → school file → spell-specific function.
 
-Talent gameplay effects are implemented in the spell's own module files (`systems.rs`, `components.rs`, `constants.rs`), reading from `TalentResources` to check which talents are active.
+Talent gameplay effects are implemented in the spell's own feature files (typically `talents.rs`, but components affected by talents may live in `casting.rs` / `projectile.rs` / etc.), reading from `TalentResources` to check which talents are active.
 
 ## TalentDefinition Struct
 
@@ -61,9 +61,9 @@ pub(crate) struct TalentDefinition {
 
 Plan all 9 talents (3 tiers x 3 choices) before writing any code. Use the cross-tier compatibility checklist above to verify all 27 combinations work.
 
-### 2. Add definitions in `definitions.rs`
+### 2. Add definitions in the appropriate school file
 
-Add a new function following the existing pattern:
+Pick the school file in `src/game/units/wizard/talents/definitions/` matching your spell's school (e.g., a fire spell goes in `fire.rs`). Add a new function following the existing pattern:
 
 ```rust
 fn spell_name_talents() -> [[TalentDefinition; 3]; 3] {

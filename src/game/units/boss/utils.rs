@@ -22,3 +22,28 @@ pub(in crate::game) fn despawn_indicators(commands: &mut Commands, entities: &[E
         commands.entity(entity).try_despawn();
     }
 }
+
+/// Pulse frequency for boss telegraph indicators (Hz).
+pub(in crate::game) const TELEGRAPH_PULSE_FREQUENCY: f32 = 2.5;
+/// Maximum emissive intensity for telegraph red channel.
+pub(in crate::game) const TELEGRAPH_EMISSIVE_MAX: f32 = 8.0;
+
+/// Animate a telegraph indicator material's emissive glow + base-color alpha.
+///
+/// Both ogre and dark_mage telegraphs use this exact pattern: a sinusoidal pulse
+/// modulates the emissive while the base-color alpha and intensity ramp linearly
+/// with `progress` (0.0 at start, 1.0 at impact).
+///
+/// `base_red` is the only difference between bosses (ogre uses 0.6, dark_mage 0.8).
+pub(in crate::game) fn animate_telegraph_material(
+    mat: &mut StandardMaterial,
+    elapsed: f32,
+    progress: f32,
+    base_red: f32,
+) {
+    let pulse = (elapsed * TELEGRAPH_PULSE_FREQUENCY * std::f32::consts::TAU).sin() * 0.5 + 0.5;
+    let intensity = progress * TELEGRAPH_EMISSIVE_MAX * (0.6 + 0.4 * pulse);
+    mat.emissive = bevy::color::LinearRgba::new(intensity, intensity * 0.08, intensity * 0.02, 1.0);
+    let alpha = 0.1 + progress * 0.4;
+    mat.base_color = Color::srgba(base_red, base_red * 0.125, base_red * 0.025, alpha);
+}

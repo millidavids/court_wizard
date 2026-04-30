@@ -13,8 +13,7 @@ impl Plugin for NotificationPlugin {
             Update,
             (
                 systems::queue_notifications,
-                systems::spawn_next_notification
-                    .run_if(|q: Res<NotificationQueue>| !q.is_empty()),
+                systems::spawn_next_notification.run_if(|q: Res<NotificationQueue>| !q.is_empty()),
                 systems::update_notifications.run_if(any_exist::<Notification>()),
             )
                 .chain(),

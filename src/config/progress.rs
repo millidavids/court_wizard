@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::storage;
 
-/// Secret key constants for the keyed hash. Compiled into the WASM binary.
+/// Secret key constants for the keyed hash.
 const KEY_A: u64 = 0x9E37_79B9_7F4A_7C15;
 const KEY_B: u64 = 0x6A09_E667_F3BC_C908;
 

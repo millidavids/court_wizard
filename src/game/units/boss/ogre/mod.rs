@@ -1,3 +1,5 @@
+pub(super) mod charge;
+pub(super) mod combat;
 pub(in crate::game) mod components;
 pub(in crate::game) mod constants;
 mod plugin;

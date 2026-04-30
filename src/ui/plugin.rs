@@ -9,7 +9,6 @@ use bevy::window::PrimaryWindow;
 
 use super::systems::{FrostedGlassMaterial, ParchmentMaterial};
 
-use super::notification::NotificationPlugin;
 use super::action_bar::ActionBarPlugin;
 use super::arcanorouter_display::ArcanoRouterDisplayPlugin;
 use super::cauldron_menu::CauldronMenuPlugin;
@@ -24,6 +23,7 @@ use super::gamepad_glyphs::GamepadGlyphsPlugin;
 use super::in_game::plugin::InGamePlugin;
 use super::loading::LoadingUiPlugin;
 use super::main_menu::MainMenuPlugin;
+use super::notification::NotificationPlugin;
 use super::pause_menu::plugin::PauseMenuPlugin;
 use super::roulette_display::RouletteDisplayPlugin;
 use super::rune_display::RuneDisplayPlugin;

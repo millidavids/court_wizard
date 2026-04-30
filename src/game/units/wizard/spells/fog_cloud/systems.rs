@@ -23,8 +23,8 @@ use crate::game::units::systems::create_default_sprite_material;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
-    cleanup_spell_caster, handle_spell_release, spawn_circle_indicator, update_indicator_position,
-    xz_distance,
+    cleanup_spell_caster, handle_spell_release, try_start_cast_with_indicator,
+    update_indicator_position, xz_distance,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -186,22 +186,19 @@ fn fog_cloud_casting_logic(
 
     match *casting_state {
         CastingState::Resting => {
-            if (input.just_pressed || input.pressed)
-                && caster_query.get(wizard_entity).is_err()
-                && mana.can_afford(constants::MANA_COST)
-            {
-                let circle_entity = spawn_circle_indicator(
+            if input.just_pressed || input.pressed {
+                try_start_cast_with_indicator(
                     commands,
                     meshes,
                     assets.fog_cloud_indicator.clone(),
+                    wizard_entity,
+                    casting_state,
+                    mana,
+                    constants::MANA_COST,
                     cursor_world_pos,
                     constants::CIRCLE_RADIUS * primed_spell.empowerment * talent_params.radius_mult,
-                )
-                .id();
-                commands
-                    .entity(wizard_entity)
-                    .insert(SpellCaster::with_indicator(circle_entity));
-                casting_state.start_cast();
+                    caster_query,
+                );
             }
         }
         CastingState::Casting { .. } => {

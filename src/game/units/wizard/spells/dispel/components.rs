@@ -18,6 +18,12 @@ pub struct DispelCooldown {
     pub remaining: f32,
 }
 
+impl crate::game::units::wizard::spells::utils::HasCooldownRemaining for DispelCooldown {
+    fn remaining_mut(&mut self) -> &mut f32 {
+        &mut self.remaining
+    }
+}
+
 /// Expanding translucent sphere that dispels spell effects it overlaps.
 #[derive(Component)]
 pub struct DispelImpact {

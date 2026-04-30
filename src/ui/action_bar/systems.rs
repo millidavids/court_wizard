@@ -12,13 +12,13 @@ use crate::game::units::wizard::archetypes::gunslinger::GunState;
 use crate::game::units::wizard::archetypes::gunslinger::GunType;
 use crate::game::units::wizard::archetypes::gunslinger::messages::SelectGunMessage;
 use crate::game::units::wizard::messages::PrimeSpellMessage;
+use crate::ui::color_utils::border_bright;
 use crate::ui::components::{
     ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, GunIconAssets, SpellIconAssets,
 };
 use crate::ui::constants::{
     BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_PRESSED_OUTLINE,
 };
-use crate::ui::styles::border_bright;
 use crate::ui::systems::scale_font_by_text_width;
 
 const DEBUG_BUTTON_SIZE: f32 = 30.0;

@@ -44,6 +44,12 @@ pub struct MagicMissileCooldown {
     pub remaining: f32,
 }
 
+impl crate::game::units::wizard::spells::utils::HasCooldownRemaining for MagicMissileCooldown {
+    fn remaining_mut(&mut self) -> &mut f32 {
+        &mut self.remaining
+    }
+}
+
 /// Defines which teams a magic missile can target.
 #[derive(Clone, Copy)]
 pub enum TargetTeams {

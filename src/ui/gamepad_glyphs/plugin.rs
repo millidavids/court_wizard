@@ -2,6 +2,8 @@ use bevy::prelude::*;
 
 use super::resources::CurrentControllerGlyphStyle;
 use super::systems::{load_glyph_fonts, resolve_glyph_style};
+use crate::config::GameConfig;
+use crate::game::input::gamepad::resources::ActiveInputDevice;
 
 /// Loads the Kenney controller-glyph fonts and keeps
 /// `CurrentControllerGlyphStyle` synced with the user's preference + the
@@ -12,6 +14,13 @@ impl Plugin for GamepadGlyphsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CurrentControllerGlyphStyle>()
             .add_systems(Startup, load_glyph_fonts)
-            .add_systems(Update, resolve_glyph_style);
+            // Only re-resolve when the user's glyph preference changes or the
+            // active gamepad swaps. Otherwise the resource is already correct.
+            .add_systems(
+                Update,
+                resolve_glyph_style.run_if(
+                    resource_changed::<GameConfig>.or(resource_changed::<ActiveInputDevice>),
+                ),
+            );
     }
 }

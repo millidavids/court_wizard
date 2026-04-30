@@ -3,6 +3,8 @@
 //! Two-phase spell that places a destination circle, then teleports all units
 //! from a source circle to the destination.
 
+pub(crate) mod arrival;
+pub(crate) mod casting;
 pub(crate) mod components;
 pub(crate) mod constants;
 mod plugin;

@@ -29,6 +29,7 @@ mod plugin;
 pub(crate) mod resources;
 pub(crate) mod run_conditions;
 pub(crate) mod seeded_rng;
+mod sets;
 pub(crate) mod shared_systems;
 pub(in crate::game) mod systems;
 pub(crate) mod terrain;

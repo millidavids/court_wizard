@@ -1535,12 +1535,11 @@ pub fn update_rising_animation(
                 // Swap back to the walking sprite and reset UV so the walking
                 // animation system picks up cleanly from frame 0.
                 mat.base_color_texture = Some(anim.walking_texture.clone());
-                mat.uv_transform = Affine2::from_scale_angle_translation(
-                    anim.frame_uv,
-                    0.0,
-                    Vec2::ZERO,
-                );
-                commands.entity(entity).remove::<super::components::RisingAnimation>();
+                mat.uv_transform =
+                    Affine2::from_scale_angle_translation(anim.frame_uv, 0.0, Vec2::ZERO);
+                commands
+                    .entity(entity)
+                    .remove::<super::components::RisingAnimation>();
             } else {
                 mat.uv_transform = anim.uv_transform();
             }

@@ -1,8 +1,11 @@
 //! In-game UI and input systems.
 
+pub(super) mod bars;
 mod components;
 mod constants;
+pub(super) mod displays;
 pub(super) mod plugin;
+pub(super) mod spawn;
 mod systems;
 
 // Re-exports for tutorial system

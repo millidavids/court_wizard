@@ -1,6 +1,8 @@
 mod components;
 mod constants;
+mod distortion;
 mod messages;
+mod pipeline;
 mod plugin;
 mod systems;
 

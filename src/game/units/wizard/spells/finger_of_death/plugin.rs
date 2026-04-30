@@ -9,7 +9,9 @@ use super::components::{
 };
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
-use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, apply_pending_defender_heal};
+use crate::game::units::wizard::spells::utils::{
+    PendingDefenderHeal, apply_pending_defender_heal, tick_spell_cooldown,
+};
 
 pub struct FingerOfDeathPlugin;
 
@@ -19,7 +21,7 @@ impl Plugin for FingerOfDeathPlugin {
             Update,
             (
                 // Cooldown tick
-                systems::tick_finger_of_death_cooldown
+                tick_spell_cooldown::<FingerOfDeathCooldown>
                     .run_if(any_exist::<FingerOfDeathCooldown>())
                     .run_if(is_spell_effects_active),
                 // Local wizard casting (mouse input)

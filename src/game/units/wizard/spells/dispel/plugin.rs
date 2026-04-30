@@ -6,6 +6,7 @@ use super::components::{DispelCooldown, DispelImpact, DispelProjectile, NullZone
 use super::systems;
 use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
 use crate::game::units::king::components::SpellShieldVisual;
+use crate::game::units::wizard::spells::utils::tick_spell_cooldown;
 
 pub struct DispelPlugin;
 
@@ -14,7 +15,7 @@ impl Plugin for DispelPlugin {
         app.add_systems(
             Update,
             (
-                systems::tick_dispel_cooldown
+                tick_spell_cooldown::<DispelCooldown>
                     .run_if(any_exist::<DispelCooldown>())
                     .run_if(is_spell_effects_active),
                 systems::handle_dispel_casting

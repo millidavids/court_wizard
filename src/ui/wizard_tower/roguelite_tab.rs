@@ -1155,7 +1155,6 @@ pub(super) fn slider_button_action(
     }
 }
 
-/// Handles dragging slider handles and clicking on tracks.
 pub(super) fn slider_interaction(
     buttons: Res<ButtonInput<bevy::input::mouse::MouseButton>>,
     mut slider_handles: Query<(&Interaction, &mut ModifierSliderHandle)>,

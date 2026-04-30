@@ -15,7 +15,8 @@ use crate::game::units::components::{
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
-    cleanup_spell_caster, handle_spell_release, spawn_circle_indicator, update_indicator_position,
+    cleanup_spell_caster, handle_spell_release, try_start_cast_with_indicator,
+    update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -199,22 +200,19 @@ fn sleep_casting_logic(
 
     match *casting_state {
         CastingState::Resting => {
-            if (input.just_pressed || input.pressed)
-                && caster_query.get(wizard_entity).is_err()
-                && mana.can_afford(effective_mana_cost)
-            {
-                let circle_entity = spawn_circle_indicator(
+            if input.just_pressed || input.pressed {
+                try_start_cast_with_indicator(
                     commands,
                     meshes,
                     assets.sleep_indicator.clone(),
+                    wizard_entity,
+                    casting_state,
+                    mana,
+                    effective_mana_cost,
                     cursor_world_pos,
                     effective_radius,
-                )
-                .id();
-                commands
-                    .entity(wizard_entity)
-                    .insert(SpellCaster::with_indicator(circle_entity));
-                casting_state.start_cast();
+                    caster_query,
+                );
             }
         }
         CastingState::Casting { .. } => {
@@ -416,7 +414,7 @@ pub fn update_narcoleptic_wave(
 ) {
     let delta = time.delta_secs();
 
-    struct SpreadEvent {
+    struct SpreadFrame {
         position: Vec3,
         radius: f32,
         duration: f32,
@@ -426,7 +424,7 @@ pub fn update_narcoleptic_wave(
         sleepwalking: Option<f32>,
     }
 
-    let mut spread_events: Vec<SpreadEvent> = Vec::new();
+    let mut spread_events: Vec<SpreadFrame> = Vec::new();
 
     for (entity, mut wave, sleep, transform, team, has_night_terrors, has_comatose, sleepwalking) in
         wave_query.iter_mut()
@@ -437,7 +435,7 @@ pub fn update_narcoleptic_wave(
             commands.entity(entity).remove::<NarcolepticWave>();
             // Only spread from non-defender sleepers
             if *team != Team::Defenders {
-                spread_events.push(SpreadEvent {
+                spread_events.push(SpreadFrame {
                     position: transform.translation,
                     radius: wave.radius,
                     duration: sleep.full_duration * 0.5,

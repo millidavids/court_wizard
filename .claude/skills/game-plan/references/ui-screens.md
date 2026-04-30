@@ -2,26 +2,60 @@
 
 ## Directory Structure
 
-Each UI screen lives under `src/ui/screen_name/` (or nested under a parent like `src/ui/main_menu/screen_name/`):
+Each UI screen lives under `src/ui/screen_name/` (or nested under a parent like `src/ui/main_menu/screen_name/`). Use **feature-sliced layout**: one file per concern, not one big `systems.rs`.
 
+**Simple screen** (game_over, instructions, single-page menu):
 ```
 screen_name/
-├── mod.rs           # Module definition and re-exports
-├── plugin.rs        # Plugin with OnEnter/OnExit/Update registration
-├── components.rs    # Screen marker + button action enum
-├── constants.rs     # ButtonStyle, colors, dimensions
-└── systems.rs       # Setup (spawn UI) and interaction handlers
+├── mod.rs        # mod declarations + pub use re-exports
+├── plugin.rs     # Plugin registration only
+├── setup.rs      # marker, button-action enum, spawn UI tree, constants
+└── interaction.rs # button click + escape handlers
 ```
+
+**Multi-tab screen** (settings, compendium, wizard_tower):
+```
+screen_name/
+├── mod.rs
+├── plugin.rs
+├── setup.rs       # root container, tab switcher, marker
+├── tab_one.rs     # tab one's panels + interaction
+├── tab_two.rs     # tab two's panels + interaction
+├── interaction.rs # cross-tab handlers (escape, back, etc.)
+└── constants.rs   # only if many shared colors/dims; otherwise inline
+```
+
+**Complex HUD overlay** (in_game HUD with multiple bars):
+```
+in_game/
+├── mod.rs
+├── plugin.rs
+├── spawn.rs       # HUD root setup
+├── input.rs       # keyboard/gamepad shortcuts
+├── bar_systems.rs # mana, ammo, level clock, etc.
+├── boss_bar.rs    # boss health bar
+├── wave_display.rs
+└── buff_tracker.rs
+```
+
+**Hard rules:**
+- `plugin.rs` does registration only.
+- `mod.rs` does `mod` + `pub use` only.
+- Files >300 lines split further.
+- Components, systems, and constants for a single concern live together.
 
 ## Step-by-Step
 
-### 1. Create components.rs
+### 1. Create setup.rs (marker, button-action enum, constants, spawn UI)
+
+For simple screens, all of these belong in one file:
 
 ```rust
 use bevy::prelude::*;
+use crate::ui::components::ButtonStyle;
+use crate::ui::systems::{spawn_button, spawn_page_container};
 
-/// Marker component for all entities belonging to this screen.
-/// Used for cleanup when exiting the screen state.
+/// Marker component for cleanup.
 #[derive(Component)]
 pub(super) struct OnScreenName;
 
@@ -29,59 +63,25 @@ pub(super) struct OnScreenName;
 #[derive(Component, Debug, Clone, Copy)]
 pub(super) enum ScreenButtonAction {
     ActionOne,
-    ActionTwo,
     Back,
 }
-```
 
-### 2. Create constants.rs
-
-```rust
-use bevy::prelude::*;
-use crate::ui::components::ButtonStyle;
-
-// Colors
-pub const BACKGROUND_COLOR: Color = Color::hsla(0.0, 0.0, 0.08, 1.0);
-pub const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
-pub const BUTTON_BACKGROUND: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);
-pub const BUTTON_BORDER: Color = Color::hsla(0.0, 0.0, 0.3, 1.0);
-
-// Dimensions
-pub const BUTTON_WIDTH: f32 = 250.0;
-pub const BUTTON_HEIGHT: f32 = 65.0;
-
-// Composite style
-pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
-    width: BUTTON_WIDTH,
-    height: BUTTON_HEIGHT,
-    border_width: 3.0,
-    font_size: 20.0,
-    background: BUTTON_BACKGROUND,
-    border: BUTTON_BORDER,
+// Constants — inline if few; move to constants.rs if shared across files
+pub(super) const BACKGROUND_COLOR: Color = Color::hsla(0.0, 0.0, 0.08, 1.0);
+pub(super) const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
+pub(super) const BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: 250.0, height: 65.0,
+    border_width: 3.0, font_size: 20.0,
+    background: Color::hsla(0.0, 0.0, 0.15, 1.0),
+    border: Color::hsla(0.0, 0.0, 0.3, 1.0),
     text_color: TEXT_COLOR,
 };
-```
-
-### 3. Create systems.rs
-
-```rust
-use bevy::prelude::*;
-use super::components::*;
-use super::constants::*;
-use crate::ui::systems::{spawn_button, spawn_page_container};
-use crate::state::MenuState; // or InGameState, etc.
 
 /// Spawn the screen's UI hierarchy.
-pub fn setup(mut commands: Commands) {
-    let container = spawn_page_container(
-        &mut commands,
-        OnScreenName,
-        false,                   // true if this is a pause menu sub-screen
-        Overflow::clip_y(),      // or Overflow::visible()
-    );
+pub(in crate::ui::screen_name) fn setup(mut commands: Commands) {
+    let container = spawn_page_container(&mut commands, OnScreenName, false, Overflow::clip_y());
 
     commands.entity(container).with_children(|parent| {
-        // Title
         parent.spawn((
             Text::new("Screen Title"),
             TextFont::from_font_size(28.0),
@@ -89,14 +89,20 @@ pub fn setup(mut commands: Commands) {
             OnScreenName,
         ));
 
-        // Buttons
         spawn_button(parent, "Action One", ScreenButtonAction::ActionOne, &BUTTON_STYLE);
         spawn_button(parent, "Back", ScreenButtonAction::Back, &BUTTON_STYLE);
     });
 }
+```
 
-/// Handle button clicks.
-pub fn button_action(
+### 2. Create interaction.rs (button + escape handlers)
+
+```rust
+use bevy::prelude::*;
+use super::setup::ScreenButtonAction;
+use crate::state::MenuState;
+
+pub(in crate::ui::screen_name) fn button_action(
     mut button_clicked: MessageReader<crate::game::input::messages::MouseClicked>,
     button_query: Query<&ScreenButtonAction>,
     mut next_state: ResMut<NextState<MenuState>>,
@@ -104,44 +110,33 @@ pub fn button_action(
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
-                ScreenButtonAction::ActionOne => {
-                    // Handle action
-                }
-                ScreenButtonAction::Back => {
-                    next_state.set(MenuState::Landing);
-                }
-                _ => {}
+                ScreenButtonAction::ActionOne => { /* ... */ }
+                ScreenButtonAction::Back => next_state.set(MenuState::Landing),
             }
         }
     }
 }
 ```
 
-### 4. Create plugin.rs
+### 3. Create plugin.rs (registration only)
 
 ```rust
 use bevy::prelude::*;
-use super::systems;
-use super::components::OnScreenName;
+use super::setup::{self, OnScreenName};
+use super::interaction;
 use crate::ui::systems::cleanup_screen;
 use crate::ui::plugin::ButtonActionSet;
-use crate::state::MenuState; // or InGameState, etc.
+use crate::state::MenuState;
 
 pub struct ScreenNamePlugin;
 
 impl Plugin for ScreenNamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-                OnEnter(MenuState::ScreenName),
-                systems::setup,
-            )
-            .add_systems(
-                OnExit(MenuState::ScreenName),
-                cleanup_screen::<OnScreenName>,
-            )
+        app.add_systems(OnEnter(MenuState::ScreenName), setup::setup)
+            .add_systems(OnExit(MenuState::ScreenName), cleanup_screen::<OnScreenName>)
             .add_systems(
                 Update,
-                systems::button_action
+                interaction::button_action
                     .in_set(ButtonActionSet)
                     .run_if(in_state(MenuState::ScreenName)),
             );
@@ -149,13 +144,12 @@ impl Plugin for ScreenNamePlugin {
 }
 ```
 
-### 5. Create mod.rs
+### 4. Create mod.rs (declarations + re-exports only)
 
 ```rust
-mod components;
-mod constants;
+mod interaction;
 mod plugin;
-mod systems;
+mod setup;
 
 pub use plugin::ScreenNamePlugin;
 ```

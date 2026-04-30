@@ -37,7 +37,6 @@ use super::raise_the_dead::RaiseTheDeadPlugin;
 use super::sleep::SleepPlugin;
 use super::spike_growth::SpikeGrowthPlugin;
 use super::squall::SquallPlugin;
-use super::systems;
 use super::telekinesis::TelekinesisPlugin;
 use super::teleport::TeleportPlugin;
 use super::vfx::VfxPlugin;
@@ -116,17 +115,6 @@ impl Plugin for SpellsPlugin {
                 Update,
                 update_spell_indicators
                     .run_if(any_exist::<SpellCircleIndicator>())
-                    .run_if(is_spell_effects_active),
-            )
-            .add_systems(
-                Update,
-                (
-                    systems::move_projectiles,
-                    systems::check_projectile_collisions,
-                    systems::update_spell_effects,
-                    systems::despawn_distant_projectiles,
-                )
-                    .chain()
                     .run_if(is_spell_effects_active),
             )
             .add_systems(

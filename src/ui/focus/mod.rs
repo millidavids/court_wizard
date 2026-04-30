@@ -8,8 +8,10 @@
 
 pub(crate) mod components;
 pub(crate) mod constants;
+pub(super) mod navigation;
 mod plugin;
 pub(crate) mod resources;
+pub(super) mod scroll;
 mod systems;
 
 pub(crate) use components::{

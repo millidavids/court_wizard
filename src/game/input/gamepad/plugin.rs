@@ -23,6 +23,10 @@ use crate::game::run_conditions::{
 };
 use crate::state::InGameState;
 
+fn gamepad_active(active: Res<ActiveInputDevice>) -> bool {
+    active.is_gamepad()
+}
+
 pub(crate) struct GamepadInputPlugin;
 
 impl Plugin for GamepadInputPlugin {
@@ -55,8 +59,8 @@ impl Plugin for GamepadInputPlugin {
                 )
                     .run_if(is_local_wizard_active),
             )
-            // UI confirm/back runs always when gamepad is active.
-            .add_systems(Update, emit_ui_confirm_back_messages)
+            // UI confirm/back runs only when gamepad is active.
+            .add_systems(Update, emit_ui_confirm_back_messages.run_if(gamepad_active))
             // Sync user-facing GameConfig settings into GamepadAimSettings.
             .add_systems(
                 Update,

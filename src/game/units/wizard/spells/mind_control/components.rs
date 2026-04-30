@@ -6,6 +6,12 @@ pub struct MindControlCooldown {
     pub remaining: f32,
 }
 
+impl crate::game::units::wizard::spells::utils::HasCooldownRemaining for MindControlCooldown {
+    fn remaining_mut(&mut self) -> &mut f32 {
+        &mut self.remaining
+    }
+}
+
 /// Talent parameters computed at cast time from active talent selections.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct MindControlTalentParams {

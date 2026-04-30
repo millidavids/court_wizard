@@ -45,12 +45,19 @@ For features that span multiple categories (e.g., a new wizard archetype with a 
 
 These rules apply to ALL features:
 
-- **Visibility**: `pub(crate)` for components/constants/resources shared across crate. `pub(in crate::game)` for systems used within the game module. `mod` (private) for plugin.rs. `pub use` only for Plugin exports.
-- **Messages, not Events**: Use `#[derive(Message)]` in `messages.rs` with `Message` suffix. Never use `events.rs` or `Event` suffix.
-- **Constants, not styles**: Put colors, dimensions, and styling in `constants.rs`. Never create `styles.rs` in new modules (legacy ones exist but aren't the pattern to follow).
+- **Module Structure — Feature-Sliced & Granular**: Group code by *concern* (one file per feature: `casting.rs`, `projectile.rs`, `talents.rs`), not by file type. A `damage.rs` file holding the damage component + apply_damage system + damage constants together is preferred over splitting them across `components.rs`/`systems.rs`/`constants.rs`. Reserve canonical names (`components.rs`, `systems.rs`, `constants.rs`) for genuinely cross-cutting / shared content.
+- **Hard rules:**
+  - `plugin.rs` does Bevy plugin registration ONLY. Move system bodies and helpers to sibling files.
+  - `mod.rs` does `mod` declarations + `pub use` re-exports ONLY. No logic, no constants, no types.
+  - One `plugin.rs` per module. No per-concern micro-plugins inside a module.
+  - **Files exceeding ~300 lines must be split unless every line is genuinely cohesive** (e.g., a single large match-on-enum or a single asset registry).
+  - `styles.rs` is forbidden. Constants live with their feature, or in `constants.rs` for cross-cutting values only.
+- **Visibility**: `pub(crate)` for components/constants/resources shared across crate. `pub(in crate::game)` for items shared inside the game module tree. `mod` (private) for plugin.rs. `pub` only for Plugin types.
+- **Messages, not Events**: Use `#[derive(Message)]` with `Message` suffix. Place in `messages.rs` if messages span features, or in the feature file that owns the message.
+- **Constants**: A single `constants.rs` is fine for small modules. When it exceeds ~200 lines or mixes visual and gameplay concerns, split (`colors.rs`, `dimensions.rs`, `tuning.rs`) or inline into feature files.
 - **Run conditions**: Every `Update` system MUST have a `run_if()` guard. Never run systems unconditionally.
 - **System sets**: Use `VelocitySystemSet` for targeting/flocking (parallel, immutable queries). `MovementSystemSet` for movement application (after velocity). `PostCombatSet` for post-combat reactions.
-- **Code sharing**: Check `src/game/units/systems.rs` and `src/game/shared_systems.rs` before writing new logic. Extract shared patterns into reusable functions.
+- **Code sharing**: Check `src/game/units/wizard/spells/utils.rs`, `src/game/units/boss/utils.rs`, the `units/` cross-cutting files (combat, movement, dots, etc.), and `src/game/shared_systems.rs` before writing new logic. Extract shared patterns into reusable functions.
 - **Error handling**: No `.unwrap()`. Use `.expect("reason")` only for invariants.
 - **Asset loading**: Preload in `Startup` systems. Store handles in Resource structs. Reference assets as relative paths from project root.
 - **Spawn queue**: New entities that spawn per-level go through `SpawnTask` enum in `src/game/loading/spawn_queue.rs`.

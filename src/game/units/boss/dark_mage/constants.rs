@@ -103,10 +103,6 @@ pub const PLAGUE_HAZARD_COST: f32 = 15.0;
 pub const INDICATOR_Y: f32 = 2.0;
 /// Base color of telegraph indicators (semi-transparent red).
 pub const INDICATOR_BASE_COLOR: Color = Color::srgba(0.8, 0.1, 0.05, 0.15);
-/// Emissive pulse frequency in Hz.
-pub const INDICATOR_PULSE_FREQUENCY: f32 = 2.5;
-/// Peak emissive intensity at full telegraph.
-pub const INDICATOR_EMISSIVE_MAX: f32 = 8.0;
 
 // ===== Spell Effect Colors =====
 

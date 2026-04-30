@@ -9,6 +9,8 @@ pub(crate) mod flow_field;
 pub(crate) mod messages;
 mod plugin;
 pub(crate) mod resources;
+pub(crate) mod runtime;
+pub(crate) mod setup;
 pub(crate) mod staging;
 pub(crate) mod systems;
 

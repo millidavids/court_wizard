@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use super::resources::{FocusNavInhibit, FocusedEntity, PreModalFocus, ScreenFocusMemory};
 use super::systems::{
-    animate_scroll, auto_refocus, autoscroll_to_focused, clear_focus_on_back,
+    ScrollAnimation, animate_scroll, auto_refocus, autoscroll_to_focused, clear_focus_on_back,
     clear_focus_on_device_switch, focus_navigation, override_focused_interaction,
     restore_focus_on_screen_change, right_stick_scroll, tab_cycle, track_modal_focus_restore,
     update_focus_memory,
@@ -95,9 +95,11 @@ impl Plugin for FocusPlugin {
                     .run_if(focus_enabled)
                     .run_if(nav_enabled),
             )
-            // Smooth scroll animation — runs every frame so ScrollPosition tweens
-            // toward any target written by autoscroll_to_focused.
-            .add_systems(Update, animate_scroll)
+            // Smooth scroll animation — only runs while ScrollAnimation tweens are active.
+            .add_systems(
+                Update,
+                animate_scroll.run_if(any_with_component::<ScrollAnimation>),
+            )
             // The Interaction override must run in PreUpdate AFTER
             // `correct_ui_interaction_for_barrel`. Running in Update causes
             // a per-frame REST↔HOVER oscillation because `button_interaction`

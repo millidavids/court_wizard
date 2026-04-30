@@ -15,41 +15,31 @@ Court Wizard is a real-time strategy game built with Rust and the Bevy game engi
 
 ```
 src/
-├── config/           # Game configuration and level definitions
+├── config/           # Game configuration, save data, input bindings
 ├── game/             # Core game logic
-│   ├── combat_systems.rs   # Melee combat, invulnerability, corpse conversion
-│   ├── movement_systems.rs # Separation/flocking, wall avoidance/collision, terrain slowdown
-│   ├── shared_systems.rs   # Timing, effectiveness, cleanup, defenders, ambience, shadows
 │   ├── battlefield/  # Battlefield setup and rendering
-│   ├── input/        # Input handling systems
-│   ├── pathfinding/  # Flow field pathfinding system
-│   │   ├── constants.rs    # Pathfinding constants (rally points, satisfaction radii)
-│   │   ├── components.rs   # FlowFieldInfluence component
-│   │   ├── messages.rs      # ObstacleChanged messages
-│   │   ├── flow_field.rs   # FlowField struct and generation
-│   │   ├── resources.rs    # PathfindingGrid resource
-│   │   └── systems.rs      # Pathfinding systems
+│   ├── input/        # Input handling
+│   ├── pathfinding/  # Flow field pathfinding
 │   ├── runes/        # Rune system for spell activation
+│   ├── achievements/ # Achievement tracking
+│   ├── crt_effect/   # CRT post-processing pipeline
+│   ├── cauldron/     # Brew/ingredient system
+│   ├── multiplayer/  # P2P multiplayer
+│   ├── loading/      # Queue-based progressive entity spawn
+│   ├── game_mode/    # Endless / roguelite mode rules
+│   ├── terrain/      # Boulders, ponds, props
+│   ├── drops/        # Pickups
+│   ├── benchmarking/ # Perf instrumentation
+│   ├── seeded_rng/   # Deterministic RNG
 │   └── units/        # All unit types and behaviors
-│       ├── archer/   # Archer defender units
-│       ├── infantry/ # Infantry defender units (includes DefendersActivated resource)
-│       ├── king/     # King unit and systems
-│       └── wizard/   # Wizard and spell systems
-│           └── spells/
-│               ├── black_hole/      # Black hole gravity spell
-│               ├── wall_of_stone/   # Wall obstacle spell
-│               └── ...              # Other spells
-├── state/            # Game state management
-└── ui/               # User interface components
-    ├── action_bar/   # Bottom action bar with spell slots
-    ├── game_over/    # Game over screen
-    ├── in_game/      # In-game UI overlays
-    ├── instructions/ # Instructions screen
-    ├── main_menu/    # Main menu
-    ├── pause_menu/   # Pause menu
-    ├── rune_display/ # Rune display system
-    ├── spell_book/   # Spell selection interface
-    └── version/      # Version display
+│       ├── archer/, infantry/, king/, brute/, healer/, ...  # Per-unit modules
+│       ├── boss/     # Boss enemies (hags, ogre, lich, dark_mage, ray)
+│       └── wizard/   # Wizard, archetypes, spells (~30), talents
+├── state/            # Game state machines (AppState, MenuState, etc.)
+├── ui/               # User interface (one folder per screen / overlay)
+├── networking/       # Iroh-backed transport for multiplayer
+├── steam/            # Steam achievements / leaderboards
+└── music/            # Background music tracks
 ```
 
 ## Architecture Patterns
@@ -61,19 +51,70 @@ The game uses Bevy's ECS architecture:
 - **Systems**: Functions that operate on entities with specific components
 - **Resources**: Global state (PathfindingGrid, DefendersActivated, GameOutcome, etc.)
 
+### Module Structure — Feature-Sliced & Granular
+
+**Prefer many small concern-focused files over a few large canonical ones.** A `damage.rs` file holding `DamageMultiplier` component + `apply_damage` system + damage constants together is preferred over the same code split across `components.rs`/`systems.rs`/`constants.rs` mixed with 30 unrelated entries.
+
+**Hard rules:**
+- `plugin.rs` does Bevy plugin registration ONLY. Move system bodies and helpers to sibling files.
+- `mod.rs` does `mod` declarations + `pub use` re-exports ONLY. No logic, no constants, no types.
+- One `plugin.rs` per module. No per-concern micro-plugins inside a module.
+- Files exceeding ~300 lines must be split unless every line is genuinely cohesive (e.g., a single large match-on-enum or a single asset registry).
+- `styles.rs` is forbidden. Constants live with their feature, or in a `constants.rs` for cross-cutting values only.
+
+**Feature-slicing rule:** When splitting a module with multiple concerns, group by concern, not by file type. Reserve canonical names (`components.rs`, `systems.rs`, `constants.rs`) for genuinely cross-cutting / shared content.
+
+**Module-shape examples:**
+
+Self-contained spell module (`units/wizard/spells/fireball/`):
+```
+plugin.rs    # registration only
+casting.rs   # input + cast initiation
+projectile.rs # component + movement + collision
+explosion.rs # secondary visuals + AoE damage
+talents.rs   # talent params for fireball
+```
+
+Cross-cutting module (`units/`):
+```
+plugin.rs
+core.rs           # Health, Team, Hitbox (truly shared)
+combat.rs         # MeleeRangeBonus + melee targeting
+movement.rs       # MovementSpeed + weighted movement
+status_effects.rs # CC components + their tick systems
+dots.rs           # FireDoT/ElectricCharge/etc. + processing
+animation.rs      # animation components + animation systems
+sprites.rs        # sprite materials + factories
+```
+
+Boss module (`units/boss/hags/`):
+```
+plugin.rs
+spawn.rs
+movement.rs
+eye_transfer.rs
+justina.rs
+josephina.rs
+martina.rs
+constants.rs   # only if many shared constants; otherwise inline
+```
+
+**Constants:**
+- A single `constants.rs` is fine for small modules.
+- When a `constants.rs` exceeds ~200 lines or mixes visual and gameplay concerns, split into named files (`colors.rs`, `dimensions.rs`, `tuning.rs`) or inline constants into the feature files that own them.
+- Constants used by exactly one feature file should be inlined there.
+
+**Messages:**
+- A single `messages.rs` is fine when messages span features.
+- If only one feature file owns a message, put the message in that file.
+
+**Cross-cutting markers:** Truly shared types (e.g., `OnGameplayScreen`, base `Health`, `Team`) may stay in a `core.rs` or `components.rs` — pick whichever name reads best.
+
 ### Module Visibility
 - Use `pub(super)` for items only needed within a module
 - Use `pub(crate)` for crate-internal APIs
-- Only use `pub` for true public API (typically just plugins and exported types)
-- Keep sub-modules private, only re-export the plugin in `mod.rs`
-
-### Plugin Architecture
-Each major system is organized as a Bevy plugin:
-- `GamePlugin` - Main game coordinator
-- `PathfindingPlugin` - Flow field pathfinding
-- `UnitsPlugin` - All unit types
-- `RunePlugin` - Rune system
-- UI plugins for each screen
+- Use `pub(in crate::game)` for items shared inside the game module tree
+- Only use `pub` for true public API (typically just Plugin types)
 
 ### System Organization
 Systems are grouped into sets with explicit ordering:
@@ -83,11 +124,12 @@ Systems are grouped into sets with explicit ordering:
 
 ### Code Sharing
 **CRITICAL**: Maximize code sharing between systems, units, and spells:
-- Units (infantry, behemoth, king, archer) share movement and targeting code via `src/game/units/systems.rs`
-- Spells share casting boilerplate via `src/game/units/wizard/spells/utils.rs` — use `build_wizard_input`, `cleanup_spell_caster`, `handle_spell_release`, `update_indicator_position`, and `try_start_cast_with_indicator` instead of duplicating input/indicator/cleanup logic
+- Units (infantry, behemoth, king, archer) share movement and targeting helpers in the `units/` cross-cutting feature files
+- Spells share casting boilerplate via `src/game/units/wizard/spells/utils.rs` — use `build_wizard_input`, `cleanup_spell_caster`, `handle_spell_release`, `update_indicator_position`, `try_start_cast_with_indicator`, and `commit_spell_cast` instead of duplicating input/indicator/cleanup logic
+- Bosses share telegraph/spawn helpers via `src/game/units/boss/utils.rs`
 - When adding new units or spells, check existing implementations for shared patterns
 - Extract common logic into shared functions rather than duplicating code
-- Unit-specific or spell-specific behavior should be minimal overrides on top of shared systems
+- Unit-specific or spell-specific behavior should be minimal overrides on top of shared helpers
 
 ### Function Arguments & SystemParam
 - **Bevy systems** naturally have many injected parameters (Res, ResMut, Query, Commands, etc.). When a system exceeds 7 arguments, add `#[allow(clippy::too_many_arguments)]` — this is idiomatic Bevy, not a code smell.
@@ -126,8 +168,19 @@ Systems are grouped into sets with explicit ordering:
 
 ## Build Instructions
 
-### Development (Windows from WSL2 — default)
-**IMPORTANT**: This machine is WSL2 — the user runs the game on Windows. Always default to the Windows cross-compile after completing ANY task that modifies Rust code (except changelog changes):
+### Iterative compile checks (USE THIS during work)
+While iterating — refactoring, splitting files, fixing import errors — use `cargo check` instead of the full build script. It runs the full compiler frontend (so it catches every type error, missing import, visibility issue, etc.) but skips codegen, making it ~5-10× faster.
+
+```bash
+cargo check --target=x86_64-pc-windows-gnu
+```
+
+This is the right tool for the inner loop of mechanical refactors (file splits, import fixes, visibility tweaks). Don't run `./build_native.sh windows` between every change — it links the binary and copies assets, which is wasteful when you're just verifying the code compiles.
+
+You can also use `cargo fix --bin court_wizard --allow-dirty --target=x86_64-pc-windows-gnu` to auto-remove unused imports surfaced by `cargo check`.
+
+### Final build (when handing off to the user)
+**IMPORTANT**: This machine is WSL2 — the user runs the game on Windows. Run the full Windows cross-compile only when you're done with a feature/task and ready to hand the work back to the user:
 ```bash
 ./build_native.sh windows
 ```
@@ -161,12 +214,16 @@ cargo fmt --check
 
 ## Important Conventions
 
-### Constants and Styles Organization
-- Game-wide constants in `src/game/constants.rs`
-- Module-specific constants in dedicated `constants.rs` files (e.g., `pathfinding/constants.rs`)
-- **Colors and style values go in `constants.rs`** — do NOT create separate `styles.rs` files. Keep all constants (dimensions, colors, positions, etc.) together in one file per module.
-- **Messages go in `messages.rs`** — This project uses Bevy 0.17 **Messages** (`#[derive(Message)]`) for broadcast inter-system communication. All message types in a module should live in a dedicated `messages.rs` file, never `events.rs`. Name message structs with a `Message` suffix (e.g., `StartBrewMessage`), never `Event`. **Bevy Events** (`#[derive(Event)]`) are a separate, newer mechanism for reactive observer/trigger callbacks (entity-targeted via `world.trigger()` / `On<E>`). We don't currently use Events, but if we do, they would go in a separate `events.rs` file and use the `Event` suffix.
-- Use `pub(super)` for module-internal constants
+### Constants Organization
+- Game-wide constants live in `src/game/constants.rs`. Split by concern when that file exceeds ~200 lines.
+- Module-specific constants either live in feature files alongside the code that uses them, or in a `constants.rs` if they are shared across feature files.
+- **`styles.rs` is forbidden.** Colors, dimensions, and styling go in feature files or `constants.rs`.
+- Use `pub(super)` for module-internal constants.
+
+### Messages
+- Use Bevy 0.17 **Messages** (`#[derive(Message)]`) for broadcast inter-system communication. Name message structs with a `Message` suffix (e.g., `StartBrewMessage`), never `Event`.
+- A single `messages.rs` per module is fine when messages span features. If only one feature file owns a message, put the message in that file.
+- **Never use `events.rs`.** **Bevy Events** (`#[derive(Event)]`) are a separate, newer mechanism for reactive observer/trigger callbacks (entity-targeted via `world.trigger()` / `On<E>`). We don't currently use them; if we do, they go in a separate `events.rs` file and use the `Event` suffix.
 
 ### Code Simplification
 - Always `/simplify` before updating the changelog and before releasing to optimize the codebase from a duplication standpoint.

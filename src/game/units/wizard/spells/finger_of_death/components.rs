@@ -170,6 +170,12 @@ pub struct FingerOfDeathCooldown {
     pub remaining: f32,
 }
 
+impl crate::game::units::wizard::spells::utils::HasCooldownRemaining for FingerOfDeathCooldown {
+    fn remaining_mut(&mut self) -> &mut f32 {
+        &mut self.remaining
+    }
+}
+
 /// Deathmark debuff applied to a target by the Deathmark talent.
 /// If the target dies while this is active, a chain Finger of Death fires.
 #[derive(Component)]
