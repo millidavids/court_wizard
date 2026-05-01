@@ -52,7 +52,6 @@ pub const fn dim(base: Color, gray_strength: f32, alpha: f32) -> Color {
 // ===== Common Tint Colors =====
 
 pub const TINT_RED: Color = Color::srgb(1.0, 0.2, 0.2);
-pub const TINT_PURPLE: Color = Color::srgb(0.5, 0.1, 0.8);
 pub const TINT_GREEN: Color = Color::srgb(0.3, 0.8, 0.2);
 // ===== Undead Color =====
 
@@ -473,8 +472,8 @@ pub fn boss_name_for_level(level: u32) -> Option<&'static str> {
     Some(match get_tier(level) % BOSS_CYCLE_LENGTH {
         0 => "Ogre",
         1 => "The Lich",
-        2 => "Hags",
-        3 => "Dark Mage",
+        2 => "Dark Mage",
+        3 => "Hags",
         4 => "Ray",
         _ => unreachable!(),
     })

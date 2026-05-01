@@ -153,6 +153,13 @@ pub struct DarkMageIndicator;
 #[derive(Component)]
 pub struct DarkMage;
 
+/// Anchor Y for the sinusoidal hover bob applied each frame by
+/// `update_dark_mage_float`. The base Y is set at spawn and never moves.
+#[derive(Component)]
+pub struct DarkMageFloatBase {
+    pub base_y: f32,
+}
+
 /// Persistent plague cloud entity that deals periodic damage.
 #[derive(Component)]
 pub struct DarkMagePlagueCloud {
@@ -166,8 +173,7 @@ pub struct DarkMagePlagueCloud {
 /// Temporary explosion visual from Dark Meteor.
 #[derive(Component)]
 pub struct DarkMageMeteorExplosion {
-    pub lifetime: f32,
-    pub max_lifetime: f32,
+    pub time_alive: f32,
     pub radius: f32,
     pub damage_applied: bool,
     pub damage: f32,

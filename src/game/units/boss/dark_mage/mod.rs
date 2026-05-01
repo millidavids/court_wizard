@@ -1,4 +1,5 @@
 pub(super) mod ai;
+mod animation;
 pub(in crate::game) mod components;
 pub(in crate::game) mod constants;
 mod plugin;

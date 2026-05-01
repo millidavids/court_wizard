@@ -176,12 +176,12 @@ pub fn init_loading_progress(
                 kill_stats.total_attackers_spawned = 1;
             }
             2 => {
-                queue.tasks.push_back(SpawnTask::Hags);
-                kill_stats.total_attackers_spawned = 3;
-            }
-            3 => {
                 queue.tasks.push_back(SpawnTask::DarkMage);
                 kill_stats.total_attackers_spawned = 1;
+            }
+            3 => {
+                queue.tasks.push_back(SpawnTask::Hags);
+                kill_stats.total_attackers_spawned = 3;
             }
             4 => {
                 queue.tasks.push_back(SpawnTask::Ray);

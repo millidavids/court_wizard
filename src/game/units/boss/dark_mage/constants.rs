@@ -1,22 +1,48 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{ATTACKER_BASE, TINT_PURPLE, UNIT_SCALE, tint};
+use crate::game::constants::UNIT_SCALE;
 
 // ===== Visual Appearance =====
 
-/// Base dark mage color (dark purple tint).
-pub const DARK_MAGE_COLOR: Color = tint(ATTACKER_BASE, TINT_PURPLE, 0.5);
-/// Enrage phase 1 color (deeper purple).
-pub const DARK_MAGE_ENRAGE_1_COLOR: Color = tint(ATTACKER_BASE, TINT_PURPLE, 0.65);
-/// Enrage phase 2 color (intense purple).
-pub const DARK_MAGE_ENRAGE_2_COLOR: Color = tint(ATTACKER_BASE, TINT_PURPLE, 0.8);
-/// Enrage phase 3 color (near-pure purple).
-pub const DARK_MAGE_ENRAGE_3_COLOR: Color = tint(ATTACKER_BASE, TINT_PURPLE, 0.95);
-
+/// Drives the 4× sprite quad. Same naming convention as the lich/hags.
 pub const DARK_MAGE_ELLIPSE_WIDTH: f32 = 30.0 * UNIT_SCALE;
-pub const DARK_MAGE_ELLIPSE_DEPTH: f32 = 45.0 * UNIT_SCALE;
 pub const DARK_MAGE_RADIUS: f32 = 30.0 * UNIT_SCALE;
 pub const DARK_MAGE_HITBOX_HEIGHT: f32 = 50.0 * UNIT_SCALE;
+
+// ===== Sprite Sheet Layout =====
+// Both the floating and casting sheets are 4 columns × 2 rows (512×256 px).
+// Row 0 = facing the camera; row 1 = facing away.
+
+pub(super) const DARK_MAGE_SHEET_COLUMNS: usize = 4;
+pub(super) const DARK_MAGE_SHEET_ROWS: usize = 2;
+pub(super) const DARK_MAGE_FRAME_UV: Vec2 = Vec2::new(
+    1.0 / DARK_MAGE_SHEET_COLUMNS as f32,
+    1.0 / DARK_MAGE_SHEET_ROWS as f32,
+);
+
+/// Maps `FacingDirection` `[Forward, Back, Left, Right]` to sprite-sheet rows.
+/// Lateral movement collapses to row 0 so the dark mage keeps facing the camera;
+/// only the rear-arc Back direction uses row 1.
+pub(super) const DARK_MAGE_DIRECTION_ROWS: [usize; 4] = [0, 1, 0, 0];
+
+/// Sprite quad — frames are 128×128 (1:1), so the quad is square.
+pub(super) const DARK_MAGE_SPRITE_WIDTH: f32 = DARK_MAGE_ELLIPSE_WIDTH * 4.0;
+pub(super) const DARK_MAGE_SPRITE_HEIGHT: f32 = DARK_MAGE_ELLIPSE_WIDTH * 4.0;
+
+// ===== Hover Bob =====
+
+/// Base offset above the ground (added to the spawn-time Y).
+pub(super) const DARK_MAGE_FLOAT_BASE_OFFSET: f32 = 30.0 * UNIT_SCALE;
+/// Sinusoidal bob amplitude.
+pub(super) const DARK_MAGE_FLOAT_AMPLITUDE: f32 = 4.0 * UNIT_SCALE;
+/// Sinusoidal bob frequency in Hz.
+pub(super) const DARK_MAGE_FLOAT_FREQUENCY_HZ: f32 = 1.2;
+
+// ===== Facing =====
+
+/// `cos(60°) = 0.5` — show the back-of-mage row only when moving in a 120° arc
+/// directly away from the camera.
+pub(super) const DARK_MAGE_BACK_FACING_THRESHOLD: f32 = 0.5;
 
 // ===== Health & Combat =====
 
@@ -34,6 +60,13 @@ pub const TELEPORT_COOLDOWN: f32 = 7.0;
 pub const TELEPORT_MIN_DISTANCE: f32 = 400.0;
 /// Minimum distance from castle position when choosing teleport destination.
 pub const TELEPORT_MIN_CASTLE_DISTANCE: f32 = 500.0;
+/// Radius of the aura-bubble VFX spawned at the source and destination.
+/// Sized to wrap around the dark mage sprite.
+pub(super) const TELEPORT_BUBBLE_RADIUS: f32 = 200.0;
+/// NDC bounds margin for camera-visibility test on teleport destinations
+/// (-1 = left/bottom edge, +1 = right/top edge). 0.85 leaves a small safety
+/// inset so the dark mage doesn't end up flush with the screen edge.
+pub(super) const TELEPORT_NDC_MARGIN: f32 = 0.85;
 
 // ===== Enrage Thresholds (HP ratio) =====
 
@@ -58,6 +91,10 @@ pub const METEOR_RADIUS: f32 = 200.0;
 pub const METEOR_DAMAGE: f32 = 60.0;
 /// Duration of the explosion visual.
 pub const METEOR_EXPLOSION_DURATION: f32 = 0.8;
+/// Time the explosion sphere takes to grow from a point to its full radius.
+pub const METEOR_EXPLOSION_GROWTH_TIME: f32 = 0.15;
+/// Number of procedural fire-orange smoke billboards spawned at the impact site.
+pub const METEOR_FIRE_PARTICLE_COUNT: usize = 18;
 /// Height from which the meteor projectile falls (above camera, off-screen).
 pub const METEOR_FALL_HEIGHT: f32 = 2000.0;
 /// Size of the falling meteor projectile visual.
@@ -106,8 +143,6 @@ pub const INDICATOR_BASE_COLOR: Color = Color::srgba(0.8, 0.1, 0.05, 0.15);
 
 // ===== Spell Effect Colors =====
 
-/// Meteor explosion fill color.
-pub const METEOR_FILL_COLOR: Color = Color::srgba(0.9, 0.3, 0.05, 0.3);
 /// Lightning strike color.
 pub const LIGHTNING_FILL_COLOR: Color = Color::srgba(0.6, 0.5, 1.0, 0.4);
 /// Plague cloud persistent zone color.

@@ -10,20 +10,30 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::pathfinding::messages::{ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{
-    BanishedModifier, Corpse, Health, Hitbox, OriginalMaterial, Team, TemporaryHitPoints,
-    apply_spell_damage,
+    BanishedModifier, Corpse, Health, Hitbox, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::vfx;
+use crate::game::units::wizard::spells::visual_assets::{
+    FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material, explosion_fade_opacity,
+};
 
-/// Spawns the Dark Mage at a tunnel spawn point (walks in like other bosses).
+/// Grows the explosion sphere to full radius over `METEOR_EXPLOSION_GROWTH_TIME`,
+/// fades its opacity over the last 40% of lifetime (matches `meteor_fall`), and
+/// applies one-shot damage to defender units within radius on the first frame.
 #[allow(clippy::type_complexity)]
 pub fn update_meteor_explosions(
     time: Res<Time>,
     mut commands: Commands,
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     mut explosions: Query<
-        (Entity, &mut DarkMageMeteorExplosion, &mut Transform),
+        (
+            Entity,
+            &mut DarkMageMeteorExplosion,
+            &mut Transform,
+            &MeshMaterial3d<FireExplosionSphereMaterial>,
+        ),
         Without<DarkMage>,
     >,
     mut targets: Query<
@@ -45,26 +55,20 @@ pub fn update_meteor_explosions(
 ) {
     let delta = time.delta_secs();
 
-    for (entity, mut explosion, mut transform) in &mut explosions {
-        explosion.lifetime -= delta;
+    for (entity, mut explosion, mut transform, mat_handle) in &mut explosions {
+        explosion.time_alive += delta;
 
-        // Visual: grow then shrink
-        let progress = 1.0 - (explosion.lifetime / explosion.max_lifetime);
-        let scale = if progress < 0.4 {
-            // Grow phase
-            let t = progress / 0.4;
-            explosion.radius * t
-        } else if progress < 0.6 {
-            // Hold
-            explosion.radius
-        } else {
-            // Shrink
-            let t = (progress - 0.6) / 0.4;
-            explosion.radius * (1.0 - t)
-        };
-        transform.scale = Vec3::splat(scale.max(0.1));
+        let progress = (explosion.time_alive / METEOR_EXPLOSION_DURATION).clamp(0.0, 1.0);
 
-        // Apply one-time damage
+        let growth_t = (explosion.time_alive / METEOR_EXPLOSION_GROWTH_TIME).min(1.0);
+        if growth_t < 1.0 {
+            transform.scale = Vec3::splat(explosion.radius * growth_t);
+        }
+
+        if let Some(mat) = sphere_materials.get_mut(mat_handle) {
+            mat.opacity = explosion_fade_opacity(progress);
+        }
+
         if !explosion.damage_applied {
             explosion.damage_applied = true;
             let center = transform.translation;
@@ -101,7 +105,7 @@ pub fn update_meteor_explosions(
             }
         }
 
-        if explosion.lifetime <= 0.0 {
+        if explosion.time_alive >= METEOR_EXPLOSION_DURATION {
             commands.entity(entity).try_despawn();
         }
     }
@@ -263,21 +267,10 @@ pub fn update_plague_clouds(
     }
 }
 
-/// Monitors health thresholds and updates enrage state.
-#[allow(clippy::type_complexity)]
-pub fn dark_mage_enrage(
-    mut bosses: Query<
-        (
-            &Health,
-            &mut DarkMageEnrage,
-            &mut MeshMaterial3d<StandardMaterial>,
-            Option<&mut OriginalMaterial>,
-        ),
-        With<DarkMage>,
-    >,
-    assets: Res<DarkMageAssets>,
-) {
-    for (health, mut enrage, mut mesh_material, original_material) in &mut bosses {
+/// Monitors health thresholds and updates enrage state. Lower phases shorten
+/// spell cooldowns; the gameplay tell is the casting frequency itself.
+pub fn dark_mage_enrage(mut bosses: Query<(&Health, &mut DarkMageEnrage), With<DarkMage>>) {
+    for (health, mut enrage) in &mut bosses {
         let hp_ratio = health.current / health.max;
 
         let new_phase = if hp_ratio <= ENRAGE_PHASE_3_THRESHOLD {
@@ -292,26 +285,12 @@ pub fn dark_mage_enrage(
 
         if new_phase != enrage.phase {
             enrage.phase = new_phase;
-
             enrage.cooldown_mult = match new_phase {
                 1 => ENRAGE_1_COOLDOWN_MULT,
                 2 => ENRAGE_2_COOLDOWN_MULT,
                 3 => ENRAGE_3_COOLDOWN_MULT,
                 _ => 1.0,
             };
-
-            let phase_material = match new_phase {
-                1 => assets.material_phase1.clone(),
-                2 => assets.material_phase2.clone(),
-                3 => assets.material_phase3.clone(),
-                _ => assets.material_phase0.clone(),
-            };
-
-            if let Some(mut orig) = original_material {
-                orig.0 = phase_material;
-            } else {
-                mesh_material.0 = phase_material;
-            }
         }
     }
 }
@@ -554,23 +533,28 @@ pub(super) fn spawn_telegraph_indicators(
     }
 }
 
-/// Spawns the meteor explosion effect entity.
+/// Spawns the meteor explosion effect entity. Uses the same Fresnel-shader
+/// sphere + impact VFX as the wizard's fireball/meteor_fall, plus procedural
+/// fire-orange smoke for the lingering flame look.
 pub(super) fn spawn_meteor_explosion(
     commands: &mut Commands,
-    assets: &DarkMageAssets,
     spell_assets: &SpellVisualAssets,
+    sphere_materials: &mut Assets<FireExplosionSphereMaterial>,
     target_pos: Vec3,
 ) {
-    // Ground explosion effect
+    let pos = Vec3::new(target_pos.x, 0.0, target_pos.z);
+    // Deterministic per-position pseudo-time for VFX seeding (matches meteor_fall).
+    let t = pos.x * 0.01 + pos.z * 0.01;
+
+    // Fresnel sphere explosion — cloned per-entity so its opacity fade is independent.
+    let mat_handle =
+        clone_sphere_material(sphere_materials, &spell_assets.fireball_explosion_sphere);
     commands.spawn((
-        Mesh3d(assets.explosion_mesh.clone()),
-        MeshMaterial3d(assets.meteor_explosion_material.clone()),
-        Transform::from_translation(target_pos.with_y(INDICATOR_Y + 1.0))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(0.1)),
+        Mesh3d(spell_assets.explosion_sphere.clone()),
+        MeshMaterial3d(mat_handle),
+        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z)).with_scale(Vec3::splat(0.1)),
         DarkMageMeteorExplosion {
-            lifetime: METEOR_EXPLOSION_DURATION,
-            max_lifetime: METEOR_EXPLOSION_DURATION,
+            time_alive: 0.0,
             radius: METEOR_RADIUS,
             damage_applied: false,
             damage: METEOR_DAMAGE,
@@ -578,7 +562,30 @@ pub(super) fn spawn_meteor_explosion(
         OnGameplayScreen,
     ));
 
-    // Falling meteor projectile from the sky
+    // Impact VFX — sparks, smoke, heat shimmer, dark smoke (the "fireball effect").
+    vfx::systems::spawn_fire_sparks(commands, spell_assets, pos, vfx::constants::SPARK_COUNT, t);
+    vfx::systems::spawn_explosion_smoke(commands, spell_assets, pos, t);
+    vfx::systems::spawn_heat_shimmer(
+        commands,
+        spell_assets,
+        pos,
+        vfx::constants::EXPLOSION_SHIMMER_COUNT,
+        t,
+    );
+    vfx::systems::spawn_explosion_dark_smoke(commands, spell_assets, pos, t);
+
+    // Procedural fire-orange smoke around the impact (the "new particle effects"
+    // for the meteor's fire visual).
+    vfx::systems::spawn_fire_orange_smoke(
+        commands,
+        spell_assets,
+        pos,
+        METEOR_RADIUS,
+        METEOR_FIRE_PARTICLE_COUNT,
+        t,
+    );
+
+    // Falling meteor projectile from the sky.
     commands.spawn((
         Mesh3d(spell_assets.cross_plane_sphere.clone()),
         MeshMaterial3d(spell_assets.meteor_projectile.clone()),

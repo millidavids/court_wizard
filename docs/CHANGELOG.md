@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.299] - 2026-04-30
+
+### Added
+- **Hand-drawn Dark Mage sprite** — the Dark Mage boss is no longer a flat colored shape. He now has a proper animated sprite with a hooded silhouette and flowing robes
+- **Dark Mage floats above the battlefield** — like the Lich, he now hovers slightly off the ground with a gentle bob
+- **Dark Mage casting animation** — during the red-circle telegraph wind-up before each spell fires, the Dark Mage swaps to a casting pose so you can see him channeling
+- **Dark Meteor uses the proper fireball explosion** — when his meteor lands, the impact now plays the same fiery explosion you see from your Fireball spell — a glowing sphere, sparks, smoke plumes, heat shimmer, and procedural fire particles — instead of a flat orange circle on the ground
+- **Dark Mage teleport sound and visuals** — when the Dark Mage blinks away after you close in on him, you now hear a teleport whoosh and see swirling purple energy rings at both his old and new positions, matching the look of your own Teleport spell
+
+### Changed
+- **Dark Mage now appears at level 15** — he used to show up at level 20. Hags now appear at level 20 instead of level 15. The boss order is now Ogre → Lich → Dark Mage → Hags → Ray every five levels
+- **Dark Mage stays on screen when he teleports** — previously he could occasionally blink to a spot behind the camera or off the playable area. He now only picks teleport destinations that are visible on your screen
+
 ## [v0.7.294] - 2026-04-30
 
 ### Changed

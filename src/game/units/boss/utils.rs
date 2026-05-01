@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::game::units::components::{ANIMATION_MOVE_THRESHOLD_SQ, FacingDirection};
+
 /// Eye-pulsing sprite sheet — shared by hag invulnerability/ability eyes and
 /// Ray's 5 boss eyes. 4 frames in a single 256×64 row.
 pub(in crate::game) const EYE_SHEET_WIDTH: f32 = 256.0;
@@ -46,4 +48,47 @@ pub(in crate::game) fn animate_telegraph_material(
     mat.emissive = bevy::color::LinearRgba::new(intensity, intensity * 0.08, intensity * 0.02, 1.0);
     let alpha = 0.1 + progress * 0.4;
     mat.base_color = Color::srgba(base_red, base_red * 0.125, base_red * 0.025, alpha);
+}
+
+/// Two-direction camera-relative facing for floating bosses (lich, dark mage).
+/// Returns `Some(Back)` when moving in a >2*acos(threshold)° arc directly away
+/// from the camera, else `Some(Forward)`. Returns `None` when the boss is
+/// effectively stationary so the caller can leave facing unchanged.
+pub(in crate::game) fn back_facing_for_velocity(
+    velocity_xz: Vec3,
+    cam_forward_xz: Vec3,
+    threshold: f32,
+) -> Option<FacingDirection> {
+    let speed_sq = velocity_xz.length_squared();
+    if speed_sq < ANIMATION_MOVE_THRESHOLD_SQ {
+        return None;
+    }
+    let speed = speed_sq.sqrt();
+    let forward_dot = velocity_xz.dot(cam_forward_xz);
+    Some(if forward_dot > threshold * speed {
+        FacingDirection::Back
+    } else {
+        FacingDirection::Forward
+    })
+}
+
+/// Sinusoidal hover bob, sized in world units. Shared by the lich and dark
+/// mage float systems.
+pub(in crate::game) fn sinusoidal_bob(amplitude: f32, frequency_hz: f32, elapsed_secs: f32) -> f32 {
+    amplitude * (elapsed_secs * frequency_hz * std::f32::consts::TAU).sin()
+}
+
+/// Camera viewport visibility test. Returns true when `world_pos` projects
+/// inside the `[-margin, margin]` NDC box. Margin in (0, 1] — 1.0 is the
+/// hard screen edge, lower values inset for safety.
+pub(in crate::game) fn is_on_screen(
+    camera: &Camera,
+    camera_transform: &GlobalTransform,
+    world_pos: Vec3,
+    margin: f32,
+) -> bool {
+    let Some(ndc) = camera.world_to_ndc(camera_transform, world_pos) else {
+        return false;
+    };
+    ndc.x.abs() <= margin && ndc.y.abs() <= margin
 }

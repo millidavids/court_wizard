@@ -4,23 +4,33 @@ use super::spells::{
     find_spell_target, spawn_lightning_strike, spawn_meteor_explosion, spawn_plague_cloud,
     spawn_telegraph_indicators, spell_cooldown, telegraph_duration,
 };
-use crate::game::units::boss::utils::{animate_telegraph_material, despawn_indicators};
+use crate::game::units::boss::utils::{
+    animate_telegraph_material, despawn_indicators, is_on_screen,
+};
 use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::*;
 use super::constants::*;
 use super::resources::DarkMageAssets;
+use crate::config::GameConfig;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{
-    AttackTiming, BanishedModifier, Corpse, DamageMultiplier, Effectiveness, FlockingModifier,
-    FlockingVelocity, FrozenSolidModifier, Health, Hitbox, MovementSpeed, RootedModifier,
-    SickenedModifier, SleepModifier, Sleepwalking, TargetingVelocity, Team, Teleportable,
+    AnimationOverride, AttackTiming, BanishedModifier, Corpse, DamageMultiplier, Effectiveness,
+    FacingDirection, FlockingModifier, FlockingVelocity, FrozenSolidModifier, Health, Hitbox,
+    MovementSpeed, RootedModifier, SickenedModifier, SleepModifier, Sleepwalking,
+    TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::audio::{SpellSfxAssets, play_sfx_scaled};
+use crate::game::units::wizard::spells::teleport::vfx_systems::spawn_teleport_vfx;
+use crate::game::units::wizard::spells::utils::ground_projected_range;
+use crate::game::units::wizard::spells::vfx;
+use crate::game::units::wizard::spells::visual_assets::{
+    FireExplosionSphereMaterial, SpellVisualAssets,
+};
 
 /// Spawns the Dark Mage at a tunnel spawn point (walks in like other bosses).
 pub fn spawn_dark_mage(rng: &mut impl Rng, mut commands: Commands, assets: Res<DarkMageAssets>) {
@@ -28,7 +38,9 @@ pub fn spawn_dark_mage(rng: &mut impl Rng, mut commands: Commands, assets: Res<D
     let (final_x, final_z) = crate::game::units::random_position_in_cell(rng, spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(DARK_MAGE_RADIUS, DARK_MAGE_HITBOX_HEIGHT);
-    let spawn_y = hitbox.height / 2.0 + (DARK_MAGE_ELLIPSE_DEPTH / 2.0) + 1.0;
+    // Sprite quad is centered at its origin; lift it half its height plus the
+    // hover offset so the bottom of the sprite hovers above the ground.
+    let base_y = DARK_MAGE_SPRITE_HEIGHT / 2.0 + DARK_MAGE_FLOAT_BASE_OFFSET;
 
     // Initial velocity toward castle (approach phase)
     let to_center = Vec3::new(
@@ -42,8 +54,8 @@ pub fn spawn_dark_mage(rng: &mut impl Rng, mut commands: Commands, assets: Res<D
         .spawn((
             // Rendering
             Mesh3d(assets.mesh.clone()),
-            MeshMaterial3d(assets.material_phase0.clone()),
-            Transform::from_xyz(final_x, spawn_y, final_z),
+            MeshMaterial3d(assets.floating_material.clone()),
+            Transform::from_xyz(final_x, base_y, final_z),
             // Physics
             Velocity {
                 x: initial_velocity.x,
@@ -84,6 +96,17 @@ pub fn spawn_dark_mage(rng: &mut impl Rng, mut commands: Commands, assets: Res<D
             Teleportable,
             Billboard,
             OnGameplayScreen,
+        ))
+        .insert((
+            WalkingAnimation {
+                columns: DARK_MAGE_SHEET_COLUMNS,
+                frame_uv: DARK_MAGE_FRAME_UV,
+                direction_rows: DARK_MAGE_DIRECTION_ROWS,
+                ..Default::default()
+            },
+            FacingDirection::Forward,
+            AnimationOverride,
+            DarkMageFloatBase { base_y },
         ));
 }
 
@@ -200,9 +223,10 @@ pub fn dark_mage_ai(
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     assets: Res<DarkMageAssets>,
     spell_assets: Res<SpellVisualAssets>,
-    sfx: Res<crate::game::units::wizard::spells::audio::SpellSfxAssets>,
-    game_config: Res<crate::config::GameConfig>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     mut bosses: Query<
         (
             &Transform,
@@ -349,20 +373,19 @@ pub fn dark_mage_ai(
                 let tp = *target_pos;
                 match spell_type {
                     DarkMageSpellType::DarkMeteor => {
-                        spawn_meteor_explosion(&mut commands, &assets, &spell_assets, tp);
-                        crate::game::units::wizard::spells::audio::play_sfx_scaled(
+                        spawn_meteor_explosion(
                             &mut commands,
-                            &sfx.fireball_impact,
+                            &spell_assets,
+                            &mut sphere_materials,
                             tp,
-                            &game_config,
-                            1.0,
                         );
+                        play_sfx_scaled(&mut commands, &sfx.fireball_impact, tp, &game_config, 1.0);
                     }
                     DarkMageSpellType::ShadowLightning => {
                         if let Some(dir) = direction {
                             spawn_lightning_strike(&mut commands, &assets, &spell_assets, tp, *dir);
                         }
-                        crate::game::units::wizard::spells::audio::play_sfx_scaled(
+                        play_sfx_scaled(
                             &mut commands,
                             &sfx.chain_lightning_cast,
                             tp,
@@ -378,7 +401,7 @@ pub fn dark_mage_ai(
                             &spell_assets,
                             tp,
                         );
-                        crate::game::units::wizard::spells::audio::play_sfx_scaled(
+                        play_sfx_scaled(
                             &mut commands,
                             &sfx.plague_wind_cast,
                             tp,
@@ -395,10 +418,15 @@ pub fn dark_mage_ai(
 
 /// Teleport system: teleports the Dark Mage away when enemy units get into melee range.
 /// Has a cooldown to prevent constant teleporting.
-#[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn dark_mage_teleport(
     time: Res<Time>,
+    mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
+    visual_assets: Res<SpellVisualAssets>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     mut bosses: Query<
         (
             &mut Transform,
@@ -428,6 +456,10 @@ pub fn dark_mage_teleport(
         ),
     >,
 ) {
+    let Ok((camera, camera_global)) = camera_query.single() else {
+        return;
+    };
+
     let delta = time.delta_secs();
 
     for (
@@ -486,15 +518,16 @@ pub fn dark_mage_teleport(
 
         teleport_timer.reset(TELEPORT_COOLDOWN);
 
-        // Pick a random valid destination within the visible area and wizard's spell range
         let castle_xz = Vec2::new(CASTLE_POSITION.x, CASTLE_POSITION.z);
         let wizard_xz = Vec2::new(WIZARD_POSITION.x, WIZARD_POSITION.z);
-        let wizard_ground_range = crate::game::units::wizard::spells::utils::ground_projected_range(
+        let wizard_ground_range = ground_projected_range(
             crate::game::units::wizard::constants::DEFAULT_SPELL_RANGE,
             WIZARD_POSITION.y,
         );
+        let hover_y = DARK_MAGE_SPRITE_HEIGHT / 2.0 + DARK_MAGE_FLOAT_BASE_OFFSET;
 
-        for _ in 0..20 {
+        let mut chosen_dest: Option<Vec3> = None;
+        for _ in 0..30 {
             let x = VISIBLE_MIN_X + game_rng.0.random::<f32>() * (VISIBLE_MAX_X - VISIBLE_MIN_X);
             let z = VISIBLE_MIN_Z + game_rng.0.random::<f32>() * (VISIBLE_MAX_Z - VISIBLE_MIN_Z);
             let candidate = Vec2::new(x, z);
@@ -503,14 +536,52 @@ pub fn dark_mage_teleport(
             let dist_from_castle = candidate.distance(castle_xz);
             let dist_from_wizard = candidate.distance(wizard_xz);
 
-            if dist_from_current >= TELEPORT_MIN_DISTANCE
-                && dist_from_castle >= TELEPORT_MIN_CASTLE_DISTANCE
-                && dist_from_wizard <= wizard_ground_range
+            if dist_from_current < TELEPORT_MIN_DISTANCE
+                || dist_from_castle < TELEPORT_MIN_CASTLE_DISTANCE
+                || dist_from_wizard > wizard_ground_range
             {
-                let y = hitbox.height / 2.0 + (DARK_MAGE_ELLIPSE_DEPTH / 2.0) + 1.0;
-                transform.translation = Vec3::new(x, y, z);
-                break;
+                continue;
             }
+
+            let world_pos = Vec3::new(x, hover_y, z);
+            if !is_on_screen(camera, camera_global, world_pos, TELEPORT_NDC_MARGIN) {
+                continue;
+            }
+
+            chosen_dest = Some(world_pos);
+            break;
         }
+
+        let Some(dest_pos) = chosen_dest else {
+            continue;
+        };
+
+        transform.translation = dest_pos;
+
+        vfx::systems::spawn_aura_bubble_contracting(
+            &mut commands,
+            &visual_assets,
+            visual_assets.teleport_aura_sphere.clone(),
+            boss_pos,
+            TELEPORT_BUBBLE_RADIUS,
+            1.0,
+        );
+        vfx::systems::spawn_aura_bubble(
+            &mut commands,
+            &visual_assets,
+            visual_assets.teleport_aura_sphere.clone(),
+            dest_pos,
+            TELEPORT_BUBBLE_RADIUS,
+            1.5,
+        );
+        spawn_teleport_vfx(&mut commands, boss_pos, dest_pos, TELEPORT_BUBBLE_RADIUS);
+
+        play_sfx_scaled(
+            &mut commands,
+            &sfx.teleport_cast,
+            boss_pos,
+            &game_config,
+            1.0,
+        );
     }
 }

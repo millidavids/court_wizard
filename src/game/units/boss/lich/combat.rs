@@ -12,9 +12,8 @@ use crate::game::pathfinding::FlowFieldVelocity;
 use crate::game::resources::KillStats;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{
-    ANIMATION_MOVE_THRESHOLD_SQ, BanishedModifier, Corpse, FacingDirection, Health, Hitbox,
-    MovementSpeed, SleepModifier, TargetingVelocity, Team, TemporaryHitPoints, WalkingAnimation,
-    apply_spell_damage,
+    BanishedModifier, Corpse, FacingDirection, Health, Hitbox, MovementSpeed, SleepModifier,
+    TargetingVelocity, Team, TemporaryHitPoints, WalkingAnimation, apply_spell_damage,
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::undead::resources::UndeadAssets;
@@ -512,10 +511,6 @@ pub(super) fn on_lich_cast_ended(
     }
 }
 
-/// Custom 2-direction facing for the Lich. Runs after the standard
-/// `update_facing_direction` and overrides its result. The Lich shows the
-/// rear-facing row only when moving in a 120° arc directly away from the
-/// camera; lateral movement collapses to the camera-facing row.
 pub(super) fn update_lich_facing(
     camera_query: Query<&Transform, With<Camera3d>>,
     mut lich_query: Query<
@@ -537,20 +532,12 @@ pub(super) fn update_lich_facing(
 
     for (velocity, mut facing, anim, material_handle) in &mut lich_query {
         let v = Vec3::new(velocity.x, 0.0, velocity.z);
-        let speed_sq = v.length_squared();
-        if speed_sq < ANIMATION_MOVE_THRESHOLD_SQ {
+        let Some(new_facing) = crate::game::units::boss::utils::back_facing_for_velocity(
+            v,
+            cam_forward_xz,
+            LICH_BACK_FACING_THRESHOLD,
+        ) else {
             continue;
-        }
-
-        let speed = speed_sq.sqrt();
-        let forward_dot = v.dot(cam_forward_xz);
-        // Show the back-of-lich row only when the lich is moving in a 120° arc
-        // away from the camera. In Court Wizard, +cam_forward points into the
-        // screen, so positive forward_dot means moving away from the viewer.
-        let new_facing = if forward_dot > LICH_BACK_FACING_THRESHOLD * speed {
-            FacingDirection::Back
-        } else {
-            FacingDirection::Forward
         };
 
         if *facing != new_facing {
@@ -562,15 +549,15 @@ pub(super) fn update_lich_facing(
     }
 }
 
-/// Hovers the Lich above the ground with a subtle sinusoidal bob. Writes
-/// `transform.translation.y` directly each frame, layering the bob on top of
-/// the spawn-time base Y. Should run after movement is applied.
 pub(super) fn update_lich_float(
     time: Res<Time>,
     mut lich_query: Query<(&LichFloatBase, &mut Transform), (With<Lich>, Without<Corpse>)>,
 ) {
-    let bob = LICH_FLOAT_AMPLITUDE
-        * (time.elapsed_secs() * LICH_FLOAT_FREQUENCY_HZ * std::f32::consts::TAU).sin();
+    let bob = crate::game::units::boss::utils::sinusoidal_bob(
+        LICH_FLOAT_AMPLITUDE,
+        LICH_FLOAT_FREQUENCY_HZ,
+        time.elapsed_secs(),
+    );
     for (base, mut transform) in &mut lich_query {
         transform.translation.y = base.base_y + LICH_FLOAT_BASE_OFFSET + bob;
     }
