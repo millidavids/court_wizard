@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.302] - 2026-05-03
+
+### Changed
+- **All four starter spells available from day one** — new players now begin with Magic Missile, Entangle, Guardian Circle, and Telekinesis already unlocked. You no longer need to research the two control and support roots separately — every spell tree has its starting spell ready to go from the very first battle
+- **New wizards spawn with their action bar pre-filled** — when you create a new wizard, hotkey slots 1 through 4 are already set to Magic Missile, Entangle, Guardian Circle, and Telekinesis. You can jump straight into your first battle without opening the spell book first
+- **The Shepherd can now cast Telekinesis** — Telekinesis was previously off-limits for the Shepherd. Since it pushes things around rather than dealing direct damage, the Shepherd now gets to use it alongside her other non-violent tools
+
 ## [v0.7.299] - 2026-04-30
 
 ### Added

@@ -507,7 +507,7 @@ pub(super) fn spawn_study_panels(
                     let has_affinity = affinities.contains(&spell.damage_type());
                     let progress = get_spell_research_progress(spell);
                     let cost = spell.research_cost();
-                    let is_free = cost == 0; // MagicMissile, Telekinesis
+                    let is_free = cost == 0;
 
                     let (bg, border) = if is_free || unlocked {
                         (GRAPH_NODE_BG, GRAPH_NODE_COMPLETED_BORDER)

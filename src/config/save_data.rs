@@ -114,10 +114,10 @@ impl UnlockedContent {
     }
 
     fn default_spells() -> Vec<String> {
-        vec![
-            format!("{:?}", Spell::MagicMissile),
-            format!("{:?}", Spell::Telekinesis),
-        ]
+        Spell::default_unlocked()
+            .iter()
+            .map(|s| format!("{:?}", s))
+            .collect()
     }
 
     fn all_ingredients() -> Vec<String> {
@@ -693,7 +693,10 @@ pub(crate) fn create_wizard(wizard_type: WizardType) -> String {
         created_at: current_timestamp(),
         last_played_at: current_timestamp(),
         efficiency_ratios: HashMap::new(),
-        action_bar_slots: [None; 5],
+        action_bar_slots: {
+            let [a, b, c, d] = Spell::default_unlocked();
+            [Some(a), Some(b), Some(c), Some(d), None]
+        },
         saved_walls: Vec::new(),
         saved_crystals: Vec::new(),
         saved_flora: Vec::new(),

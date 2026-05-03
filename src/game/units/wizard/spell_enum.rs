@@ -564,20 +564,21 @@ impl Spell {
     }
 
     /// Returns the Arcane Insight cost to research this spell.
-    /// Default spells (MagicMissile, Telekinesis) have cost 0 — they start unlocked.
+    /// Default spells have cost 0 — they start unlocked. See `default_unlocked()`.
     pub const fn research_cost(&self) -> u32 {
         match self {
-            Spell::MagicMissile | Spell::Telekinesis => 0,
+            Spell::MagicMissile
+            | Spell::Telekinesis
+            | Spell::GuardianCircle
+            | Spell::Entangle => 0,
             // Root spells (immediately researchable)
             Spell::Disintegrate => 30,
             Spell::Grease => 30,
             Spell::ChainLightning => 30,
             Spell::FingerOfDeath => 30,
-            Spell::GuardianCircle => 30,
             Spell::WallOfStone => 30,
             // Second-tier (requires predecessor)
             Spell::Fireball => 50,
-            Spell::Entangle => 50,
             Spell::MarkOfDeath => 50,
             Spell::HealingPlume => 50,
             Spell::BerserkerRage => 50,
@@ -652,7 +653,6 @@ impl Spell {
     }
 
     /// Returns true if this spell is allowed for the Shepherd wizard type.
-    /// The Shepherd can only cast spells that deal zero damage.
     pub const fn is_shepherd_allowed(&self) -> bool {
         matches!(
             self,
@@ -671,6 +671,7 @@ impl Spell {
                 | Spell::BerserkerRage
                 | Spell::Banishment
                 | Spell::Dispel
+                | Spell::Telekinesis
         )
     }
 
@@ -679,12 +680,24 @@ impl Spell {
         self.research_cost() > 0
     }
 
-    /// Returns all researchable spells (excludes MagicMissile and Telekinesis).
+    /// Returns all researchable spells (those with a non-zero research cost).
     pub fn researchable() -> Vec<Spell> {
         Spell::all()
             .iter()
             .copied()
             .filter(|s| s.is_researchable())
             .collect()
+    }
+
+    /// The root spells that are unlocked by default for new players,
+    /// in canonical tree order: Offense, Control, Support, Utility.
+    /// Used as the starting action bar layout for new wizards.
+    pub const fn default_unlocked() -> [Spell; 4] {
+        [
+            Spell::MagicMissile,
+            Spell::Entangle,
+            Spell::GuardianCircle,
+            Spell::Telekinesis,
+        ]
     }
 }
