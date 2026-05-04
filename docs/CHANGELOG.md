@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.304] - 2026-05-04
+
+### Changed
+- **Ray now has a beating heart at its core** — Ray's central body is no longer a plain green disc. It now shows a hand-drawn beating heart sprite that pulses continuously throughout the fight, no matter which direction Ray is moving. The five orbiting eyes still glow in their signature colors (orange, purple, pink, cyan, stone-gray), but the heart itself shows the artwork as-drawn with no color tint over it
+
 ## [v0.7.302] - 2026-05-03
 
 ### Changed

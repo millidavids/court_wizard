@@ -1,12 +1,11 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{ATTACKER_BASE, TINT_GREEN, UNIT_SCALE, tint};
+use crate::game::constants::UNIT_SCALE;
 
 // ===== Visual Appearance =====
 
-pub const RAY_COLOR: Color = tint(ATTACKER_BASE, TINT_GREEN, 0.4);
-
 pub const RAY_BODY_RADIUS: f32 = 35.0 * UNIT_SCALE;
+pub(super) const RAY_BODY_SPRITE_SIZE: f32 = RAY_BODY_RADIUS * 2.4;
 pub const RAY_BODY_HITBOX_HEIGHT: f32 = 50.0 * UNIT_SCALE;
 pub const RAY_BODY_HOVER_HEIGHT: f32 = 10.0 * UNIT_SCALE;
 

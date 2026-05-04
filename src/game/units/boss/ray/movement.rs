@@ -58,7 +58,7 @@ pub fn spawn_ray(rng: &mut impl Rng, mut commands: Commands, assets: Res<RayAsse
     commands
         .spawn((
             Mesh3d(assets.body_mesh.clone()),
-            MeshMaterial3d(assets.material_phase0.clone()),
+            MeshMaterial3d(assets.body_material.clone()),
             Transform::from_xyz(final_x, spawn_y, final_z),
             Velocity {
                 x: initial_velocity.x,
@@ -90,6 +90,12 @@ pub fn spawn_ray(rng: &mut impl Rng, mut commands: Commands, assets: Res<RayAsse
             Teleportable,
             Billboard,
             OnGameplayScreen,
+            PulsingAnimation::new_staggered(
+                EYE_SHEET_COLUMNS,
+                EYE_FRAME_UV,
+                EYE_PULSE_FRAME_DURATION,
+                rng,
+            ),
         ))
         .insert((
             RayDisintegrationSweep {

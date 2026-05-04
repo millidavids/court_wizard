@@ -3,8 +3,7 @@ use bevy::prelude::*;
 
 use super::constants::{
     CHARM_BEAM_COLOR, DISINTEGRATE_BEAM_COLOR, FEAR_BEAM_COLOR, PETRIFY_BEAM_COLOR,
-    RAY_BODY_RADIUS, RAY_COLOR, RAY_EYE_SPRITE_SIZE, RAY_STALK_PARTICLE_RADIUS,
-    TELEPORT_BEAM_COLOR,
+    RAY_BODY_SPRITE_SIZE, RAY_EYE_SPRITE_SIZE, RAY_STALK_PARTICLE_RADIUS, TELEPORT_BEAM_COLOR,
 };
 use crate::game::units::boss::utils::EYE_FRAME_UV;
 
@@ -15,7 +14,7 @@ pub struct RayAssets {
     pub eye_sprite_mesh: Handle<Mesh>,
     pub particle_mesh: Handle<Mesh>,
     pub particle_material: Handle<StandardMaterial>,
-    pub material_phase0: Handle<StandardMaterial>,
+    pub body_material: Handle<StandardMaterial>,
     pub eye_materials: [Handle<StandardMaterial>; 5],
     pub eye_inactive_material: Handle<StandardMaterial>,
     pub beam_materials: [Handle<StandardMaterial>; 5],
@@ -29,6 +28,8 @@ pub(super) fn preload_ray_assets(
 ) {
     let eye_texture: Handle<Image> =
         asset_server.load("images/sprite_sheets/eye-pulsing_4-frames.png");
+    let heart_texture: Handle<Image> =
+        asset_server.load("images/sprite_sheets/ray-beating_4-frames.png");
     let eye_uv_transform = Affine2::from_scale_angle_translation(EYE_FRAME_UV, 0.0, Vec2::ZERO);
     let beam_colors = [
         PETRIFY_BEAM_COLOR,
@@ -50,7 +51,7 @@ pub(super) fn preload_ray_assets(
     });
 
     let assets = RayAssets {
-        body_mesh: meshes.add(Circle::new(RAY_BODY_RADIUS)),
+        body_mesh: meshes.add(Rectangle::new(RAY_BODY_SPRITE_SIZE, RAY_BODY_SPRITE_SIZE)),
         eye_sprite_mesh: meshes.add(Rectangle::new(RAY_EYE_SPRITE_SIZE, RAY_EYE_SPRITE_SIZE)),
         particle_mesh: meshes.add(Sphere::new(RAY_STALK_PARTICLE_RADIUS)),
         particle_material: materials.add(StandardMaterial {
@@ -60,9 +61,13 @@ pub(super) fn preload_ray_assets(
             unlit: true,
             ..default()
         }),
-        material_phase0: materials.add(StandardMaterial {
-            base_color: RAY_COLOR,
+        body_material: materials.add(StandardMaterial {
+            base_color: Color::WHITE,
+            base_color_texture: Some(heart_texture),
+            alpha_mode: AlphaMode::Mask(0.5),
             unlit: true,
+            cull_mode: None,
+            uv_transform: eye_uv_transform,
             ..default()
         }),
         eye_materials: {

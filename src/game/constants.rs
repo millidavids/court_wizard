@@ -52,7 +52,6 @@ pub const fn dim(base: Color, gray_strength: f32, alpha: f32) -> Color {
 // ===== Common Tint Colors =====
 
 pub const TINT_RED: Color = Color::srgb(1.0, 0.2, 0.2);
-pub const TINT_GREEN: Color = Color::srgb(0.3, 0.8, 0.2);
 // ===== Undead Color =====
 
 /// Base color for undead units (purple).
