@@ -4,11 +4,13 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
+use crate::config::GameConfig;
 use crate::game::cauldron::brews::BrewEffect;
 use crate::game::cauldron::resources::CauldronBuffs;
 use crate::game::components::OnGameplayScreen;
-use crate::game::messages::WaveSpawnedMessage;
+use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::resources::WaveState;
+use crate::game::units::components::{Corpse, Team};
 
 /// Blocks spell input when the mouse is interacting with a UI button so
 /// clicking a HUD button doesn't simultaneously fire a spell. With a
@@ -30,51 +32,110 @@ pub(super) fn update_wave_display(
     }
 }
 
-/// Spawns a "Wave X incoming!" flash when a new wave spawns.
-pub(super) fn spawn_wave_incoming_flash(
+/// Drives the "Wave X incoming!" banner off staging state.
+///
+/// Visible while attackers are marching to staging points (and no attacker
+/// from the current wave has engaged yet). Pulses alpha while visible and
+/// despawns the moment staging ends.
+pub(super) fn update_wave_incoming_flash(
     mut commands: Commands,
-    mut wave_events: MessageReader<WaveSpawnedMessage>,
-    existing_flash: Query<Entity, With<WaveIncomingFlash>>,
+    time: Res<Time>,
+    config: Res<GameConfig>,
+    wave_state: Res<WaveState>,
+    staging_query: Query<(), (With<StagingAttacker>, Without<Corpse>)>,
+    activated_attackers: Query<
+        &Team,
+        (With<WaveGroup>, Without<StagingAttacker>, Without<Corpse>),
+    >,
+    mut flash_query: Query<(Entity, &mut Text, &mut TextColor), With<WaveIncomingFlash>>,
 ) {
-    for event in wave_events.read() {
-        spawn_flash_banner(
-            &mut commands,
-            &existing_flash,
-            &format!("Wave {} incoming!", event.wave_number),
-            WAVE_FLASH_COLOR,
-        );
+    let has_staging = !staging_query.is_empty();
+    let has_activated = activated_attackers.iter().any(|t| *t == Team::Attackers);
+    let should_show = has_staging && !has_activated;
+    let alpha = banner_alpha(time.elapsed_secs(), config.reduce_flashes);
+
+    match flash_query.single_mut() {
+        Ok((entity, _, _)) if !should_show => {
+            commands.entity(entity).try_despawn();
+        }
+        Ok((_, mut text, mut color)) => {
+            let label = format!("Wave {} incoming!", wave_state.current_wave + 1);
+            if **text != label {
+                **text = label;
+            }
+            let mut c = color.0.to_srgba();
+            c.alpha = alpha;
+            color.0 = c.into();
+        }
+        Err(_) if should_show => {
+            let mut color = WAVE_FLASH_COLOR.to_srgba();
+            color.alpha = alpha;
+            spawn_flash_banner_with_marker(
+                &mut commands,
+                &format!("Wave {} incoming!", wave_state.current_wave + 1),
+                color.into(),
+                WaveIncomingFlash,
+            );
+        }
+        _ => {}
     }
+}
+
+fn banner_alpha(elapsed: f32, reduce_flashes: bool) -> f32 {
+    if reduce_flashes {
+        return WAVE_FLASH_MAX_ALPHA;
+    }
+    let pulse = (elapsed * WAVE_FLASH_PULSE_HZ * std::f32::consts::TAU).sin() * 0.5 + 0.5;
+    WAVE_FLASH_MIN_ALPHA + (WAVE_FLASH_MAX_ALPHA - WAVE_FLASH_MIN_ALPHA) * pulse
 }
 
 /// Spawns a "The King calls for a retreat!" flash when retreat triggers.
 pub(super) fn spawn_retreat_flash(
     mut commands: Commands,
     mut retreat_events: MessageReader<crate::game::messages::RetreatMessage>,
-    existing_flash: Query<Entity, With<WaveIncomingFlash>>,
+    existing_flash: Query<Entity, With<RetreatFlash>>,
 ) {
     for _event in retreat_events.read() {
-        spawn_flash_banner(
+        for entity in &existing_flash {
+            commands.entity(entity).try_despawn();
+        }
+        spawn_flash_banner_with_marker(
             &mut commands,
-            &existing_flash,
             "The King calls for a retreat!",
             RETREAT_FLASH_COLOR,
+            RetreatFlash {
+                timer: RETREAT_FLASH_DURATION,
+            },
         );
     }
 }
 
-/// Spawns a centered flash banner at the top of the screen.
-///
-/// Removes any existing flash before spawning the new one.
-fn spawn_flash_banner(
+/// Fades and despawns the retreat flash.
+pub(super) fn update_retreat_flash(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut flash_query: Query<(Entity, &mut RetreatFlash, &mut TextColor)>,
+) {
+    for (entity, mut flash, mut text_color) in &mut flash_query {
+        flash.timer -= time.delta_secs();
+        if flash.timer <= 0.0 {
+            commands.entity(entity).try_despawn();
+        } else {
+            let opacity = (flash.timer / 1.0).min(1.0);
+            let mut c = text_color.0.to_srgba();
+            c.alpha = opacity;
+            text_color.0 = c.into();
+        }
+    }
+}
+
+/// Spawns a centered flash banner at the top of the screen with the given marker.
+fn spawn_flash_banner_with_marker<M: Component>(
     commands: &mut Commands,
-    existing_flash: &Query<Entity, With<WaveIncomingFlash>>,
     text: &str,
     color: Color,
+    marker: M,
 ) {
-    for entity in existing_flash {
-        commands.entity(entity).try_despawn();
-    }
-
     commands.spawn((
         Node {
             position_type: PositionType::Absolute,
@@ -87,33 +148,11 @@ fn spawn_flash_banner(
         Text::new(text),
         TextFont::from_font_size(WAVE_FLASH_FONT_SIZE),
         TextColor(color),
-        WaveIncomingFlash {
-            timer: WAVE_FLASH_DURATION,
-        },
+        marker,
         Pickable::IGNORE,
         GlobalZIndex(998),
-        crate::game::components::OnGameplayScreen,
+        OnGameplayScreen,
     ));
-}
-
-/// Fades and despawns the wave incoming flash.
-pub(super) fn update_wave_incoming_flash(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut flash_query: Query<(Entity, &mut WaveIncomingFlash, &mut TextColor)>,
-) {
-    for (entity, mut flash, mut text_color) in &mut flash_query {
-        flash.timer -= time.delta_secs();
-        if flash.timer <= 0.0 {
-            commands.entity(entity).try_despawn();
-        } else {
-            // Fade out over the last second
-            let opacity = (flash.timer / 1.0).min(1.0);
-            let mut c = text_color.0.to_srgba();
-            c.alpha = opacity;
-            text_color.0 = c.into();
-        }
-    }
 }
 
 // ===== Buff Tracker Systems =====

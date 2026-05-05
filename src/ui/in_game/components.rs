@@ -95,10 +95,15 @@ pub(super) struct LichBarLabel;
 #[derive(Component)]
 pub(crate) struct WaveDisplay;
 
-/// Marker component for the "Wave incoming!" flash notification.
+/// Marker component for the "Wave incoming!" flash. Staging-driven: lives for
+/// the full duration the next wave is marching to its staging points, pulses
+/// alpha while visible, and despawns once attackers engage.
 #[derive(Component)]
-pub(super) struct WaveIncomingFlash {
-    /// Time remaining for the flash (seconds).
+pub(super) struct WaveIncomingFlash;
+
+/// Marker component for the retreat flash banner (timer-based fade).
+#[derive(Component)]
+pub(super) struct RetreatFlash {
     pub timer: f32,
 }
 

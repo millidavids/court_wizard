@@ -98,8 +98,17 @@ pub(super) const WAVE_FLASH_FONT_SIZE: f32 = 28.0;
 /// Color for the "Wave incoming!" flash text.
 pub(super) const WAVE_FLASH_COLOR: Color = Color::srgb(1.0, 0.3, 0.3);
 
-/// Duration the "Wave incoming!" flash is displayed (seconds).
-pub(super) const WAVE_FLASH_DURATION: f32 = 3.0;
+/// Pulse rate for the staging-phase "Wave incoming!" banner (Hz).
+pub(super) const WAVE_FLASH_PULSE_HZ: f32 = 1.2;
+
+/// Minimum alpha during the wave-incoming pulse.
+pub(super) const WAVE_FLASH_MIN_ALPHA: f32 = 0.4;
+
+/// Maximum alpha during the wave-incoming pulse.
+pub(super) const WAVE_FLASH_MAX_ALPHA: f32 = 1.0;
+
+/// Duration the retreat flash is displayed (seconds).
+pub(super) const RETREAT_FLASH_DURATION: f32 = 3.0;
 
 /// Color for the retreat flash text (gold/yellow).
 pub(super) const RETREAT_FLASH_COLOR: Color = Color::srgb(1.0, 0.85, 0.2);

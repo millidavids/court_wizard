@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.308] - 2026-05-05
+
+### Changed
+- **"Wave incoming!" banner now sticks around for the whole staging phase** — the red wave warning at the top of the screen used to vanish after a few seconds, even though enemies were still marching into position. It now pulses gently the entire time the next wave is moving up to its staging points and only disappears once the fighting actually starts. It also now shows for the very first wave of every battle, which it didn't before. If you have the "Reduce Flashes" accessibility option turned on, the banner stays solid instead of pulsing
+
 ## [v0.7.307] - 2026-05-04
 
 ### Added

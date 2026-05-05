@@ -26,6 +26,7 @@ pub(crate) struct SpellResearchedMessage {
 #[derive(Message)]
 pub(crate) struct WaveSpawnedMessage {
     /// The wave number (1-indexed for display).
+    #[allow(dead_code)]
     pub(crate) wave_number: u32,
 }
 

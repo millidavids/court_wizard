@@ -47,9 +47,9 @@ impl Plugin for InGamePlugin {
                     systems::update_past_victory_display,
                     systems::update_level_clock,
                     systems::update_wave_display,
-                    systems::spawn_wave_incoming_flash,
-                    systems::spawn_retreat_flash,
                     systems::update_wave_incoming_flash,
+                    systems::spawn_retreat_flash,
+                    systems::update_retreat_flash,
                 )
                     .run_if(is_gameplay_running),
             )
