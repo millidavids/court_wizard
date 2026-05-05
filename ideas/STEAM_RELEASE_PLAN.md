@@ -84,7 +84,7 @@ All created and working:
 | `Cargo.toml`                            | Added `bevy-steamworks = "0.15"`                     | DONE   |
 | `src/main.rs`                           | Added `mod steam;` and `SteamPlugin` (before DefaultPlugins) | DONE |
 | `.gitignore`                            | Added `steam_appid.txt`                              | DONE   |
-| `build_native.sh`                       | Copies steam_api64.dll / libsteam_api.so alongside binary | DONE |
+| `scripts/build_native.sh`               | Copies steam_api64.dll / libsteam_api.so alongside binary | DONE |
 | `.github/workflows/release.yml`         | Add Steam depot upload step via steamcmd             | DONE   |
 | `.github/workflows/build.yml`           | Reusable matrix build for Windows/Linux/macOS         | DONE   |
 | `steam/app_build_4550880.vdf` + depots  | Steamworks build/depot scripts (placeholder IDs)      | DONE   |
@@ -117,7 +117,7 @@ Each achievement still needs a 64x64 unlocked icon and a 64x64 locked icon (gray
 
 ### Build Pipeline Updates
 
-**DONE** — `build_native.sh` finds and copies Steam redistributable DLLs/SOs from the `steamworks-sys` build output. CI now builds Windows/Linux/macOS via `.github/workflows/build.yml` and uploads to Steamworks via `steamcmd` from the `steam-deploy` job in `release.yml`. Builds publish to the `staging` Steam branch; promote manually. See `steam/README.md` for the one-time depot ID + secret setup.
+**DONE** — `scripts/build_native.sh` finds and copies Steam redistributable DLLs/SOs from the `steamworks-sys` build output. Local upload via `scripts/upload_to_steam.sh` is the current release path; CI's `steam-deploy` job is gated off (see `steam/README.md` for the rationale and how to re-enable).
 
 ### Steam Overlay
 

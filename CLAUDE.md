@@ -175,21 +175,21 @@ While iterating — refactoring, splitting files, fixing import errors — use `
 cargo check --target=x86_64-pc-windows-gnu
 ```
 
-This is the right tool for the inner loop of mechanical refactors (file splits, import fixes, visibility tweaks). Don't run `./build_native.sh windows` between every change — it links the binary and copies assets, which is wasteful when you're just verifying the code compiles.
+This is the right tool for the inner loop of mechanical refactors (file splits, import fixes, visibility tweaks). Don't run `./scripts/build_native.sh windows` between every change — it links the binary and copies assets, which is wasteful when you're just verifying the code compiles.
 
 You can also use `cargo fix --bin court_wizard --allow-dirty --target=x86_64-pc-windows-gnu` to auto-remove unused imports surfaced by `cargo check`.
 
 ### Final build (when handing off to the user)
 **IMPORTANT**: This machine is WSL2 — the user runs the game on Windows. Run the full Windows cross-compile only when you're done with a feature/task and ready to hand the work back to the user:
 ```bash
-./build_native.sh windows
+./scripts/build_native.sh windows
 ```
 
-Do NOT run `./build_native.sh` without `windows` on this machine — the Linux build requires system dev packages (libasound2-dev, libwayland-dev, libxkbcommon-dev, libudev-dev) that are not installed, and the user tests natively on Windows anyway.
+Do NOT run `./scripts/build_native.sh` without `windows` on this machine — the Linux build requires system dev packages (libasound2-dev, libwayland-dev, libxkbcommon-dev, libudev-dev) that are not installed, and the user tests natively on Windows anyway.
 
 ### Release Build
 ```bash
-./build_native.sh windows --release
+./scripts/build_native.sh windows --release
 ```
 
 This script:

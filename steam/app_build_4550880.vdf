@@ -1,0 +1,13 @@
+"appbuild"
+{
+	"appid"       "4550880"
+	"desc"        "Court Wizard v$VERSION ($SHA)"
+	"buildoutput" "$BUILDOUTPUT"
+	"contentroot" "$CONTENTROOT"
+	"setlive"     "staging"
+
+	"depots"
+	{
+$DEPOT_LINES
+	}
+}

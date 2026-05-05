@@ -1,0 +1,108 @@
+#!/bin/bash
+# Upload existing platform zips to Steamworks (App ID 4550880, branch: staging).
+#
+# Usage:
+#   ./scripts/upload_to_steam.sh <steam_username>
+#
+# The script auto-detects which platform zips exist at the repo root for the
+# current Cargo.toml version and uploads only those depots. Build the zips
+# first with ./scripts/package.sh <platform>.
+#
+# Compatible with macOS's stock bash 3.2 — no associative arrays or bash 4 features.
+#
+# Requires steamcmd on PATH and an interactive terminal so you can complete
+# Steam Guard if prompted on first run.
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+if ! command -v steamcmd &> /dev/null; then
+    echo "Error: steamcmd not found on PATH." >&2
+    echo "  macOS:   brew install steamcmd" >&2
+    echo "  Linux:   download from https://developer.valvesoftware.com/wiki/SteamCMD" >&2
+    exit 1
+fi
+
+if [ -z "$1" ]; then
+    echo "Usage: $0 <steam_username>" >&2
+    exit 1
+fi
+STEAM_USER="$1"
+
+VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+SHORT_SHA=$(git rev-parse --short HEAD)
+echo "Court Wizard v$VERSION ($SHORT_SHA) — uploading as $STEAM_USER"
+
+zip_suffix() {
+    case "$1" in
+        windows) echo "windows" ;;
+        linux)   echo "linux" ;;
+        macos)   echo "macos-apple-silicon" ;;
+    esac
+}
+
+depot_id() {
+    case "$1" in
+        windows) echo "4550882" ;;
+        linux)   echo "4550883" ;;
+        macos)   echo "4550884" ;;
+    esac
+}
+
+REPO_ROOT="$(pwd)"
+STAGING="$REPO_ROOT/steam-content"
+BUILDOUTPUT="$REPO_ROOT/steam-build-output"
+rm -rf "$STAGING" "$BUILDOUTPUT"
+mkdir -p "$STAGING" "$BUILDOUTPUT"
+
+UPLOAD_PLATFORMS=""
+DEPOT_LINES=""
+for p in windows linux macos; do
+    ZIP="court_wizard-v${VERSION}-$(zip_suffix "$p").zip"
+    if [ -f "$ZIP" ]; then
+        echo ">>> Staging $p from $ZIP"
+        mkdir -p "$STAGING/$p"
+        unzip -q "$ZIP" -d "$STAGING/$p"
+        UPLOAD_PLATFORMS="$UPLOAD_PLATFORMS $p"
+        DEPOT_LINES="$DEPOT_LINES		\"$(depot_id "$p")\" \"depot_${p}.vdf\"
+"
+    else
+        echo "    skipping $p (no zip found at $ZIP)"
+    fi
+done
+
+if [ -z "$UPLOAD_PLATFORMS" ]; then
+    echo "Error: no platform zips found for v$VERSION at the repo root." >&2
+    echo "Build them first with ./scripts/package.sh <platform>." >&2
+    exit 1
+fi
+
+# Generate the app build script with concrete values.
+GENERATED="$REPO_ROOT/steam/app_build_4550880.generated.vdf"
+awk -v version="$VERSION" \
+    -v sha="$SHORT_SHA" \
+    -v contentroot="$STAGING" \
+    -v buildoutput="$BUILDOUTPUT" \
+    -v depotlines="$DEPOT_LINES" '
+    {
+        gsub(/\$VERSION/, version)
+        gsub(/\$SHA/, sha)
+        gsub(/\$CONTENTROOT/, contentroot)
+        gsub(/\$BUILDOUTPUT/, buildoutput)
+        if ($0 ~ /\$DEPOT_LINES/) { printf "%s", depotlines; next }
+        print
+    }
+' steam/app_build_4550880.vdf > "$GENERATED"
+
+echo ""
+echo "Uploading to Steam (branch: staging):"
+for p in $UPLOAD_PLATFORMS; do echo "  - $p ($(depot_id "$p"))"; done
+echo ""
+echo "If Steam Guard prompts, approve in the Steam Mobile app."
+echo ""
+
+steamcmd +login "$STEAM_USER" +run_app_build "$GENERATED" +quit
+
+echo ""
+echo "Done. Promote staging → default in the Steamworks dashboard when ready."

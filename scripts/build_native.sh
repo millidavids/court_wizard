@@ -3,19 +3,21 @@ set -e
 
 # Build native binaries for Windows, Linux, macOS, or current host platform.
 # Usage:
-#   ./build_native.sh                       # Build for host platform (bumps patch version)
-#   ./build_native.sh windows               # Build for Windows
-#   ./build_native.sh linux                 # Build for Linux
-#   ./build_native.sh macos                 # Build for macOS (Apple Silicon)
-#   ./build_native.sh macos-intel           # Build for macOS (Intel)
-#   ./build_native.sh --no-bump             # Build without bumping version
-#   ./build_native.sh --benchmarking        # bench-release profile w/ diagnostics (host)
-#   ./build_native.sh windows --benchmarking # bench-release for Windows
-#   ./build_native.sh --release             # Release build for host (no bump)
-#   ./build_native.sh windows --release     # Release build for Windows
-#   ./build_native.sh linux --release       # Release build for Linux
-#   ./build_native.sh macos --release       # Release build for macOS (Apple Silicon)
-#   ./build_native.sh macos-intel --release # Release build for macOS (Intel)
+#   ./scripts/build_native.sh                       # Build for host platform (bumps patch version)
+#   ./scripts/build_native.sh windows               # Build for Windows
+#   ./scripts/build_native.sh linux                 # Build for Linux
+#   ./scripts/build_native.sh macos                 # Build for macOS (Apple Silicon)
+#   ./scripts/build_native.sh macos-intel           # Build for macOS (Intel)
+#   ./scripts/build_native.sh --no-bump             # Build without bumping version
+#   ./scripts/build_native.sh --benchmarking        # bench-release profile w/ diagnostics (host)
+#   ./scripts/build_native.sh windows --benchmarking # bench-release for Windows
+#   ./scripts/build_native.sh --release             # Release build for host (no bump)
+#   ./scripts/build_native.sh windows --release     # Release build for Windows
+#   ./scripts/build_native.sh linux --release       # Release build for Linux
+#   ./scripts/build_native.sh macos --release       # Release build for macOS (Apple Silicon)
+#   ./scripts/build_native.sh macos-intel --release # Release build for macOS (Intel)
+
+cd "$(dirname "$0")/.."
 
 TARGET=""
 PROFILE="dev"

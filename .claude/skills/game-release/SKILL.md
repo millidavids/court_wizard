@@ -1,44 +1,110 @@
 ---
 name: game-release
-description: Generate changelog, then commit and push (CI builds release binaries)
+description: Aggregate player-facing notes on the dev branch (default), or promote dev to main and trigger CI (with `main` argument)
 user-invocable: true
 ---
 
 # Release
 
-Perform a full release of the game. Execute these steps in order, stopping if any step fails.
+This skill has two modes determined by the argument:
 
-## Step 1: Generate Changelog
+- **No argument** → *dev mode*. Aggregate the latest uncommitted changes into a single `[pending]` block at the top of `docs/CHANGELOG.md`, commit, and push to `origin/dev`. Does not bump versions, does not touch `main`, does not sync the website, does not trigger CI.
+- **`main` argument** → *promotion mode*. Lock the accumulated `[pending]` block to a real version, fast-forward `main` from `dev`, push `main` (which triggers CI build + Steam deploy), and sync the website.
 
-1. Run `git diff` to see all uncommitted changes (staged + unstaged)
-2. Analyze the diff to understand what changed from the player's perspective
-3. Read the top of `docs/CHANGELOG.md` to match the existing format and version style
-4. Get the current version from `Cargo.toml`
-5. Add a new entry at the top of the changelog (below the header) with today's date and the current version
-6. Follow these rules:
-   - Use layman's terms — no code references, no technical jargon
-   - Categorize changes under `### Added`, `### Changed`, and/or `### Fixed` as appropriate
-   - Bold the first phrase of each bullet as a short summary, then describe in plain language
-   - Don't spoil achievements, unlockables, or hidden content
-   - Don't add an `[Unreleased]` section
+CI (`.github/workflows/release.yml`) only runs on push to `main`, so the dev-mode loop is safe to run as often as desired without burning runner minutes.
 
-## Step 2: Commit and Push
+---
 
-1. Stage all changed files with `git add -A`
-2. Write a concise commit message summarizing the release
-3. Commit and push to the remote
+## Mode A — Dev release (no argument)
 
-## Step 3: Sync and Deploy Website Changelog
+### A1. Preconditions
 
-The marketing site at `../court_wizard_website` mirrors `docs/CHANGELOG.md`, `docs/CREDITS.md`, and `docs/INSTRUCTIONS.md` into its `content/` directory and renders them at runtime. After the game commit lands, publish the updated content to the website:
+1. Run `git rev-parse --abbrev-ref HEAD`. If not `dev`, stop and tell the user to switch.
+2. Run `git status`. If there are no uncommitted changes since the last commit, stop — nothing to release.
+3. Run `git diff HEAD` to see what changed.
 
-1. From the website repo root, run `./scripts/sync_content.sh` to copy the three markdown files from the game repo into `content/`.
-2. Check `git status` in the website repo. If `content/` has changes:
-   - Stage them with `git add content/`
-   - Commit with a message like `Sync content from game vX.Y.Z`
-   - Push to the remote (Cloudflare Pages will auto-deploy on push to `main`)
-3. If `content/` has no changes, skip the commit — the website is already in sync.
+### A2. Update the `[pending]` section in CHANGELOG.md
 
-Notes:
-- Only the `content/` directory should change in this step. If `sync_content.sh` reports errors (e.g., the game repo can't be found at `../court_wizard`), stop and surface the error to the user instead of attempting the deploy.
-- Never modify unrelated website files during this step.
+1. Read the top of `docs/CHANGELOG.md`.
+2. Translate the diff into one or more player-facing bullets following the format rules below.
+3. Locate the topmost `## [pending]` heading:
+   - If it exists, append new bullets under the appropriate `### Added` / `### Changed` / `### Fixed` subsection inside that block. Create the subsection if missing. Do not duplicate bullets that are already there.
+   - If it does not exist, insert a fresh block at the top, immediately below the `# Changelog` header:
+     ```
+     ## [pending]
+
+     ### Added | Changed | Fixed
+     - **...** — ...
+     ```
+
+Format rules for bullets (apply in both modes):
+- Layman's terms only. No code references, no jargon.
+- Bold the first phrase as a short summary, then describe in plain language.
+- Don't spoil achievements, unlockables, or hidden content.
+- Use only `### Added`, `### Changed`, `### Fixed`. Never include an `[Unreleased]` section.
+
+### A3. Commit and push to dev
+
+1. Stage **specific paths only** — never `git add -A` and never `git add .`. Typically:
+   ```
+   git add docs/CHANGELOG.md <other paths the user actually changed>
+   ```
+   If unsure which non-changelog files belong, ask the user before staging.
+2. Commit with a short message describing the change. No `Co-Authored-By` line.
+3. `git push origin dev`.
+
+Stop here. Do not touch `main`, do not run `sync_content.sh`, do not bump the version.
+
+---
+
+## Mode B — Promotion to main (`main` argument)
+
+### B1. Preconditions
+
+1. `git rev-parse --abbrev-ref HEAD` must be `dev`. If not, stop.
+2. `git status` must be clean. If there are uncommitted changes, stop and ask the user to run `/game-release` (dev mode) first to fold them into `[pending]`.
+3. Fetch tags: `git fetch --tags`.
+
+### B2. Lock the `[pending]` block to a version
+
+1. Read the version from `Cargo.toml` (`grep '^version = ' Cargo.toml`).
+2. Verify no tag `v<version>` already exists (`git rev-parse v<version>` should fail). If it does, bump the patch in `Cargo.toml` until you find a free version, run `cargo update -p court_wizard --offline`, and use that version.
+3. In `docs/CHANGELOG.md`, rename the top heading from `## [pending]` to `## [v<version>] - <today's date in YYYY-MM-DD>`.
+   - If there is no `[pending]` block (nothing accumulated since the last main release), generate a fresh versioned block from the dev-vs-main diff using the same format rules.
+
+### B3. Commit the lock to dev, then merge into main
+
+1. Stage specific paths: `git add docs/CHANGELOG.md Cargo.toml Cargo.lock` (include `Cargo.lock` only if it changed).
+2. Commit on `dev`: `git commit -m "v<version>: lock changelog for release"`.
+3. Push `dev`: `git push origin dev`.
+4. Switch to main: `git switch main`.
+5. Pull latest: `git pull --ff-only`.
+6. Fast-forward merge dev: `git merge --ff-only dev`. If this fails (main has commits dev doesn't), stop and surface the error — do not force-push, do not rebase silently.
+7. Push main: `git push origin main`. This triggers `.github/workflows/release.yml` which builds all platforms, attaches zips to a GitHub Release, and uploads to Steam `staging`.
+8. Switch back to dev: `git switch dev`.
+
+### B4. Sync website
+
+1. From `../court_wizard_website` run `./scripts/sync_content.sh`.
+2. If `content/` has changes, stage `content/` only, commit with `Sync content from game v<version>`, push.
+3. If no changes, skip — already in sync.
+
+If `sync_content.sh` errors out (e.g., game repo not found at `../court_wizard`), stop and surface the error.
+
+### B5. Report
+
+Tell the user:
+- The new version that just shipped to `main`.
+- The CI run URL (`gh run list --workflow=release.yml --limit 1`) so they can monitor the build.
+- Whether the website sync produced a commit.
+
+---
+
+## Hard rules (both modes)
+
+- **Never use `git add -A` or `git add .`** — stage only the files the user actually changed. The `steamworks_achievements.csv` file is intentionally deleted locally; sweeping deletions into a commit would be wrong.
+- **Never use `git reset`** in any form.
+- **Never use `git checkout` to revert working-tree changes.** Use `git switch` for branch changes only.
+- **Never include a `Co-Authored-By` trailer.**
+- **Never push to main directly.** The promotion flow merges `dev` into `main` via fast-forward only.
+- **Never force-push.** If a fast-forward merge to `main` is impossible, stop and ask the user.

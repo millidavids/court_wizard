@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Changed
+- **Behind-the-scenes release tooling** — internal cleanup to how new versions get packaged and uploaded to Steam. No gameplay changes
+
 ## [v0.7.312] - 2026-05-05
 
 ### Changed

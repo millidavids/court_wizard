@@ -3,13 +3,15 @@ set -e
 
 # Package a release zip for the specified platform.
 # Usage:
-#   ./package.sh                          # Auto-detect platform from host
-#   ./package.sh windows                  # Cross-compile for Windows
-#   ./package.sh linux                    # Build for Linux
-#   ./package.sh macos                    # Build for macOS (Apple Silicon)
-#   ./package.sh macos-intel              # Build for macOS (Intel)
-#   ./package.sh <platform> --skip-build  # Package from existing release build
-#   ./package.sh --skip-build             # Auto-detect + skip build
+#   ./scripts/package.sh                          # Auto-detect platform from host
+#   ./scripts/package.sh windows                  # Cross-compile for Windows
+#   ./scripts/package.sh linux                    # Build for Linux
+#   ./scripts/package.sh macos                    # Build for macOS (Apple Silicon)
+#   ./scripts/package.sh macos-intel              # Build for macOS (Intel)
+#   ./scripts/package.sh <platform> --skip-build  # Package from existing release build
+#   ./scripts/package.sh --skip-build             # Auto-detect + skip build
+
+cd "$(dirname "$0")/.."
 
 SKIP_BUILD=false
 PLATFORM=""
@@ -82,7 +84,7 @@ ZIP_PATH="$PWD/$ZIP_NAME"
 
 if [ "$SKIP_BUILD" = false ]; then
     echo "Building $PLATFORM release..."
-    ./build_native.sh "$PLATFORM" --release
+    ./scripts/build_native.sh "$PLATFORM" --release
 fi
 
 if [ ! -f "$BIN_DIR/$BIN_NAME" ]; then

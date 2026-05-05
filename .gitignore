@@ -6,3 +6,6 @@ Screenshot*.png
 steam_appid.txt
 CONTROLLER_TESTING.md
 steamworks_achievements.csv
+/steam/app_build_4550880.generated.vdf
+/steam-content/
+/steam-build-output/
