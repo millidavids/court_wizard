@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.310] - 2026-05-05
+
+### Changed
+- **Behind-the-scenes release pipeline** — when a new version of the game is published, the Windows, Linux, and macOS builds are now packaged automatically and pushed to Steam in one step. There are no gameplay changes from this update — it just means new versions can reach you faster and more reliably
+
 ## [v0.7.308] - 2026-05-05
 
 ### Changed

@@ -1,0 +1,51 @@
+name: Build
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: windows, runner: ubuntu-latest, target: x86_64-pc-windows-gnu,    suffix: windows }
+          - { platform: linux,   runner: ubuntu-latest, target: x86_64-unknown-linux-gnu, suffix: linux }
+          - { platform: macos,   runner: macos-14,      target: aarch64-apple-darwin,     suffix: macos-apple-silicon }
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install Linux build dependencies
+        if: matrix.runner == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev pkg-config
+
+      - name: Install MinGW (Windows cross-compile)
+        if: matrix.platform == 'windows'
+        run: sudo apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64
+
+      - name: Build and package
+        run: ./package.sh ${{ matrix.platform }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: court_wizard-${{ matrix.platform }}
+          path: court_wizard-v*-${{ matrix.suffix }}.zip
+          if-no-files-found: error

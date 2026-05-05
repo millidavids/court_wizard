@@ -1,0 +1,11 @@
+"DepotBuildConfig"
+{
+	"DepotID" "4550883"
+
+	"FileMapping"
+	{
+		"LocalPath" "linux/court_wizard/*"
+		"DepotPath" "."
+		"recursive" "1"
+	}
+}

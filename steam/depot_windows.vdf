@@ -1,0 +1,13 @@
+"DepotBuildConfig"
+{
+	"DepotID" "4550882"
+
+	"FileMapping"
+	{
+		"LocalPath" "windows/court_wizard/*"
+		"DepotPath" "."
+		"recursive" "1"
+	}
+
+	"FileExclusion" "*.pdb"
+}

@@ -85,7 +85,10 @@ All created and working:
 | `src/main.rs`                           | Added `mod steam;` and `SteamPlugin` (before DefaultPlugins) | DONE |
 | `.gitignore`                            | Added `steam_appid.txt`                              | DONE   |
 | `build_native.sh`                       | Copies steam_api64.dll / libsteam_api.so alongside binary | DONE |
-| `.github/workflows/release.yml`         | Add Steam depot upload step via steamcmd             | TODO   |
+| `.github/workflows/release.yml`         | Add Steam depot upload step via steamcmd             | DONE   |
+| `.github/workflows/build.yml`           | Reusable matrix build for Windows/Linux/macOS         | DONE   |
+| `steam/app_build_4550880.vdf` + depots  | Steamworks build/depot scripts (placeholder IDs)      | DONE   |
+| `steam/README.md`                       | One-time setup instructions for depot IDs + secrets   | DONE   |
 
 ### Steam Plugin Architecture
 
@@ -114,13 +117,7 @@ Each achievement still needs a 64x64 unlocked icon and a 64x64 locked icon (gray
 
 ### Build Pipeline Updates
 
-**PARTIALLY DONE** — `build_native.sh` finds and copies Steam redistributable DLLs/SOs from the `steamworks-sys` build output.
-
-Still TODO — CI/CD Steam uploads via steamcmd:
-```
-steamcmd +login "$STEAM_USER" "$STEAM_PASS" +run_app_build app_build.vdf +quit
-```
-This requires app_build.vdf depot config files and Steam credentials as GitHub secrets.
+**DONE** — `build_native.sh` finds and copies Steam redistributable DLLs/SOs from the `steamworks-sys` build output. CI now builds Windows/Linux/macOS via `.github/workflows/build.yml` and uploads to Steamworks via `steamcmd` from the `steam-deploy` job in `release.yml`. Builds publish to the `staging` Steam branch; promote manually. See `steam/README.md` for the one-time depot ID + secret setup.
 
 ### Steam Overlay
 
@@ -138,7 +135,7 @@ Bevy + Steam Overlay generally works out of the box on native. Test that:
 3. ~~Wire up achievement syncing~~ — **DONE** (45 achievements mapped)
 4. ~~Add Steam Cloud saves~~ — **DONE**
 5. ~~Update build script for Steam DLLs~~ — **DONE**
-6. Update CI/CD for depot uploads
+6. ~~Update CI/CD for depot uploads~~ — **DONE** (gated on `STEAM_DEPLOY` repo variable until depot IDs + secrets are filled in)
 7. Create store page assets (can be done in parallel)
 8. Create achievement icons (64x64 locked + unlocked for each of 45 achievements)
 9. Test Steam Overlay compatibility
