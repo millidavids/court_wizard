@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.307] - 2026-05-04
+
+### Added
+- **Dark Mage and Ray are now in the bestiary** — both bosses have full compendium entries with hand-drawn portraits, descriptions, and flavor text. Encountering either one for the first time will unlock them in the compendium so you can read up on them later
+
+### Changed
+- **Bestiary order now follows when you actually meet each unit** — defenders come first, then attackers in the order they start showing up (Elite and Assassin first, then Brute, Commander, Dispeller, Aerialist, then the late-game support units), and bosses are listed in the order they appear by level (Ogre → Lich → Dark Mage → Hag → Ray). No more scrolling past late-game enemies to find the ones you've actually fought
+
 ## [v0.7.304] - 2026-05-04
 
 ### Changed

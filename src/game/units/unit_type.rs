@@ -3,6 +3,10 @@
 use bevy::prelude::*;
 
 /// All trackable unit types in the game.
+///
+/// Variants are ordered by typical encounter / unlock order:
+/// defenders (default unlocked), then attackers in start-tier order,
+/// then bosses in the level they first appear.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnitType {
     // Defenders (default unlocked)
@@ -10,40 +14,44 @@ pub enum UnitType {
     Archer,
     King,
     KingsGuard,
-    // Attackers (unlocked on encounter)
-    Brute,
-    Elite,
-    Commander,
-    Healer,
-    Dispeller,
-    Shielder,
-    Assassin,
-    Aerialist,
-    // Bosses
-    Hag,
+    // Attackers (unlocked on encounter, ordered by first-appearance tier)
+    Elite,      // tier 1
+    Assassin,   // tier 1
+    Brute,      // tier 2
+    Commander,  // tier 2
+    Dispeller,  // tier 2
+    Aerialist,  // tier 2
+    Healer,     // tier 3
+    Shielder,   // tier 3
+    // Bosses (ordered by level: 5, 10, 15, 20, 25)
     Ogre,
     Lich,
+    DarkMage,
+    Hag,
+    Ray,
 }
 
 impl UnitType {
-    /// Returns all unit type variants.
+    /// Returns all unit type variants in encounter / unlock order.
     pub fn all() -> &'static [UnitType] {
         &[
             UnitType::Infantry,
             UnitType::Archer,
             UnitType::King,
             UnitType::KingsGuard,
-            UnitType::Brute,
             UnitType::Elite,
-            UnitType::Commander,
-            UnitType::Healer,
-            UnitType::Dispeller,
-            UnitType::Shielder,
             UnitType::Assassin,
+            UnitType::Brute,
+            UnitType::Commander,
+            UnitType::Dispeller,
             UnitType::Aerialist,
-            UnitType::Hag,
+            UnitType::Healer,
+            UnitType::Shielder,
             UnitType::Ogre,
             UnitType::Lich,
+            UnitType::DarkMage,
+            UnitType::Hag,
+            UnitType::Ray,
         ]
     }
 
@@ -54,17 +62,19 @@ impl UnitType {
             UnitType::Archer => "Archer",
             UnitType::King => "King",
             UnitType::KingsGuard => "King's Guard",
-            UnitType::Brute => "Brute",
             UnitType::Elite => "Elite",
-            UnitType::Commander => "Commander",
-            UnitType::Healer => "Healer",
-            UnitType::Dispeller => "Dispeller",
-            UnitType::Shielder => "Shielder",
             UnitType::Assassin => "Assassin",
+            UnitType::Brute => "Brute",
+            UnitType::Commander => "Commander",
+            UnitType::Dispeller => "Dispeller",
             UnitType::Aerialist => "Aerialist",
-            UnitType::Hag => "Hag",
+            UnitType::Healer => "Healer",
+            UnitType::Shielder => "Shielder",
             UnitType::Ogre => "Ogre",
             UnitType::Lich => "Lich",
+            UnitType::DarkMage => "Dark Mage",
+            UnitType::Hag => "Hag",
+            UnitType::Ray => "Ray",
         }
     }
 
@@ -75,17 +85,23 @@ impl UnitType {
             UnitType::Archer => "Ranged soldiers picking off targets from afar.",
             UnitType::King => "The leader you must protect at all costs.",
             UnitType::KingsGuard => "Elite warriors sworn to defend the King.",
-            UnitType::Brute => "Heavy-hitting melee fighters that hit like a truck.",
             UnitType::Elite => "Enhanced soldiers with bonus health, damage, and speed.",
-            UnitType::Commander => "Officers that buff nearby allies with damage and speed auras.",
-            UnitType::Healer => "Support units that restore health to wounded allies.",
-            UnitType::Dispeller => "Anti-magic units that remove your spell effects.",
-            UnitType::Shielder => "Support units that shield allies from your spells.",
             UnitType::Assassin => "Fast flankers that slip past infantry to strike archers.",
+            UnitType::Brute => "Heavy-hitting melee fighters that hit like a truck.",
+            UnitType::Commander => "Officers that buff nearby allies with damage and speed auras.",
+            UnitType::Dispeller => "Anti-magic units that remove your spell effects.",
             UnitType::Aerialist => "Flying attackers that swoop over walls and strike from above.",
-            UnitType::Hag => "Ancient witches with devastating magical abilities.",
+            UnitType::Healer => "Support units that restore health to wounded allies.",
+            UnitType::Shielder => "Support units that shield allies from your spells.",
             UnitType::Ogre => "A massive beast that grows stronger as the fight goes on.",
             UnitType::Lich => "An undead sorcerer who grows stronger from death itself.",
+            UnitType::DarkMage => {
+                "A telegraphed-AoE spellcaster who rains meteors and teleports across the field."
+            }
+            UnitType::Hag => "Ancient witches with devastating magical abilities.",
+            UnitType::Ray => {
+                "A heart-bound horror whose every beat warps the battlefield with dark pulses."
+            }
         }
     }
 
@@ -100,23 +116,25 @@ impl UnitType {
             UnitType::KingsGuard => {
                 "Sworn to protect, trained to intimidate, paid to stand very still."
             }
-            UnitType::Brute => "What they lack in strategy, they make up for in sheer mass.",
             UnitType::Elite => {
                 "Better than regular soldiers in every measurable way. They won't let you forget it."
             }
+            UnitType::Assassin => "They don't fight fair. That's the whole point.",
+            UnitType::Brute => "What they lack in strategy, they make up for in sheer mass.",
             UnitType::Commander => {
                 "Barking orders from behind the front line, as tradition demands."
             }
-            UnitType::Healer => "The only unit the enemy army actually values. Unfortunately.",
             UnitType::Dispeller => "Your spells mean nothing to them. Take it personally.",
+            UnitType::Aerialist => "Death from above. Way, way above.",
+            UnitType::Healer => "The only unit the enemy army actually values. Unfortunately.",
             UnitType::Shielder => {
                 "Handing out magical umbrellas like party favors. How thoughtful."
             }
-            UnitType::Assassin => "They don't fight fair. That's the whole point.",
-            UnitType::Aerialist => "Death from above. Way, way above.",
-            UnitType::Hag => "Three sisters who share one terrible disposition.",
             UnitType::Ogre => "Started the fight angry. It only gets worse from there.",
             UnitType::Lich => "Every fallen soldier is just another name on his roster.",
+            UnitType::DarkMage => "Robes, hood, staff, attitude. The whole package.",
+            UnitType::Hag => "Three sisters who share one terrible disposition.",
+            UnitType::Ray => "All heart, no mercy. Mostly heart, actually.",
         }
     }
 
@@ -134,15 +152,19 @@ impl UnitType {
             UnitType::Infantry | UnitType::Archer | UnitType::King | UnitType::KingsGuard => {
                 "Defender"
             }
-            UnitType::Brute
-            | UnitType::Elite
-            | UnitType::Commander
-            | UnitType::Healer
-            | UnitType::Dispeller
-            | UnitType::Shielder
+            UnitType::Elite
             | UnitType::Assassin
-            | UnitType::Aerialist => "Attacker",
-            UnitType::Hag | UnitType::Ogre | UnitType::Lich => "Boss",
+            | UnitType::Brute
+            | UnitType::Commander
+            | UnitType::Dispeller
+            | UnitType::Aerialist
+            | UnitType::Healer
+            | UnitType::Shielder => "Attacker",
+            UnitType::Ogre
+            | UnitType::Lich
+            | UnitType::DarkMage
+            | UnitType::Hag
+            | UnitType::Ray => "Boss",
         }
     }
 
@@ -153,17 +175,19 @@ impl UnitType {
             UnitType::Archer => "A ranged defender.",
             UnitType::King => "The one you protect.",
             UnitType::KingsGuard => "Royal bodyguards.",
-            UnitType::Brute => "Something big is coming...",
             UnitType::Elite => "The enemy is adapting.",
-            UnitType::Commander => "Someone is giving orders out there.",
-            UnitType::Healer => "The wounded keep getting back up.",
-            UnitType::Dispeller => "Your magic feels weaker somehow.",
-            UnitType::Shielder => "Something is protecting the enemy.",
             UnitType::Assassin => "Shadows move faster than they should.",
+            UnitType::Brute => "Something big is coming...",
+            UnitType::Commander => "Someone is giving orders out there.",
+            UnitType::Dispeller => "Your magic feels weaker somehow.",
             UnitType::Aerialist => "Something circles overhead.",
-            UnitType::Hag => "Dark magic stirs in the distance.",
+            UnitType::Healer => "The wounded keep getting back up.",
+            UnitType::Shielder => "Something is protecting the enemy.",
             UnitType::Ogre => "The ground trembles.",
             UnitType::Lich => "The dead whisper of a master.",
+            UnitType::DarkMage => "A robed figure watches from the back lines.",
+            UnitType::Hag => "Dark magic stirs in the distance.",
+            UnitType::Ray => "A faint, steady heartbeat echoes from somewhere unseen.",
         }
     }
 
@@ -171,15 +195,6 @@ impl UnitType {
     pub(crate) fn compendium_sprite(&self) -> CompendiumSpriteSpec {
         use CompendiumSpriteSpec::*;
         match self {
-            UnitType::Hag => Static {
-                path: "images/static_sprites/hag.png",
-                size_multiplier: 2.0,
-            },
-            UnitType::Ogre => Static {
-                path: "images/static_sprites/ogre.png",
-                size_multiplier: 2.0,
-            },
-
             UnitType::Infantry => atlas_infantry(Color::srgb(1.3, 1.3, 1.5), 1.0),
             UnitType::KingsGuard => atlas_infantry(Color::srgb(1.2, 0.45, 0.35), 1.2),
             UnitType::King => atlas_infantry(Color::srgb(1.4, 1.15, 0.4), 1.5),
@@ -217,8 +232,25 @@ impl UnitType {
                 Color::WHITE,
                 1.0,
             ),
-            UnitType::Lich => CompendiumSpriteSpec::Static {
+
+            UnitType::Ogre => Static {
+                path: "images/static_sprites/ogre.png",
+                size_multiplier: 2.0,
+            },
+            UnitType::Lich => Static {
                 path: "images/static_sprites/lich.png",
+                size_multiplier: 2.0,
+            },
+            UnitType::DarkMage => Static {
+                path: "images/static_sprites/dark_mage.png",
+                size_multiplier: 2.0,
+            },
+            UnitType::Hag => Static {
+                path: "images/static_sprites/hag.png",
+                size_multiplier: 2.0,
+            },
+            UnitType::Ray => Static {
+                path: "images/static_sprites/ray.png",
                 size_multiplier: 2.0,
             },
         }
@@ -228,7 +260,7 @@ impl UnitType {
 /// Specifies how to display a unit's portrait in the compendium detail panel.
 #[derive(Clone, Copy)]
 pub(crate) enum CompendiumSpriteSpec {
-    /// Use a pre-made static portrait image (Hag, Ogre).
+    /// Use a pre-made static portrait image.
     Static {
         path: &'static str,
         size_multiplier: f32,

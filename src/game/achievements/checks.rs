@@ -593,25 +593,18 @@ encounter_unlock_only!(check_shielder_encounter, Shielder, UnitType::Shielder);
 encounter_unlock_only!(check_assassin_encounter, Assassin, UnitType::Assassin);
 encounter_unlock_only!(check_aerialist_encounter, Aerialist, UnitType::Aerialist);
 
-pub(crate) fn check_dark_mage_encounter(
-    query: Query<(), With<DarkMage>>,
-    mut res: ResMut<DarkMageEncounterAchievement>,
-    mut events: MessageWriter<AchievementUnlockedMessage>,
-) {
-    if !query.is_empty() {
-        do_unlock(&mut res, &mut events);
-    }
-}
-
-pub(crate) fn check_ray_encounter(
-    query: Query<(), With<Ray>>,
-    mut res: ResMut<RayEncounterAchievement>,
-    mut events: MessageWriter<AchievementUnlockedMessage>,
-) {
-    if !query.is_empty() {
-        do_unlock(&mut res, &mut events);
-    }
-}
+encounter_system!(
+    check_dark_mage_encounter,
+    DarkMage,
+    DarkMageEncounterAchievement,
+    UnitType::DarkMage
+);
+encounter_system!(
+    check_ray_encounter,
+    Ray,
+    RayEncounterAchievement,
+    UnitType::Ray
+);
 
 // ---------------------------------------------------------------------------
 // Boss mark-seen (tracks presence for defeat achievements)
