@@ -85,8 +85,6 @@ jobs:
     if: needs.check-version.outputs.should_release == 'true' && vars.STEAM_DEPLOY == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
@@ -99,38 +97,19 @@ jobs:
           unzip -q artifacts/court_wizard-linux/*.zip   -d steam-content/linux
           unzip -q artifacts/court_wizard-macos/*.zip   -d steam-content/macos
 
-      - name: Install steamcmd
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends lib32gcc-s1
-          mkdir -p $HOME/steamcmd
-          curl -sSL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
-            | tar -xz -C $HOME/steamcmd
-
-      - name: Restore Steam Guard sentry
-        env:
-          STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
-        run: |
-          mkdir -p $HOME/Steam/config
-          echo "$STEAM_CONFIG_VDF" | base64 -d > $HOME/Steam/config/config.vdf
-
-      - name: Inject version into build script
-        run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          sed -i \
-            -e "s/\$VERSION/${{ needs.check-version.outputs.version }}/g" \
-            -e "s/\$SHA/$SHORT_SHA/g" \
-            steam/app_build_4550880.vdf
-
       - name: Upload build to Steamworks
-        env:
-          STEAM_USER: ${{ secrets.STEAM_USER }}
-          STEAM_PASS: ${{ secrets.STEAM_PASS }}
-        run: |
-          $HOME/steamcmd/steamcmd.sh \
-            +login "$STEAM_USER" "$STEAM_PASS" \
-            +run_app_build "$(pwd)/steam/app_build_4550880.vdf" \
-            +quit
+        uses: game-ci/steam-deploy@v3
+        with:
+          username: ${{ secrets.STEAM_USER }}
+          configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
+          appId: '4550880'
+          firstDepotIdOverride: '4550882'
+          buildDescription: v${{ needs.check-version.outputs.version }} (${{ github.sha }})
+          rootPath: steam-content
+          depot1Path: windows/court_wizard
+          depot2Path: linux/court_wizard
+          depot3Path: macos/court_wizard
+          releaseBranch: staging
 
   notify-discord:
     needs: [check-version, release]
