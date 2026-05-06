@@ -57,7 +57,8 @@ rm -rf "$STAGING" "$BUILDOUTPUT"
 mkdir -p "$STAGING" "$BUILDOUTPUT"
 
 UPLOAD_PLATFORMS=""
-DEPOT_LINES=""
+DEPOT_LINES_FILE="$REPO_ROOT/steam/depot_lines.tmp"
+: > "$DEPOT_LINES_FILE"
 for p in windows linux macos; do
     ZIP="court_wizard-v${VERSION}-$(zip_suffix "$p").zip"
     if [ -f "$ZIP" ]; then
@@ -65,14 +66,14 @@ for p in windows linux macos; do
         mkdir -p "$STAGING/$p"
         unzip -q "$ZIP" -d "$STAGING/$p"
         UPLOAD_PLATFORMS="$UPLOAD_PLATFORMS $p"
-        DEPOT_LINES="$DEPOT_LINES		\"$(depot_id "$p")\" \"depot_${p}.vdf\"
-"
+        printf '\t\t"%s" "depot_%s.vdf"\n' "$(depot_id "$p")" "$p" >> "$DEPOT_LINES_FILE"
     else
         echo "    skipping $p (no zip found at $ZIP)"
     fi
 done
 
 if [ -z "$UPLOAD_PLATFORMS" ]; then
+    rm -f "$DEPOT_LINES_FILE"
     echo "Error: no platform zips found for v$VERSION at the repo root." >&2
     echo "Build them first with ./scripts/package.sh <platform>." >&2
     exit 1
@@ -84,16 +85,21 @@ awk -v version="$VERSION" \
     -v sha="$SHORT_SHA" \
     -v contentroot="$STAGING" \
     -v buildoutput="$BUILDOUTPUT" \
-    -v depotlines="$DEPOT_LINES" '
+    -v depotfile="$DEPOT_LINES_FILE" '
     {
         gsub(/\$VERSION/, version)
         gsub(/\$SHA/, sha)
         gsub(/\$CONTENTROOT/, contentroot)
         gsub(/\$BUILDOUTPUT/, buildoutput)
-        if ($0 ~ /\$DEPOT_LINES/) { printf "%s", depotlines; next }
+        if ($0 ~ /\$DEPOT_LINES/) {
+            while ((getline line < depotfile) > 0) print line
+            close(depotfile)
+            next
+        }
         print
     }
 ' steam/app_build_4550880.vdf > "$GENERATED"
+rm -f "$DEPOT_LINES_FILE"
 
 echo ""
 echo "Uploading to Steam (branch: staging):"
