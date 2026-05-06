@@ -9,7 +9,7 @@ use crate::config::save_data::AchievementId;
 use crate::game::cauldron::brews::Ingredient;
 use crate::game::units::UnitType;
 use crate::game::units::components::{CompendiumSpriteSpec, SHEET_ROW_FORWARD_FACING};
-use crate::game::units::wizard::components::Spell;
+use crate::game::units::wizard::components::{Spell, compose_spell_description};
 use crate::ui::components::{ButtonColors, UnitCompendiumSpriteAssets};
 
 use super::components::*;
@@ -214,6 +214,7 @@ pub(super) fn update_detail_panel(
     unlocked_units: &[String],
     unlocked_wizard_types: &[String],
     unlocked_achievements: &[String],
+    wizard_type: WizardType,
     title_q: &mut Query<
         &mut Text,
         (
@@ -361,7 +362,11 @@ pub(super) fn update_detail_panel(
                 }
                 if let Ok(mut t) = desc_q.single_mut() {
                     **t = if is_unlocked {
-                        format!("{}\n\n{}", spell.description(), spell.instructions())
+                        format!(
+                            "{}\n\n{}",
+                            compose_spell_description(*spell, wizard_type),
+                            spell.instructions()
+                        )
                     } else {
                         String::new()
                     };

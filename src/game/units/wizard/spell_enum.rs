@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use super::spell_status_effects::StatusEffectKind;
 use super::wizard_state::PrimedSpell;
 use crate::game::units::DamageType;
 
@@ -699,5 +700,56 @@ impl Spell {
             Spell::GuardianCircle,
             Spell::Telekinesis,
         ]
+    }
+
+    /// In-scope status effects this spell applies during its base or talented
+    /// behavior. Surfaced under "Status effects" in the spell book and
+    /// compendium. Effects that only fire under a specific talent path are
+    /// still listed — players can see the full menu of possibilities.
+    pub(crate) const fn status_effects(&self) -> &'static [StatusEffectKind] {
+        match self {
+            // Burning
+            Spell::Fireball
+            | Spell::WallOfFire
+            | Spell::Disintegrate
+            | Spell::Grease
+            | Spell::MeteorFall => &[StatusEffectKind::Burning],
+
+            // Frost / Frozen — Squall accumulates frost; Permafrost talent freezes.
+            Spell::Squall => &[StatusEffectKind::Frost, StatusEffectKind::Frozen],
+
+            // Slow-only
+            Spell::ChainLightning => &[StatusEffectKind::Slowed],
+            Spell::BlackHole => &[StatusEffectKind::Slowed],
+            Spell::WallOfStone => &[StatusEffectKind::Slowed],
+            Spell::LightningRod => &[StatusEffectKind::Slowed],
+
+            // Poison (+ slow)
+            Spell::PlagueWind => &[StatusEffectKind::Poisoned, StatusEffectKind::Slowed],
+            Spell::SpikeGrowth => &[StatusEffectKind::Poisoned],
+
+            // Hard CC
+            Spell::Entangle => &[StatusEffectKind::Rooted, StatusEffectKind::Slowed],
+            Spell::Sleep => &[StatusEffectKind::Slept],
+            Spell::Polymorph => &[StatusEffectKind::Polymorphed],
+            Spell::Banishment => &[StatusEffectKind::Banished],
+            Spell::MarkOfDeath => &[StatusEffectKind::Marked],
+
+            // No in-scope status effect (utility, pure damage, support).
+            Spell::MagicMissile
+            | Spell::GuardianCircle
+            | Spell::FingerOfDeath
+            | Spell::RaiseTheDead
+            | Spell::Teleport
+            | Spell::Haste
+            | Spell::Telekinesis
+            | Spell::FogCloud
+            | Spell::BattleHymn
+            | Spell::HealingPlume
+            | Spell::BerserkerRage
+            | Spell::ArcaneCrystal
+            | Spell::Dispel
+            | Spell::MindControl => &[],
+        }
     }
 }

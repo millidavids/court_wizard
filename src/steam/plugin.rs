@@ -8,6 +8,7 @@ use super::cloud_save::{restore_save_from_steam_cloud, sync_save_to_steam_cloud}
 use super::constants::APP_ID;
 use super::leaderboards::LeaderboardsPlugin;
 
+
 /// Bevy plugin that integrates Steam features (achievements, cloud saves, overlay).
 ///
 /// Initialization is graceful: if Steam is not running or the app ID is invalid,
@@ -25,11 +26,10 @@ impl Plugin for SteamPlugin {
                 // Restore cloud saves before the game loads save data.
                 app.add_systems(Startup, restore_save_from_steam_cloud);
 
-                // Sync achievements to Steam whenever one is unlocked in-game.
-                app.add_systems(
-                    Update,
-                    sync_achievements_to_steam.run_if(in_state(AppState::InGame)),
-                );
+                // Sync achievements to Steam whenever one is unlocked. Runs in all
+                // states because some achievements (e.g. SliderFiddler) fire in
+                // menus, not just gameplay.
+                app.add_systems(Update, sync_achievements_to_steam);
 
                 // Sync save file to Steam Cloud at natural save checkpoints.
                 app.add_systems(OnEnter(AppState::MainMenu), sync_save_to_steam_cloud);

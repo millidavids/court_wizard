@@ -6,7 +6,7 @@ use super::components::*;
 use super::constants::*;
 use crate::config::save_data::load_unified_save;
 use crate::config::{GameConfig, WizardType};
-use crate::game::units::wizard::components::{Spell, SpellCategory};
+use crate::game::units::wizard::components::{Spell, SpellCategory, compose_spell_description};
 use crate::networking::session::MultiplayerSession;
 use crate::ui::components::{ButtonColors, SpellIconAssets};
 use crate::ui::systems::{spawn_button, spawn_page_container};
@@ -144,9 +144,9 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
             DetailDamageType,
         ));
 
-        // Description
+        // Description (with status effect section composed in)
         panel.spawn((
-            Text::new(spell.description()),
+            Text::new(compose_spell_description(spell, config.wizard_type)),
             TextFont::from_font_size(DETAIL_DESC_FONT_SIZE),
             TextColor(DETAIL_DESC_COLOR),
             Node {

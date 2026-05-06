@@ -4,8 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [pending]
 
+### Added
+- **Status effects in spell descriptions** — spell book and compendium entries now list the lingering effects each spell can leave on its targets. Fireball spells out what Burning does, Squall explains Frost and Frozen, Entangle explains Rooted and Slowed, Sleep explains Slept, and so on. Reading the spell book now tells you the full mechanical picture without having to learn it the hard way
+- **Excremage easter egg in spell descriptions** — when you're playing as the Excremage, every spell that would normally apply Burning, Frost, Poison, or any other status effect now shows Smelly instead. Fitting, since the Excremage turns all damage into poop and the only thing that lingers is the smell
+
 ### Changed
 - **Behind-the-scenes release tooling** — internal cleanup to how new versions get packaged and uploaded to Steam. No gameplay changes
+
+### Fixed
+- **Achievements unlocked outside of battle now sync to Steam** — some achievements that you can earn from menus (like the one for adjusting a slider in settings) were unlocking in-game but never showing up on your Steam profile. They now sync correctly
 
 ## [v0.7.312] - 2026-05-05
 

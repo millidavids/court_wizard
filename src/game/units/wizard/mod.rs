@@ -10,6 +10,7 @@ pub(crate) mod messages;
 mod plugin;
 mod spell_enum;
 mod spell_range_indicator;
+mod spell_status_effects;
 pub(crate) mod spells;
 pub(in crate::game) mod systems;
 pub(crate) mod talents;

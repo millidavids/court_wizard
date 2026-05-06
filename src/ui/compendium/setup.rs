@@ -367,6 +367,7 @@ pub(super) fn rebuild_on_state_change(
     detail_icons: (
         Res<crate::ui::components::SpellIconAssets>,
         Res<UnitCompendiumSpriteAssets>,
+        Res<crate::config::GameConfig>,
     ),
     items_container: Query<Entity, With<ItemsContainer>>,
     tab_buttons: Query<(&TabButton, Entity, &Children)>,
@@ -512,7 +513,8 @@ pub(super) fn rebuild_on_state_change(
     }
 
     // Update detail panel (including icon)
-    let (icon_assets, unit_sprite_assets) = (&detail_icons.0, &detail_icons.1);
+    let (icon_assets, unit_sprite_assets, config) =
+        (&detail_icons.0, &detail_icons.1, &detail_icons.2);
     update_detail_panel(
         &state,
         icon_assets,
@@ -522,6 +524,7 @@ pub(super) fn rebuild_on_state_change(
         &unlocked_content.units,
         &unlocked_content.wizard_types,
         &unlocked_achievements,
+        config.wizard_type,
         &mut detail_title,
         &mut detail_category,
         &mut detail_desc,
