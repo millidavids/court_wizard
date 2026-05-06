@@ -7,7 +7,7 @@ use super::constants::*;
 use super::messages::WeatherChangedMessage;
 use super::resources::{WeatherState, WeatherType};
 use crate::config::input_bindings::InputBindings;
-use crate::game::units::components::{Corpse, ElectricCharge, Health};
+use crate::game::units::components::{Corpse, Shocked, Health};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{Mana, Wizard};
 
@@ -210,14 +210,14 @@ pub fn update_weather_intensity(
     }
 }
 
-/// Spreads ElectricCharge from shocked units to nearby wet units.
+/// Spreads Shocked from shocked units to nearby wet units.
 /// Works for any source of Wet (ponds or storm weather).
 pub fn spread_shock_to_wet(
     mut commands: Commands,
     weather: Option<Res<WeatherState>>,
-    shocked_wet: Query<(&Transform, &ElectricCharge, &WetModifier), Without<Corpse>>,
+    shocked_wet: Query<(&Transform, &Shocked, &WetModifier), Without<Corpse>>,
     wet_targets: Query<
-        (Entity, &Transform, Has<ElectricCharge>, Has<SpellShield>),
+        (Entity, &Transform, Has<Shocked>, Has<SpellShield>),
         (With<WetModifier>, Without<Corpse>),
     >,
 ) {
@@ -242,7 +242,7 @@ pub fn spread_shock_to_wet(
 
             if dist_sq <= spread_radius * spread_radius && dist_sq > 0.1 {
                 // Spread a weaker charge (half the source's arc chance)
-                let mut new_charge = ElectricCharge::new(0.0);
+                let mut new_charge = Shocked::new(0.0);
                 new_charge.arc_chance = charge.arc_chance * 0.5;
                 commands.entity(target_entity).insert(new_charge);
             }

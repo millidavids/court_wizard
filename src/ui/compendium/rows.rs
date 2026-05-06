@@ -9,7 +9,9 @@ use crate::config::save_data::AchievementId;
 use crate::game::cauldron::brews::Ingredient;
 use crate::game::units::UnitType;
 use crate::game::units::components::{CompendiumSpriteSpec, SHEET_ROW_FORWARD_FACING};
-use crate::game::units::wizard::components::{Spell, compose_spell_description};
+use crate::game::units::wizard::components::{
+    Spell, effective_status_effects, spawn_status_effects_section,
+};
 use crate::ui::components::{ButtonColors, UnitCompendiumSpriteAssets};
 
 use super::components::*;
@@ -253,7 +255,17 @@ pub(super) fn update_detail_panel(
     >,
     cat_color_q: &mut Query<&mut TextColor, (With<DetailCategory>, Without<DetailTitle>)>,
     detail_icon: &mut Query<(&mut ImageNode, &mut Node, &mut BoxShadow), With<DetailIcon>>,
+    status_container_q: &Query<Entity, With<DetailStatusContainer>>,
+    commands: &mut Commands,
 ) {
+    // Always start from a clean status section. Only the spell branch
+    // re-populates it below.
+    if let Ok(status_container) = status_container_q.single() {
+        commands
+            .entity(status_container)
+            .despawn_related::<Children>();
+    }
+
     // Helper to hide the icon and reset all per-item state so subsequent
     // shows start from a clean baseline (no leftover tint/atlas/size/corona).
     let hide_icon =
@@ -362,14 +374,24 @@ pub(super) fn update_detail_panel(
                 }
                 if let Ok(mut t) = desc_q.single_mut() {
                     **t = if is_unlocked {
-                        format!(
-                            "{}\n\n{}",
-                            compose_spell_description(*spell, wizard_type),
-                            spell.instructions()
-                        )
+                        format!("{}\n\n{}", spell.description(), spell.instructions())
                     } else {
                         String::new()
                     };
+                }
+                if is_unlocked && let Ok(status_container) = status_container_q.single() {
+                    let effects = effective_status_effects(*spell, wizard_type);
+                    commands
+                        .entity(status_container)
+                        .with_children(|parent| {
+                            spawn_status_effects_section(
+                                parent,
+                                effects,
+                                DETAIL_DESC_FONT_SIZE,
+                                UNLOCKED_COLOR,
+                                None,
+                            );
+                        });
                 }
                 if let Ok(mut t) = flavor_q.single_mut() {
                     **t = spell.locked_description().to_string();

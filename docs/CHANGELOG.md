@@ -5,14 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [pending]
 
 ### Added
-- **Status effects in spell descriptions** — spell book and compendium entries now list the lingering effects each spell can leave on its targets. Fireball spells out what Burning does, Squall explains Frost and Frozen, Entangle explains Rooted and Slowed, Sleep explains Slept, and so on. Reading the spell book now tells you the full mechanical picture without having to learn it the hard way
+- **Status effects in spell descriptions** — spell book and compendium entries now list the lingering effects each spell can leave on its targets. Fireball spells out what Burning does, Squall explains Frost and Frozen, Entangle explains Rooted, lightning spells explain Shocked, and so on. The "Status effects" header is highlighted in gold and each effect's name is color-coded — orange for Burning, yellow for Shocked, blue for Frost, green for Poisoned, and so on — so the section pops at a glance
 - **Excremage easter egg in spell descriptions** — when you're playing as the Excremage, every spell that would normally apply Burning, Frost, Poison, or any other status effect now shows Smelly instead. Fitting, since the Excremage turns all damage into poop and the only thing that lingers is the smell
 
 ### Changed
 - **Behind-the-scenes release tooling** — internal cleanup to how new versions get packaged and uploaded to Steam. No gameplay changes
+- **Committing insight no longer resets the spell web view** — when you commit insight in the Wizard's Tower, the spell graph used to zoom all the way back out and forget which spell you had selected. Now the camera stays exactly where you left it and the left-side detail panel just refreshes in place to reflect the new state — including showing the unlocked version of any spell that just crossed the threshold
 
 ### Fixed
 - **Achievements unlocked outside of battle now sync to Steam** — some achievements that you can earn from menus (like the one for adjusting a slider in settings) were unlocking in-game but never showing up on your Steam profile. They now sync correctly
+- **"Wave incoming!" banner no longer shows over menus** — the red banner was rendering on top of the spell book, cauldron menu, pause menu, and other overlays. It now hides itself whenever you have a menu open and reappears when you return to the battlefield
 
 ## [v0.7.312] - 2026-05-05
 

@@ -375,7 +375,7 @@ pub struct ResidualFireDamaged;
 
 /// Stores the original shared material handle before persistent effect tinting.
 ///
-/// Inserted when a persistent damage effect (FireDoT, FrostEffectMarker, ElectricCharge)
+/// Inserted when a persistent damage effect (FireDoT, FrostEffectMarker, Shocked)
 /// is first applied to a unit. The unit's MeshMaterial3d is replaced with a cloned
 /// per-entity material that can be safely tinted without affecting other units.
 /// When all effects expire, the original material is restored and this component is removed.
@@ -399,7 +399,7 @@ pub struct RemoteElectricEffect;
 /// Marker component inserted by `apply_spell_damage` to defer persistent effect stacking.
 ///
 /// A central system (`process_pending_damage_effects`) reads these each frame and
-/// creates/stacks the real `FireDoT`, `SlowMovementModifier`, or `ElectricCharge` components.
+/// creates/stacks the real `FireDoT`, `SlowMovementModifier`, or `Shocked` components.
 #[derive(Component)]
 pub struct PendingDamageEffect {
     pub damage_type: DamageType,
@@ -463,7 +463,7 @@ impl FireDoT {
 /// Each electric hit adds arc chance. When the charge arcs, it deals damage
 /// to nearby enemies and builds charge on them too.
 #[derive(Component)]
-pub struct ElectricCharge {
+pub struct Shocked {
     /// Chance per tick to arc (0.0–1.0).
     pub arc_chance: f32,
     /// Time remaining before the charge expires (resets on each electric hit).
@@ -472,8 +472,8 @@ pub struct ElectricCharge {
     pub arc_cooldown: f32,
 }
 
-impl ElectricCharge {
-    /// Creates a new ElectricCharge from the initial electric damage.
+impl Shocked {
+    /// Creates a new Shocked from the initial electric damage.
     pub fn new(spell_damage: f32) -> Self {
         let chance = (ELECTRIC_ARC_CHANCE_PER_HIT + spell_damage * ELECTRIC_ARC_CHANCE_PER_DAMAGE)
             .min(ELECTRIC_ARC_MAX_CHANCE);

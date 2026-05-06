@@ -265,7 +265,7 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::super::units::components::RootedModifier>()
                 .remove::<super::super::units::components::HasteModifier>()
                 .remove::<super::super::units::components::FireDoT>()
-                .remove::<super::super::units::components::ElectricCharge>()
+                .remove::<super::super::units::components::Shocked>()
                 .remove::<super::super::units::components::PendingDamageEffect>()
                 .remove::<super::super::units::components::OriginalMaterial>()
                 .remove::<super::super::units::components::RoughTerrainModifier>()

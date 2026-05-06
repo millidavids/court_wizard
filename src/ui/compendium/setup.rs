@@ -146,6 +146,18 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands) {
                 DetailDescription,
             ));
 
+            // Container for the colored "Status effects" section. Populated
+            // on the fly in `update_detail_panel`.
+            panel.spawn((
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    margin: UiRect::top(Val::Px(8.0)),
+                    row_gap: Val::Px(2.0),
+                    ..default()
+                },
+                DetailStatusContainer,
+            ));
+
             panel.spawn((
                 Text::new(""),
                 TextFont::from_font_size(DETAIL_FLAVOR_FONT_SIZE),
@@ -364,10 +376,12 @@ pub(super) fn handle_copy_seed(
 pub(super) fn rebuild_on_state_change(
     mut commands: Commands,
     mut state: ResMut<CompendiumState>,
-    detail_icons: (
+    // Bundled to dodge Bevy's 16-param SystemParam tuple limit.
+    detail_panel_inputs: (
         Res<crate::ui::components::SpellIconAssets>,
         Res<UnitCompendiumSpriteAssets>,
         Res<crate::config::GameConfig>,
+        Query<Entity, With<DetailStatusContainer>>,
     ),
     items_container: Query<Entity, With<ItemsContainer>>,
     tab_buttons: Query<(&TabButton, Entity, &Children)>,
@@ -513,8 +527,12 @@ pub(super) fn rebuild_on_state_change(
     }
 
     // Update detail panel (including icon)
-    let (icon_assets, unit_sprite_assets, config) =
-        (&detail_icons.0, &detail_icons.1, &detail_icons.2);
+    let (icon_assets, unit_sprite_assets, config, status_container_q) = (
+        &detail_panel_inputs.0,
+        &detail_panel_inputs.1,
+        &detail_panel_inputs.2,
+        &detail_panel_inputs.3,
+    );
     update_detail_panel(
         &state,
         icon_assets,
@@ -531,6 +549,8 @@ pub(super) fn rebuild_on_state_change(
         &mut detail_flavor,
         &mut detail_cat_color,
         &mut detail_icon,
+        status_container_q,
+        &mut commands,
     );
 
     // Determine if the level history container should be shown

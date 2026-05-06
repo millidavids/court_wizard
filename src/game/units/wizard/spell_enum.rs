@@ -719,10 +719,11 @@ impl Spell {
             Spell::Squall => &[StatusEffectKind::Frost, StatusEffectKind::Frozen],
 
             // Slow-only
-            Spell::ChainLightning => &[StatusEffectKind::Slowed],
             Spell::BlackHole => &[StatusEffectKind::Slowed],
-            Spell::WallOfStone => &[StatusEffectKind::Slowed],
-            Spell::LightningRod => &[StatusEffectKind::Slowed],
+
+            // Lightning — apply a Shocked charge that primes chain arcs.
+            Spell::ChainLightning => &[StatusEffectKind::Shocked],
+            Spell::LightningRod => &[StatusEffectKind::Shocked],
 
             // Poison (+ slow)
             Spell::PlagueWind => &[StatusEffectKind::Poisoned, StatusEffectKind::Slowed],
@@ -737,6 +738,7 @@ impl Spell {
 
             // No in-scope status effect (utility, pure damage, support).
             Spell::MagicMissile
+            | Spell::WallOfStone
             | Spell::GuardianCircle
             | Spell::FingerOfDeath
             | Spell::RaiseTheDead

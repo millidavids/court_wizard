@@ -48,7 +48,7 @@ pub struct PondFrozen {
 }
 
 /// Electric-charge state on a pond. Periodically arcs lightning to nearby units at a larger
-/// radius than the unit-level `ElectricCharge` effect.
+/// radius than the unit-level `Shocked` effect.
 #[derive(Component)]
 pub struct PondShocked {
     /// Seconds before the shocked state expires (reset by any new electric hit).

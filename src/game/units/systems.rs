@@ -9,7 +9,7 @@ use super::components::{
     WalkingAnimation,
 };
 use super::components::{
-    Airborne, BanishedModifier, Corpse, Effectiveness, ElectricCharge, FALL_DAMAGE_SCALE,
+    Airborne, BanishedModifier, Corpse, Effectiveness, Shocked, FALL_DAMAGE_SCALE,
     FearModifier, FireDoT, FlockingVelocity, FrostAccumulation, FrozenSolidModifier, Health,
     Hitbox, InMelee, MindControlled, OriginalMaterial, PendingDamageEffect, Petrified,
     PoisonedModifier, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, RootedModifier,
@@ -342,7 +342,7 @@ pub fn process_pending_damage_effects(
     )>,
     mut fire_query: Query<&mut FireDoT>,
     mut frost_query: Query<&mut FrostAccumulation>,
-    mut electric_query: Query<&mut ElectricCharge>,
+    mut electric_query: Query<&mut Shocked>,
     mut poison_query: Query<&mut PoisonedModifier>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -439,7 +439,7 @@ pub fn process_pending_damage_effects(
                 } else {
                     commands
                         .entity(entity)
-                        .insert(ElectricCharge::new(pending.damage));
+                        .insert(Shocked::new(pending.damage));
                 }
             }
             DamageType::Poison => {
@@ -661,7 +661,7 @@ pub struct ElectricArcVisual {
     pub time_alive: f32,
 }
 
-/// Ticks ElectricCharge on affected units, rolls for arcs, and spawns arc visuals.
+/// Ticks Shocked on affected units, rolls for arcs, and spawns arc visuals.
 ///
 /// Arc damage is applied directly to health without inserting `PendingDamageEffect`,
 /// so it does **not** propagate the electric debuff to arc targets.
@@ -675,7 +675,7 @@ pub fn update_electric_charge(
     mut charge_query: Query<
         (
             Entity,
-            &mut ElectricCharge,
+            &mut Shocked,
             &Transform,
             &Team,
             Has<ChargedModifier>,
@@ -700,7 +700,7 @@ pub fn update_electric_charge(
     for (entity, mut charge, transform, _team, has_charged) in charge_query.iter_mut() {
         let expired = charge.update(delta);
         if expired {
-            commands.entity(entity).remove::<ElectricCharge>();
+            commands.entity(entity).remove::<Shocked>();
             continue;
         }
 
@@ -769,7 +769,7 @@ pub fn update_electric_charge(
 
     for (source_pos, target_entity, target_pos) in arc_events {
         // Apply arc damage directly (bypasses PendingDamageEffect so it does NOT
-        // propagate the ElectricCharge debuff to arc targets).
+        // propagate the Shocked debuff to arc targets).
         // Wet units take extra electric arc damage.
         if let Ok((mut health, mut temp_hp, is_wet)) = health_query.get_mut(target_entity) {
             let damage = if is_wet {
@@ -898,7 +898,7 @@ fn blend_pulsing_effect(
 
 /// Updates visual tinting on units affected by persistent damage effects.
 ///
-/// Considers both local effects (FireDoT, FrostEffectMarker, ElectricCharge) and
+/// Considers both local effects (FireDoT, FrostEffectMarker, Shocked) and
 /// remote effect markers (RemoteFireEffect, etc.) from the other multiplayer peer.
 ///
 /// Three-phase logic per entity:
@@ -916,7 +916,7 @@ pub fn update_persistent_effect_visuals(
             &MeshMaterial3d<StandardMaterial>,
             Option<&FireDoT>,
             Option<&FrostAccumulation>,
-            Option<&ElectricCharge>,
+            Option<&Shocked>,
             Has<RemoteFireEffect>,
             Has<RemoteFrostEffect>,
             Has<RemoteElectricEffect>,
@@ -939,7 +939,7 @@ pub fn update_persistent_effect_visuals(
         Or<(
             With<FireDoT>,
             With<FrostAccumulation>,
-            With<ElectricCharge>,
+            With<Shocked>,
             With<RemoteFireEffect>,
             With<RemoteFrostEffect>,
             With<RemoteElectricEffect>,

@@ -309,8 +309,14 @@ pub(crate) fn handle_study_button_actions(
                     &mut progress_materials,
                     &mut ring_materials,
                     &mut star_sky_materials,
-                    true,
+                    false, // don't zoom out — keep player's current pan/zoom
+                    true,  // keep current selection so left panel refreshes in place
                 );
+                // Force update_study_detail_panel to re-render the left panel
+                // with the spell's new (possibly now-unlocked) state.
+                if let Some(sel) = selected.as_mut() {
+                    sel.set_changed();
+                }
             }
             #[cfg(debug_assertions)]
             StudyButtonAction::DebugGrantInsight => {
@@ -326,13 +332,22 @@ pub(crate) fn handle_study_button_actions(
                     &mut ring_materials,
                     &mut star_sky_materials,
                     false,
+                    false,
                 );
             }
         }
     }
 }
 
-/// Tears down and rebuilds the study screen UI. Optionally animates back to default view.
+/// Tears down and rebuilds the study screen UI.
+///
+/// `animate_to_default`: when true, animates the camera back to its default
+/// pan/zoom. When false, the current `GraphViewState` is preserved.
+///
+/// `preserve_selection`: when true, keeps `SelectedStudySpell` intact across
+/// the rebuild. The caller is expected to mark `SelectedStudySpell` as changed
+/// afterward so `update_study_detail_panel` repopulates the left panel with
+/// the spell's new (post-rebuild) state. When false, selection is cleared.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn rebuild_study_ui(
     commands: &mut Commands,
@@ -345,6 +360,7 @@ pub(super) fn rebuild_study_ui(
     ring_materials: &mut Assets<ConcentricRingsMaterial>,
     star_sky_materials: &mut Assets<StarSkyMaterial>,
     animate_to_default: bool,
+    preserve_selection: bool,
 ) {
     let Ok(left_entity) = left_panel.single() else {
         return;
@@ -357,7 +373,7 @@ pub(super) fn rebuild_study_ui(
     commands.remove_resource::<InsightAllocation>();
     commands.insert_resource(InsightAllocation::default());
     commands.insert_resource(SelectedInsightBonus::default());
-    if let Some(sel) = selected {
+    if !preserve_selection && let Some(sel) = selected {
         sel.0 = None;
     }
     if animate_to_default {

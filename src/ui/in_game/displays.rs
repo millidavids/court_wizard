@@ -11,6 +11,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::resources::WaveState;
 use crate::game::units::components::{Corpse, Team};
+use crate::state::{InGameState, MultiplayerGameState};
 
 /// Blocks spell input when the mouse is interacting with a UI button so
 /// clicking a HUD button doesn't simultaneously fire a spell. With a
@@ -42,6 +43,8 @@ pub(super) fn update_wave_incoming_flash(
     time: Res<Time>,
     config: Res<GameConfig>,
     wave_state: Res<WaveState>,
+    sp_state: Option<Res<State<InGameState>>>,
+    mp_state: Option<Res<State<MultiplayerGameState>>>,
     staging_query: Query<(), (With<StagingAttacker>, Without<Corpse>)>,
     activated_attackers: Query<
         &Team,
@@ -51,7 +54,16 @@ pub(super) fn update_wave_incoming_flash(
 ) {
     let has_staging = !staging_query.is_empty();
     let has_activated = activated_attackers.iter().any(|t| *t == Team::Attackers);
-    let should_show = has_staging && !has_activated;
+    // Hide the banner whenever a menu overlay is open (pause, spell book,
+    // cauldron, score screen, tutorial). Only the actively-playing state
+    // should show "Wave incoming".
+    let in_active_play = sp_state
+        .as_ref()
+        .is_some_and(|s| *s.get() == InGameState::Running)
+        || mp_state
+            .as_ref()
+            .is_some_and(|s| *s.get() == MultiplayerGameState::Running);
+    let should_show = in_active_play && has_staging && !has_activated;
     let alpha = banner_alpha(time.elapsed_secs(), config.reduce_flashes);
 
     match flash_query.single_mut() {

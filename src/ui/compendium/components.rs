@@ -114,6 +114,11 @@ pub(super) struct DetailCategory;
 #[derive(Component)]
 pub(super) struct DetailDescription;
 
+/// Container for the colored "Status effects" section under a spell's
+/// description. Children are despawned and re-spawned on selection change.
+#[derive(Component)]
+pub(super) struct DetailStatusContainer;
+
 #[derive(Component)]
 pub(super) struct DetailFlavor;
 

@@ -6,7 +6,9 @@ use super::components::*;
 use super::constants::*;
 use crate::config::save_data::load_unified_save;
 use crate::config::{GameConfig, WizardType};
-use crate::game::units::wizard::components::{Spell, SpellCategory, compose_spell_description};
+use crate::game::units::wizard::components::{
+    Spell, SpellCategory, effective_status_effects, spawn_status_effects_section,
+};
 use crate::networking::session::MultiplayerSession;
 use crate::ui::components::{ButtonColors, SpellIconAssets};
 use crate::ui::systems::{spawn_button, spawn_page_container};
@@ -144,9 +146,9 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
             DetailDamageType,
         ));
 
-        // Description (with status effect section composed in)
+        // Description
         panel.spawn((
-            Text::new(compose_spell_description(spell, config.wizard_type)),
+            Text::new(spell.description()),
             TextFont::from_font_size(DETAIL_DESC_FONT_SIZE),
             TextColor(DETAIL_DESC_COLOR),
             Node {
@@ -155,6 +157,18 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
             },
             DetailDescription,
         ));
+
+        // Status effects section (no-op when the spell applies none).
+        spawn_status_effects_section(
+            panel,
+            effective_status_effects(spell, config.wizard_type),
+            DETAIL_DESC_FONT_SIZE,
+            DETAIL_DESC_COLOR,
+            Some(Node {
+                max_width: Val::Px(LEFT_PANEL_WIDTH - DETAIL_PADDING * 2.0),
+                ..default()
+            }),
+        );
 
         // Instructions
         panel.spawn((
