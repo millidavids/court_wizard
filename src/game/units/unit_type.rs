@@ -15,14 +15,14 @@ pub enum UnitType {
     King,
     KingsGuard,
     // Attackers (unlocked on encounter, ordered by first-appearance tier)
-    Elite,      // tier 1
-    Assassin,   // tier 1
-    Brute,      // tier 2
-    Commander,  // tier 2
-    Dispeller,  // tier 2
-    Aerialist,  // tier 2
-    Healer,     // tier 3
-    Shielder,   // tier 3
+    Elite,     // tier 1
+    Assassin,  // tier 1
+    Brute,     // tier 2
+    Commander, // tier 2
+    Dispeller, // tier 2
+    Aerialist, // tier 2
+    Healer,    // tier 3
+    Shielder,  // tier 3
     // Bosses (ordered by level: 5, 10, 15, 20, 25)
     Ogre,
     Lich,

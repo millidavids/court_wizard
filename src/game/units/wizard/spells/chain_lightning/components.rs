@@ -48,19 +48,9 @@ pub struct ChainLightningBolt {
     pub bounce_range_mult: f32,
 }
 
-/// Visual lightning arc between two points.
+/// Snapshot-only marker on a `LightningBolt` parent for multiplayer serialization.
 #[derive(Component)]
 pub struct ChainLightningArc {
-    /// Start position of the arc.
-    #[allow(dead_code)]
     pub start: Vec3,
-    /// End position of the arc.
-    #[allow(dead_code)]
     pub end: Vec3,
-    /// Time remaining before arc despawns.
-    pub lifetime: f32,
-    /// Time since arc was created (for animation).
-    pub time_alive: f32,
-    /// Depth in the splitting tree (for visual scaling).
-    pub depth: u32,
 }

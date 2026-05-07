@@ -7,7 +7,7 @@ use super::constants::*;
 use super::messages::WeatherChangedMessage;
 use super::resources::{WeatherState, WeatherType};
 use crate::config::input_bindings::InputBindings;
-use crate::game::units::components::{Corpse, Shocked, Health};
+use crate::game::units::components::{Corpse, Health, Shocked};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{Mana, Wizard};
 

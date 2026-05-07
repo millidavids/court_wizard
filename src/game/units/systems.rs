@@ -9,13 +9,12 @@ use super::components::{
     WalkingAnimation,
 };
 use super::components::{
-    Airborne, BanishedModifier, Corpse, Effectiveness, Shocked, FALL_DAMAGE_SCALE,
-    FearModifier, FireDoT, FlockingVelocity, FrostAccumulation, FrozenSolidModifier, Health,
-    Hitbox, InMelee, MindControlled, OriginalMaterial, PendingDamageEffect, Petrified,
-    PolymorphedModifier, PoisonedModifier, RemoteElectricEffect, RemoteFireEffect,
-    RemoteFrostEffect, RootedModifier,
-    SickenedModifier, SlowMovementModifier, SmellyModifier, Stunned, TargetingVelocity, Team,
-    TemporaryHitPoints, TimedModifier, apply_damage_to_unit,
+    Airborne, BanishedModifier, Corpse, Effectiveness, FALL_DAMAGE_SCALE, FearModifier, FireDoT,
+    FlockingVelocity, FrostAccumulation, FrozenSolidModifier, Health, Hitbox, InMelee,
+    MindControlled, OriginalMaterial, PendingDamageEffect, Petrified, PoisonedModifier,
+    PolymorphedModifier, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, RootedModifier,
+    Shocked, SickenedModifier, SlowMovementModifier, SmellyModifier, Stunned, TargetingVelocity,
+    Team, TemporaryHitPoints, TimedModifier, apply_damage_to_unit,
 };
 use super::constants::{
     BERSERKER_RAGE_EFFECT_COLOR, BERSERKER_RAGE_EFFECT_INTENSITY, ELECTRIC_ARC_COLOR,
@@ -438,9 +437,7 @@ pub fn process_pending_damage_effects(
                 if let Ok(mut charge) = electric_query.get_mut(entity) {
                     charge.stack(pending.damage);
                 } else {
-                    commands
-                        .entity(entity)
-                        .insert(Shocked::new(pending.damage));
+                    commands.entity(entity).insert(Shocked::new(pending.damage));
                 }
             }
             DamageType::Poison => {

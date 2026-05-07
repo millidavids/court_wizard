@@ -9,8 +9,8 @@ use crate::game::components::Billboard;
 use crate::game::units::archer::ArcherAssets;
 use crate::game::units::components::OriginalMaterial;
 use crate::game::units::components::{
-    Corpse, Shocked, FireDoT, FrostAccumulation, Health, RemoteElectricEffect,
-    RemoteFireEffect, RemoteFrostEffect,
+    Corpse, FireDoT, FrostAccumulation, Health, RemoteElectricEffect, RemoteFireEffect,
+    RemoteFrostEffect, Shocked,
 };
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::king::components::{SpellShield, SpellShieldVisual};

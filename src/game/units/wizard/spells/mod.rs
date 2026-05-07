@@ -19,6 +19,7 @@ pub(crate) mod grease;
 pub(crate) mod guardian_circle;
 pub(crate) mod haste;
 pub(crate) mod healing_plume;
+pub(crate) mod lightning_bolt;
 pub(crate) mod lightning_rod;
 pub(crate) mod magic_missile;
 pub(crate) mod mark_of_death;

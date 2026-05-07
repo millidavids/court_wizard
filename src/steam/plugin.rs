@@ -8,7 +8,6 @@ use super::cloud_save::{restore_save_from_steam_cloud, sync_save_to_steam_cloud}
 use super::constants::APP_ID;
 use super::leaderboards::LeaderboardsPlugin;
 
-
 /// Bevy plugin that integrates Steam features (achievements, cloud saves, overlay).
 ///
 /// Initialization is graceful: if Steam is not running or the app ID is invalid,

@@ -46,10 +46,7 @@ pub(super) fn update_wave_incoming_flash(
     sp_state: Option<Res<State<InGameState>>>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     staging_query: Query<(), (With<StagingAttacker>, Without<Corpse>)>,
-    activated_attackers: Query<
-        &Team,
-        (With<WaveGroup>, Without<StagingAttacker>, Without<Corpse>),
-    >,
+    activated_attackers: Query<&Team, (With<WaveGroup>, Without<StagingAttacker>, Without<Corpse>)>,
     mut flash_query: Query<(Entity, &mut Text, &mut TextColor), With<WaveIncomingFlash>>,
 ) {
     let has_staging = !staging_query.is_empty();

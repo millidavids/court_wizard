@@ -24,6 +24,7 @@ use crate::game::units::wizard::spells::fireball::components::{Fireball, Firebal
 use crate::game::units::wizard::spells::fog_cloud::components::FogCloudZone;
 use crate::game::units::wizard::spells::grease::components::GreaseZone;
 use crate::game::units::wizard::spells::healing_plume::components::HealingPlumeZone;
+use crate::game::units::wizard::spells::lightning_bolt::LightningBolt;
 use crate::game::units::wizard::spells::lightning_rod::components::{
     LightningRod, LightningRodArc, LightningStrike,
 };
@@ -226,8 +227,8 @@ pub fn collect_spell_projectile_snapshots(
     ice_projectiles: Query<&Transform, With<IceProjectile>>,
     meteor_projectiles: Query<&Transform, With<MeteorProjectile>>,
     chain_arcs: Query<&ChainLightningArc>,
-    lightning_strikes: Query<(&LightningStrike, &Transform)>,
-    lightning_rod_arcs: Query<(&LightningRodArc, &Transform)>,
+    lightning_strikes: Query<(&LightningStrike, &LightningBolt)>,
+    lightning_rod_arcs: Query<&LightningRodArc>,
     fod_beams: Query<&FingerOfDeathBeam>,
     disintegrate_beams: Query<&DisintegrateBeam>,
 ) {
@@ -273,12 +274,12 @@ pub fn collect_spell_projectile_snapshots(
         });
     }
 
-    for (strike, transform) in &lightning_strikes {
+    for (strike, bolt) in &lightning_strikes {
         spell_data.spell_arcs.push(SpellArcSnapshot {
             kind: 1,
-            ox: transform.translation.x,
-            oy: transform.translation.y,
-            oz: transform.translation.z,
+            ox: bolt.end.x,
+            oy: bolt.end.y,
+            oz: bolt.end.z,
             tx: strike.target_pos.x,
             ty: strike.target_pos.y,
             tz: strike.target_pos.z,
@@ -302,21 +303,15 @@ pub fn collect_spell_projectile_snapshots(
         });
     }
 
-    for (_arc, transform) in &lightning_rod_arcs {
-        let pos = transform.translation;
-        let scale = transform.scale;
-        let up = transform.rotation * Vec3::Y;
-        let half_len = scale.y * 0.5;
-        let start = pos - up * half_len;
-        let end = pos + up * half_len;
+    for arc in &lightning_rod_arcs {
         spell_data.spell_arcs.push(SpellArcSnapshot {
             kind: 5,
-            ox: start.x,
-            oy: start.y,
-            oz: start.z,
-            tx: end.x,
-            ty: end.y,
-            tz: end.z,
+            ox: arc.start.x,
+            oy: arc.start.y,
+            oz: arc.start.z,
+            tx: arc.end.x,
+            ty: arc.end.y,
+            tz: arc.end.z,
         });
     }
 

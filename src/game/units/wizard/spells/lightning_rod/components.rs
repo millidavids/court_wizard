@@ -118,21 +118,9 @@ pub(crate) struct LightningStrike {
     pub talent_params: LightningRodTalentParams,
 }
 
-/// Visual lightning arc between the rod and a hit target.
+/// Snapshot-only marker on a `LightningBolt` parent for multiplayer serialization.
 #[derive(Component)]
 pub(crate) struct LightningRodArc {
-    /// Time remaining before arc despawns (seconds).
-    pub lifetime: f32,
-    /// Time since arc was created (for animation).
-    pub time_alive: f32,
-}
-
-impl LightningRodArc {
-    /// Creates a new arc visual.
-    pub fn new(lifetime: f32) -> Self {
-        Self {
-            lifetime,
-            time_alive: 0.0,
-        }
-    }
+    pub start: Vec3,
+    pub end: Vec3,
 }

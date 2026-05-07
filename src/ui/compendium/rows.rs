@@ -381,17 +381,15 @@ pub(super) fn update_detail_panel(
                 }
                 if is_unlocked && let Ok(status_container) = status_container_q.single() {
                     let effects = effective_status_effects(*spell, wizard_type);
-                    commands
-                        .entity(status_container)
-                        .with_children(|parent| {
-                            spawn_status_effects_section(
-                                parent,
-                                effects,
-                                DETAIL_DESC_FONT_SIZE,
-                                UNLOCKED_COLOR,
-                                None,
-                            );
-                        });
+                    commands.entity(status_container).with_children(|parent| {
+                        spawn_status_effects_section(
+                            parent,
+                            effects,
+                            DETAIL_DESC_FONT_SIZE,
+                            UNLOCKED_COLOR,
+                            None,
+                        );
+                    });
                 }
                 if let Ok(mut t) = flavor_q.single_mut() {
                     **t = spell.locked_description().to_string();

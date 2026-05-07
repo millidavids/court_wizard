@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::{ChainLightningArc, ChainLightningBolt, ChainLightningGroup};
+use super::components::{ChainLightningBolt, ChainLightningGroup};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -21,15 +21,11 @@ impl Plugin for ChainLightningPlugin {
                     .run_if(mouse_held_or_wizard_casting),
                 (
                     systems::process_chain_lightning_bounces,
-                    systems::update_chain_lightning_arcs,
-                    systems::cleanup_chain_lightning,
                     systems::cleanup_chain_lightning_groups,
                 )
                     .chain()
                     .run_if(
-                        any_exist::<ChainLightningBolt>()
-                            .or(any_exist::<ChainLightningArc>())
-                            .or(any_exist::<ChainLightningGroup>()),
+                        any_exist::<ChainLightningBolt>().or(any_exist::<ChainLightningGroup>()),
                     ),
             )
                 .run_if(is_spell_effects_active),

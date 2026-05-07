@@ -8,7 +8,6 @@ use super::components::{
 };
 use super::constants;
 use super::sheep_visual::SheepBounce;
-use crate::game::units::systems::create_sprite_material;
 use crate::config::GameConfig;
 use crate::game::components::Billboard;
 use crate::game::crt_effect::CorrectedCursorPosition;
@@ -19,6 +18,7 @@ use crate::game::units::components::{
     AttackTiming, Corpse, Health, PolymorphedModifier, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::systems::create_sprite_material;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_cursor_to_spell_range,

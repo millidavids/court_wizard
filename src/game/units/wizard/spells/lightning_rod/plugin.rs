@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use super::components::{LightningRod, LightningRodArc, LightningStrike};
+use super::components::{LightningRod, LightningStrike};
 use super::systems::*;
 use crate::game::run_conditions::is_spell_effects_active;
 use crate::game::units::wizard::components::Spell;
@@ -28,8 +28,6 @@ impl Plugin for LightningRodPlugin {
                 update_lightning_rod.run_if(any_exist::<LightningRod>()),
                 // Strike systems
                 update_lightning_strikes.run_if(any_exist::<LightningStrike>()),
-                // Arc visual updates
-                update_lightning_rod_arcs.run_if(any_exist::<LightningRodArc>()),
             )
                 .run_if(is_spell_effects_active),
         );

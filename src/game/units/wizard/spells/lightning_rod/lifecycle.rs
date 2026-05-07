@@ -2,10 +2,9 @@
 
 use std::cmp::Ordering;
 
-use super::casting::spawn_lightning_bolt;
+use super::casting::spawn_descending_strike;
 use super::components::{LightningRod, LightningRodArc, LightningRodTalentParams, LightningStrike};
 use super::constants::*;
-use crate::game::components::OnGameplayScreen;
 use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::terrain::pond::components::Pond;
 use crate::game::units::DamageType;
@@ -14,6 +13,9 @@ use crate::game::units::components::{
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::Spell;
+use crate::game::units::wizard::spells::lightning_bolt::{
+    LightningBolt, LightningBoltConfig, spawn_lightning_bolt,
+};
 use crate::game::units::wizard::spells::utils::xz_distance;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::BattleTalentProgress;
@@ -66,7 +68,7 @@ pub(super) fn update_lightning_rod(
 
             let target_pos = Vec3::new(rod.position.x, TOWER_HEIGHT, rod.position.z);
 
-            spawn_lightning_bolt(
+            spawn_descending_strike(
                 &mut commands,
                 &visual_assets,
                 LightningStrike {
@@ -90,7 +92,7 @@ pub(super) fn update_lightning_strikes(
     time: Res<Time>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
-    mut strikes: Query<(Entity, &mut Transform, &LightningStrike)>,
+    mut strikes: Query<(Entity, &mut LightningBolt, &LightningStrike)>,
     mut screen_flash: MessageWriter<crate::game::crt_effect::ScreenFlashMessage>,
     mut units: Query<
         (
@@ -109,12 +111,16 @@ pub(super) fn update_lightning_strikes(
 ) {
     let delta = time.delta_secs();
 
-    for (entity, mut transform, strike) in strikes.iter_mut() {
-        // Move downward
-        transform.translation.y -= strike.speed * delta;
+    for (entity, mut bolt, strike) in strikes.iter_mut() {
+        // Drive the bolt's end downward; the jagged-bolt system re-jitters
+        // around start/end every frame so the descent looks natural.
+        bolt.end.y -= strike.speed * delta;
 
         // Check if bolt has reached the rod
-        if transform.translation.y <= strike.target_pos.y {
+        if bolt.end.y <= strike.target_pos.y {
+            // Snap end to the rod top so the frozen afterimage shows the bolt
+            // touching the rod, not overshooting through the ground.
+            bolt.end.y = strike.target_pos.y;
             terrain_damage.write(TerrainDamageMessage {
                 position: strike.target_pos,
                 radius: strike.arc_radius,
@@ -159,7 +165,7 @@ pub(super) fn update_lightning_strikes(
                 let next_mult = strike.nexus_damage_mult * LIGHTNING_NEXUS_FALLOFF;
                 // Only spawn bonus if damage is still meaningful (> 5% of original)
                 if next_mult >= 0.05 {
-                    spawn_lightning_bolt(
+                    spawn_descending_strike(
                         &mut commands,
                         &visual_assets,
                         LightningStrike {
@@ -176,8 +182,16 @@ pub(super) fn update_lightning_strikes(
                 }
             }
 
-            // Despawn the strike bolt
-            commands.entity(entity).try_despawn();
+            // End the active phase. The shared `update_lightning_bolts` path
+            // sees `lifetime <= 0` next iteration and transitions the bolt
+            // into its afterimage fade.
+            //
+            // Remove the `LightningStrike` component so this system stops
+            // matching the entity. Otherwise the clamped `end.y` keeps
+            // satisfying the impact check every frame for the entire
+            // afterimage duration, re-applying damage and re-spawning arcs.
+            bolt.lifetime = 0.0;
+            commands.entity(entity).remove::<LightningStrike>();
         }
     }
 }
@@ -338,7 +352,9 @@ fn apply_arc_hit(
     killed
 }
 
-/// Spawns a lightning arc visual between two points.
+/// Spawns a jagged ground-arc lightning bolt between two points. A
+/// `LightningRodArc` marker is attached to the parent so the multiplayer
+/// snapshot collector can serialize it.
 fn spawn_arc(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
@@ -346,57 +362,24 @@ fn spawn_arc(
     end: Vec3,
     empowerment: f32,
 ) {
-    let midpoint = (start + end) / 2.0;
-    let direction = (end - start).normalize();
-    let length = start.distance(end);
-
     let arc_width = ARC_WIDTH * empowerment;
-
-    let rotation = Quat::from_rotation_arc(Vec3::Y, direction);
-
-    commands.spawn((
-        LightningRodArc::new(ARC_LIFETIME),
-        Mesh3d(assets.unit_rect.clone()),
-        MeshMaterial3d(assets.lightning_rod_arc.clone()),
-        Transform::from_translation(midpoint)
-            .with_rotation(rotation)
-            .with_scale(Vec3::new(arc_width, length, arc_width)),
-        OnGameplayScreen,
-    ));
-}
-
-/// Updates lightning arc visuals with pulsing animation and despawns expired arcs.
-pub(super) fn update_lightning_rod_arcs(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut arcs: Query<(
-        Entity,
-        &mut LightningRodArc,
-        &mut MeshMaterial3d<StandardMaterial>,
-    )>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    for (entity, mut arc, material_handle) in &mut arcs {
-        arc.time_alive += time.delta_secs();
-        arc.lifetime -= time.delta_secs();
-
-        // Despawn expired arcs
-        if arc.lifetime <= 0.0 {
-            commands.entity(entity).try_despawn();
-            continue;
-        }
-
-        // Pulsing intensity animation
-        let intensity = 0.7 + 0.3 * (arc.time_alive * 20.0).sin();
-
-        if let Some(material) = materials.get_mut(&material_handle.0) {
-            let base = ARC_COLOR;
-            material.base_color = Color::srgba(
-                base.to_srgba().red * intensity,
-                base.to_srgba().green * intensity,
-                base.to_srgba().blue * intensity,
-                base.to_srgba().alpha,
-            );
-        }
-    }
+    let bolt = spawn_lightning_bolt(
+        commands,
+        assets.unit_rect.clone(),
+        assets.lightning_rod_arc.clone(),
+        start,
+        end,
+        LightningBoltConfig {
+            width: arc_width,
+            lifetime: ARC_LIFETIME,
+            peak_height: 0.0,
+            jitter_amplitude: 10.0,
+            segments: 14,
+            fork_count: 1,
+            fork_segments: 3,
+            fork_length: arc_width * 4.0 + 12.0,
+            afterimage_duration: 0.25,
+        },
+    );
+    commands.entity(bolt).insert(LightningRodArc { start, end });
 }

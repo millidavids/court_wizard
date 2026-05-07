@@ -22,6 +22,9 @@ use crate::game::units::components::{
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::lightning_bolt::{
+    LightningBoltConfig, spawn_lightning_bolt,
+};
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -401,9 +404,12 @@ fn find_target_near_position_excluding(
         })
 }
 
-/// Spawns a lightning arc visual between two points as a parabolic curve.
-/// The arc rises upward at the midpoint and comes back down, creating a
-/// natural lightning-through-the-sky effect.
+/// Spawns a jagged lightning arc visual between two points. Depth-0 bolts run
+/// along the ground; deeper bounces gain a small parabolic arch. The bolt
+/// re-jitters every frame for a crackling look (see `lightning_bolt` module).
+///
+/// A `ChainLightningArc` marker is attached to the parent so the multiplayer
+/// snapshot collector can serialize the start/end of each bolt.
 pub(crate) fn spawn_arc(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
@@ -413,11 +419,8 @@ pub(crate) fn spawn_arc(
     empowerment: f32,
 ) {
     let arc_width = arc_width_at_depth(depth, empowerment);
-    let segments = constants::ARC_SEGMENTS;
 
-    // Calculate peak height based on horizontal distance and depth.
-    // Depth 0 (initial bolt from wizard) is a straight line.
-    // Each subsequent depth arcs progressively higher.
+    // Depth 0 (initial bolt from wizard) runs straight; deeper splits arc.
     let horizontal_dist = Vec3::new(start.x - end.x, 0.0, start.z - end.z).length();
     let height_factor = constants::ARC_HEIGHT_FACTOR + constants::ARC_HEIGHT_GROWTH * depth as f32;
     let peak_height = if depth == 0 {
@@ -426,44 +429,32 @@ pub(crate) fn spawn_arc(
         horizontal_dist * height_factor
     };
 
-    // Spawn segments along a parabolic curve
-    for i in 0..segments {
-        let t0 = i as f32 / segments as f32;
-        let t1 = (i + 1) as f32 / segments as f32;
+    let jitter_amplitude =
+        constants::ARC_JITTER_BASE * constants::ARC_JITTER_DEPTH_FALLOFF.powi(depth as i32);
+    let fork_count = if depth == 0 { 2 } else { 1 };
 
-        let p0 = arc_point(start, end, peak_height, t0);
-        let p1 = arc_point(start, end, peak_height, t1);
+    let config = LightningBoltConfig {
+        width: arc_width,
+        lifetime: constants::ARC_LIFETIME,
+        peak_height,
+        jitter_amplitude,
+        segments: constants::ARC_SEGMENTS,
+        fork_count,
+        fork_segments: 3,
+        fork_length: arc_width * 4.0 + 12.0,
+        afterimage_duration: constants::ARC_AFTERIMAGE_DURATION,
+    };
 
-        let seg_midpoint = (p0 + p1) / 2.0;
-        let seg_direction = (p1 - p0).normalize();
-        let seg_length = p0.distance(p1);
+    let bolt = spawn_lightning_bolt(
+        commands,
+        assets.unit_rect.clone(),
+        assets.chain_lightning_arc.clone(),
+        start,
+        end,
+        config,
+    );
 
-        let rotation = Quat::from_rotation_arc(Vec3::Y, seg_direction);
-
-        commands.spawn((
-            ChainLightningArc {
-                start: p0,
-                end: p1,
-                lifetime: constants::ARC_LIFETIME,
-                time_alive: 0.0,
-                depth,
-            },
-            Mesh3d(assets.unit_rect.clone()),
-            MeshMaterial3d(assets.chain_lightning_arc.clone()),
-            Transform::from_translation(seg_midpoint)
-                .with_rotation(rotation)
-                .with_scale(Vec3::new(arc_width, seg_length, arc_width)),
-            OnGameplayScreen,
-        ));
-    }
-}
-
-/// Calculates a point along a parabolic arc between start and end.
-/// t ranges from 0.0 (start) to 1.0 (end). The arc peaks at t=0.5.
-fn arc_point(start: Vec3, end: Vec3, peak_height: f32, t: f32) -> Vec3 {
-    // Linear interpolation for the base position
-    let base = start.lerp(end, t);
-    // Parabolic height: 4 * h * t * (1 - t) peaks at h when t = 0.5
-    let height_offset = 4.0 * peak_height * t * (1.0 - t);
-    Vec3::new(base.x, base.y + height_offset, base.z)
+    commands
+        .entity(bolt)
+        .insert(ChainLightningArc { start, end });
 }

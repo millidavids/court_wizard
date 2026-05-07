@@ -10,8 +10,8 @@ use crate::game::resources::GameOutcome;
 use crate::game::units::archer::Archer;
 use crate::game::units::archer::components::Arrow;
 use crate::game::units::components::{
-    Corpse, Shocked, FireDoT, FrostAccumulation, Health, KingsGuard, RemoteElectricEffect,
-    RemoteFireEffect, RemoteFrostEffect, Team,
+    Corpse, FireDoT, FrostAccumulation, Health, KingsGuard, RemoteElectricEffect, RemoteFireEffect,
+    RemoteFrostEffect, Shocked, Team,
 };
 use crate::game::units::king::components::{King, SpellShield};
 use crate::networking::crdt::CrdtHealth;

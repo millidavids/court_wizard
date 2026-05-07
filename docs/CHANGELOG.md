@@ -2,7 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v0.7.331] - 2026-05-07
+## [pending]
+
+### Changed
+- **Lightning looks and feels like real lightning** — the bolts that come from your wizard during chain lightning, the strikes that fall from the sky onto a lightning rod, and the hag's chain lightning all got a major visual overhaul. Instead of straight blueish-white lines, bolts now crackle and meander through the air with branching forks, and they leave a brief shadowy afterimage that lingers in your vision after they fade — like the spot you see after a real lightning flash
+- **Lightning is much faster** — the lightning rod's strike from the sky now reaches the rod almost instantly with just a perceptible flash of travel time, and chain lightning bounces between targets quicker too
+
+### Fixed
+- **Lightning rod no longer one-shots units** — a recent visual change was accidentally making the lightning rod apply its damage many times per strike. Each strike now correctly damages targets only once
 
 ### Added
 - **Status effects in spell descriptions** — spell book and compendium entries now list the lingering effects each spell can leave on its targets. Fireball spells out what Burning does, Squall explains Frost and Frozen, Entangle explains Rooted, lightning spells explain Shocked, and so on. The "Status effects" header is highlighted in gold and each effect's name is color-coded — orange for Burning, yellow for Shocked, blue for Frost, green for Poisoned, and so on — so the section pops at a glance

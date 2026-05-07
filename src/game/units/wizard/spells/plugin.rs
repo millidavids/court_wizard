@@ -26,6 +26,7 @@ use super::grease::GreasePlugin;
 use super::guardian_circle::GuardianCirclePlugin;
 use super::haste::HastePlugin;
 use super::healing_plume::HealingPlumePlugin;
+use super::lightning_bolt::{LightningBolt, cleanup_lightning_bolts, update_lightning_bolts};
 use super::lightning_rod::LightningRodPlugin;
 use super::magic_missile::MagicMissilePlugin;
 use super::mark_of_death::MarkOfDeathPlugin;
@@ -124,6 +125,13 @@ impl Plugin for SpellsPlugin {
                     insert_global_cooldown_on_cast,
                     block_spells_during_global_cooldown,
                 )
+                    .run_if(is_spell_effects_active),
+            )
+            .add_systems(
+                Update,
+                (update_lightning_bolts, cleanup_lightning_bolts)
+                    .chain()
+                    .run_if(any_exist::<LightningBolt>())
                     .run_if(is_spell_effects_active),
             );
     }

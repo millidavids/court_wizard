@@ -13,6 +13,9 @@ use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::lightning_bolt::{
+    LightningBoltConfig, spawn_lightning_bolt,
+};
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     clamp_to_spell_range_ground, cleanup_spell_caster, handle_spell_release,
@@ -70,32 +73,53 @@ fn compute_talent_params(active_talents: Option<&ActiveTalents>) -> LightningRod
     params
 }
 
-/// Spawns a descending lightning bolt entity targeting the rod.
-pub(super) fn spawn_lightning_bolt(
+/// Spawns a descending lightning bolt: a jagged `LightningBolt` parent that
+/// the strike system drives downward by mutating its `end.y`. The
+/// `LightningStrike` component lives on the same entity so the descent system
+/// can find it.
+pub(super) fn spawn_descending_strike(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     strike: LightningStrike,
 ) {
+    let bolt_width = STRIKE_BOLT_WIDTH * strike.empowerment;
     let strike_start = Vec3::new(
         strike.target_pos.x,
         STRIKE_SPAWN_HEIGHT,
         strike.target_pos.z,
     );
-    let bolt_length = STRIKE_SPAWN_HEIGHT - TOWER_HEIGHT;
-    let bolt_width = STRIKE_BOLT_WIDTH * strike.empowerment;
-    let midpoint = (strike_start + strike.target_pos) / 2.0;
-
-    commands.spawn((
-        strike,
-        Mesh3d(assets.unit_rect.clone()),
-        MeshMaterial3d(assets.lightning_strike.clone()),
-        Transform::from_translation(midpoint).with_scale(Vec3::new(
-            bolt_width,
-            bolt_length,
-            bolt_width,
-        )),
-        OnGameplayScreen,
-    ));
+    // Use the cross-plane cylinder so the vertical bolt reads as a solid tube
+    // from any camera angle. A flat `unit_rect` thins out and visibly breaks
+    // apart between jagged segments because each segment's roll-axis rotation
+    // can flip independently with the jitter direction.
+    let bolt_entity = spawn_lightning_bolt(
+        commands,
+        assets.cross_plane_cylinder.clone(),
+        assets.lightning_strike.clone(),
+        strike_start,
+        // Bolt visible length grows as the head descends; start with a short tail.
+        Vec3::new(
+            strike.target_pos.x,
+            STRIKE_SPAWN_HEIGHT - 1.0,
+            strike.target_pos.z,
+        ),
+        LightningBoltConfig {
+            width: bolt_width,
+            // Effectively no per-bolt lifetime cap — the descent system flips
+            // the bolt into its afterimage phase on impact.
+            lifetime: 60.0,
+            peak_height: 0.0,
+            jitter_amplitude: 18.0,
+            segments: 24,
+            fork_count: 2,
+            fork_segments: 3,
+            fork_length: bolt_width * 4.0 + 30.0,
+            // Long, slow fade so the bolt visibly hangs at the rod after
+            // impact — like the retinal ghost of a real lightning strike.
+            afterimage_duration: 0.4,
+        },
+    );
+    commands.entity(bolt_entity).insert(strike);
 }
 
 /// Local wizard Lightning Rod casting -- reads mouse input.

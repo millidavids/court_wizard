@@ -7,7 +7,6 @@ use std::collections::HashSet;
 use super::super::super::components::Spell;
 use super::components::*;
 use super::constants;
-use super::constants::arc_color_at_depth;
 use crate::game::components::OnGameplayScreen;
 use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::terrain::pond::components::Pond;
@@ -394,48 +393,6 @@ fn find_next_bounce_targets(
         .take(max_targets)
         .map(|(entity, pos, _)| (entity, pos))
         .collect()
-}
-
-/// Updates chain lightning arc visuals with pulsing animation.
-pub fn update_chain_lightning_arcs(
-    time: Res<Time>,
-    mut arcs: Query<(
-        &mut ChainLightningArc,
-        &mut MeshMaterial3d<StandardMaterial>,
-    )>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    config: Res<crate::config::GameConfig>,
-) {
-    let is_excremage = config.wizard_type == crate::config::WizardType::Excremage;
-    for (mut arc, material_handle) in &mut arcs {
-        // Update timers
-        arc.time_alive += time.delta_secs();
-        arc.lifetime -= time.delta_secs();
-
-        // Calculate pulsing intensity
-        let intensity = 0.7 + 0.3 * (arc.time_alive * 20.0).sin();
-
-        // Update material color with pulsing effect (using depth-scaled base color)
-        if let Some(material) = materials.get_mut(&material_handle.0) {
-            let base = arc_color_at_depth(arc.depth, is_excremage);
-            let base_srgba = base.to_srgba();
-            material.base_color = Color::srgba(
-                base_srgba.red * intensity,
-                base_srgba.green * intensity,
-                base_srgba.blue * intensity,
-                base_srgba.alpha,
-            );
-        }
-    }
-}
-
-/// Cleans up chain lightning arcs that have expired.
-pub fn cleanup_chain_lightning(mut commands: Commands, arcs: Query<(Entity, &ChainLightningArc)>) {
-    for (entity, arc) in &arcs {
-        if arc.lifetime <= 0.0 {
-            commands.entity(entity).try_despawn();
-        }
-    }
 }
 
 /// Cleans up chain lightning groups that have no remaining bolts.

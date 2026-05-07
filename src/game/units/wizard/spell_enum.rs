@@ -568,10 +568,7 @@ impl Spell {
     /// Default spells have cost 0 — they start unlocked. See `default_unlocked()`.
     pub const fn research_cost(&self) -> u32 {
         match self {
-            Spell::MagicMissile
-            | Spell::Telekinesis
-            | Spell::GuardianCircle
-            | Spell::Entangle => 0,
+            Spell::MagicMissile | Spell::Telekinesis | Spell::GuardianCircle | Spell::Entangle => 0,
             // Root spells (immediately researchable)
             Spell::Disintegrate => 30,
             Spell::Grease => 30,

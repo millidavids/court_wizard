@@ -1,7 +1,5 @@
 //! Lightning Rod spell constants.
 
-use bevy::prelude::*;
-
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
 
 /// Primed Lightning Rod spell configuration.
@@ -42,7 +40,9 @@ pub const STRIKE_INTERVAL: f32 = 2.0;
 pub const STRIKE_SPAWN_HEIGHT: f32 = 2000.0;
 
 /// How fast the lightning bolt travels downward (units/second).
-pub const STRIKE_SPEED: f32 = 4000.0;
+/// Tuned so the ~1940-unit descent takes ~0.05s — a perceptible flash, not
+/// an instantaneous teleport.
+pub const STRIKE_SPEED: f32 = 40000.0;
 
 /// Visual width of the descending lightning bolt.
 pub const STRIKE_BOLT_WIDTH: f32 = 10.0;
@@ -63,11 +63,6 @@ pub const ARC_LIFETIME: f32 = 0.3;
 
 /// Visual width of the lightning arcs.
 pub const ARC_WIDTH: f32 = 6.0;
-
-// ===== Colors =====
-
-/// Color of the arcs that jump to targets (electric blue).
-pub const ARC_COLOR: Color = Color::srgb(0.7, 0.85, 1.0);
 
 // ===== Talent Constants =====
 
