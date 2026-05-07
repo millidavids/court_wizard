@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.7.331] - 2026-05-07
 
 ### Added
 - **Status effects in spell descriptions** — spell book and compendium entries now list the lingering effects each spell can leave on its targets. Fireball spells out what Burning does, Squall explains Frost and Frozen, Entangle explains Rooted, lightning spells explain Shocked, and so on. The "Status effects" header is highlighted in gold and each effect's name is color-coded — orange for Burning, yellow for Shocked, blue for Frost, green for Poisoned, and so on — so the section pops at a glance
