@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.7.353] - 2026-05-07
 
 ### Changed
 - **Lightning looks and feels like real lightning** — the bolts that come from your wizard during chain lightning, the strikes that fall from the sky onto a lightning rod, and the hag's chain lightning all got a major visual overhaul. Instead of straight blueish-white lines, bolts now crackle and meander through the air with branching forks, and they leave a brief shadowy afterimage that lingers in your vision after they fade — like the spot you see after a real lightning flash
