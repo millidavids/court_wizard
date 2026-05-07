@@ -108,14 +108,3 @@ pub struct MuzzleFlash {
     pub timer: f32,
 }
 
-/// Brief white flash on enemies hit by bullets.
-#[derive(Component)]
-pub struct BulletHitFlash {
-    pub timer: f32,
-}
-
-/// Visual overlay for bullet hit flash (white sphere that shrinks and despawns).
-#[derive(Component)]
-pub struct BulletHitFlashVfx {
-    pub timer: f32,
-}

@@ -151,7 +151,11 @@ pub fn spawn_scrollable_left_detail_panel<M: Component>(
     parent
         .commands()
         .entity(detail_box)
-        .insert((marker, ScrollPosition::default()));
+        .insert((
+            marker,
+            ScrollPosition::default(),
+            crate::ui::focus::GamepadScrollTarget,
+        ));
     parent
         .commands()
         .entity(detail_box)
@@ -195,6 +199,7 @@ pub fn spawn_right_scroll_panel<M: Component>(
             BackgroundColor(LIST_BG),
             BorderColor::all(LIST_BORDER),
             ScrollPosition::default(),
+            crate::ui::focus::GamepadScrollTarget,
             marker,
         ))
         .id()

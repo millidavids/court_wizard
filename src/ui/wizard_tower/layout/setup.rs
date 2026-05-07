@@ -276,6 +276,7 @@ pub(crate) fn setup_wizard_tower_layout(
                         ..default()
                     },
                     ScrollPosition::default(),
+                    crate::ui::focus::GamepadScrollTarget,
                     Interaction::None,
                     BackgroundColor(DETAIL_BG),
                     BorderColor::all(DETAIL_BORDER),
@@ -371,6 +372,7 @@ pub(crate) fn setup_wizard_tower_layout(
                                 ..default()
                             },
                             ScrollPosition::default(),
+                            crate::ui::focus::GamepadScrollTarget,
                             Interaction::None,
                             BackgroundColor(SECTION_BG),
                             BorderColor::all(DETAIL_BORDER),

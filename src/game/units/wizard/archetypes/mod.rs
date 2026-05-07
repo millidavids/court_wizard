@@ -1,7 +1,7 @@
-//! Wizard archetype systems (RuneCaster, Randomancer, Arcanorouter, Gunslinger, Battlemage, Meteorologist, and Shepherd).
+//! Wizard archetype systems (RuneCaster, Randomancer, Arcanorouter, Gunslinger, Swordcerer, Meteorologist, and Shepherd).
 
 pub(crate) mod arcanorouter;
-pub(crate) mod battlemage;
+pub(crate) mod swordcerer;
 pub(crate) mod gunslinger;
 pub(crate) mod meteorologist;
 pub(crate) mod psychopath;
@@ -12,7 +12,7 @@ pub(crate) mod shepherd;
 use bevy::prelude::*;
 
 use arcanorouter::ArcanoRouterPlugin;
-use battlemage::BattlemagePlugin;
+use swordcerer::SwordcererPlugin;
 use gunslinger::GunslingerPlugin;
 use meteorologist::MeteorologistPlugin;
 use psychopath::PsychopathPlugin;
@@ -30,7 +30,7 @@ impl Plugin for ArchetypesPlugin {
             RoulettePlugin,
             ArcanoRouterPlugin,
             GunslingerPlugin,
-            BattlemagePlugin,
+            SwordcererPlugin,
             MeteorologistPlugin,
             ShepherdPlugin,
             PsychopathPlugin,

@@ -171,6 +171,16 @@ impl Plugin for UnitsPlugin {
                         .run_if(any_with_component::<FearModifier>),
                 )
                     .run_if(is_gameplay_running),
+            )
+            .add_systems(
+                Update,
+                (
+                    super::hit_flash::update_hit_flashes
+                        .run_if(any_with_component::<super::hit_flash::HitFlash>),
+                    super::hit_flash::update_hit_flash_vfx
+                        .run_if(any_with_component::<super::hit_flash::HitFlashVfx>),
+                )
+                    .run_if(is_spell_effects_active),
             );
     }
 }

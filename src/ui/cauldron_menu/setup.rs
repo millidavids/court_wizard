@@ -405,6 +405,7 @@ fn spawn_ingredient_list(
             BackgroundColor(LIST_BG),
             BorderColor::all(LIST_BORDER),
             ScrollPosition::default(),
+            crate::ui::focus::GamepadScrollTarget,
         ))
         .with_children(|list| {
             let at_limit = selection.at_limit();

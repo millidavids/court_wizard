@@ -273,6 +273,7 @@ fn spawn_time_travel_section(parent: &mut ChildSpawnerCommands, config: &GameCon
                         ..default()
                     },
                     ScrollPosition::default(),
+                    crate::ui::focus::GamepadScrollTarget,
                     TimeTravelSection,
                 ))
                 .with_children(|list| {

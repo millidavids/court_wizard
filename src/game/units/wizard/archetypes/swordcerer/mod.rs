@@ -8,4 +8,4 @@ pub(crate) mod systems;
 mod ui;
 
 pub(crate) use constants::CLOSE_CALL_DISTANCE;
-pub(in crate::game) use plugin::BattlemagePlugin;
+pub(in crate::game) use plugin::SwordcererPlugin;

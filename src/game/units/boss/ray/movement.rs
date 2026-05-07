@@ -79,7 +79,7 @@ pub fn spawn_ray(rng: &mut impl Rng, mut commands: Commands, assets: Res<RayAsse
             RayState::Approaching,
             RayEyeState::new(),
             DamageMultiplier(RAY_DAMAGE_MULTIPLIER),
-            crate::game::units::boss::ogre::MeleeDamageReduction {
+            crate::game::units::components::MeleeDamageReduction {
                 multiplier: RAY_MELEE_DAMAGE_REDUCTION,
             },
             TargetingVelocity::default(),

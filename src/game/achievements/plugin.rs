@@ -264,7 +264,7 @@ impl Plugin for AchievementsPlugin {
                     .run_if(on_message::<MarkedForDeathKillMessage>)
                     .run_if(achievement_locked::<RightToBearArmsAchievement>),
             )
-            // Close Call — enemy killed near the wizard (unlocks Battlemage)
+            // Close Call — enemy killed near the wizard (unlocks Swordcerer)
             .add_systems(
                 Update,
                 systems::check_close_call

@@ -73,13 +73,6 @@ impl Plugin for GunslingerPlugin {
                     .run_if(any_exist::<BulletTracer>())
                     .run_if(is_spell_effects_active),
             )
-            // Bullet hit flash
-            .add_systems(
-                Update,
-                (update_bullet_hit_flashes, update_bullet_hit_flash_vfx)
-                    .run_if(any_exist::<BulletHitFlash>().or(any_exist::<BulletHitFlashVfx>()))
-                    .run_if(is_spell_effects_active),
-            )
             // Flame particle systems
             .add_systems(
                 Update,

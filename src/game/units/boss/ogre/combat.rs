@@ -90,7 +90,7 @@ pub fn spawn_ogre(
             OgreChargeState::Idle {
                 cooldown: OGRE_CHARGE_COOLDOWN,
             },
-            MeleeDamageReduction {
+            crate::game::units::components::MeleeDamageReduction {
                 multiplier: OGRE_MELEE_DAMAGE_REDUCTION,
             },
             // Movement systems

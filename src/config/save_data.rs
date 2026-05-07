@@ -570,6 +570,12 @@ fn load_from_disk() -> Option<UnifiedSaveFile> {
                     data.player.unlocked_content.spells.push(default_spell);
                 }
             }
+            // Migrate: rename "Battlemage" unlock key to "Swordcerer"
+            for t in &mut data.player.unlocked_content.wizard_types {
+                if t == "Battlemage" {
+                    *t = "Swordcerer".to_string();
+                }
+            }
             Some(data)
         }
         Err(e) => {

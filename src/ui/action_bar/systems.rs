@@ -148,11 +148,22 @@ pub(super) fn spawn_action_bar(
                             ActionBarSlot { slot },
                         ))
                         .with_children(|button| {
-                            // Hotkey indicator at top
+                            // Hidden at spawn when the radial layout is
+                            // already settled — `animate_layout_morph`'s
+                            // `last_applied` early-out won't re-hide on
+                            // slot respawn if `progress.0` hasn't changed.
                             button.spawn((
                                 Text::new(hotkey_label),
                                 TextFont::from_font_size(HOTKEY_FONT_SIZE),
                                 TextColor(Color::srgba(0.7, 0.7, 0.7, 1.0)),
+                                Node {
+                                    display: if layout_progress.0 > 0.5 {
+                                        Display::None
+                                    } else {
+                                        Display::Flex
+                                    },
+                                    ..default()
+                                },
                                 ActionBarHotkeyText,
                             ));
 

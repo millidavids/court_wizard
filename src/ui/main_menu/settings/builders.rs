@@ -164,6 +164,7 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
             }),
             ScrollPosition::default(),
             SettingsContentContainer,
+            crate::ui::focus::GamepadScrollTarget,
         ));
     });
 }
@@ -737,7 +738,7 @@ fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::confi
                 );
             }
 
-            if is_unlocked("Battlemage") {
+            if is_unlocked("Swordcerer") {
                 spawn_controls_subsection(
                     section,
                     "Swordcerer",
@@ -745,18 +746,18 @@ fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::confi
                     &[
                         (
                             "Forward:",
-                            BindingContext::Battlemage,
+                            BindingContext::Swordcerer,
                             BindingAction::MoveForward,
                         ),
                         (
                             "Backward:",
-                            BindingContext::Battlemage,
+                            BindingContext::Swordcerer,
                             BindingAction::MoveBackward,
                         ),
-                        ("Left:", BindingContext::Battlemage, BindingAction::MoveLeft),
+                        ("Left:", BindingContext::Swordcerer, BindingAction::MoveLeft),
                         (
                             "Right:",
-                            BindingContext::Battlemage,
+                            BindingContext::Swordcerer,
                             BindingAction::MoveRight,
                         ),
                     ],

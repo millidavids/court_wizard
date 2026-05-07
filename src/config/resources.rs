@@ -185,8 +185,9 @@ pub enum WizardType {
     Alchemist,
     /// Warglock - replaces spells with 5 guns.
     Warglock,
-    /// Battlemage - enters the battlefield as a melee/ranged fighter.
-    Battlemage,
+    /// Swordcerer - enters the battlefield as a melee/ranged fighter.
+    #[serde(alias = "Battlemage")]
+    Swordcerer,
     /// Meteorologist - manipulates weather to apply global status effects.
     Meteorologist,
     /// Shepherd - support-only wizard with no damage-dealing spells, bonus to support effects.
@@ -206,7 +207,7 @@ impl WizardType {
             WizardType::Excremage => "Excremage",
             WizardType::Alchemist => "The Alchemist",
             WizardType::Warglock => "Warglock",
-            WizardType::Battlemage => "Swordcerer",
+            WizardType::Swordcerer => "Swordcerer",
             WizardType::Meteorologist => "Meteorologist",
             WizardType::Shepherd => "Shepherd",
             WizardType::Psychopath => "Psychopath",
@@ -232,7 +233,7 @@ impl WizardType {
             WizardType::Excremage => "Turn all spells into poop.",
             WizardType::Alchemist => "Master the cauldron with faster brews and stronger potions.",
             WizardType::Warglock => "Who needs spells when you have guns?",
-            WizardType::Battlemage => "Leave the tower. Enter the fray.",
+            WizardType::Swordcerer => "Leave the tower. Enter the fray.",
             WizardType::Meteorologist => "Control the weather. Control the battlefield.",
             WizardType::Shepherd => "Heal. Shield. Inspire. Never harm.",
             WizardType::Psychopath => "Burn it all. Both sides.",
@@ -263,7 +264,7 @@ impl WizardType {
             WizardType::Warglock => {
                 "Spells? Where you're going, you don't need spells. Your 5 action bar slots become 5 different guns, each with its own ammo pool. Machine gun sprays bullets, magnum hits hard, rocket launcher explodes, shotgun blasts in a cone, and flamethrower burns everything. Reload with R or let it auto-reload when empty."
             }
-            WizardType::Battlemage => {
+            WizardType::Swordcerer => {
                 "Click 'Enter the Fray' to leave your tower and join the battle as a warrior. Move with WASD, shoot magic missiles with left-click, and swing your sword with right-click. You're fast but vulnerable — if your health hits zero, you teleport back to the tower. While on the field, spells, spell book, and cauldron are disabled."
             }
             WizardType::Meteorologist => {
@@ -288,7 +289,7 @@ impl WizardType {
             WizardType::Excremage => "Something smells off...",
             WizardType::Alchemist => "The cauldron whispers to those who listen.",
             WizardType::Warglock => "War and sorcery, forged into one.",
-            WizardType::Battlemage => "Some wizards prefer a more... hands-on approach.",
+            WizardType::Swordcerer => "Some wizards prefer a more... hands-on approach.",
             WizardType::Meteorologist => "The sky darkens. Something is brewing up there.",
             WizardType::Shepherd => "Violence is never the answer... right?",
             WizardType::Psychopath => "Some people just want to watch the world burn.",
@@ -305,7 +306,7 @@ impl WizardType {
             WizardType::Excremage,
             WizardType::Alchemist,
             WizardType::Warglock,
-            WizardType::Battlemage,
+            WizardType::Swordcerer,
             WizardType::Meteorologist,
             WizardType::Shepherd,
             WizardType::Psychopath,

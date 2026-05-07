@@ -1,15 +1,15 @@
-//! Battlemage UI: cooldowns, health bar, enter-fray button, location click.
+//! Swordcerer UI: cooldowns, health bar, enter-fray button, location click.
 
 use super::components::*;
 use super::constants::*;
 use super::messages::*;
-use super::resources::{BattlemageAssets, BattlemagePhase, BattlemageState};
+use super::resources::{SwordcererAssets, SwordcererPhase, SwordcererState};
 use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::game_mode::components::ArchetypeUI;
-use crate::game::input::messages::MouseClicked;
+use crate::game::input::messages::{MouseClicked, SpacebarPressed};
 use crate::game::units::components::{
     AttackTiming, Effectiveness, FacingDirection, Health, Hitbox, MovementSpeed, Team,
     WalkingAnimation,
@@ -20,37 +20,37 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use bevy::prelude::*;
 
-/// Initialize or reset the battlemage state resource and cached assets.
-/// Ticks battlemage cooldowns.
+/// Initialize or reset the swordcerer state resource and cached assets.
+/// Ticks swordcerer cooldowns.
 pub(super) fn tick_cooldowns(
     time: Res<Time>,
     mut commands: Commands,
-    mut missile_cooldowns: Query<(Entity, &mut BattlemageMissileCooldown)>,
-    mut sword_cooldowns: Query<(Entity, &mut BattlemageSwordCooldown)>,
+    mut missile_cooldowns: Query<(Entity, &mut SwordcererMissileCooldown)>,
+    mut sword_cooldowns: Query<(Entity, &mut SwordcererSwordCooldown)>,
 ) {
     for (entity, mut cd) in &mut missile_cooldowns {
         cd.remaining -= time.delta_secs();
         if cd.remaining <= 0.0 {
             commands
                 .entity(entity)
-                .remove::<BattlemageMissileCooldown>();
+                .remove::<SwordcererMissileCooldown>();
         }
     }
     for (entity, mut cd) in &mut sword_cooldowns {
         cd.remaining -= time.delta_secs();
         if cd.remaining <= 0.0 {
-            commands.entity(entity).remove::<BattlemageSwordCooldown>();
+            commands.entity(entity).remove::<SwordcererSwordCooldown>();
         }
     }
 }
 
-/// Checks if the battlemage avatar has died and triggers retreat.
+/// Checks if the swordcerer avatar has died and triggers retreat.
 pub(super) fn check_avatar_death(
-    avatar_query: Query<&Health, With<BattlemageAvatar>>,
-    state: Res<BattlemageState>,
+    avatar_query: Query<&Health, With<SwordcererAvatar>>,
+    state: Res<SwordcererState>,
     mut retreat_messages: MessageWriter<RetreatMessage>,
 ) {
-    if state.phase != BattlemagePhase::OnField {
+    if state.phase != SwordcererPhase::OnField {
         return;
     }
 
@@ -61,14 +61,14 @@ pub(super) fn check_avatar_death(
     }
 }
 
-/// Spawns the battlemage health bar UI when the avatar is on the field.
+/// Spawns the swordcerer health bar UI when the avatar is on the field.
 pub(super) fn spawn_health_bar(
     mut commands: Commands,
-    state: Res<BattlemageState>,
-    existing_bar: Query<Entity, With<BattlemageHealthBar>>,
+    state: Res<SwordcererState>,
+    existing_bar: Query<Entity, With<SwordcererHealthBar>>,
 ) {
     // Only spawn when transitioning to OnField and no bar exists
-    if !state.is_changed() || state.phase != BattlemagePhase::OnField || !existing_bar.is_empty() {
+    if !state.is_changed() || state.phase != SwordcererPhase::OnField || !existing_bar.is_empty() {
         return;
     }
 
@@ -87,7 +87,7 @@ pub(super) fn spawn_health_bar(
             },
             BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.8)),
             BorderColor::all(Color::srgba(0.3, 0.3, 0.8, 1.0)),
-            BattlemageHealthBar,
+            SwordcererHealthBar,
             OnGameplayScreen,
         ))
         .with_children(|parent| {
@@ -99,15 +99,15 @@ pub(super) fn spawn_health_bar(
                     ..default()
                 },
                 BackgroundColor(Color::srgb(0.3, 0.4, 1.0)),
-                BattlemageHealthBarFill,
+                SwordcererHealthBarFill,
             ));
         });
 }
 
-/// Updates the battlemage health bar fill.
+/// Updates the swordcerer health bar fill.
 pub(super) fn update_health_bar(
-    avatar_query: Query<&Health, With<BattlemageAvatar>>,
-    mut fill_query: Query<&mut Node, With<BattlemageHealthBarFill>>,
+    avatar_query: Query<&Health, With<SwordcererAvatar>>,
+    mut fill_query: Query<&mut Node, With<SwordcererHealthBarFill>>,
 ) {
     if let Ok(health) = avatar_query.single()
         && let Ok(mut node) = fill_query.single_mut()
@@ -120,10 +120,10 @@ pub(super) fn update_health_bar(
 /// Despawns the health bar when the avatar is no longer on the field.
 pub(super) fn despawn_health_bar(
     mut commands: Commands,
-    state: Res<BattlemageState>,
-    bar_query: Query<Entity, With<BattlemageHealthBar>>,
+    state: Res<SwordcererState>,
+    bar_query: Query<Entity, With<SwordcererHealthBar>>,
 ) {
-    if state.is_changed() && state.phase != BattlemagePhase::OnField {
+    if state.is_changed() && state.phase != SwordcererPhase::OnField {
         for entity in &bar_query {
             commands.entity(entity).try_despawn();
         }
@@ -175,23 +175,48 @@ pub(crate) fn spawn_enter_fray_button(mut commands: Commands) {
 pub(super) fn handle_enter_fray_click(
     mut button_clicked: MessageReader<MouseClicked>,
     fray_button_query: Query<Entity, With<EnterFrayButton>>,
-    mut state: ResMut<BattlemageState>,
+    mut state: ResMut<SwordcererState>,
     mut text_query: Query<&mut Text, With<EnterFrayButtonText>>,
 ) {
     for event in button_clicked.read() {
         if fray_button_query.get(event.button).is_ok() {
-            if state.phase == BattlemagePhase::Idle && !state.retreated {
-                state.phase = BattlemagePhase::ChoosingLocation;
-                if let Ok(mut text) = text_query.single_mut() {
-                    **text = FRAY_BUTTON_TEXT_CHOOSING.to_string();
-                }
-            } else if state.phase == BattlemagePhase::ChoosingLocation {
-                // Clicking button again cancels
-                state.phase = BattlemagePhase::Idle;
-                if let Ok(mut text) = text_query.single_mut() {
-                    **text = FRAY_BUTTON_TEXT.to_string();
-                }
-            }
+            toggle_enter_fray(&mut state, &mut text_query);
+        }
+    }
+}
+
+/// Activate-key / South-button equivalent of `handle_enter_fray_click`.
+pub(super) fn handle_enter_fray_hotkey(
+    mut spacebar_pressed: MessageReader<SpacebarPressed>,
+    mut state: ResMut<SwordcererState>,
+    mut text_query: Query<&mut Text, With<EnterFrayButtonText>>,
+) {
+    if spacebar_pressed.read().next().is_none() {
+        return;
+    }
+    if !matches!(
+        state.phase,
+        SwordcererPhase::Idle | SwordcererPhase::ChoosingLocation
+    ) {
+        return;
+    }
+    toggle_enter_fray(&mut state, &mut text_query);
+}
+
+fn toggle_enter_fray(
+    state: &mut SwordcererState,
+    text_query: &mut Query<&mut Text, With<EnterFrayButtonText>>,
+) {
+    if state.phase == SwordcererPhase::Idle && !state.retreated {
+        state.phase = SwordcererPhase::ChoosingLocation;
+        if let Ok(mut text) = text_query.single_mut() {
+            **text = FRAY_BUTTON_TEXT_CHOOSING.to_string();
+        }
+    } else if state.phase == SwordcererPhase::ChoosingLocation {
+        // Activating again cancels.
+        state.phase = SwordcererPhase::Idle;
+        if let Ok(mut text) = text_query.single_mut() {
+            **text = FRAY_BUTTON_TEXT.to_string();
         }
     }
 }
@@ -200,10 +225,10 @@ pub(super) fn handle_enter_fray_click(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_location_click(
     mut mouse_pressed: MessageReader<crate::game::input::messages::MouseLeftPressed>,
-    mut state: ResMut<BattlemageState>,
+    mut state: ResMut<SwordcererState>,
     mut commands: Commands,
     mut wizard_query: Query<&mut Visibility, With<Wizard>>,
-    battlemage_assets: Res<BattlemageAssets>,
+    swordcerer_assets: Res<SwordcererAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
@@ -211,7 +236,7 @@ pub(super) fn handle_location_click(
     corrected_cursor: Res<CorrectedCursorPosition>,
     mut text_query: Query<&mut Text, With<EnterFrayButtonText>>,
 ) {
-    if state.phase != BattlemagePhase::ChoosingLocation {
+    if state.phase != SwordcererPhase::ChoosingLocation {
         return;
     }
     if mouse_pressed.read().next().is_none() {
@@ -242,12 +267,12 @@ pub(super) fn handle_location_click(
 
     let material = create_default_sprite_material(
         &mut materials,
-        battlemage_assets.sprite_texture.clone(),
+        swordcerer_assets.sprite_texture.clone(),
         AVATAR_SPRITE_TINT,
     );
 
     commands.spawn((
-        Mesh3d(battlemage_assets.sprite_mesh.clone()),
+        Mesh3d(swordcerer_assets.sprite_mesh.clone()),
         MeshMaterial3d(material),
         Transform::from_xyz(world_pos.x, spawn_y, world_pos.z),
         Velocity::default(),
@@ -257,9 +282,14 @@ pub(super) fn handle_location_click(
         AttackTiming::new(),
         Effectiveness::new(),
         Team::Defenders,
+        // 75% melee reduction — the avatar fights at melee range; without
+        // this it shreds in a few hits.
+        crate::game::units::components::MeleeDamageReduction {
+            multiplier: AVATAR_MELEE_DAMAGE_MULTIPLIER,
+        },
         (
-            BattlemageAvatar,
-            BattlemageFacing::default(),
+            SwordcererAvatar,
+            SwordcererFacing::default(),
             WalkingAnimation::default(),
             FacingDirection::default(),
             Billboard,
@@ -267,7 +297,7 @@ pub(super) fn handle_location_click(
         ),
     ));
 
-    state.phase = BattlemagePhase::OnField;
+    state.phase = SwordcererPhase::OnField;
 
     // Reset button text
     if let Ok(mut text) = text_query.single_mut() {
@@ -275,9 +305,9 @@ pub(super) fn handle_location_click(
     }
 }
 
-/// Shows/hides the "Enter the Fray" button based on battlemage state.
+/// Shows/hides the "Enter the Fray" button based on swordcerer state.
 pub(super) fn update_enter_fray_visibility(
-    state: Res<BattlemageState>,
+    state: Res<SwordcererState>,
     mut root_query: Query<&mut Visibility, With<EnterFrayRoot>>,
 ) {
     if !state.is_changed() {
@@ -285,7 +315,7 @@ pub(super) fn update_enter_fray_visibility(
     }
     let visible = matches!(
         state.phase,
-        BattlemagePhase::Idle | BattlemagePhase::ChoosingLocation
+        SwordcererPhase::Idle | SwordcererPhase::ChoosingLocation
     ) && !state.retreated;
     for mut vis in &mut root_query {
         *vis = if visible {

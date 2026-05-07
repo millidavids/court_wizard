@@ -88,9 +88,12 @@ impl Plugin for FocusPlugin {
                 )
                     .chain(),
             )
+            // Must run before autoscroll so a stick lingering past the
+            // deadzone can't strip the freshly-inserted `ScrollAnimation`.
             .add_systems(
                 Update,
                 right_stick_scroll
+                    .before(autoscroll_to_focused)
                     .run_if(gamepad_active)
                     .run_if(focus_enabled)
                     .run_if(nav_enabled),

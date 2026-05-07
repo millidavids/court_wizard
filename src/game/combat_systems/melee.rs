@@ -90,7 +90,7 @@ pub fn combat(
         (
             Has<super::super::units::assassin::Assassin>,
             Has<super::super::units::archer::Archer>,
-            Option<&super::super::units::boss::ogre::MeleeDamageReduction>,
+            Option<&super::super::units::components::MeleeDamageReduction>,
         ),
     )>,
     // Fog Cloud talent zones

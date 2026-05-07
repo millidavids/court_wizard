@@ -84,7 +84,7 @@ pub fn spawn_dark_mage(rng: &mut impl Rng, mut commands: Commands, assets: Res<D
             DarkMageTeleportTimer::new(TELEPORT_COOLDOWN),
             DarkMageEnrage::new(),
             DamageMultiplier(DARK_MAGE_DAMAGE_MULTIPLIER),
-            crate::game::units::boss::ogre::MeleeDamageReduction {
+            crate::game::units::components::MeleeDamageReduction {
                 multiplier: DARK_MAGE_MELEE_DAMAGE_REDUCTION,
             },
             // Movement systems (used during approach phase)

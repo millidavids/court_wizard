@@ -1,10 +1,9 @@
-//! Battlemage combat: state, movement, and weapon firing.
+//! Swordcerer combat: state, movement, and weapon firing.
 
-use super::components::SwordArcMaterial;
 use super::components::*;
 use super::constants::*;
 use super::messages::*;
-use super::resources::{BattlemageAssets, BattlemagePhase, BattlemageState};
+use super::resources::{SwordcererAssets, SwordcererPhase, SwordcererState};
 use crate::config::GameConfig;
 use crate::config::input_bindings::InputBindings;
 use crate::game::components::{OnGameplayScreen, Velocity};
@@ -19,27 +18,17 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use bevy::prelude::*;
 
-/// Initialize or reset the battlemage state resource and cached assets.
-pub(super) fn reset_battlemage_state(
-    mut commands: Commands,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    commands.insert_resource(BattlemageState::default());
-    commands.insert_resource(SwordArcMaterial(materials.add(StandardMaterial {
-        base_color: Color::srgba(1.0, 1.0, 1.0, 0.6),
-        alpha_mode: AlphaMode::Blend,
-        unlit: true,
-        cull_mode: None,
-        ..default()
-    })));
+/// Initialize or reset the swordcerer state resource.
+pub(super) fn reset_swordcerer_state(mut commands: Commands) {
+    commands.insert_resource(SwordcererState::default());
 }
 
-/// Blocks normal spell casting while the battlemage is on the field.
+/// Blocks normal spell casting while the swordcerer is on the field.
 pub(super) fn block_spells_on_field(
-    state: Res<BattlemageState>,
+    state: Res<SwordcererState>,
     mut block_spell: MessageWriter<BlockSpellInput>,
 ) {
-    if state.phase != BattlemagePhase::Idle {
+    if state.phase != SwordcererPhase::Idle {
         block_spell.write(BlockSpellInput);
     }
 }
@@ -47,15 +36,15 @@ pub(super) fn block_spells_on_field(
 /// Handles the retreat message — despawns avatar and restores wizard.
 pub(super) fn handle_retreat(
     mut messages: MessageReader<RetreatMessage>,
-    mut state: ResMut<BattlemageState>,
+    mut state: ResMut<SwordcererState>,
     mut commands: Commands,
-    avatar_query: Query<Entity, With<BattlemageAvatar>>,
+    avatar_query: Query<Entity, With<SwordcererAvatar>>,
     mut wizard_query: Query<&mut Visibility, With<Wizard>>,
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
 ) {
     for _ in messages.read() {
-        if state.phase != BattlemagePhase::OnField {
+        if state.phase != SwordcererPhase::OnField {
             return;
         }
         // Despawn the avatar
@@ -73,13 +62,13 @@ pub(super) fn handle_retreat(
         if let Ok(mut visibility) = wizard_query.single_mut() {
             *visibility = Visibility::Inherited;
         }
-        state.phase = BattlemagePhase::Idle;
+        state.phase = SwordcererPhase::Idle;
         state.retreated = true;
     }
 }
 
-/// Handles WASD / left-stick movement for the battlemage avatar.
-/// Also updates the avatar's `BattlemageFacing` so spells aim along the
+/// Handles WASD / left-stick movement for the swordcerer avatar.
+/// Also updates the avatar's `SwordcererFacing` so spells aim along the
 /// current movement direction (no separate aim input for this archetype).
 #[allow(clippy::too_many_arguments)]
 pub(super) fn player_movement(
@@ -96,13 +85,13 @@ pub(super) fn player_movement(
             &mut Transform,
             &mut Velocity,
             &MovementSpeed,
-            Option<&mut BattlemageFacing>,
+            Option<&mut SwordcererFacing>,
         ),
-        With<BattlemageAvatar>,
+        With<SwordcererAvatar>,
     >,
-    state: Res<BattlemageState>,
+    state: Res<SwordcererState>,
 ) {
-    if state.phase != BattlemagePhase::OnField {
+    if state.phase != SwordcererPhase::OnField {
         return;
     }
 
@@ -113,22 +102,22 @@ pub(super) fn player_movement(
     };
 
     let mut input = Vec2::ZERO;
-    if let Some(key) = bindings.battlemage.move_forward
+    if let Some(key) = bindings.swordcerer.move_forward
         && keyboard.pressed(key)
     {
         input.y -= 1.0; // -Z is "forward" toward the battlefield
     }
-    if let Some(key) = bindings.battlemage.move_backward
+    if let Some(key) = bindings.swordcerer.move_backward
         && keyboard.pressed(key)
     {
         input.y += 1.0;
     }
-    if let Some(key) = bindings.battlemage.move_left
+    if let Some(key) = bindings.swordcerer.move_left
         && keyboard.pressed(key)
     {
         input.x -= 1.0;
     }
-    if let Some(key) = bindings.battlemage.move_right
+    if let Some(key) = bindings.swordcerer.move_right
         && keyboard.pressed(key)
     {
         input.x += 1.0;
@@ -158,7 +147,7 @@ pub(super) fn player_movement(
     };
 
     if input_normalized.length_squared() > 0.0 {
-        let facing = BattlemageFacing(input_normalized);
+        let facing = SwordcererFacing(input_normalized);
         match maybe_facing {
             Some(mut f) => *f = facing,
             None => {
@@ -197,32 +186,32 @@ pub(super) fn player_movement(
     transform.translation.z = transform.translation.z.clamp(-half_field, half_field);
 }
 
-/// Handles RT / left-click magic missile firing from the battlemage avatar.
+/// Handles LT / right-click magic missile firing from the swordcerer avatar.
 ///
 /// Fires in the avatar's current facing direction (most recent movement vector).
 /// There is no separate aim input — movement direction IS attack direction.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn fire_missile(
-    mut mouse_pressed: MessageReader<crate::game::input::messages::MouseLeftPressed>,
+    mut mouse_pressed: MessageReader<crate::game::input::messages::MouseRightPressed>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut avatar_query: Query<
         (
             Entity,
             &Transform,
-            Option<&BattlemageMissileCooldown>,
-            Option<&BattlemageFacing>,
+            Option<&SwordcererMissileCooldown>,
+            Option<&SwordcererFacing>,
         ),
-        With<BattlemageAvatar>,
+        With<SwordcererAvatar>,
     >,
-    targets: Query<(Entity, &Transform, &Team), (Without<BattlemageAvatar>, Without<Corpse>)>,
+    targets: Query<(Entity, &Transform, &Team), (Without<SwordcererAvatar>, Without<Corpse>)>,
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
-    state: Res<BattlemageState>,
+    state: Res<SwordcererState>,
     mut wizard_query: Query<&mut Mana, With<Wizard>>,
-    battlemage_assets: Res<BattlemageAssets>,
+    swordcerer_assets: Res<SwordcererAssets>,
 ) {
-    if state.phase != BattlemagePhase::OnField {
+    if state.phase != SwordcererPhase::OnField {
         return;
     }
     if mouse_pressed.read().next().is_none() {
@@ -278,6 +267,7 @@ pub(super) fn fire_missile(
         spawn_pos,
     );
     missile.damage = MISSILE_DAMAGE;
+    missile.base_homing_strength = MISSILE_HOMING_STRENGTH;
 
     commands.spawn((
         Mesh3d(visual_assets.magic_missile_mesh.clone()),
@@ -298,41 +288,41 @@ pub(super) fn fire_missile(
     // Trigger casting animation
     commands.entity(avatar_entity).insert(
         crate::game::units::components::CombatAnimation::new_casting(
-            battlemage_assets.casting_texture.clone(),
-            battlemage_assets.sprite_texture.clone(),
+            swordcerer_assets.casting_texture.clone(),
+            swordcerer_assets.sprite_texture.clone(),
         ),
     );
 
     commands
         .entity(avatar_entity)
-        .insert(BattlemageMissileCooldown {
+        .insert(SwordcererMissileCooldown {
             remaining: MISSILE_COOLDOWN,
         });
 }
 
-/// Handles LT / right-click sword swing from the battlemage avatar.
+/// Handles RT / left-click sword swing from the swordcerer avatar.
 ///
 /// Swings in the avatar's current facing direction (most recent movement vector).
 #[allow(clippy::too_many_arguments)]
 pub(super) fn sword_swing(
-    mut mouse_right_pressed: MessageReader<crate::game::input::messages::MouseRightPressed>,
+    mut mouse_right_pressed: MessageReader<crate::game::input::messages::MouseLeftPressed>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    arc_material: Res<SwordArcMaterial>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     mut avatar_query: Query<
         (
             Entity,
             &Transform,
             &mut Velocity,
-            Option<&BattlemageSwordCooldown>,
-            Option<&BattlemageFacing>,
+            Option<&SwordcererSwordCooldown>,
+            Option<&SwordcererFacing>,
         ),
-        With<BattlemageAvatar>,
+        With<SwordcererAvatar>,
     >,
-    state: Res<BattlemageState>,
-    battlemage_assets: Res<BattlemageAssets>,
+    state: Res<SwordcererState>,
+    swordcerer_assets: Res<SwordcererAssets>,
 ) {
-    if state.phase != BattlemagePhase::OnField {
+    if state.phase != SwordcererPhase::OnField {
         return;
     }
     if mouse_right_pressed.read().next().is_none() {
@@ -353,51 +343,34 @@ pub(super) fn sword_swing(
 
     let direction = facing.copied().unwrap_or_default().0.normalize_or_zero();
 
-    // Build a semicircle mesh (fan of triangles covering ±90° from swing direction)
-    let segments = 16u32;
-    let half_angle = std::f32::consts::FRAC_PI_2; // 90 degrees each side
-    let base_angle = direction.y.atan2(direction.x); // angle of swing direction in XZ
+    let arc_mesh = meshes.add(build_arc_strip_mesh(
+        direction,
+        SWORD_ARC_RADIUS,
+        SWORD_ARC_HALF_ANGLE,
+        SWORD_ARC_THICKNESS,
+        SWORD_ARC_SEGMENTS,
+    ));
 
-    let mut positions = vec![[0.0f32, 0.0, 0.0]]; // center vertex
-    let mut normals = vec![[0.0f32, 1.0, 0.0]];
-    let mut uvs = vec![[0.5f32, 0.5]];
-    for i in 0..=segments {
-        let frac = i as f32 / segments as f32;
-        let angle = base_angle - half_angle + frac * 2.0 * half_angle;
-        let x = SWORD_ARC_RADIUS * angle.cos();
-        let z = SWORD_ARC_RADIUS * angle.sin();
-        positions.push([x, 0.0, z]);
-        normals.push([0.0, 1.0, 0.0]);
-        uvs.push([0.5 + 0.5 * angle.cos(), 0.5 + 0.5 * angle.sin()]);
-    }
-    let mut indices = Vec::new();
-    for i in 0..segments {
-        indices.push(0);
-        indices.push(i + 1);
-        indices.push(i + 2);
-    }
+    // Per-instance material — alpha fades over the arc's lifetime, so each
+    // swing needs its own handle.
+    let material = materials.add(StandardMaterial {
+        base_color: Color::WHITE,
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        cull_mode: None,
+        ..default()
+    });
 
-    use bevy::mesh::{Indices, PrimitiveTopology};
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, default());
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
-    mesh.insert_indices(Indices::U32(indices));
-
-    let arc_mesh = meshes.add(mesh);
-
-    // Position the arc centered on the avatar
     let arc_pos = Vec3::new(avatar_pos.x, 2.0, avatar_pos.z);
 
     commands.spawn((
         Mesh3d(arc_mesh),
-        MeshMaterial3d(arc_material.0.clone()),
-        Transform::from_translation(arc_pos),
+        MeshMaterial3d(material),
+        Transform::from_translation(arc_pos).with_scale(Vec3::splat(SWORD_ARC_MIN_SCALE)),
         SwordArc {
             time_alive: 0.0,
             duration: SWORD_ARC_DURATION,
             direction,
-            damage_dealt: false,
         },
         OnGameplayScreen,
     ));
@@ -409,75 +382,164 @@ pub(super) fn sword_swing(
     // Trigger attack animation
     commands.entity(avatar_entity).insert(
         crate::game::units::components::CombatAnimation::new_attack(
-            battlemage_assets.attacking_texture.clone(),
-            battlemage_assets.sprite_texture.clone(),
+            swordcerer_assets.attacking_texture.clone(),
+            swordcerer_assets.sprite_texture.clone(),
         ),
     );
 
     commands
         .entity(avatar_entity)
-        .insert(BattlemageSwordCooldown {
+        .insert(SwordcererSwordCooldown {
             remaining: SWORD_COOLDOWN,
         });
 }
 
-/// Updates sword arc visuals and checks collisions with enemies.
+/// Updates sword arc visuals (rapid grow + fade) and checks collisions with
+/// enemies on the first frame.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn update_sword_arcs(
     time: Res<Time>,
     mut commands: Commands,
-    mut arc_query: Query<(Entity, &mut SwordArc, &Transform)>,
-    mut enemies: Query<
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut arc_query: Query<(
+        Entity,
+        &mut SwordArc,
+        &mut Transform,
+        &MeshMaterial3d<StandardMaterial>,
+    )>,
+    mut targets: Query<
         (
             Entity,
             &Transform,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
-            &Team,
         ),
-        (Without<SwordArc>, Without<Corpse>),
+        (
+            Without<SwordArc>,
+            Without<Corpse>,
+            Without<SwordcererAvatar>,
+            Without<Wizard>,
+        ),
     >,
 ) {
-    for (arc_entity, mut arc, arc_transform) in &mut arc_query {
-        arc.time_alive += time.delta_secs();
+    let dt = time.delta_secs();
+    let cos_half_angle = SWORD_ARC_HALF_ANGLE.cos();
+    for (arc_entity, mut arc, mut arc_transform, mat_handle) in &mut arc_query {
+        let just_spawned = arc.is_added();
+        arc.time_alive += dt;
 
-        // Deal damage on the first frame
-        if !arc.damage_dealt {
-            arc.damage_dealt = true;
+        let grow_t = (arc.time_alive / SWORD_ARC_GROW_DURATION).clamp(0.0, 1.0);
+        let grow_eased = 1.0 - (1.0 - grow_t).powi(3);
+        arc_transform.scale = Vec3::splat(grow_eased.max(SWORD_ARC_MIN_SCALE));
+
+        let fade_t = (arc.time_alive / arc.duration).clamp(0.0, 1.0);
+        let alpha = (1.0 - fade_t).powi(2);
+        let new_color = Color::srgba(1.0, 1.0, 1.0, alpha);
+        if let Some(mat) = materials.get_mut(&mat_handle.0)
+            && mat.base_color != new_color
+        {
+            mat.base_color = new_color;
+        }
+
+        // Friendly fire by design — `Without<SwordcererAvatar>` and
+        // `Without<Wizard>` filters in the query keep the avatar and the
+        // hidden wizard out of the damage set.
+        if just_spawned {
             let arc_pos = arc_transform.translation;
-
-            for (enemy_entity, enemy_transform, mut health, temp_hp, team) in &mut enemies {
-                if *team != Team::Attackers && *team != Team::Undead {
-                    continue;
-                }
-
-                let diff = enemy_transform.translation - arc_pos;
+            for (target_entity, target_transform, mut health, temp_hp) in &mut targets {
+                let diff = target_transform.translation - arc_pos;
                 let dist = (diff.x * diff.x + diff.z * diff.z).sqrt();
-
                 if dist > SWORD_ARC_RADIUS {
                     continue;
                 }
-
-                // Check if enemy is within the arc's angular sweep
-                let enemy_angle = Vec2::new(diff.x, diff.z).normalize_or_zero();
-                let dot = arc.direction.dot(enemy_angle);
-                // cos(60°) = 0.5 → within ±60° of swing direction
-                if dot > 0.5 {
+                let target_angle = Vec2::new(diff.x, diff.z).normalize_or_zero();
+                if arc.direction.dot(target_angle) > cos_half_angle {
                     apply_spell_damage(
                         &mut commands,
-                        enemy_entity,
+                        target_entity,
                         &mut health,
                         temp_hp.map(|t| t.into_inner()),
                         SWORD_DAMAGE,
                         DamageType::Force,
                         false,
                     );
+                    commands.entity(target_entity).insert(
+                        crate::game::units::hit_flash::HitFlash {
+                            timer: SWORD_HIT_FLASH_DURATION,
+                        },
+                    );
                 }
             }
         }
 
-        // Despawn after duration
         if arc.time_alive >= arc.duration {
             commands.entity(arc_entity).try_despawn();
         }
     }
+}
+
+/// Builds the curved strip mesh for one sword swing. Per-vertex colors
+/// encode the right-to-left alpha gradient (trailing edge transparent,
+/// leading edge opaque) — `StandardMaterial` picks up `ATTRIBUTE_COLOR`
+/// automatically when present.
+fn build_arc_strip_mesh(
+    direction: Vec2,
+    radius: f32,
+    half_angle: f32,
+    thickness: f32,
+    segments: u32,
+) -> Mesh {
+    use bevy::mesh::{Indices, PrimitiveTopology};
+
+    let base_angle = direction.y.atan2(direction.x);
+    let inner_r = (radius - thickness * 0.5).max(0.0);
+    let outer_r = radius + thickness * 0.5;
+
+    let n = (segments + 1) as usize;
+    let mut positions: Vec<[f32; 3]> = Vec::with_capacity(n * 2);
+    let mut normals: Vec<[f32; 3]> = Vec::with_capacity(n * 2);
+    let mut uvs: Vec<[f32; 2]> = Vec::with_capacity(n * 2);
+    let mut colors: Vec<[f32; 4]> = Vec::with_capacity(n * 2);
+
+    for i in 0..=segments {
+        let frac = i as f32 / segments as f32;
+        let angle = base_angle - half_angle + frac * 2.0 * half_angle;
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+
+        positions.push([inner_r * cos_a, 0.0, inner_r * sin_a]);
+        positions.push([outer_r * cos_a, 0.0, outer_r * sin_a]);
+        normals.push([0.0, 1.0, 0.0]);
+        normals.push([0.0, 1.0, 0.0]);
+        uvs.push([frac, 0.0]);
+        uvs.push([frac, 1.0]);
+
+        // `frac.powf(2.5)` gives a fast trailing-edge fall-off so the back
+        // of the slash thins out into a fine line rather than a hard cut.
+        let alpha = frac.powf(2.5);
+        colors.push([1.0, 1.0, 1.0, alpha]);
+        colors.push([1.0, 1.0, 1.0, alpha]);
+    }
+
+    let mut indices: Vec<u32> = Vec::with_capacity((segments * 6) as usize);
+    for i in 0..segments {
+        let i0 = i * 2;
+        let i1 = i * 2 + 1;
+        let i2 = (i + 1) * 2;
+        let i3 = (i + 1) * 2 + 1;
+        indices.push(i0);
+        indices.push(i2);
+        indices.push(i1);
+        indices.push(i1);
+        indices.push(i2);
+        indices.push(i3);
+    }
+
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, default());
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+    mesh.insert_indices(Indices::U32(indices));
+    mesh
 }

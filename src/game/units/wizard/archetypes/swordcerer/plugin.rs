@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions::{
-    any_exist, is_battlemage, is_gameplay_running, is_spell_effects_active,
+    any_exist, is_swordcerer, is_gameplay_running, is_spell_effects_active,
 };
 use crate::state::InGameState;
 
@@ -9,35 +9,35 @@ use super::components::*;
 use super::messages::*;
 use super::systems::*;
 
-/// Plugin for the Battlemage wizard archetype.
-pub(in crate::game) struct BattlemagePlugin;
+/// Plugin for the Swordcerer wizard archetype.
+pub(in crate::game) struct SwordcererPlugin;
 
-impl Plugin for BattlemagePlugin {
+impl Plugin for SwordcererPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, super::resources::preload_battlemage_assets)
+        app.add_systems(Startup, super::resources::preload_swordcerer_assets)
             .add_message::<RetreatMessage>()
             // Initialize state and spawn Enter the Fray button on entering gameplay
             .add_systems(
                 OnEnter(InGameState::Running),
-                (reset_battlemage_state, spawn_enter_fray_button).run_if(is_battlemage),
+                (reset_swordcerer_state, spawn_enter_fray_button).run_if(is_swordcerer),
             )
             .add_systems(
                 OnEnter(InGameState::ScoreScreen),
-                reset_battlemage_state.run_if(is_battlemage),
+                reset_swordcerer_state.run_if(is_swordcerer),
             )
             // Block normal spell casting while on field
             .add_systems(
                 Update,
                 block_spells_on_field
                     .run_if(is_spell_effects_active)
-                    .run_if(is_battlemage),
+                    .run_if(is_swordcerer),
             )
             // Location click and retreat handling
             .add_systems(
                 Update,
                 (handle_location_click, handle_retreat)
                     .run_if(is_spell_effects_active)
-                    .run_if(is_battlemage),
+                    .run_if(is_swordcerer),
             )
             // Player control systems
             .add_systems(
@@ -50,8 +50,8 @@ impl Plugin for BattlemagePlugin {
                     check_avatar_death,
                 )
                     .run_if(is_gameplay_running)
-                    .run_if(is_battlemage)
-                    .run_if(any_exist::<BattlemageAvatar>()),
+                    .run_if(is_swordcerer)
+                    .run_if(any_exist::<SwordcererAvatar>()),
             )
             // Sword arc collision and cleanup
             .add_systems(
@@ -65,14 +65,18 @@ impl Plugin for BattlemagePlugin {
                 Update,
                 (spawn_health_bar, update_health_bar, despawn_health_bar)
                     .run_if(is_spell_effects_active)
-                    .run_if(is_battlemage),
+                    .run_if(is_swordcerer),
             )
             // Enter the Fray button
             .add_systems(
                 Update,
-                (handle_enter_fray_click, update_enter_fray_visibility)
+                (
+                    handle_enter_fray_click,
+                    handle_enter_fray_hotkey,
+                    update_enter_fray_visibility,
+                )
                     .run_if(is_spell_effects_active)
-                    .run_if(is_battlemage)
+                    .run_if(is_swordcerer)
                     .run_if(any_exist::<EnterFrayRoot>()),
             );
     }

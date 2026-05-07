@@ -731,7 +731,7 @@ pub(crate) fn check_right_to_bear_arms(
 }
 
 // ---------------------------------------------------------------------------
-// Close Call — enemy killed within 300 units of the wizard (unlocks Battlemage)
+// Close Call — enemy killed within 300 units of the wizard (unlocks Swordcerer)
 // ---------------------------------------------------------------------------
 
 pub(crate) fn check_close_call(
@@ -742,7 +742,7 @@ pub(crate) fn check_close_call(
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        unlock_and_notify_wizard_type(WizardType::Battlemage, &mut wizard_unlocked);
+        unlock_and_notify_wizard_type(WizardType::Swordcerer, &mut wizard_unlocked);
     }
 }
 
@@ -986,7 +986,7 @@ pub(crate) fn check_clicker(
 fn wizard_type_to_context(wizard_type: WizardType) -> Option<BindingContext> {
     match wizard_type {
         WizardType::RuneCaster => Some(BindingContext::RuneCaster),
-        WizardType::Battlemage => Some(BindingContext::Battlemage),
+        WizardType::Swordcerer => Some(BindingContext::Swordcerer),
         WizardType::Arcanorouter => Some(BindingContext::ArcanoRouter),
         WizardType::Meteorologist => Some(BindingContext::Meteorologist),
         WizardType::Warglock => Some(BindingContext::Warglock),

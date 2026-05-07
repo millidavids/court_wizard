@@ -133,6 +133,7 @@ pub(super) fn build_wizard_card_grid(commands: &mut Commands, parent: Entity) {
                     ..default()
                 },
                 ScrollPosition::default(),
+                crate::ui::focus::GamepadScrollTarget,
                 WizardCardScrollContainer,
             ))
             .with_children(|row| {

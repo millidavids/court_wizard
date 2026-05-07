@@ -254,6 +254,15 @@ impl Hitbox {
 #[derive(Component)]
 pub struct MeleeRangeBonus(pub f32);
 
+/// Reduces incoming melee (non-spell) damage by a multiplier. Read by
+/// `combat_systems::melee::combat`. Used by the Ogre boss and the
+/// Swordcerer's field avatar.
+#[derive(Component)]
+pub struct MeleeDamageReduction {
+    /// Fraction of damage taken (0.3 = takes 30%, blocks 70%).
+    pub multiplier: f32,
+}
+
 /// Temporary hit points that absorb damage before real health.
 ///
 /// Expires after a duration and is consumed before health when taking damage.

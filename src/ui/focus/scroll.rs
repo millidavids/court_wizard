@@ -11,7 +11,7 @@ use super::components::{
     Focusable, GamepadFocused, GamepadScrollTarget, ModalOverlay, NoGamepadFocus,
     ScrollRevealBounds,
 };
-use super::constants::{AUTOSCROLL_EDGE_PADDING, RIGHT_STICK_SCROLL_SPEED};
+use super::constants::{ANIM_CANCEL_THRESHOLD, AUTOSCROLL_EDGE_PADDING, RIGHT_STICK_SCROLL_SPEED};
 use super::resources::{FocusedEntity, ScreenFocusMemory, ScreenKey};
 use crate::game::input::gamepad::messages::MenuBackPressed;
 use crate::game::input::gamepad::resources::{ActiveInputDevice, GamepadAimSettings};
@@ -116,18 +116,17 @@ pub(super) struct ScrollAnimation {
 /// used instead — so focusing a button at the bottom of a tall card still
 /// reveals the card's header.
 ///
-/// Two Bevy 0.17 gotchas drive the implementation:
-/// - `UiGlobalTransform.translation` IS scroll-adjusted (layout subtracts
-///   the parent's scroll offset, see `bevy_ui/src/layout/mod.rs:236`), so
-///   the focus's rendered position already reflects current scroll — we
-///   compute an incremental delta against the container edges.
-/// - `Node` requires `ScrollPosition` as a default component, so every UI
-///   entity has one — to find the real scroll container we check for
-///   `Node::overflow.y == OverflowAxis::Scroll`, not presence of
-///   `ScrollPosition`.
+/// Anchors all math to `ComputedNode.scroll_position` (the physical scroll
+/// value layout actually used) rather than `ScrollPosition.y` — the latter
+/// can drift past Bevy's clamp / floor or out of sync with the layout that
+/// produced `UiGlobalTransform`, which would yield a mismatched delta and
+/// undershoot the snap for far-off-screen items.
 ///
-/// Units: `ComputedNode` sizes and `UiGlobalTransform` are physical pixels;
-/// `ScrollPosition` is logical. Convert via `inverse_scale_factor`.
+/// `Node` requires `ScrollPosition` as a default component so every UI
+/// entity has one; we identify the real scroll container by checking
+/// `Node::overflow.y == OverflowAxis::Scroll`. `ComputedNode` sizes and
+/// `UiGlobalTransform` are physical pixels; `ScrollPosition` is logical
+/// — convert via `inverse_scale_factor`.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn autoscroll_to_focused(
     mut commands: Commands,
@@ -136,8 +135,7 @@ pub(super) fn autoscroll_to_focused(
     nodes: Query<(&ComputedNode, &UiGlobalTransform)>,
     reveal_bounds: Query<Entity, With<ScrollRevealBounds>>,
     child_of_query: Query<&ChildOf>,
-    scroll_containers: Query<(&ScrollPosition, &ComputedNode, &UiGlobalTransform, &Node)>,
-    anim: Query<&ScrollAnimation>,
+    scroll_containers: Query<(&ComputedNode, &UiGlobalTransform, &Node), With<ScrollPosition>>,
 ) {
     if focused.0 == *last_focus {
         return;
@@ -153,7 +151,7 @@ pub(super) fn autoscroll_to_focused(
     let mut current = entity;
     while let Ok(child_of) = child_of_query.get(current) {
         let parent = child_of.parent();
-        if let Ok((scroll, container_node, container_xform, node)) = scroll_containers.get(parent)
+        if let Ok((container_node, container_xform, node)) = scroll_containers.get(parent)
             && node.overflow.y == OverflowAxis::Scroll
         {
             let inv_sf = container_node.inverse_scale_factor();
@@ -164,35 +162,41 @@ pub(super) fn autoscroll_to_focused(
             let Ok((reveal_node, reveal_xform)) = nodes.get(reveal_entity) else {
                 break;
             };
+
+            // All in physical pixels:
             let reveal_size_y = reveal_node.size().y;
-            let reveal_center_y = reveal_xform.translation.y;
-            let reveal_top = reveal_center_y - reveal_size_y * 0.5;
-            let reveal_bottom = reveal_center_y + reveal_size_y * 0.5;
+            let reveal_top_screen = reveal_xform.translation.y - reveal_size_y * 0.5;
 
             let container_size_y = container_node.size().y;
             let content_size_y = container_node.content_size().y;
-            let container_center_y = container_xform.translation.y;
-            let container_top = container_center_y - container_size_y * 0.5;
-            let container_bottom = container_center_y + container_size_y * 0.5;
+            let container_top_screen = container_xform.translation.y - container_size_y * 0.5;
 
-            // Use any in-flight animation target as the "current" scroll so
-            // successive focus changes mid-animation don't fight each other.
-            let current_scroll = anim.get(parent).map(|a| a.target_y).unwrap_or(scroll.y);
-            let max_scroll_logical = (content_size_y - container_size_y).max(0.0) * inv_sf;
+            // The scroll value layout actually applied this frame. The
+            // focus's screen position above was computed against this, so
+            // adding it back recovers the focus's unscrolled (content-space)
+            // top relative to the container's content top.
+            let resolved_scroll_phys = container_node.scroll_position.y;
+            let focus_top_content =
+                reveal_top_screen + resolved_scroll_phys - container_top_screen;
+            let focus_bottom_content = focus_top_content + reveal_size_y;
+
+            let viewport_top_content = resolved_scroll_phys;
+            let viewport_bottom_content = resolved_scroll_phys + container_size_y;
+            let max_scroll_phys = (content_size_y - container_size_y).max(0.0);
             let padding_physical = AUTOSCROLL_EDGE_PADDING;
 
-            let new_target = if reveal_top < container_top + padding_physical {
-                let delta_physical = (container_top + padding_physical) - reveal_top;
-                (current_scroll - delta_physical * inv_sf).max(0.0)
-            } else if reveal_bottom > container_bottom - padding_physical {
-                let delta_physical = reveal_bottom - (container_bottom - padding_physical);
-                (current_scroll + delta_physical * inv_sf).min(max_scroll_logical)
+            let new_scroll_phys = if focus_top_content < viewport_top_content + padding_physical {
+                // Focus above viewport — pin its top to viewport top + pad.
+                (focus_top_content - padding_physical).max(0.0)
+            } else if focus_bottom_content > viewport_bottom_content - padding_physical {
+                // Focus below viewport — pin its bottom to viewport bottom - pad.
+                (focus_bottom_content - container_size_y + padding_physical).min(max_scroll_phys)
             } else {
                 break; // already visible
             };
 
             commands.entity(parent).insert(ScrollAnimation {
-                target_y: new_target,
+                target_y: new_scroll_phys * inv_sf,
             });
             break;
         }
@@ -256,11 +260,20 @@ pub(super) fn right_stick_scroll(
         return;
     }
     let delta = shaped * RIGHT_STICK_SCROLL_SPEED * time.delta_secs();
+    // Manual scroll overrides any in-flight autoscroll animation, but only
+    // when the stick is meaningfully deflected. Just past the deadzone the
+    // shaped value can be ~0.001 (response curve flattens the boundary), and
+    // a thumb resting on the stick at that level produces near-zero scroll
+    // movement but would still strip a freshly-inserted `ScrollAnimation`
+    // every frame — leaving navigation autoscroll stuck on its first lerp
+    // tick. Require a clear push before claiming control.
+    let cancel_anim = shaped.abs() >= ANIM_CANCEL_THRESHOLD;
     for (entity, mut scroll, node) in &mut targets {
         let max = (node.content_size().y - node.size().y).max(0.0);
         scroll.y = (scroll.y + delta).clamp(0.0, max);
-        // Manual scroll overrides any in-flight autoscroll animation.
-        commands.entity(entity).try_remove::<ScrollAnimation>();
+        if cancel_anim {
+            commands.entity(entity).try_remove::<ScrollAnimation>();
+        }
     }
 }
 

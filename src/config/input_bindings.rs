@@ -122,7 +122,7 @@ fn from_string(s: &str) -> KeyCode {
 pub(crate) enum BindingContext {
     Universal,
     RuneCaster,
-    Battlemage,
+    Swordcerer,
     Warglock,
     Meteorologist,
     ArcanoRouter,
@@ -144,7 +144,7 @@ pub(crate) enum BindingAction {
     Rune2,
     Rune3,
     Rune4,
-    // Battlemage
+    // Swordcerer
     MoveForward,
     MoveBackward,
     MoveLeft,
@@ -250,9 +250,9 @@ impl Default for RuneCasterBindings {
     }
 }
 
-/// Key bindings for the Battlemage (Swordcerer) archetype.
+/// Key bindings for the Swordcerer archetype.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub(crate) struct BattlemageBindings {
+pub(crate) struct SwordcererBindings {
     #[serde(with = "optional_keycode_serde")]
     pub move_forward: Option<KeyCode>,
     #[serde(with = "optional_keycode_serde")]
@@ -263,7 +263,7 @@ pub(crate) struct BattlemageBindings {
     pub move_right: Option<KeyCode>,
 }
 
-impl Default for BattlemageBindings {
+impl Default for SwordcererBindings {
     fn default() -> Self {
         Self {
             move_forward: Some(KeyCode::KeyW),
@@ -349,8 +349,8 @@ pub(crate) struct InputBindings {
     pub universal: UniversalBindings,
     #[serde(default)]
     pub rune_caster: RuneCasterBindings,
-    #[serde(default)]
-    pub battlemage: BattlemageBindings,
+    #[serde(default, alias = "battlemage")]
+    pub swordcerer: SwordcererBindings,
     #[serde(default)]
     pub warglock: WarglockBindings,
     #[serde(default)]
@@ -374,14 +374,14 @@ impl InputBindings {
             (BindingContext::RuneCaster, BindingAction::Rune2) => self.rune_caster.rune_2,
             (BindingContext::RuneCaster, BindingAction::Rune3) => self.rune_caster.rune_3,
             (BindingContext::RuneCaster, BindingAction::Rune4) => self.rune_caster.rune_4,
-            (BindingContext::Battlemage, BindingAction::MoveForward) => {
-                self.battlemage.move_forward
+            (BindingContext::Swordcerer, BindingAction::MoveForward) => {
+                self.swordcerer.move_forward
             }
-            (BindingContext::Battlemage, BindingAction::MoveBackward) => {
-                self.battlemage.move_backward
+            (BindingContext::Swordcerer, BindingAction::MoveBackward) => {
+                self.swordcerer.move_backward
             }
-            (BindingContext::Battlemage, BindingAction::MoveLeft) => self.battlemage.move_left,
-            (BindingContext::Battlemage, BindingAction::MoveRight) => self.battlemage.move_right,
+            (BindingContext::Swordcerer, BindingAction::MoveLeft) => self.swordcerer.move_left,
+            (BindingContext::Swordcerer, BindingAction::MoveRight) => self.swordcerer.move_right,
             (BindingContext::Warglock, BindingAction::Reload) => self.warglock.reload,
             (BindingContext::Meteorologist, BindingAction::Weather1) => {
                 self.meteorologist.weather_1
@@ -433,17 +433,17 @@ impl InputBindings {
             (BindingContext::RuneCaster, BindingAction::Rune4) => {
                 self.rune_caster.rune_4 = key;
             }
-            (BindingContext::Battlemage, BindingAction::MoveForward) => {
-                self.battlemage.move_forward = key;
+            (BindingContext::Swordcerer, BindingAction::MoveForward) => {
+                self.swordcerer.move_forward = key;
             }
-            (BindingContext::Battlemage, BindingAction::MoveBackward) => {
-                self.battlemage.move_backward = key;
+            (BindingContext::Swordcerer, BindingAction::MoveBackward) => {
+                self.swordcerer.move_backward = key;
             }
-            (BindingContext::Battlemage, BindingAction::MoveLeft) => {
-                self.battlemage.move_left = key;
+            (BindingContext::Swordcerer, BindingAction::MoveLeft) => {
+                self.swordcerer.move_left = key;
             }
-            (BindingContext::Battlemage, BindingAction::MoveRight) => {
-                self.battlemage.move_right = key;
+            (BindingContext::Swordcerer, BindingAction::MoveRight) => {
+                self.swordcerer.move_right = key;
             }
             (BindingContext::Warglock, BindingAction::Reload) => {
                 self.warglock.reload = key;
@@ -490,11 +490,11 @@ impl InputBindings {
                 ("Rune 3", self.rune_caster.rune_3),
                 ("Rune 4", self.rune_caster.rune_4),
             ],
-            BindingContext::Battlemage => vec![
-                ("Forward", self.battlemage.move_forward),
-                ("Backward", self.battlemage.move_backward),
-                ("Left", self.battlemage.move_left),
-                ("Right", self.battlemage.move_right),
+            BindingContext::Swordcerer => vec![
+                ("Forward", self.swordcerer.move_forward),
+                ("Backward", self.swordcerer.move_backward),
+                ("Left", self.swordcerer.move_left),
+                ("Right", self.swordcerer.move_right),
             ],
             BindingContext::Warglock => vec![("Reload", self.warglock.reload)],
             BindingContext::Meteorologist => vec![

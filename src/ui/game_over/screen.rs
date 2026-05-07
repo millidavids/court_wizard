@@ -377,14 +377,18 @@ pub(super) fn setup_game_over_screen(
                     ));
 
                     stats
-                        .spawn(Node {
-                            flex_direction: FlexDirection::Column,
-                            max_height: Val::Px(150.0),
-                            overflow: Overflow::scroll_y(),
-                            row_gap: Val::Px(2.0),
-                            padding: UiRect::left(Val::Px(20.0)),
-                            ..default()
-                        })
+                        .spawn((
+                            Node {
+                                flex_direction: FlexDirection::Column,
+                                max_height: Val::Px(150.0),
+                                overflow: Overflow::scroll_y(),
+                                row_gap: Val::Px(2.0),
+                                padding: UiRect::left(Val::Px(20.0)),
+                                ..default()
+                            },
+                            ScrollPosition::default(),
+                            crate::ui::focus::GamepadScrollTarget,
+                        ))
                         .with_children(|scroll| {
                             for level_stat in &run.level_stats {
                                 scroll.spawn((

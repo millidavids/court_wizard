@@ -257,6 +257,7 @@ fn spawn_right_panel(parent: &mut ChildSpawnerCommands) {
                         ..default()
                     },
                     ScrollPosition::default(),
+                    crate::ui::focus::GamepadScrollTarget,
                     ScrollableCompendiumContainer,
                     BackgroundColor(SECTION_BG),
                 ))

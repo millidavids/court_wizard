@@ -164,7 +164,7 @@ pub const BRUTE_GLOW_COLOR: Color = Color::srgb(0.7, 0.2, 1.0);
 
 // ===== Default Sprite Dimensions =====
 
-/// Default world-space sprite width for most unit types (infantry, archer, assassin, dispeller, battlemage).
+/// Default world-space sprite width for most unit types (infantry, archer, assassin, dispeller, swordcerer).
 pub const DEFAULT_SPRITE_WIDTH: f32 = 24.0 * crate::game::constants::UNIT_SCALE;
 /// Default world-space sprite height for most unit types.
 pub const DEFAULT_SPRITE_HEIGHT: f32 = 32.0 * crate::game::constants::UNIT_SCALE;

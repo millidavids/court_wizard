@@ -49,14 +49,6 @@ impl OgreAttackCooldown {
     }
 }
 
-/// Reduces incoming melee (non-spell) damage by a multiplier.
-/// Applied in the shared combat system.
-#[derive(Component)]
-pub struct MeleeDamageReduction {
-    /// Fraction of damage taken (0.3 = takes 30%, blocks 70%).
-    pub multiplier: f32,
-}
-
 /// Marker component for the charge direction indicator entity.
 #[derive(Component)]
 pub struct OgreChargeIndicator;

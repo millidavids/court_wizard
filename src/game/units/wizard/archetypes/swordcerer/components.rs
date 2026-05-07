@@ -1,40 +1,41 @@
 use bevy::prelude::*;
 
-/// Marker component for the battlemage's field avatar entity.
+/// Marker component for the swordcerer's field avatar entity.
 #[derive(Component)]
-pub struct BattlemageAvatar;
+pub struct SwordcererAvatar;
 
 /// Tracks the avatar's last non-zero facing direction on the XZ plane.
 /// Attack direction (missile + sword) reads this — the archetype no longer
 /// separates aim from movement; both share the left stick / WASD input.
 #[derive(Component, Debug, Clone, Copy)]
-pub struct BattlemageFacing(pub Vec2);
+pub struct SwordcererFacing(pub Vec2);
 
-impl Default for BattlemageFacing {
+impl Default for SwordcererFacing {
     fn default() -> Self {
         // Default facing away from the castle toward the battlefield (-X direction).
         Self(Vec2::new(-1.0, 0.0))
     }
 }
 
-/// Sword swing arc visual effect entity.
+/// Sword swing arc visual effect entity. Damage is dealt on the frame the
+/// component is added (detected via `Added<SwordArc>`); this struct only
+/// carries the lifecycle state for grow + fade.
 #[derive(Component)]
 pub struct SwordArc {
     pub time_alive: f32,
     pub duration: f32,
     pub direction: Vec2,
-    pub damage_dealt: bool,
 }
 
-/// Cooldown tracker for battlemage missile attacks.
+/// Cooldown tracker for swordcerer missile attacks.
 #[derive(Component)]
-pub struct BattlemageMissileCooldown {
+pub struct SwordcererMissileCooldown {
     pub remaining: f32,
 }
 
-/// Cooldown tracker for battlemage sword swings.
+/// Cooldown tracker for swordcerer sword swings.
 #[derive(Component)]
-pub struct BattlemageSwordCooldown {
+pub struct SwordcererSwordCooldown {
     pub remaining: f32,
 }
 
@@ -50,14 +51,11 @@ pub struct EnterFrayButton;
 #[derive(Component)]
 pub struct EnterFrayButtonText;
 
-/// Component for the battlemage health bar UI container.
+/// Component for the swordcerer health bar UI container.
 #[derive(Component)]
-pub struct BattlemageHealthBar;
+pub struct SwordcererHealthBar;
 
-/// Component for the battlemage health bar fill node.
+/// Component for the swordcerer health bar fill node.
 #[derive(Component)]
-pub struct BattlemageHealthBarFill;
+pub struct SwordcererHealthBarFill;
 
-/// Cached material handle for sword arc visuals (created once, reused per swing).
-#[derive(Resource)]
-pub struct SwordArcMaterial(pub Handle<StandardMaterial>);

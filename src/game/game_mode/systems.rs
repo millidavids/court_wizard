@@ -361,8 +361,8 @@ pub(super) fn tick_wizard_cycle(
                 );
             }
         }
-        crate::config::WizardType::Battlemage => {
-            crate::game::units::wizard::archetypes::battlemage::systems::spawn_enter_fray_button(
+        crate::config::WizardType::Swordcerer => {
+            crate::game::units::wizard::archetypes::swordcerer::systems::spawn_enter_fray_button(
                 commands.reborrow(),
             );
         }

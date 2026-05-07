@@ -40,3 +40,10 @@ pub(super) const RIGHT_STICK_SCROLL_SPEED: f32 = 1200.0;
 /// edge when auto-scrolling. Prevents the focused button from sitting flush
 /// against the clipping edge.
 pub(super) const AUTOSCROLL_EDGE_PADDING: f32 = 24.0;
+
+/// Minimum shaped right-stick magnitude required for `right_stick_scroll` to
+/// claim control of an in-flight `ScrollAnimation`. Just past the 0.15
+/// deadzone the response curve produces near-zero shaped values; a thumb
+/// resting at that boundary would otherwise strip the autoscroll snap every
+/// frame without producing any visible scroll movement.
+pub(super) const ANIM_CANCEL_THRESHOLD: f32 = 0.1;

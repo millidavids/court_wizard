@@ -402,9 +402,11 @@ pub fn check_hitscan_collisions(
                 DamageType::Force,
                 false,
             );
-            commands.entity(hit_entity).insert(BulletHitFlash {
-                timer: constants::BULLET_HIT_FLASH_DURATION,
-            });
+            commands
+                .entity(hit_entity)
+                .insert(crate::game::units::hit_flash::HitFlash {
+                    timer: constants::BULLET_HIT_FLASH_DURATION,
+                });
         }
 
         // Always despawn the ray after processing
@@ -636,49 +638,6 @@ pub fn update_muzzle_flashes(
     }
 }
 
-/// Flash enemies white briefly when hit by bullets — spawns a white overlay sphere.
-pub fn update_bullet_hit_flashes(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut flashes: Query<(Entity, &mut BulletHitFlash, &Transform)>,
-    visual_assets: Res<SpellVisualAssets>,
-) {
-    for (entity, mut flash, transform) in &mut flashes {
-        if flash.timer == constants::BULLET_HIT_FLASH_DURATION {
-            // First frame: spawn white overlay at the unit's position
-            commands.spawn((
-                Mesh3d(visual_assets.cross_plane_sphere.clone()),
-                MeshMaterial3d(visual_assets.bullet_hit_flash.clone()),
-                Transform::from_translation(transform.translation).with_scale(Vec3::splat(30.0)),
-                BulletHitFlashVfx {
-                    timer: constants::BULLET_HIT_FLASH_DURATION,
-                },
-                OnGameplayScreen,
-            ));
-        }
-        flash.timer -= time.delta_secs();
-        if flash.timer <= 0.0 {
-            commands.entity(entity).remove::<BulletHitFlash>();
-        }
-    }
-}
-
-/// Fade out and despawn hit flash overlay sprites.
-pub fn update_bullet_hit_flash_vfx(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut flashes: Query<(Entity, &mut BulletHitFlashVfx, &mut Transform)>,
-) {
-    for (entity, mut flash, mut transform) in &mut flashes {
-        flash.timer -= time.delta_secs();
-        if flash.timer <= 0.0 {
-            commands.entity(entity).try_despawn();
-        } else {
-            let alpha = flash.timer / constants::BULLET_HIT_FLASH_DURATION;
-            transform.scale = Vec3::splat(30.0 * alpha);
-        }
-    }
-}
 
 // ===== Helper functions =====
 

@@ -170,9 +170,9 @@ pub fn is_not_warglock(config: Res<GameConfig>) -> bool {
     config.wizard_type != WizardType::Warglock
 }
 
-/// Returns true if the active wizard type is Battlemage.
-pub fn is_battlemage(config: Res<GameConfig>) -> bool {
-    config.wizard_type == WizardType::Battlemage
+/// Returns true if the active wizard type is Swordcerer.
+pub fn is_swordcerer(config: Res<GameConfig>) -> bool {
+    config.wizard_type == WizardType::Swordcerer
 }
 
 /// Returns true if the active wizard type is Meteorologist.

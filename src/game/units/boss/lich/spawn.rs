@@ -10,11 +10,10 @@ use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocit
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker, WaveGroup};
 use crate::game::units::boss::components::Boss;
-use crate::game::units::boss::ogre::MeleeDamageReduction;
 use crate::game::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, FacingDirection, FlockingModifier,
-    FlockingVelocity, Health, Hitbox, MovementSpeed, RoughTerrainModifier, TargetingVelocity, Team,
-    Teleportable, WalkingAnimation,
+    FlockingVelocity, Health, Hitbox, MeleeDamageReduction, MovementSpeed, RoughTerrainModifier,
+    TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::infantry::components::Infantry;
 use crate::game::units::infantry::constants::UNDEAD_SPRITE_TINT;

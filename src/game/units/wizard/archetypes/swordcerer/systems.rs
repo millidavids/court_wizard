@@ -1,4 +1,4 @@
-//! Re-export hub for battlemage systems split (Phase 18).
+//! Re-export hub for swordcerer systems split (Phase 18).
 
 pub(super) use super::combat::*;
 pub(crate) use super::ui::spawn_enter_fray_button;
