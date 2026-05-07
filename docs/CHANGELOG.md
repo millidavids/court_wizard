@@ -7,14 +7,19 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **Status effects in spell descriptions** — spell book and compendium entries now list the lingering effects each spell can leave on its targets. Fireball spells out what Burning does, Squall explains Frost and Frozen, Entangle explains Rooted, lightning spells explain Shocked, and so on. The "Status effects" header is highlighted in gold and each effect's name is color-coded — orange for Burning, yellow for Shocked, blue for Frost, green for Poisoned, and so on — so the section pops at a glance
 - **Excremage easter egg in spell descriptions** — when you're playing as the Excremage, every spell that would normally apply Burning, Frost, Poison, or any other status effect now shows Smelly instead. Fitting, since the Excremage turns all damage into poop and the only thing that lingers is the smell
+- **Polymorphed units actually look like sheep now** — when you polymorph an enemy, they transform into a small sheep that hops in place until the spell wears off. Previously, polymorphed units just turned into a featureless pale rectangle the size of the original unit. The same treatment applies to all the polymorph variants — pigs keep their pink tint, dire sheep stay bright, and the contagious / permanent / mass-polymorph forms all hop along too
 
 ### Changed
 - **Behind-the-scenes release tooling** — internal cleanup to how new versions get packaged and uploaded to Steam. No gameplay changes
 - **Committing insight no longer resets the spell web view** — when you commit insight in the Wizard's Tower, the spell graph used to zoom all the way back out and forget which spell you had selected. Now the camera stays exactly where you left it and the left-side detail panel just refreshes in place to reflect the new state — including showing the unlocked version of any spell that just crossed the threshold
+- **Spell book opens on the spell you have ready to cast** — opening the spell menu now jumps straight to whichever spell is currently primed, instead of always starting on Magic Missile
+- **Selected spell is highlighted in the spell book** — the spell you have selected in the right panel now gets the same pressed/highlighted treatment as the rest of the menu buttons across the game
 
 ### Fixed
 - **Achievements unlocked outside of battle now sync to Steam** — some achievements that you can earn from menus (like the one for adjusting a slider in settings) were unlocking in-game but never showing up on your Steam profile. They now sync correctly
 - **"Wave incoming!" banner no longer shows over menus** — the red banner was rendering on top of the spell book, cauldron menu, pause menu, and other overlays. It now hides itself whenever you have a menu open and reappears when you return to the battlefield
+- **Spell book right panel scrolls again** — once you'd unlocked enough spells in a category (especially Control), the bottom entries would slide off the page with no way to reach them. The list now scrolls properly so every unlocked spell is accessible
+- **Wizard's Tower rune text no longer bleeds through after committing insight** — the orbiting spell-name text that drifts around the arcane circle used to render on top of the panels after you spent insight, and could briefly look like it was spinning frantically when multiple spells unlocked at once. Both are fixed; the text stays politely in the background
 
 ## [v0.7.312] - 2026-05-05
 

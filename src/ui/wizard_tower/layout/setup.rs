@@ -260,8 +260,9 @@ pub(crate) fn setup_wizard_tower_layout(
             #[cfg(debug_assertions)]
             content_cmd.insert(super::super::components::WizardTowerUiContent);
             content_cmd.with_children(|content| {
-                // Left panel — ZIndex ensures it renders above graph edges
-                // that may visually leak due to UiTransform rotation bypassing clip.
+                // GlobalZIndex(1) keeps the panel (and descendants) above the
+                // rune backdrop in a stable stacking context, even across
+                // child despawn/respawn cycles.
                 content.spawn((
                     Node {
                         width: Val::Percent(LEFT_PANEL_PERCENT),
@@ -278,7 +279,7 @@ pub(crate) fn setup_wizard_tower_layout(
                     Interaction::None,
                     BackgroundColor(DETAIL_BG),
                     BorderColor::all(DETAIL_BORDER),
-                    ZIndex(10),
+                    GlobalZIndex(1),
                     WizardTowerLeftPanel,
                 ));
 
@@ -358,7 +359,8 @@ pub(crate) fn setup_wizard_tower_layout(
                                 }
                             });
 
-                        // Right panel — scrollable content below tabs
+                        // Right panel — scrollable content below tabs.
+                        // GlobalZIndex(1) — see WizardTowerLeftPanel.
                         right_col.spawn((
                             Node {
                                 flex_direction: FlexDirection::Column,
@@ -372,6 +374,7 @@ pub(crate) fn setup_wizard_tower_layout(
                             Interaction::None,
                             BackgroundColor(SECTION_BG),
                             BorderColor::all(DETAIL_BORDER),
+                            GlobalZIndex(1),
                             WizardTowerRightPanel,
                         ));
                     });

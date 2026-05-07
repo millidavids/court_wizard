@@ -162,7 +162,8 @@ fn spawn_flash_banner_with_marker<M: Component>(
         TextColor(color),
         marker,
         Pickable::IGNORE,
-        GlobalZIndex(998),
+        // Above gameplay HUD, below modal overlays (which sit at 500+).
+        GlobalZIndex(100),
         OnGameplayScreen,
     ));
 }
@@ -326,7 +327,7 @@ pub(super) fn show_buff_tooltip(
                         },
                         BackgroundColor(BUFF_TOOLTIP_BG),
                         BorderColor::all(BUFF_TOOLTIP_BORDER),
-                        GlobalZIndex(999),
+                        GlobalZIndex(101),
                         BuffTooltip,
                         Pickable::IGNORE,
                         OnGameplayScreen,

@@ -177,10 +177,16 @@ pub fn spawn_right_scroll_panel<M: Component>(
                 flex_grow: 1.0,
                 flex_basis: Val::Px(0.0),
                 min_width: Val::Px(0.0),
+                // Required: flex's implicit `min-height: auto` would let this
+                // item grow to its content size, defeating `scroll_y()`.
+                min_height: Val::Px(0.0),
                 flex_direction: inner_direction,
                 row_gap: Val::Px(inner_gap),
                 column_gap: Val::Px(inner_gap),
                 overflow: Overflow::scroll_y(),
+                // Default `Stretch` would force children to panel height,
+                // again defeating scroll_y.
+                align_items: AlignItems::FlexStart,
                 border: UiRect::all(Val::Px(1.0)),
                 padding: UiRect::all(Val::Px(12.0)),
                 border_radius: BorderRadius::all(Val::Px(PANEL_BORDER_RADIUS)),
@@ -230,9 +236,9 @@ pub fn spawn_page_container<M: Component>(
         screen_marker,
     ));
 
-    if pause_menu {
-        root.insert(GlobalZIndex(500));
-    }
+    // Modal overlays sit above the in-game HUD (100..). Pause goes highest
+    // since it can open on top of the spell book / cauldron menus.
+    root.insert(GlobalZIndex(if pause_menu { 1000 } else { 500 }));
 
     let root_id = root.id();
 

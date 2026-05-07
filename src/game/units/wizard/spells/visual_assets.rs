@@ -275,6 +275,12 @@ pub struct SpellVisualAssets {
     pub polymorph_poof: Handle<StandardMaterial>,
     /// Dark purple smoke for banishment void.
     pub banishment_poof: Handle<StandardMaterial>,
+
+    // ── Polymorph sheep visuals ──────────────────────────────────────────
+    /// Static icon used as the world-space sprite for polymorphed units.
+    pub sheep_icon: Handle<Image>,
+    /// Fixed-size quad mesh for polymorphed unit sprites.
+    pub sheep_mesh: Handle<Mesh>,
 }
 
 /// Initializes the shared spell visual assets resource.
@@ -289,6 +295,7 @@ pub fn init_spell_visual_assets(
     mut wall_of_stone_materials: ResMut<Assets<WallOfStoneMaterial>>,
     mut aura_sphere_materials: ResMut<Assets<AuraSphereMaterial>>,
     battlefield_assets: Res<BattlefieldAssets>,
+    asset_server: Res<AssetServer>,
 ) {
     let unlit = |color: Color| StandardMaterial {
         base_color: color,
@@ -970,6 +977,12 @@ pub fn init_spell_visual_assets(
         // ── Smoke poof materials ──────────────────────────────────────
         polymorph_poof: materials.add(unlit_blend(Color::srgba(0.7, 0.5, 0.2, 0.6))),
         banishment_poof: materials.add(unlit_blend(Color::srgba(0.2, 0.0, 0.3, 0.6))),
+
+        sheep_icon: asset_server.load("images/icons/polymorph_icon.png"),
+        sheep_mesh: meshes.add(Rectangle::new(
+            super::polymorph::sheep_visual::SHEEP_QUAD_SIZE,
+            super::polymorph::sheep_visual::SHEEP_QUAD_SIZE,
+        )),
     });
 }
 

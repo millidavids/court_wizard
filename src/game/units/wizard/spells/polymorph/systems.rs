@@ -7,7 +7,10 @@ use super::components::{
     ContagiousBaas, DireSheep, ExplosiveSheep, PermanentLivestock, PigForm, PolymorphTalentParams,
 };
 use super::constants;
+use super::sheep_visual::SheepBounce;
+use crate::game::units::systems::create_sprite_material;
 use crate::config::GameConfig;
+use crate::game::components::Billboard;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -34,7 +37,9 @@ fn strip_polymorph_components(commands: &mut Commands, entity: Entity) {
         .remove::<ContagiousBaas>()
         .remove::<PigForm>()
         .remove::<PermanentLivestock>()
-        .remove::<DireSheep>();
+        .remove::<DireSheep>()
+        .remove::<SheepBounce>()
+        .remove::<Billboard>();
 }
 
 /// Computes talent parameters from active talent selections.
@@ -95,6 +100,7 @@ fn apply_polymorph_to_target(
     target_entity: Entity,
     target_health: &Health,
     target_material: &MeshMaterial3d<StandardMaterial>,
+    target_mesh: &Mesh3d,
     target_team: Team,
     duration: f32,
     talent_params: &PolymorphTalentParams,
@@ -111,11 +117,7 @@ fn apply_polymorph_to_target(
         8,
         time_secs,
     );
-    let original_material = target_material.0.clone();
-
-    // Determine HP and color based on talents
     let (sheep_hp, color) = if talent_params.dire {
-        // Dire Sheep overrides HP and uses its own color
         (constants::DIRE_SHEEP_HP, constants::DIRE_SHEEP_COLOR)
     } else if talent_params.pig_form {
         (talent_params.sheep_hp, constants::PIG_COLOR)
@@ -123,10 +125,13 @@ fn apply_polymorph_to_target(
         (talent_params.sheep_hp, constants::SHEEP_COLOR)
     };
 
-    let sheep_material = materials.add(StandardMaterial {
-        base_color: color,
-        ..default()
-    });
+    let sheep_material = create_sprite_material(
+        materials,
+        visual_assets.sheep_icon.clone(),
+        color,
+        Vec2::ONE,
+        Vec2::ZERO,
+    );
 
     let mut entity_cmds = commands.entity(target_entity);
     entity_cmds.insert((
@@ -134,11 +139,18 @@ fn apply_polymorph_to_target(
             duration,
             target_health.current,
             target_health.max,
-            original_material,
+            target_material.0.clone(),
+            target_mesh.0.clone(),
             target_team,
         ),
         MeshMaterial3d(sheep_material),
+        Mesh3d(visual_assets.sheep_mesh.clone()),
         Health::new(sheep_hp),
+        SheepBounce {
+            base_y: position.y,
+            elapsed: 0.0,
+        },
+        Billboard,
     ));
     entity_cmds.remove::<AttackTiming>();
 
@@ -185,6 +197,7 @@ pub fn handle_polymorph_casting(
             &Transform,
             &Health,
             &MeshMaterial3d<StandardMaterial>,
+            &Mesh3d,
             &Team,
         ),
         (Without<Corpse>, Without<PolymorphedModifier>),
@@ -261,6 +274,7 @@ fn polymorph_casting_logic(
             &Transform,
             &Health,
             &MeshMaterial3d<StandardMaterial>,
+            &Mesh3d,
             &Team,
         ),
         (Without<Corpse>, Without<PolymorphedModifier>),
@@ -301,15 +315,15 @@ fn polymorph_casting_logic(
                         // Mass Polymorph: collect target entity IDs first, then apply
                         let target_entities: Vec<Entity> = targets_query
                             .iter()
-                            .filter(|(_, transform, _, _, _)| {
+                            .filter(|(_, transform, _, _, _, _)| {
                                 transform.translation.distance(cursor_pos)
                                     <= constants::MASS_POLYMORPH_RADIUS
                             })
-                            .map(|(entity, _, _, _, _)| entity)
+                            .map(|(entity, _, _, _, _, _)| entity)
                             .collect();
 
                         for entity in &target_entities {
-                            if let Ok((_, transform, health, material, team)) =
+                            if let Ok((_, transform, health, material, mesh, team)) =
                                 targets_query.get(*entity)
                             {
                                 apply_polymorph_to_target(
@@ -318,6 +332,7 @@ fn polymorph_casting_logic(
                                     *entity,
                                     health,
                                     material,
+                                    mesh,
                                     *team,
                                     duration,
                                     talent_params,
@@ -337,13 +352,14 @@ fn polymorph_casting_logic(
                             target_transform,
                             target_health,
                             target_material,
+                            target_mesh,
                             target_team,
                         )) = targets_query
                             .iter()
-                            .filter_map(|(entity, transform, health, material, team)| {
+                            .filter_map(|(entity, transform, health, material, mesh, team)| {
                                 let dist = transform.translation.distance(cursor_pos);
                                 if dist <= constants::TARGET_SEARCH_RADIUS {
-                                    Some((entity, dist, transform, health, material, team))
+                                    Some((entity, dist, transform, health, material, mesh, team))
                                 } else {
                                     None
                                 }
@@ -356,6 +372,7 @@ fn polymorph_casting_logic(
                                 target_entity,
                                 target_health,
                                 target_material,
+                                target_mesh,
                                 *target_team,
                                 duration,
                                 talent_params,
@@ -393,10 +410,11 @@ pub fn tick_polymorphed_units(
     game_config: Res<GameConfig>,
     mut polymorphed: Query<(
         Entity,
-        &Transform,
+        &mut Transform,
         &mut PolymorphedModifier,
         &mut Health,
         Option<&ContagiousBaas>,
+        Option<&SheepBounce>,
         Has<PermanentLivestock>,
         Has<DireSheep>,
     )>,
@@ -406,6 +424,7 @@ pub fn tick_polymorphed_units(
             &Transform,
             &Health,
             &MeshMaterial3d<StandardMaterial>,
+            &Mesh3d,
             &Team,
         ),
         (Without<Corpse>, Without<PolymorphedModifier>),
@@ -414,8 +433,16 @@ pub fn tick_polymorphed_units(
 ) {
     let delta = time.delta_secs();
 
-    for (entity, transform, mut modifier, mut health, contagious, is_permanent, is_dire) in
-        &mut polymorphed
+    for (
+        entity,
+        mut transform,
+        mut modifier,
+        mut health,
+        contagious,
+        sheep_bounce,
+        is_permanent,
+        is_dire,
+    ) in &mut polymorphed
     {
         if modifier.update(delta) {
             if is_permanent {
@@ -430,9 +457,9 @@ pub fn tick_polymorphed_units(
             if let Some(contagious) = contagious {
                 let nearest = targets_query
                     .iter()
-                    .map(|(e, t, h, m, team)| {
+                    .map(|(e, t, h, m, mesh, team)| {
                         let dist = t.translation.distance(transform.translation);
-                        (e, dist, t.translation, h, m, *team)
+                        (e, dist, t.translation, h, m, mesh, *team)
                     })
                     .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
 
@@ -442,6 +469,7 @@ pub fn tick_polymorphed_units(
                     target_pos,
                     target_health,
                     target_material,
+                    target_mesh,
                     target_team,
                 )) = nearest
                 {
@@ -455,6 +483,7 @@ pub fn tick_polymorphed_units(
                         target_entity,
                         target_health,
                         target_material,
+                        target_mesh,
                         target_team,
                         duration,
                         &talent_params,
@@ -478,24 +507,24 @@ pub fn tick_polymorphed_units(
                 }
             }
 
+            if let Some(bounce) = sheep_bounce {
+                transform.translation.y = bounce.base_y;
+            }
+
+            let mut e = commands.entity(entity);
+            e.insert((
+                MeshMaterial3d(modifier.original_material.clone()),
+                Mesh3d(modifier.original_mesh.clone()),
+            ));
             if is_dire {
-                // Dire Sheep: when duration expires, just kill it (it was a temporary ally)
                 health.current = 0.0;
-                commands.entity(entity).insert((
-                    modifier.original_team,
-                    MeshMaterial3d(modifier.original_material.clone()),
-                ));
-                strip_polymorph_components(&mut commands, entity);
+                e.insert(modifier.original_team);
             } else {
-                // Normal revert: restore original state
                 health.current = modifier.original_health_current;
                 health.max = modifier.original_health_max;
-                commands.entity(entity).insert((
-                    MeshMaterial3d(modifier.original_material.clone()),
-                    AttackTiming::new(),
-                ));
-                strip_polymorph_components(&mut commands, entity);
+                e.insert(AttackTiming::new());
             }
+            strip_polymorph_components(&mut commands, entity);
         }
     }
 }

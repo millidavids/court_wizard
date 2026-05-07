@@ -107,7 +107,9 @@ pub(crate) fn rebuild_rune_on_spell_unlock(
     text_query: Query<Entity, With<ArcaneRuneText>>,
     mut materials: ResMut<Assets<ArcaneRuneMaterial>>,
 ) {
-    if spell_researched.read().next().is_none() {
+    // Drain all queued messages this frame; otherwise a multi-spell commit
+    // rebuilds over consecutive frames, snap-jumping the angle each time.
+    if spell_researched.read().count() == 0 {
         return;
     }
 

@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::{DireSheep, PigForm};
+use super::sheep_visual::{self, SheepBounce};
 use super::systems;
 use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
 use crate::game::units::MovementCalculationSet;
@@ -12,6 +13,13 @@ pub struct PolymorphPlugin;
 
 impl Plugin for PolymorphPlugin {
     fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            sheep_visual::bounce_sheep_units
+                .after(MovementCalculationSet)
+                .run_if(any_with_component::<SheepBounce>)
+                .run_if(is_gameplay_running),
+        );
         app.add_systems(
             Update,
             // Local wizard casting (mouse input)

@@ -237,6 +237,7 @@ pub(crate) fn handle_study_button_actions(
     mut progress_materials: ResMut<Assets<RadialProgressMaterial>>,
     mut ring_materials: ResMut<Assets<ConcentricRingsMaterial>>,
     mut star_sky_materials: ResMut<Assets<StarSkyMaterial>>,
+    mut graph_view: ResMut<GraphViewState>,
 ) {
     for event in button_clicked.read() {
         let Ok(action) = button_query.get(event.button) else {
@@ -317,6 +318,9 @@ pub(crate) fn handle_study_button_actions(
                 if let Some(sel) = selected.as_mut() {
                     sel.set_changed();
                 }
+                // Trigger resource_changed::<GraphViewState> so the layout
+                // systems re-run for the freshly respawned spell-web nodes.
+                graph_view.set_changed();
             }
             #[cfg(debug_assertions)]
             StudyButtonAction::DebugGrantInsight => {
@@ -334,6 +338,7 @@ pub(crate) fn handle_study_button_actions(
                     false,
                     false,
                 );
+                graph_view.set_changed();
             }
         }
     }

@@ -54,6 +54,7 @@ pub(super) fn button_action(
 /// Updates the detail panel text and hotkey highlights when the selected spell changes.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn update_detail_panel(
+    mut commands: Commands,
     selected: Res<SelectedSpellPreview>,
     config: Res<GameConfig>,
     mut name_query: Query<
@@ -101,7 +102,10 @@ pub(super) fn update_detail_panel(
     )>,
     children_query: Query<&Children>,
     mut hotkey_text_query: Query<&mut TextColor>,
-    mut spell_list_query: Query<(&SpellListButton, &mut BorderColor), Without<HotkeySlotButton>>,
+    mut spell_list_query: Query<
+        (Entity, &SpellListButton, &mut BorderColor),
+        Without<HotkeySlotButton>,
+    >,
 ) {
     if !selected.is_changed() && !config.is_changed() {
         return;
@@ -161,14 +165,22 @@ pub(super) fn update_detail_panel(
         }
     }
 
-    // Update spell list borders
-    for (list_btn, mut border) in &mut spell_list_query {
+    for (entity, list_btn, mut border) in &mut spell_list_query {
         let is_selected = list_btn.0 == spell;
         *border = BorderColor::all(if is_selected {
             SPELL_BUTTON_SELECTED_BORDER
         } else {
             SPELL_BUTTON_BORDER
         });
+        if is_selected {
+            commands
+                .entity(entity)
+                .insert(crate::ui::components::ButtonActive);
+        } else {
+            commands
+                .entity(entity)
+                .remove::<crate::ui::components::ButtonActive>();
+        }
     }
 }
 

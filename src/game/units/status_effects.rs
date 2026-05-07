@@ -537,16 +537,20 @@ pub struct PolymorphedModifier {
     pub original_health_max: f32,
     /// Original material handle to restore on revert.
     pub original_material: Handle<StandardMaterial>,
+    /// Original mesh handle to restore on revert.
+    pub original_mesh: Handle<Mesh>,
     /// Original team to restore on revert.
     pub original_team: Team,
 }
 
 impl PolymorphedModifier {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         duration: f32,
         health_current: f32,
         health_max: f32,
         material: Handle<StandardMaterial>,
+        mesh: Handle<Mesh>,
         team: Team,
     ) -> Self {
         Self {
@@ -554,6 +558,7 @@ impl PolymorphedModifier {
             original_health_current: health_current,
             original_health_max: health_max,
             original_material: material,
+            original_mesh: mesh,
             original_team: team,
         }
     }

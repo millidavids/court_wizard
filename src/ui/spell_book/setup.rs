@@ -7,7 +7,8 @@ use super::constants::*;
 use crate::config::save_data::load_unified_save;
 use crate::config::{GameConfig, WizardType};
 use crate::game::units::wizard::components::{
-    Spell, SpellCategory, effective_status_effects, spawn_status_effects_section,
+    LocalWizard, PrimedSpell, Spell, SpellCategory, effective_status_effects,
+    spawn_status_effects_section,
 };
 use crate::networking::session::MultiplayerSession;
 use crate::ui::components::{ButtonColors, SpellIconAssets};
@@ -28,6 +29,7 @@ pub(super) fn spawn_spell_book_ui(
     config: Res<GameConfig>,
     mp_session: Option<Res<MultiplayerSession>>,
     icon_assets: Res<SpellIconAssets>,
+    local_wizard: Query<&PrimedSpell, With<LocalWizard>>,
 ) {
     // In multiplayer, all spells are available regardless of single-player progression.
     let is_multiplayer = mp_session.is_some();
@@ -52,12 +54,20 @@ pub(super) fn spawn_spell_book_ui(
         unlocked_spells.contains(&debug_name)
     };
 
-    // Pick initial selected spell: first unlocked spell, or MagicMissile as fallback
-    let initial_spell = SpellCategory::all()
-        .iter()
-        .flat_map(|cat| cat.spells().iter())
-        .find(|s| is_unlocked(s))
-        .copied()
+    // Open on the wizard's currently primed spell; fall back to the first
+    // unlocked, then MagicMissile.
+    let initial_spell = local_wizard
+        .single()
+        .ok()
+        .map(|p| p.spell)
+        .filter(|s| is_unlocked(s))
+        .or_else(|| {
+            SpellCategory::all()
+                .iter()
+                .flat_map(|cat| cat.spells().iter())
+                .find(|s| is_unlocked(s))
+                .copied()
+        })
         .unwrap_or(Spell::MagicMissile);
 
     commands.insert_resource(SelectedSpellPreview(initial_spell));
@@ -107,10 +117,12 @@ pub(super) fn spawn_spell_book_ui(
             );
         });
 
-        // Two-panel content row
+        // Two-panel content row. `min_height: 0` lets it shrink to page
+        // height; see `spawn_right_scroll_panel` for the same flex gotcha.
         root.spawn(Node {
             width: Val::Percent(100.0),
             flex_grow: 1.0,
+            min_height: Val::Px(0.0),
             flex_direction: FlexDirection::Row,
             column_gap: Val::Px(crate::ui::constants::TWO_PANEL_GAP),
             ..default()
