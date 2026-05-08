@@ -142,8 +142,8 @@ pub(crate) fn update_lightning_bolts(
             bolt.afterimage_remaining -= dt;
             // Retinal-afterimage fade: brightness drops fast, alpha lingers.
             if let Some(mat) = materials.get_mut(&bolt.material) {
-                let t = (bolt.afterimage_remaining / bolt.config.afterimage_duration)
-                    .clamp(0.0, 1.0);
+                let t =
+                    (bolt.afterimage_remaining / bolt.config.afterimage_duration).clamp(0.0, 1.0);
                 let base = bolt.base_color.to_srgba();
                 let dim = 0.3 + 0.7 * t.powf(2.0);
                 mat.base_color = Color::srgba(
@@ -268,8 +268,7 @@ fn spawn_forks(
         } else {
             1.0
         };
-        let fork_dir =
-            (perp * sign + along * rng.random_range(-0.3..0.3)).normalize_or_zero();
+        let fork_dir = (perp * sign + along * rng.random_range(-0.3..0.3)).normalize_or_zero();
         let fork_end = origin + fork_dir * config.fork_length;
         let fork_path = generate_jagged_path(
             origin,
@@ -279,7 +278,14 @@ fn spawn_forks(
             0.0,
             rng,
         );
-        spawn_segments(commands, parent, mesh, material, &fork_path, main_width * 0.5);
+        spawn_segments(
+            commands,
+            parent,
+            mesh,
+            material,
+            &fork_path,
+            main_width * 0.5,
+        );
     }
 }
 

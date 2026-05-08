@@ -4,6 +4,9 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::gamepad::resources::ActiveInputDevice;
+use crate::game::units::wizard::archetypes::swordcerer::resources::{
+    SwordcererPhase, SwordcererState,
+};
 use crate::game::units::wizard::components::{LocalWizard, Wizard};
 use crate::game::units::wizard::spells::utils::{
     clamp_to_spell_range_ground, get_cursor_world_position,
@@ -56,6 +59,7 @@ pub(super) fn spawn_aim_line(
 pub(super) fn update_aim_line(
     active: Res<ActiveInputDevice>,
     corrected_cursor: Res<CorrectedCursorPosition>,
+    swordcerer: Option<Res<SwordcererState>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     wizard_query: Query<(&Transform, &Wizard), (With<LocalWizard>, Without<AimLine>)>,
     mut line_query: Query<(&mut Transform, &mut Visibility), With<AimLine>>,
@@ -65,6 +69,17 @@ pub(super) fn update_aim_line(
     };
 
     if !active.is_gamepad() {
+        line_visibility.set_if_neq(Visibility::Hidden);
+        return;
+    }
+    // Hide the aim line once the swordcerer's avatar is on the field — the
+    // wall wizard isn't casting spells. The line stays visible during
+    // ChoosingLocation (the player is aiming where to drop the avatar) and
+    // returns once the avatar dies and phase flips back to Idle.
+    if swordcerer
+        .as_deref()
+        .is_some_and(|s| s.phase == SwordcererPhase::OnField)
+    {
         line_visibility.set_if_neq(Visibility::Hidden);
         return;
     }

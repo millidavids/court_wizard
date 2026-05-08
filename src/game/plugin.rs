@@ -2,8 +2,10 @@ use bevy::prelude::*;
 
 use crate::state::{AppState, InGameState};
 
+#[cfg(debug_assertions)]
 use super::components::OnGameplayScreen;
 use super::run_conditions::is_gameplay_running;
+#[cfg(debug_assertions)]
 use super::units::components::Hitbox;
 
 pub use super::sets::{MovementSystemSet, PostCombatSet, VelocitySystemSet};
@@ -270,16 +272,18 @@ impl Plugin for GamePlugin {
                 win_lose_systems::check_win_lose_conditions
                     .after(PostCombatSet)
                     .run_if(is_gameplay_running),
-            )
-            // Debug hitbox visualization (F2 toggle)
-            .add_systems(
-                Update,
-                (
-                    toggle_debug_hitboxes,
-                    update_debug_hitboxes.run_if(resource_exists::<DebugHitboxes>),
-                )
-                    .run_if(in_state(AppState::InGame)),
             );
+
+        // Debug hitbox visualization (F2 toggle) — debug builds only.
+        #[cfg(debug_assertions)]
+        app.add_systems(
+            Update,
+            (
+                toggle_debug_hitboxes,
+                update_debug_hitboxes.run_if(resource_exists::<DebugHitboxes>),
+            )
+                .run_if(in_state(AppState::InGame)),
+        );
     }
 }
 
@@ -291,6 +295,7 @@ fn apply_game_speed(config: Res<crate::config::GameConfig>, mut time: ResMut<Tim
 // --- Debug hitbox visualization ---
 
 /// When present, debug hitbox cylinders are shown.
+#[cfg(debug_assertions)]
 #[derive(Resource)]
 struct DebugHitboxes {
     material: Handle<StandardMaterial>,
@@ -298,9 +303,11 @@ struct DebugHitboxes {
 }
 
 /// Marker linking a debug cylinder to its parent unit entity.
+#[cfg(debug_assertions)]
 #[derive(Component)]
 struct DebugHitboxMarker(Entity);
 
+#[cfg(debug_assertions)]
 fn toggle_debug_hitboxes(
     mut commands: Commands,
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -331,6 +338,7 @@ fn toggle_debug_hitboxes(
     }
 }
 
+#[cfg(debug_assertions)]
 fn update_debug_hitboxes(
     mut commands: Commands,
     debug_res: Res<DebugHitboxes>,

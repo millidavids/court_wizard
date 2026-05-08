@@ -33,6 +33,9 @@ pub(super) struct ActionBarSlotIcon {
 }
 
 /// Marker component for the debug infinite mana toggle button.
+/// Defined unconditionally so `radial.rs` `With<>`/`Without<>` filter queries
+/// stay valid in release builds — the button itself is only spawned and
+/// queried meaningfully in debug builds.
 #[derive(Component)]
 pub(super) struct DebugManaButton;
 
@@ -56,5 +59,6 @@ pub(super) struct RadialCommitFlash {
 pub(super) struct ActionBarLayoutProgress(pub f32);
 
 /// Resource that tracks whether infinite mana is enabled.
+#[cfg(debug_assertions)]
 #[derive(Resource, Default)]
 pub struct InfiniteMana(pub bool);

@@ -9,6 +9,7 @@ use crate::game::constants::{
 };
 use crate::game::units::components::{Corpse, Team};
 use crate::game::units::king::components::King;
+use crate::game::units::wizard::archetypes::swordcerer::components::SwordcererAvatar;
 
 use crate::game::components::Acceleration;
 
@@ -217,15 +218,34 @@ pub fn check_wave_activation(
     mut staging_timers: ResMut<WaveStagingTimers>,
     mut staging_plan: ResMut<super::staging::WaveStagingPlan>,
     staging_query: Query<(Entity, &WaveGroup, &StagingAttacker, &Transform), Without<Corpse>>,
+    swordcerer_avatars: Query<&Transform, (With<SwordcererAvatar>, Without<Corpse>)>,
 ) {
     use std::collections::HashMap;
 
+    // No active staging → nothing to do. Skips work for the bulk of the battle
+    // after every wave has activated.
+    if staging_query.is_empty() {
+        return;
+    }
+
     let activation_radius_sq = STAGING_ACTIVATION_RADIUS * STAGING_ACTIVATION_RADIUS;
+    // Aggro distance for the swordcerer avatar to wake a staging wave. Tighter
+    // than the staging arrival radius — represents "the avatar walked into the
+    // wave's space" rather than "near the staging point."
+    const SWORDCERER_AGGRO_RADIUS: f32 = 300.0;
+    let swordcerer_aggro_radius_sq = SWORDCERER_AGGRO_RADIUS * SWORDCERER_AGGRO_RADIUS;
     // Use real time so 3x speedup doesn't shorten the timeout
     let dt = time.delta_secs();
 
-    // Count total and arrived (within activation radius of their assigned point) per wave
+    // At most one swordcerer avatar exists at a time.
+    let avatar_pos: Option<Vec2> = swordcerer_avatars
+        .single()
+        .ok()
+        .map(|t| Vec2::new(t.translation.x, t.translation.z));
+
     let mut wave_counts: HashMap<u32, (u32, u32)> = HashMap::new();
+    let mut waves_aggroed_by_avatar: std::collections::HashSet<u32> =
+        std::collections::HashSet::new();
     for (_entity, wave_group, staging, transform) in &staging_query {
         let (total, arrived) = wave_counts.entry(wave_group.0).or_insert((0, 0));
         *total += 1;
@@ -234,6 +254,11 @@ pub fn check_wave_activation(
         let unit_pos = Vec2::new(transform.translation.x, transform.translation.z);
         if unit_pos.distance_squared(staging_pos) <= activation_radius_sq {
             *arrived += 1;
+        }
+        if let Some(ap) = avatar_pos
+            && unit_pos.distance_squared(ap) <= swordcerer_aggro_radius_sq
+        {
+            waves_aggroed_by_avatar.insert(wave_group.0);
         }
     }
 
@@ -249,9 +274,15 @@ pub fn check_wave_activation(
 
         let ratio = *arrived as f32 / *total as f32;
         let timed_out = *elapsed >= WAVE_STAGING_TIMEOUT;
+        let aggroed_by_swordcerer = waves_aggroed_by_avatar.contains(wave);
 
-        if ratio >= WAVE_ACTIVATION_THRESHOLD || timed_out {
-            if timed_out {
+        if ratio >= WAVE_ACTIVATION_THRESHOLD || timed_out || aggroed_by_swordcerer {
+            if aggroed_by_swordcerer {
+                info!(
+                    "Wave {} activated by swordcerer avatar proximity ({}/{} units staged)",
+                    wave, arrived, total
+                );
+            } else if timed_out {
                 info!(
                     "Wave {} force-activated after {:.1}s timeout ({}/{} units within radius)",
                     wave, elapsed, arrived, total

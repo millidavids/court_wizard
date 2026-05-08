@@ -148,14 +148,11 @@ pub fn spawn_scrollable_left_detail_panel<M: Component>(
     marker: M,
 ) -> Entity {
     let detail_box = spawn_left_detail_panel(parent);
-    parent
-        .commands()
-        .entity(detail_box)
-        .insert((
-            marker,
-            ScrollPosition::default(),
-            crate::ui::focus::GamepadScrollTarget,
-        ));
+    parent.commands().entity(detail_box).insert((
+        marker,
+        ScrollPosition::default(),
+        crate::ui::focus::GamepadScrollTarget,
+    ));
     parent
         .commands()
         .entity(detail_box)

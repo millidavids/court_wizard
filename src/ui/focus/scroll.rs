@@ -176,8 +176,7 @@ pub(super) fn autoscroll_to_focused(
             // adding it back recovers the focus's unscrolled (content-space)
             // top relative to the container's content top.
             let resolved_scroll_phys = container_node.scroll_position.y;
-            let focus_top_content =
-                reveal_top_screen + resolved_scroll_phys - container_top_screen;
+            let focus_top_content = reveal_top_screen + resolved_scroll_phys - container_top_screen;
             let focus_bottom_content = focus_top_content + reveal_size_y;
 
             let viewport_top_content = resolved_scroll_phys;

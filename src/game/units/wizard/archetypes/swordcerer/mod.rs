@@ -1,9 +1,9 @@
 mod combat;
-mod components;
+pub(crate) mod components;
 mod constants;
 pub(crate) mod messages;
 mod plugin;
-mod resources;
+pub(crate) mod resources;
 pub(crate) mod systems;
 mod ui;
 

@@ -133,19 +133,24 @@ pub fn update_wizard_animation(
 pub fn regenerate_mana(
     time: Res<Time>,
     cauldron_buffs: Res<CauldronBuffs>,
-    infinite_mana: Res<crate::ui::action_bar::InfiniteMana>,
+    #[cfg(debug_assertions)] infinite_mana: Res<crate::ui::action_bar::InfiniteMana>,
     active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
     mut wizards: Query<(&mut Mana, &ManaRegen), With<Wizard>>,
     concentration_spells: Query<&ConcentrationSpell>,
 ) {
     let reserved: f32 = concentration_spells.iter().map(|c| c.mana_cost).sum();
 
+    #[cfg(debug_assertions)]
+    let cheat_active = infinite_mana.0;
+    #[cfg(not(debug_assertions))]
+    let cheat_active = false;
+
     // Mana Drought: no passive regen (mana comes from kills instead)
     if active_toggles.as_ref().is_some_and(|t| {
         t.is_active(crate::game::game_mode::components::ToggleModifier::ManaDrought)
     }) {
         // Still apply infinite mana cheat if active
-        if infinite_mana.0 {
+        if cheat_active {
             for (mut mana, _) in &mut wizards {
                 let effective_max = (mana.max - reserved).max(0.0);
                 mana.current = effective_max;
@@ -156,7 +161,7 @@ pub fn regenerate_mana(
 
     for (mut mana, regen) in &mut wizards {
         let effective_max = (mana.max - reserved).max(0.0);
-        if infinite_mana.0 {
+        if cheat_active {
             mana.current = effective_max;
         } else {
             let rate = regen.rate * cauldron_buffs.mana_regen_multiplier();

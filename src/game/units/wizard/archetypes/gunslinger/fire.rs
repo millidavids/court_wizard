@@ -638,7 +638,6 @@ pub fn update_muzzle_flashes(
     }
 }
 
-
 // ===== Helper functions =====
 
 fn spawn_hitscan_ray(

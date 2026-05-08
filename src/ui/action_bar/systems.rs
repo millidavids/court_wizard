@@ -21,10 +21,15 @@ use crate::ui::constants::{
 };
 use crate::ui::systems::scale_font_by_text_width;
 
+#[cfg(debug_assertions)]
 const DEBUG_BUTTON_SIZE: f32 = 30.0;
+#[cfg(debug_assertions)]
 const DEBUG_BUTTON_GAP: f32 = 8.0;
+#[cfg(debug_assertions)]
 const DEBUG_BUTTON_BG_OFF: Color = Color::srgba(0.2, 0.1, 0.1, 0.8);
+#[cfg(debug_assertions)]
 const DEBUG_BUTTON_BG_ON: Color = Color::srgba(0.1, 0.5, 0.1, 0.9);
+#[cfg(debug_assertions)]
 const DEBUG_BUTTON_BORDER: Color = Color::srgba(0.6, 0.3, 0.3, 1.0);
 
 /// Calculates the appropriate font size for action bar spell names based on max line width.
@@ -200,39 +205,42 @@ pub(super) fn spawn_action_bar(
 
                 // Debug: infinite mana toggle — sits at the end of the
                 // linear row, hidden while the gamepad radial is active.
-                let inf_left = ACTION_BAR_LEFT_MARGIN
-                    + 5.0 * (SLOT_BUTTON_STYLE.width + SLOT_GAP)
-                    + DEBUG_BUTTON_GAP;
-                let inf_bottom =
-                    ACTION_BAR_BOTTOM_MARGIN + (SLOT_BUTTON_STYLE.height - DEBUG_BUTTON_SIZE) / 2.0;
-                parent
-                    .spawn((
-                        Button,
-                        Node {
-                            position_type: PositionType::Absolute,
-                            left: Val::Px(inf_left),
-                            bottom: Val::Px(inf_bottom),
-                            width: Val::Px(DEBUG_BUTTON_SIZE),
-                            height: Val::Px(DEBUG_BUTTON_SIZE),
-                            border: UiRect::all(Val::Px(1.0)),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            border_radius: BorderRadius::all(Val::Px(4.0)),
-                            ..default()
-                        },
-                        BorderColor::all(DEBUG_BUTTON_BORDER),
-                        BackgroundColor(DEBUG_BUTTON_BG_OFF),
-                        ButtonColors {
-                            background: DEBUG_BUTTON_BG_OFF,
-                            border: DEBUG_BUTTON_BORDER,
-                        },
-                        DebugManaButton,
-                    ))
-                    .with_child((
-                        Text::new("INF"),
-                        TextFont::from_font_size(7.0),
-                        TextColor(Color::srgba(0.8, 0.8, 0.8, 1.0)),
-                    ));
+                #[cfg(debug_assertions)]
+                {
+                    let inf_left = ACTION_BAR_LEFT_MARGIN
+                        + 5.0 * (SLOT_BUTTON_STYLE.width + SLOT_GAP)
+                        + DEBUG_BUTTON_GAP;
+                    let inf_bottom = ACTION_BAR_BOTTOM_MARGIN
+                        + (SLOT_BUTTON_STYLE.height - DEBUG_BUTTON_SIZE) / 2.0;
+                    parent
+                        .spawn((
+                            Button,
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(inf_left),
+                                bottom: Val::Px(inf_bottom),
+                                width: Val::Px(DEBUG_BUTTON_SIZE),
+                                height: Val::Px(DEBUG_BUTTON_SIZE),
+                                border: UiRect::all(Val::Px(1.0)),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                border_radius: BorderRadius::all(Val::Px(4.0)),
+                                ..default()
+                            },
+                            BorderColor::all(DEBUG_BUTTON_BORDER),
+                            BackgroundColor(DEBUG_BUTTON_BG_OFF),
+                            ButtonColors {
+                                background: DEBUG_BUTTON_BG_OFF,
+                                border: DEBUG_BUTTON_BORDER,
+                            },
+                            DebugManaButton,
+                        ))
+                        .with_child((
+                            Text::new("INF"),
+                            TextFont::from_font_size(7.0),
+                            TextColor(Color::srgba(0.8, 0.8, 0.8, 1.0)),
+                        ));
+                }
             }
         });
 }
@@ -416,6 +424,7 @@ pub(super) fn update_action_bar_slots(
 }
 
 /// Handles clicks on the debug infinite mana button.
+#[cfg(debug_assertions)]
 pub(super) fn handle_debug_mana_click(
     mut button_clicked: MessageReader<MouseClicked>,
     debug_button_query: Query<Entity, With<DebugManaButton>>,

@@ -107,4 +107,3 @@ pub struct FlameParticle {
 pub struct MuzzleFlash {
     pub timer: f32,
 }
-

@@ -4,6 +4,7 @@
 //! while avoiding obstacles and respecting terrain costs.
 
 pub(crate) mod components;
+#[cfg(debug_assertions)]
 pub(crate) mod debug;
 pub(crate) mod flow_field;
 pub(crate) mod messages;

@@ -16,7 +16,9 @@ use crate::game::messages::{InsightBonusUpgradedMessage, SpellResearchedMessage}
 use crate::game::resources::BattleInsightData;
 use crate::game::units::DamageType;
 use crate::game::units::wizard::components::Spell;
-use crate::ui::systems::{scale_font_by_text_width, spawn_button};
+use crate::ui::systems::scale_font_by_text_width;
+#[cfg(debug_assertions)]
+use crate::ui::systems::spawn_button;
 
 use super::super::components::*;
 use super::super::constants::*;

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Fixed
+- **Swordcerer's special no longer breaks when you open a menu** — opening the spell book, pause menu, or cauldron while the Swordcerer was on the field used to silently end his special ability the moment you closed the menu. Spells started launching from the castle wall again even though the avatar was still standing on the field. The special now persists correctly through any menu trip until the avatar dies or retreats
+- **Aiming line hides while the Swordcerer is on the field** — the gamepad aiming reticle is no longer drawn from the castle wall while you're controlling the avatar. It still appears when you're picking where to drop him, and comes back the moment he returns to the wall
+
+### Changed
+- **Walking the Swordcerer into a staging wave wakes them up** — attackers grouping at their staging point used to ignore the avatar entirely, letting you pick them off while they stood around. Getting close enough now activates the wave on the spot, so they path forward and fight back like they would for any other defender
+- **Internal debug tools no longer ship in releases** — assorted developer-only buttons and function-key shortcuts are now stripped out of the public build. No effect on normal play
+
 ## [v0.7.353] - 2026-05-07
 
 ### Changed

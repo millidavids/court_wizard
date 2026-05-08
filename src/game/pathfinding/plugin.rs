@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+#[cfg(debug_assertions)]
 use super::debug::{self, DebugBallActive, DebugBallLogTimer, FlowFieldDebugMode};
 use super::messages::ObstacleChanged;
 use super::resources::PathfindingGrid;
@@ -19,8 +20,6 @@ impl Plugin for PathfindingPlugin {
         app
             // Register message channels
             .add_message::<ObstacleChanged>()
-            // Debug visualization
-            .init_resource::<FlowFieldDebugMode>()
             // Wave staging timers (timeout-based force activation)
             .init_resource::<WaveStagingTimers>()
             // Wave staging plan (which staging points each wave uses)
@@ -77,8 +76,13 @@ impl Plugin for PathfindingPlugin {
                     detect_and_recover_stuck_units,
                 )
                     .in_set(VelocitySystemSet),
-            )
-            // Debug visualization (F3 toggle + arrow rendering)
+            );
+
+        // Debug visualization (F3 flow-field, F4 debug ball) — debug builds only.
+        #[cfg(debug_assertions)]
+        app.init_resource::<FlowFieldDebugMode>()
+            .init_resource::<DebugBallActive>()
+            .init_resource::<DebugBallLogTimer>()
             .add_systems(
                 Update,
                 (
@@ -87,9 +91,6 @@ impl Plugin for PathfindingPlugin {
                 )
                     .run_if(is_gameplay_running),
             )
-            // Debug ball (F4 toggle + arrow key movement + position logging)
-            .init_resource::<DebugBallActive>()
-            .init_resource::<DebugBallLogTimer>()
             .add_systems(
                 Update,
                 (

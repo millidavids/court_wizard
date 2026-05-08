@@ -58,4 +58,3 @@ pub struct SwordcererHealthBar;
 /// Component for the swordcerer health bar fill node.
 #[derive(Component)]
 pub struct SwordcererHealthBarFill;
-
