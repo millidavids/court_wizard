@@ -14,6 +14,12 @@ use super::components::*;
 use super::constants::*;
 use super::layout::RightPanelView;
 
+/// Marker for the wrapper holding the Debug Level +/- buttons. Toggled by
+/// the global F2 debug-UI flag (see `crate::game::debug_ui`).
+#[cfg(debug_assertions)]
+#[derive(Component)]
+pub(crate) struct DebugLevelButtons;
+
 // ---------------------------------------------------------------------------
 // Action enum
 // ---------------------------------------------------------------------------
@@ -93,18 +99,30 @@ pub(super) fn build_endless_right_panel(
 
                         #[cfg(debug_assertions)]
                         {
-                            spawn_button(
-                                left_col,
-                                "Debug: Level +1",
-                                EndlessAction::DebugIncreaseLevel,
-                                &DEBUG_BUTTON_STYLE,
-                            );
-                            spawn_button(
-                                left_col,
-                                "Debug: Level -1",
-                                EndlessAction::DebugDecreaseLevel,
-                                &DEBUG_BUTTON_STYLE,
-                            );
+                            left_col
+                                .spawn((
+                                    Node {
+                                        flex_direction: FlexDirection::Column,
+                                        row_gap: Val::Px(4.0),
+                                        ..default()
+                                    },
+                                    Visibility::Hidden,
+                                    DebugLevelButtons,
+                                ))
+                                .with_children(|wrapper| {
+                                    spawn_button(
+                                        wrapper,
+                                        "Debug: Level +1",
+                                        EndlessAction::DebugIncreaseLevel,
+                                        &DEBUG_BUTTON_STYLE,
+                                    );
+                                    spawn_button(
+                                        wrapper,
+                                        "Debug: Level -1",
+                                        EndlessAction::DebugDecreaseLevel,
+                                        &DEBUG_BUTTON_STYLE,
+                                    );
+                                });
                         }
                     });
 

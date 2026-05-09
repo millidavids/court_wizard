@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - **Walking the Swordcerer into a staging wave wakes them up** — attackers grouping at their staging point used to ignore the avatar entirely, letting you pick them off while they stood around. Getting close enough now activates the wave on the spot, so they path forward and fight back like they would for any other defender
 - **Internal debug tools no longer ship in releases** — assorted developer-only buttons and function-key shortcuts are now stripped out of the public build. No effect on normal play
+- **Cleaner trailer-ready capture mode** — internal-only change to how developer tools are shown while filming promotional footage. No effect on normal play
 
 ## [v0.7.353] - 2026-05-07
 

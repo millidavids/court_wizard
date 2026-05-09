@@ -16,6 +16,9 @@ use super::cauldron::CauldronPlugin;
 use super::combat_systems;
 use super::constants::ATTACK_CYCLE_DURATION;
 use super::crt_effect::CrtEffectPlugin;
+use super::debug_ui::DebugUiPlugin;
+#[cfg(debug_assertions)]
+use super::debug_ui::DebugUiVisible;
 use super::drops::DropsPlugin;
 use super::game_mode::GameModePlugin;
 use super::input::InputPlugin;
@@ -105,6 +108,7 @@ impl Plugin for GamePlugin {
                 DropsPlugin,
                 GameModePlugin,
                 CrtEffectPlugin,
+                DebugUiPlugin,
                 TalentsPlugin,
                 SeededRngPlugin,
                 MaterialPlugin::<ShadowMaterial>::default(),
@@ -274,12 +278,13 @@ impl Plugin for GamePlugin {
                     .run_if(is_gameplay_running),
             );
 
-        // Debug hitbox visualization (F2 toggle) — debug builds only.
+        // Debug hitbox visualization — driven by the global DebugUiVisible
+        // flag (toggled by F2 in `debug_ui.rs`). Debug builds only.
         #[cfg(debug_assertions)]
         app.add_systems(
             Update,
             (
-                toggle_debug_hitboxes,
+                sync_debug_hitboxes_resource,
                 update_debug_hitboxes.run_if(resource_exists::<DebugHitboxes>),
             )
                 .run_if(in_state(AppState::InGame)),
@@ -308,24 +313,15 @@ struct DebugHitboxes {
 struct DebugHitboxMarker(Entity);
 
 #[cfg(debug_assertions)]
-fn toggle_debug_hitboxes(
+fn sync_debug_hitboxes_resource(
     mut commands: Commands,
-    keyboard: Res<ButtonInput<KeyCode>>,
+    visible: Res<DebugUiVisible>,
     existing: Option<Res<DebugHitboxes>>,
     debug_cylinders: Query<Entity, With<DebugHitboxMarker>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    if !keyboard.just_pressed(KeyCode::F2) {
-        return;
-    }
-
-    if existing.is_some() {
-        commands.remove_resource::<DebugHitboxes>();
-        for entity in &debug_cylinders {
-            commands.entity(entity).try_despawn();
-        }
-    } else {
+    if visible.0 && existing.is_none() {
         let material = materials.add(StandardMaterial {
             base_color: Color::srgba(0.5, 0.5, 0.5, 0.3),
             alpha_mode: AlphaMode::Blend,
@@ -335,6 +331,11 @@ fn toggle_debug_hitboxes(
         });
         let mesh = meshes.add(Cylinder::new(1.0, 1.0));
         commands.insert_resource(DebugHitboxes { material, mesh });
+    } else if !visible.0 && existing.is_some() {
+        commands.remove_resource::<DebugHitboxes>();
+        for entity in &debug_cylinders {
+            commands.entity(entity).try_despawn();
+        }
     }
 }
 

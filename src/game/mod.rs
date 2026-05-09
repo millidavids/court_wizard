@@ -16,6 +16,7 @@ pub(crate) mod combat_systems;
 pub(crate) mod components;
 pub(crate) mod constants;
 pub(crate) mod crt_effect;
+pub(crate) mod debug_ui;
 pub(crate) mod drops;
 pub(crate) mod game_mode;
 pub(crate) mod input;

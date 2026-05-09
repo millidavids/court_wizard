@@ -309,6 +309,23 @@ impl Plugin for WizardTowerPlugin {
             Update,
             super::layout::toggle_debug_background.run_if(in_state(MetaGameState::WizardTower)),
         );
+
+        // ----- Debug: hide/show debug-only widgets via the global F2 flag -----
+        #[cfg(debug_assertions)]
+        app.add_systems(
+            Update,
+            (
+                crate::game::debug_ui::sync_marker_visibility::<
+                    super::study_tab::panels::DebugInsightButton,
+                >
+                    .run_if(study_tab_active),
+                crate::game::debug_ui::sync_marker_visibility::<
+                    super::endless_tab::DebugLevelButtons,
+                >
+                    .run_if(endless_tab_active),
+            )
+                .run_if(in_state(MetaGameState::WizardTower)),
+        );
     }
 }
 

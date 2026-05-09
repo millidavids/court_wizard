@@ -96,6 +96,17 @@ impl Plugin for ActionBarPlugin {
                 .in_set(ButtonActionSet)
                 .run_if(is_local_wizard_active),
         );
+
+        // Hide the debug INF button whenever the global F2 toggle is off.
+        // Runs after the radial layout system (which also writes Visibility)
+        // so this override always wins.
+        #[cfg(debug_assertions)]
+        app.add_systems(
+            Update,
+            crate::game::debug_ui::sync_marker_visibility::<super::components::DebugManaButton>
+                .after(radial::animate_action_bar_layout)
+                .run_if(in_state(InGameState::Running).or(in_state(MultiplayerGameState::Running))),
+        );
     }
 }
 

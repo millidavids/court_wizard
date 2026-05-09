@@ -234,6 +234,7 @@ pub(super) fn spawn_action_bar(
                                 border: DEBUG_BUTTON_BORDER,
                             },
                             DebugManaButton,
+                            Visibility::Hidden,
                         ))
                         .with_child((
                             Text::new("INF"),

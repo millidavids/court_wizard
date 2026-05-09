@@ -30,6 +30,12 @@ use super::super::materials::{
     StarSkyData, StarSkyMaterial,
 };
 
+/// Marker for the debug "+10000 Insight" wrapper node so the global F2 debug
+/// toggle can hide/show it.
+#[cfg(debug_assertions)]
+#[derive(Component)]
+pub(crate) struct DebugInsightButton;
+
 // ===========================================================================
 // Shared helpers
 // ===========================================================================
@@ -823,15 +829,20 @@ pub(super) fn spawn_study_panels(
         // Commit button now lives in the left panel under the allocation
         // slider (see `update_study_detail_panel` / `update_insight_detail_panel`).
 
-        // Bottom-right: Debug insight button
+        // Bottom-right: Debug insight button. Hidden by default — toggled
+        // by the global F2 debug-UI flag (see `crate::game::debug_ui`).
         #[cfg(debug_assertions)]
         right
-            .spawn(Node {
-                position_type: PositionType::Absolute,
-                bottom: Val::Px(8.0),
-                right: Val::Px(12.0),
-                ..default()
-            })
+            .spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(8.0),
+                    right: Val::Px(12.0),
+                    ..default()
+                },
+                Visibility::Hidden,
+                DebugInsightButton,
+            ))
             .with_children(|wrapper| {
                 spawn_button(
                     wrapper,
