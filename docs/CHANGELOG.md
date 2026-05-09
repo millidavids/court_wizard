@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.7.362] - 2026-05-08
 
 ### Fixed
 - **Swordcerer's special no longer breaks when you open a menu** — opening the spell book, pause menu, or cauldron while the Swordcerer was on the field used to silently end his special ability the moment you closed the menu. Spells started launching from the castle wall again even though the avatar was still standing on the field. The special now persists correctly through any menu trip until the avatar dies or retreats
