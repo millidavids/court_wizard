@@ -17,6 +17,7 @@ use super::components::{
     set_default_font,
 };
 use super::concentration::ConcentrationUIPlugin;
+use super::link_button::handle_link_click;
 use super::focus::FocusPlugin;
 use super::game_over::GameOverPlugin;
 use super::gamepad_glyphs::GamepadGlyphsPlugin;
@@ -94,6 +95,7 @@ impl Plugin for UiPlugin {
             (
                 update_ui_scale,
                 systems::button_click_detection,
+                handle_link_click.in_set(ButtonActionSet),
                 systems::button_interaction,
                 systems::reset_deactivated_buttons,
                 systems::sync_front_face_colors,

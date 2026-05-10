@@ -30,7 +30,6 @@ impl Plugin for MainMenuManualPlugin {
                 (
                     handle_main_menu_back_button.in_set(ButtonActionSet),
                     systems::handle_tab_click.in_set(ButtonActionSet),
-                    systems::handle_changelog_website_click.in_set(ButtonActionSet),
                     systems::rebuild_content_on_tab_change
                         .run_if(resource_exists::<ManualTab>.and(resource_changed::<ManualTab>)),
                     systems::update_tab_active_state
@@ -62,7 +61,6 @@ impl Plugin for PauseMenuManualPlugin {
                 (
                     handle_pause_menu_back_button.in_set(ButtonActionSet),
                     systems::handle_tab_click.in_set(ButtonActionSet),
-                    systems::handle_changelog_website_click.in_set(ButtonActionSet),
                     systems::rebuild_content_on_tab_change
                         .run_if(resource_exists::<ManualTab>.and(resource_changed::<ManualTab>)),
                     systems::update_tab_active_state

@@ -22,9 +22,6 @@ pub(super) struct ManualContentPanel;
 #[derive(Component)]
 pub(super) struct ManualTabButton(pub ManualTab);
 
-#[derive(Component)]
-pub(super) struct ChangelogWebsiteButton;
-
 /// Which tab is currently active.
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub(super) enum ManualTab {

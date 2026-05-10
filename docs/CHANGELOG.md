@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Added
+- **Source code link on the main menu** — the version number in the bottom-left of the title screen is now a clickable link that opens the game's public source code repository in your browser
+- **Studio logo on the main menu** — the Blackhearth Games logo now sits in the bottom-right of the title screen and opens the studio's website when clicked
+- **Hover and click highlights on the new menu links** — both the version link and the studio logo now glow warmly when you mouse over them and flare brighter when you click
+
 ## [v0.7.362] - 2026-05-08
 
 ### Fixed

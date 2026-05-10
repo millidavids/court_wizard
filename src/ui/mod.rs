@@ -17,6 +17,7 @@ mod game_over;
 pub(crate) mod gamepad_glyphs;
 mod in_game;
 pub(crate) mod layout_helpers;
+pub(crate) mod link_button;
 mod loading;
 pub(crate) mod main_menu;
 pub(crate) mod manual;

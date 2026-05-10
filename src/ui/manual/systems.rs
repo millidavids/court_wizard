@@ -3,11 +3,12 @@
 use bevy::prelude::*;
 
 use super::components::{
-    BackButton, ChangelogWebsiteButton, ManualContentPanel, ManualTab, ManualTabButton,
-    OnManualScreen, ScrollableManualContainer,
+    BackButton, ManualContentPanel, ManualTab, ManualTabButton, OnManualScreen,
+    ScrollableManualContainer,
 };
 use super::constants::*;
 use crate::ui::components::{ButtonActive, ButtonColors};
+use crate::ui::link_button::LinkButton;
 use crate::ui::constants::{
     ACTIVE_TAB_BG, ACTIVE_TAB_BORDER, BACK_BUTTON_STYLE, INACTIVE_TAB_BG, TAB_BORDER,
     TAB_FONT_SIZE, TAB_HEIGHT, TAB_PADDING_H, TEXT_BODY,
@@ -226,7 +227,7 @@ pub(super) fn rebuild_content_on_tab_change(
                     spawn_button(
                         wrapper,
                         "View full changelog on the web",
-                        ChangelogWebsiteButton,
+                        LinkButton(CHANGELOG_WEBSITE_URL),
                         &CHANGELOG_LINK_BUTTON_STYLE,
                     );
                 });
@@ -295,22 +296,6 @@ pub(super) fn update_tab_active_state(
 pub(super) fn cleanup_resources(mut commands: Commands) {
     commands.remove_resource::<ManualTab>();
     commands.remove_resource::<ParsedManualContent>();
-}
-
-pub(super) fn handle_changelog_website_click(
-    mut button_clicked: MessageReader<crate::game::input::messages::MouseClicked>,
-    button_query: Query<&ChangelogWebsiteButton>,
-) {
-    for event in button_clicked.read() {
-        if button_query.get(event.button).is_ok()
-            && let Err(e) = webbrowser::open(CHANGELOG_WEBSITE_URL)
-        {
-            warn!(
-                "Failed to open changelog URL {}: {}",
-                CHANGELOG_WEBSITE_URL, e
-            );
-        }
-    }
 }
 
 #[cfg(test)]

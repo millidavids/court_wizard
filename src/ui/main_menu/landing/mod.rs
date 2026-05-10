@@ -5,4 +5,5 @@
 mod components;
 pub(crate) mod constants;
 pub(super) mod plugin;
+mod studio_link;
 mod systems;
