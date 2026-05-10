@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.7.367] - 2026-05-10
 
 ### Added
 - **Source code link on the main menu** — the version number in the bottom-left of the title screen is now a clickable link that opens the game's public source code repository in your browser
