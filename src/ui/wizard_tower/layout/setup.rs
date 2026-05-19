@@ -65,7 +65,7 @@ impl WizardTowerTab {
 
     /// Whether this tab is disabled and cannot be clicked.
     pub fn is_disabled(&self) -> bool {
-        matches!(self, WizardTowerTab::Multiplayer)
+        false
     }
 }
 
@@ -590,7 +590,9 @@ pub(crate) fn rebuild_panels_on_tab_change(
             );
         }
         WizardTowerTab::Multiplayer => {
-            // Disabled tab - should not be reachable
+            // Panel content is built by rebuild_multiplayer_on_lobby_change in plugin.rs,
+            // which fires whenever MultiplayerLobby or NetworkConnection changes.
+            // On initial tab switch we build it here using the current lobby state.
         }
     }
 }

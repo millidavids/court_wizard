@@ -67,9 +67,6 @@ pub enum MenuState {
 
     /// Compendium screen showing achievements, unlockables, and unit tracking.
     Compendium,
-
-    /// Multiplayer lobby for P2P WebRTC connection setup.
-    Multiplayer,
 }
 
 /// InGame sub-state.

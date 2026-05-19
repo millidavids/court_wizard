@@ -6,7 +6,6 @@ use bevy::prelude::*;
 
 use super::background::BackgroundPlugin;
 use super::landing::plugin::LandingPlugin;
-use super::multiplayer::plugin::MultiplayerPlugin;
 use super::settings::plugin::SettingsPlugin;
 use crate::ui::compendium::MainMenuCompendiumPlugin;
 use crate::ui::manual::MainMenuManualPlugin;
@@ -23,7 +22,6 @@ impl Plugin for MainMenuPlugin {
             SettingsPlugin,
             MainMenuManualPlugin,
             MainMenuCompendiumPlugin,
-            MultiplayerPlugin,
         ));
     }
 }

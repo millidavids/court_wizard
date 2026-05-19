@@ -4,6 +4,7 @@ mod endless_tab;
 mod graph;
 mod layout;
 mod materials;
+mod multiplayer_tab;
 mod plugin;
 mod roguelite_tab;
 mod study_tab;

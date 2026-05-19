@@ -1,6 +1,7 @@
 use bevy::prelude::UiMaterialPlugin;
 use bevy::prelude::*;
 
+use crate::networking::resources::NetworkConnection;
 use crate::state::{AppState, MetaGameState};
 use crate::ui::plugin::ButtonActionSet;
 use crate::ui::systems::handle_scroll;
@@ -13,12 +14,14 @@ use super::layout::{RightPanelView, WizardTowerTab};
 use super::materials::{
     ArcaneRuneMaterial, ConcentricRingsMaterial, RadialProgressMaterial, StarSkyMaterial,
 };
+use super::multiplayer_tab::{MultiplayerLobby, MultiplayerTabPlugin};
 
 pub struct WizardTowerPlugin;
 
 impl Plugin for WizardTowerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(UiMaterialPlugin::<ArcaneRuneMaterial>::default())
+        app.add_plugins(MultiplayerTabPlugin)
+            .add_plugins(UiMaterialPlugin::<ArcaneRuneMaterial>::default())
             .add_plugins(UiMaterialPlugin::<RadialProgressMaterial>::default())
             .add_plugins(UiMaterialPlugin::<ConcentricRingsMaterial>::default())
             .add_plugins(UiMaterialPlugin::<StarSkyMaterial>::default())
@@ -67,6 +70,17 @@ impl Plugin for WizardTowerPlugin {
                                 >),
                         ),
                     ),
+                    rebuild_multiplayer_on_lobby_change
+                        .after(super::layout::rebuild_panels_on_tab_change)
+                        .run_if(
+                            resource_exists::<WizardTowerTab>
+                                .and(multiplayer_tab_active)
+                                .and(
+                                    resource_changed::<WizardTowerTab>
+                                        .or(resource_changed::<MultiplayerLobby>)
+                                        .or(resource_changed::<NetworkConnection>),
+                                ),
+                        ),
                     super::layout::update_tab_active_state
                         .run_if(resource_exists::<WizardTowerTab>),
                     handle_scroll::<super::layout::WizardTowerLeftPanel>,
@@ -346,4 +360,44 @@ fn roguelite_tab_active(
 fn endless_tab_active(tab: Option<Res<WizardTowerTab>>, view: Option<Res<RightPanelView>>) -> bool {
     tab.is_some_and(|t| *t == WizardTowerTab::Endless)
         && view.is_some_and(|v| *v == RightPanelView::TabContent)
+}
+
+fn multiplayer_tab_active(tab: Option<Res<WizardTowerTab>>) -> bool {
+    tab.is_some_and(|t| *t == WizardTowerTab::Multiplayer)
+}
+
+// ---------------------------------------------------------------------------
+// Multiplayer panel rebuild (driven by lobby/connection change)
+// ---------------------------------------------------------------------------
+
+/// Rebuilds the multiplayer left+right panels when `MultiplayerLobby` or
+/// `NetworkConnection` changes while the Multiplayer tab is active.
+///
+/// This is a sibling to `rebuild_panels_on_tab_change` — that system fires
+/// on tab-switch; this one fires when the lobby phase advances mid-tab.
+#[allow(clippy::too_many_arguments)]
+fn rebuild_multiplayer_on_lobby_change(
+    mut commands: Commands,
+    left_panel: Query<Entity, With<super::layout::WizardTowerLeftPanel>>,
+    right_panel: Query<Entity, With<super::layout::WizardTowerRightPanel>>,
+    lobby: Res<MultiplayerLobby>,
+    connection: Res<NetworkConnection>,
+) {
+    let Ok(left_entity) = left_panel.single() else {
+        return;
+    };
+    let Ok(right_entity) = right_panel.single() else {
+        return;
+    };
+
+    commands.entity(left_entity).despawn_related::<Children>();
+    commands.entity(right_entity).despawn_related::<Children>();
+
+    super::multiplayer_tab::panels::build_multiplayer_panels(
+        &mut commands,
+        left_entity,
+        right_entity,
+        &lobby,
+        &connection,
+    );
 }

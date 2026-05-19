@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Added
+- **Multiplayer is back** — you can now host or join a game directly from the **Multiplayer** tab in the Wizard Tower. No separate lobby screen needed. Click Host Game, copy your code, share it with a friend, and they paste it in to connect. Once you're both connected, pick your wizards, click Ready, and the match kicks off automatically
+
+### Fixed
+- **All your unlocked wizards now show up in the multiplayer picker** — wizards beyond the starter four were being silently dropped from the wizard-select list, even if you had them unlocked. Every wizard you've earned is now selectable in multiplayer
+- **Clicking the join-code box no longer wipes your code** — clicking into the paste field used to clear anything you'd already typed or pasted. The text now stays put when you click the box
+
 ## [v0.7.367] - 2026-05-10
 
 ### Added

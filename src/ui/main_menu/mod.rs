@@ -5,7 +5,6 @@
 
 mod background;
 mod landing;
-mod multiplayer;
 mod plugin;
 pub(crate) mod settings;
 
