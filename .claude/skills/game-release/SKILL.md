@@ -1,17 +1,18 @@
 ---
 name: game-release
-description: Aggregate player-facing notes on the dev branch (default), or promote dev to main and trigger CI (with `main` argument)
+description: Aggregate player-facing notes on the dev branch (default), consolidate the pending changelog (with `consolidate` argument), or promote dev to main and trigger CI (with `main` argument)
 user-invocable: true
 ---
 
 # Release
 
-This skill has two modes determined by the argument:
+This skill has three modes determined by the argument:
 
 - **No argument** → *dev mode*. Aggregate the latest uncommitted changes into a single `[pending]` block at the top of `docs/CHANGELOG.md`, commit, and push to `origin/dev`. Does not bump versions, does not touch `main`, does not sync the website, does not trigger CI.
+- **`consolidate` argument** → *consolidate mode*. Rewrite the existing `[pending]` block into a clean, minimal set of bullets — merging overlapping entries and dropping ones that cancel each other out — then commit and push to `origin/dev`. Does not bump versions, does not touch `main`.
 - **`main` argument** → *promotion mode*. Lock the accumulated `[pending]` block to a real version, fast-forward `main` from `dev`, push `main` (which triggers CI build + Steam deploy), and sync the website.
 
-CI (`.github/workflows/release.yml`) only runs on push to `main`, so the dev-mode loop is safe to run as often as desired without burning runner minutes.
+CI (`.github/workflows/release.yml`) only runs on push to `main`, so the dev-mode and consolidate-mode loops are safe to run as often as desired without burning runner minutes.
 
 ---
 
@@ -37,7 +38,7 @@ CI (`.github/workflows/release.yml`) only runs on push to `main`, so the dev-mod
      - **...** — ...
      ```
 
-Format rules for bullets (apply in both modes):
+Format rules for bullets (apply in all modes):
 - Layman's terms only. No code references, no jargon.
 - Bold the first phrase as a short summary, then describe in plain language.
 - Don't spoil achievements, unlockables, or hidden content.
@@ -51,6 +52,48 @@ Format rules for bullets (apply in both modes):
    ```
    If unsure which non-changelog files belong, ask the user before staging.
 2. Commit with a short message describing the change. No `Co-Authored-By` line.
+3. `git push origin dev`.
+
+Stop here. Do not touch `main`, do not run `sync_content.sh`, do not bump the version.
+
+---
+
+## Mode C — Consolidate the pending block (`consolidate` argument)
+
+Many dev releases in a row leave the `[pending]` block bloated: near-duplicate bullets, several bullets touching the same area, and — most importantly — bullets that **cancel each other out** (a bug introduced in one dev release and fixed in a later one; a feature added then reworked or removed; a value tweaked back and forth). Players who only ever see `main` never experienced the in-between states, so the changelog should describe only the **net** change since the last shipped version.
+
+This mode rewrites the `[pending]` block in place so it reads as if written once, fresh.
+
+### C1. Preconditions
+
+1. Run `git rev-parse --abbrev-ref HEAD`. If not `dev`, stop and tell the user to switch.
+2. Run `git status`. The working tree should be clean. If there are uncommitted changes, stop and tell the user to run `/game-release` (dev mode) first — consolidate only rewrites already-committed changelog text.
+3. Confirm a `## [pending]` block exists at the top of `docs/CHANGELOG.md`. If it does not, stop — there is nothing to consolidate.
+
+### C2. Establish ground truth
+
+1. Run `git diff main dev --stat` (and `git diff main dev` for detail as needed) to see the **actual net code change** between the last `main` release and the current `dev` tip.
+2. Use this as the source of truth: every consolidated bullet must correspond to a real net change in that diff. If a `[pending]` bullet describes something that the net diff shows was later undone, it must be dropped.
+
+### C3. Rewrite the pending block
+
+Read the entire `[pending]` block, then rebuild it applying these rules:
+
+- **Merge** — collapse multiple bullets about the same feature or area into a single bullet describing its final state.
+- **Supersede** — when a later bullet reworks or replaces an earlier one, keep only the final result, described in plain present-tense language. Drop the intermediate history.
+- **Cancel** — if a change and its reversal both happened entirely within `[pending]` (e.g. a bug introduced then fixed, a feature added then removed), drop **both** bullets. The net effect is zero, so players see nothing.
+- **Keep** — distinct, still-true changes remain as their own bullets.
+- Re-sort the survivors into `### Added` / `### Changed` / `### Fixed`. Drop any subsection left empty.
+- Apply the same format rules as dev mode (layman's terms, bold lead-in, no spoilers).
+
+The rewritten block must still be headed `## [pending]` — consolidate never assigns a version.
+
+If consolidation would empty the block entirely (everything cancelled out), leave a single `## [pending]` heading with no bullets rather than deleting it, and tell the user.
+
+### C4. Commit and push to dev
+
+1. Stage the changelog only: `git add docs/CHANGELOG.md`.
+2. Commit: `git commit -m "Consolidate pending changelog"`.
 3. `git push origin dev`.
 
 Stop here. Do not touch `main`, do not run `sync_content.sh`, do not bump the version.
@@ -100,7 +143,7 @@ Tell the user:
 
 ---
 
-## Hard rules (both modes)
+## Hard rules (all modes)
 
 - **Never use `git add -A` or `git add .`** — stage only the files the user actually changed. The `steamworks_achievements.csv` file is intentionally deleted locally; sweeping deletions into a commit would be wrong.
 - **Never use `git reset`** in any form.
