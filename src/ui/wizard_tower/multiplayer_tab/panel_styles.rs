@@ -13,6 +13,9 @@ pub(super) const HINT_FONT_SIZE: f32 = 11.0;
 pub(super) const HEADING_FONT_SIZE: f32 = 16.0;
 pub(super) const CODE_FONT_SIZE: f32 = 10.0;
 
+/// Inner padding for the right panel content (the right panel node itself has none).
+pub(super) const PANEL_PADDING: f32 = 16.0;
+
 pub(super) const CARD_BG: Color = Color::hsla(220.0, 0.08, 0.11, 0.75);
 pub(super) const CARD_BORDER: Color = Color::hsla(0.0, 0.0, 0.20, 0.6);
 pub(super) const CARD_BORDER_SELECTED: Color = crate::ui::constants::GOLD_ACCENT;
@@ -28,6 +31,18 @@ pub(super) const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 44.0,
     border_width: 2.0,
     font_size: 14.0,
+    background: BUTTON_BG,
+    border: BUTTON_BORDER,
+    text_color: TEXT_PRIMARY,
+    text_shadow: true,
+};
+
+/// Compact button used inline beside the code box (Copy / Paste).
+pub(super) const INLINE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: 84.0,
+    height: 40.0,
+    border_width: 2.0,
+    font_size: 11.0,
     background: BUTTON_BG,
     border: BUTTON_BORDER,
     text_color: TEXT_PRIMARY,

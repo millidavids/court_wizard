@@ -24,6 +24,21 @@ pub(crate) fn build_multiplayer_panels(
     lobby: &MultiplayerLobby,
     connection: &NetworkConnection,
 ) {
+    // The right panel node has no padding of its own (unlike the left panel,
+    // which is padded in `layout/setup.rs`). Wrap content in a padded column
+    // so it doesn't run edge-to-edge — matches the endless/study tabs.
+    let right_inner = commands
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            padding: UiRect::all(Val::Px(super::panel_styles::PANEL_PADDING)),
+            row_gap: Val::Px(6.0),
+            ..default()
+        })
+        .id();
+    commands.entity(right_entity).add_child(right_inner);
+    let right_entity = right_inner;
+
     match &lobby.phase {
         LobbyPhase::Connect => {
             build_connect_left(commands, left_entity, lobby.use_relay);
@@ -70,6 +85,20 @@ pub(crate) fn build_multiplayer_panels(
             build_failed_left(commands, left_entity);
             build_failed_right(commands, right_entity, reason);
         }
+    }
+
+    if let Some(message) = &lobby.status_message {
+        commands.entity(right_entity).with_children(|right| {
+            right.spawn((
+                Text::new(message.clone()),
+                TextFont::from_font_size(super::panel_styles::BODY_FONT_SIZE),
+                TextColor(crate::ui::constants::GOLD_ACCENT),
+                Node {
+                    margin: UiRect::top(Val::Px(10.0)),
+                    ..default()
+                },
+            ));
+        });
     }
 }
 

@@ -14,7 +14,7 @@ use crate::game::units::wizard::components::Spell;
 ///
 /// This is the single source of truth for which phase the lobby is in,
 /// plus transient UI state (relay toggle, join-code text input).
-#[derive(Resource, Default, PartialEq)]
+#[derive(Resource, PartialEq)]
 pub(crate) struct MultiplayerLobby {
     /// Current phase of the lobby flow.
     pub phase: LobbyPhase,
@@ -24,16 +24,26 @@ pub(crate) struct MultiplayerLobby {
     pub join_code_input: String,
     /// Whether the join code text field is focused for keyboard input.
     pub join_code_focused: bool,
+    /// Transient feedback line shown in the right panel (e.g. "Code copied!").
+    pub status_message: Option<String>,
 }
 
 impl MultiplayerLobby {
     pub fn new() -> Self {
         Self {
             phase: LobbyPhase::default(),
+            // Default to Online (relay) — works for friends anywhere, not just LAN.
             use_relay: true,
             join_code_input: String::new(),
             join_code_focused: false,
+            status_message: None,
         }
+    }
+}
+
+impl Default for MultiplayerLobby {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

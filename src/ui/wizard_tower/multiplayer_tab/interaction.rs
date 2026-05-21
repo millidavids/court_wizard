@@ -43,6 +43,7 @@ pub(crate) fn handle_mp_tab_actions(
 
         match action.clone() {
             MpTabAction::HostGame => {
+                lobby.status_message = None;
                 send(TransportCommand::CreateHost {
                     use_relay: lobby.use_relay,
                 });
@@ -56,6 +57,7 @@ pub(crate) fn handle_mp_tab_actions(
                 lobby.phase = LobbyPhase::Hosting;
             }
             MpTabAction::JoinGame => {
+                lobby.status_message = None;
                 lobby.phase = LobbyPhase::Joining;
                 lobby.join_code_input.clear();
                 lobby.join_code_focused = false;
@@ -64,20 +66,30 @@ pub(crate) fn handle_mp_tab_actions(
                 lobby.use_relay = !lobby.use_relay;
             }
             MpTabAction::CopyCode => {
-                if let Some(code) = &connection.local_code
-                    && let Ok(mut clipboard) = arboard::Clipboard::new()
-                {
-                    let _ = clipboard.set_text(code.clone());
-                }
+                lobby.status_message = Some(match connection.local_code.clone() {
+                    Some(code) => {
+                        let copied = arboard::Clipboard::new()
+                            .and_then(|mut cb| cb.set_text(code))
+                            .is_ok();
+                        if copied {
+                            "Code copied — send it to your friend!".to_string()
+                        } else {
+                            "Couldn't copy — clipboard unavailable.".to_string()
+                        }
+                    }
+                    None => "Code not ready yet — wait a moment.".to_string(),
+                });
             }
             MpTabAction::PasteFromClipboard => {
                 match arboard::Clipboard::new().and_then(|mut cb| cb.get_text()) {
                     Ok(text) if !text.trim().is_empty() => {
                         lobby.join_code_input = text.trim().to_string();
                         lobby.join_code_focused = false;
+                        lobby.status_message = Some("Code pasted — click Connect.".to_string());
                     }
                     _ => {
-                        connection.error = Some("Could not read from clipboard".to_string());
+                        lobby.status_message =
+                            Some("Clipboard is empty — copy the host's code first.".to_string());
                     }
                 }
             }
@@ -97,6 +109,7 @@ pub(crate) fn handle_mp_tab_actions(
                 lobby.phase = LobbyPhase::Connect;
                 lobby.join_code_input.clear();
                 lobby.join_code_focused = false;
+                lobby.status_message = None;
             }
             MpTabAction::Ready => {
                 if let LobbyPhase::WizardSelect {
