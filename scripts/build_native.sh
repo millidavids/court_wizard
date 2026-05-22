@@ -127,13 +127,30 @@ else
     STEAM_SEARCH_DIR="./target"
 fi
 STEAM_BUILD_DIR=$(find "$STEAM_SEARCH_DIR" -path "*/build/steamworks-sys-*/out" -type d 2>/dev/null | head -1)
+# Resolve which Steam library to copy. For a no-arg host build TARGET is empty,
+# so fall back to the host OS so macOS hosts get the .dylib (not the Linux .so).
+STEAM_PLATFORM="$TARGET"
+if [ -z "$STEAM_PLATFORM" ]; then
+    case "$OSTYPE" in
+        darwin*) STEAM_PLATFORM="apple" ;;
+        msys*|cygwin*|win*) STEAM_PLATFORM="windows" ;;
+        *) STEAM_PLATFORM="linux" ;;
+    esac
+fi
 if [ -n "$STEAM_BUILD_DIR" ]; then
-    case "$TARGET" in
+    case "$STEAM_PLATFORM" in
         *windows*)
             STEAM_DLL="$STEAM_BUILD_DIR/steam_api64.dll"
             if [ -f "$STEAM_DLL" ]; then
                 cp "$STEAM_DLL" "$BIN_DIR/"
                 echo "Steam API DLL copied."
+            fi
+            ;;
+        *darwin*|*apple*)
+            STEAM_DYLIB="$STEAM_BUILD_DIR/libsteam_api.dylib"
+            if [ -f "$STEAM_DYLIB" ]; then
+                cp "$STEAM_DYLIB" "$BIN_DIR/"
+                echo "Steam API dynamic library copied."
             fi
             ;;
         *)
