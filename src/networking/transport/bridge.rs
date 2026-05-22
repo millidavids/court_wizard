@@ -29,9 +29,12 @@ impl Plugin for TransportBridgePlugin {
         let (reliable_tx, reliable_rx) = unbounded();
         let (unreliable_tx, unreliable_rx) = unbounded();
 
-        // Shared notify to wake send loops when Bevy pushes data.
-        let data_notify = Arc::new(tokio::sync::Notify::new());
-        let data_notify_transport = data_notify.clone();
+        // One notify per send loop. A single shared notify with `notify_one()`
+        // would wake only one of the two loops, stranding the other's messages.
+        let reliable_notify = Arc::new(tokio::sync::Notify::new());
+        let unreliable_notify = Arc::new(tokio::sync::Notify::new());
+        let reliable_notify_rt = reliable_notify.clone();
+        let unreliable_notify_rt = unreliable_notify.clone();
 
         // Spawn tokio runtime in a background thread.
         std::thread::Builder::new()
@@ -47,7 +50,8 @@ impl Plugin for TransportBridgePlugin {
                     event_tx,
                     reliable_rx,
                     unreliable_rx,
-                    data_notify_transport,
+                    reliable_notify_rt,
+                    unreliable_notify_rt,
                 ));
             })
             .expect("Failed to spawn transport runtime thread");
@@ -57,7 +61,8 @@ impl Plugin for TransportBridgePlugin {
             event_rx,
             reliable_tx,
             unreliable_tx,
-            data_notify,
+            reliable_notify,
+            unreliable_notify,
         });
 
         app.add_systems(PreUpdate, transport_bridge_system);
@@ -84,12 +89,13 @@ fn transport_bridge_system(
     }
 
     // Send outgoing reliable messages.
-    let mut sent_data = false;
+    let mut sent_reliable = false;
+    let mut sent_unreliable = false;
     for msg in connection.outgoing_messages.drain(..) {
         match bincode::serialize(&msg) {
             Ok(data) => {
                 let _ = handle.reliable_tx.send(data);
-                sent_data = true;
+                sent_reliable = true;
             }
             Err(e) => {
                 warn!("Failed to serialize outgoing message: {e}");
@@ -100,12 +106,15 @@ fn transport_bridge_system(
     // Send outgoing unreliable data.
     for data in connection.outgoing_unreliable.drain(..) {
         let _ = handle.unreliable_tx.send(data);
-        sent_data = true;
+        sent_unreliable = true;
     }
 
-    // Wake the async send loops if we pushed data.
-    if sent_data {
-        handle.data_notify.notify_one();
+    // Wake whichever send loop(s) we actually pushed data to.
+    if sent_reliable {
+        handle.reliable_notify.notify_one();
+    }
+    if sent_unreliable {
+        handle.unreliable_notify.notify_one();
     }
 
     // Receive transport events.

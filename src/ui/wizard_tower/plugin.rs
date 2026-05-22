@@ -362,8 +362,15 @@ fn endless_tab_active(tab: Option<Res<WizardTowerTab>>, view: Option<Res<RightPa
         && view.is_some_and(|v| *v == RightPanelView::TabContent)
 }
 
-fn multiplayer_tab_active(tab: Option<Res<WizardTowerTab>>) -> bool {
+/// True only when the Multiplayer tab is showing its normal content — not the
+/// shared wizard-card grid. Gates `rebuild_multiplayer_on_lobby_change` so a
+/// lobby/connection change can't clobber the open grid.
+fn multiplayer_tab_active(
+    tab: Option<Res<WizardTowerTab>>,
+    view: Option<Res<RightPanelView>>,
+) -> bool {
     tab.is_some_and(|t| *t == WizardTowerTab::Multiplayer)
+        && view.is_some_and(|v| *v == RightPanelView::TabContent)
 }
 
 // ---------------------------------------------------------------------------

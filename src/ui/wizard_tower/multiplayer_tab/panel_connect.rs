@@ -1,4 +1,4 @@
-//! Connect-phase panel builders: Host / Join / Relay toggle.
+//! Connect-phase right panel: Host / Join, LAN-vs-Online toggle, last error.
 
 use bevy::prelude::*;
 
@@ -11,41 +11,11 @@ use super::panel_styles::{
 };
 use super::state::MpTabAction;
 
-pub(super) fn build_connect_left(commands: &mut Commands, entity: Entity, use_relay: bool) {
-    commands.entity(entity).with_children(|left| {
-        left.spawn((
-            Text::new("Play Online"),
-            TextFont::from_font_size(HEADING_FONT_SIZE),
-            TextColor(TEXT_PRIMARY),
-        ));
-
-        spawn_button(left, "Host Game", MpTabAction::HostGame, &BUTTON_STYLE);
-        spawn_button(left, "Join Game", MpTabAction::JoinGame, &BUTTON_STYLE);
-
-        let relay_label = if use_relay {
-            "Mode: Online"
-        } else {
-            "Mode: LAN"
-        };
-        let relay_hint = if use_relay {
-            "Online — play with friends anywhere."
-        } else {
-            "LAN — same home network only."
-        };
-        spawn_button(left, relay_label, MpTabAction::ToggleRelay, &SMALL_BUTTON_STYLE);
-
-        left.spawn((
-            Text::new(relay_hint),
-            TextFont::from_font_size(HINT_FONT_SIZE),
-            TextColor(TEXT_MUTED),
-        ));
-    });
-}
-
-pub(super) fn build_connect_right(
+pub(super) fn build_connect(
     commands: &mut Commands,
     entity: Entity,
     connection: &NetworkConnection,
+    use_relay: bool,
 ) {
     commands.entity(entity).with_children(|right| {
         right.spawn((
@@ -61,6 +31,31 @@ pub(super) fn build_connect_right(
         right.spawn((
             Text::new("Host a game and share your code, or join a friend's game with their code."),
             TextFont::from_font_size(BODY_FONT_SIZE),
+            TextColor(TEXT_MUTED),
+            Node {
+                margin: UiRect::bottom(Val::Px(8.0)),
+                ..default()
+            },
+        ));
+
+        spawn_button(right, "Host Game", MpTabAction::HostGame, &BUTTON_STYLE);
+        spawn_button(right, "Join Game", MpTabAction::JoinGame, &BUTTON_STYLE);
+
+        let relay_label = if use_relay {
+            "Mode: Online"
+        } else {
+            "Mode: LAN"
+        };
+        let relay_hint = if use_relay {
+            "Online — play with friends anywhere."
+        } else {
+            "LAN — same home network only."
+        };
+        spawn_button(right, relay_label, MpTabAction::ToggleRelay, &SMALL_BUTTON_STYLE);
+
+        right.spawn((
+            Text::new(relay_hint),
+            TextFont::from_font_size(HINT_FONT_SIZE),
             TextColor(TEXT_MUTED),
         ));
 

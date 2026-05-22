@@ -1,103 +1,89 @@
-//! Wizard-select phase panel builders: pick wizard, ready up, see opponent.
+//! WizardSelect-phase panels.
+//!
+//! LEFT  = match details: both players, their wizard picks, ready status,
+//!         plus Ready/Unready, host-only Start Game, and Disconnect.
+//! RIGHT = this player's selected wizard + a Switch Wizard button (the shared
+//!         wizard-card grid). Switch Wizard is disabled while you are Ready.
 
 use bevy::prelude::*;
 
 use crate::config::WizardType;
-use crate::networking::resources::NetworkConnection;
+use crate::networking::resources::{NetworkConnection, PeerRole};
 use crate::ui::constants::{SUCCESS_COLOR, TEXT_MUTED, TEXT_PRIMARY, WARNING_COLOR};
 use crate::ui::systems::spawn_button;
 
 use super::panel_styles::{
-    BODY_FONT_SIZE, CARD_BG, CARD_BORDER, CARD_BORDER_RADIUS, CARD_BORDER_SELECTED,
-    CARD_BORDER_WIDTH, DISCONNECT_BUTTON_STYLE, HEADING_FONT_SIZE, HINT_FONT_SIZE,
+    BODY_FONT_SIZE, BUTTON_STYLE, DISABLED_BUTTON_STYLE, DISCONNECT_BUTTON_STYLE, HEADING_FONT_SIZE,
     READY_BUTTON_STYLE, SECTION_FONT_SIZE, UNREADY_BUTTON_STYLE,
 };
 use super::panels::spawn_ping_row;
-use super::state::{MpTabAction, MpWizardCardMarker};
+use super::state::MpTabAction;
 
+/// Left panel — match details and the Ready / Start Game / Disconnect buttons.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn build_wizard_select_left(
     commands: &mut Commands,
     entity: Entity,
-    my_wizard_types: &[WizardType],
     my_wizard: Option<WizardType>,
+    opponent_wizard: Option<WizardType>,
     my_ready: bool,
+    opponent_ready: bool,
+    connection: &NetworkConnection,
 ) {
+    let is_host = connection.role == Some(PeerRole::Host);
+    let both_ready = my_ready && opponent_ready;
+
     commands.entity(entity).with_children(|left| {
         left.spawn((
-            Text::new("Pick Your Wizard"),
+            Text::new("Multiplayer Match"),
             TextFont::from_font_size(HEADING_FONT_SIZE),
             TextColor(TEXT_PRIMARY),
             Node {
-                margin: UiRect::bottom(Val::Px(8.0)),
+                margin: UiRect::bottom(Val::Px(10.0)),
                 ..default()
             },
         ));
 
-        for &wizard_type in my_wizard_types {
-            let is_selected = my_wizard == Some(wizard_type);
-            let border_color = if is_selected {
-                CARD_BORDER_SELECTED
-            } else {
-                CARD_BORDER
-            };
+        spawn_player_row(left, "You", my_wizard, my_ready);
+        spawn_divider(left);
+        spawn_player_row(left, "Opponent", opponent_wizard, opponent_ready);
 
-            left.spawn((
-                Button,
-                Node {
-                    width: Val::Percent(100.0),
-                    flex_direction: FlexDirection::Column,
-                    border: UiRect::all(Val::Px(CARD_BORDER_WIDTH)),
-                    padding: UiRect::all(Val::Px(8.0)),
-                    row_gap: Val::Px(2.0),
-                    margin: UiRect::bottom(Val::Px(4.0)),
-                    border_radius: BorderRadius::all(Val::Px(CARD_BORDER_RADIUS)),
-                    ..default()
-                },
-                BackgroundColor(CARD_BG),
-                BorderColor::all(border_color),
-                crate::ui::components::ButtonColors {
-                    background: CARD_BG,
-                    border: border_color,
-                },
-                MpTabAction::SelectWizard(wizard_type),
-                MpWizardCardMarker(wizard_type),
-                crate::ui::focus::Focusable,
-            ))
-            .with_children(|card| {
-                card.spawn((
-                    Text::new(wizard_type.display_name()),
-                    TextFont::from_font_size(SECTION_FONT_SIZE),
-                    TextColor(TEXT_PRIMARY),
-                ));
-                card.spawn((
-                    Text::new(wizard_type.locked_description()),
-                    TextFont::from_font_size(HINT_FONT_SIZE),
-                    TextColor(TEXT_MUTED),
-                ));
-            });
+        if let Some(ping) = connection.ping_ms {
+            spawn_ping_row(left, ping);
         }
 
-        left.spawn((Node {
-            margin: UiRect::top(Val::Px(12.0)),
-            ..default()
-        },))
-            .with_children(|area| {
-                if my_ready {
-                    spawn_button(
-                        area,
-                        "Unready",
-                        MpTabAction::Unready,
-                        &UNREADY_BUTTON_STYLE,
-                    );
-                } else {
-                    spawn_button(area, "Ready!", MpTabAction::Ready, &READY_BUTTON_STYLE);
-                }
-            });
-
+        // Spacer pushes the buttons toward the bottom.
         left.spawn(Node {
             flex_grow: 1.0,
+            min_height: Val::Px(12.0),
             ..default()
         });
+
+        if my_ready {
+            spawn_button(left, "Unready", MpTabAction::Unready, &UNREADY_BUTTON_STYLE);
+        } else {
+            spawn_button(left, "Ready!", MpTabAction::Ready, &READY_BUTTON_STYLE);
+        }
+
+        if is_host {
+            if both_ready {
+                spawn_button(left, "Start Game", MpTabAction::StartGame, &BUTTON_STYLE);
+            } else {
+                // Disabled until both players are ready — empty `()` action.
+                spawn_button(left, "Start Game", (), &DISABLED_BUTTON_STYLE);
+            }
+        } else if both_ready {
+            left.spawn((
+                Text::new("Waiting for host to start..."),
+                TextFont::from_font_size(BODY_FONT_SIZE),
+                TextColor(SUCCESS_COLOR),
+                Node {
+                    margin: UiRect::vertical(Val::Px(6.0)),
+                    ..default()
+                },
+            ));
+        }
+
         spawn_button(
             left,
             "Disconnect",
@@ -107,19 +93,16 @@ pub(super) fn build_wizard_select_left(
     });
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Right panel — this player's selected wizard and the Switch Wizard button.
 pub(super) fn build_wizard_select_right(
     commands: &mut Commands,
     entity: Entity,
     my_wizard: Option<WizardType>,
-    opponent_wizard: Option<WizardType>,
     my_ready: bool,
-    opponent_ready: bool,
-    connection: &NetworkConnection,
 ) {
     commands.entity(entity).with_children(|right| {
         right.spawn((
-            Text::new("Your Selection"),
+            Text::new("Your Wizard"),
             TextFont::from_font_size(SECTION_FONT_SIZE),
             TextColor(TEXT_MUTED),
         ));
@@ -131,79 +114,78 @@ pub(super) fn build_wizard_select_right(
             ),
             TextFont::from_font_size(HEADING_FONT_SIZE),
             TextColor(TEXT_PRIMARY),
-            Node {
-                margin: UiRect::bottom(Val::Px(12.0)),
-                ..default()
-            },
         ));
-
-        let my_status_color = if my_ready { SUCCESS_COLOR } else { TEXT_MUTED };
-        let my_status_text = if my_ready { "Ready!" } else { "Not ready" };
-        right.spawn((
-            Text::new(format!("You: {}", my_status_text)),
-            TextFont::from_font_size(BODY_FONT_SIZE),
-            TextColor(my_status_color),
-        ));
-
-        right.spawn((
-            Node {
-                width: Val::Percent(80.0),
-                height: Val::Px(1.0),
-                margin: UiRect::vertical(Val::Px(10.0)),
-                ..default()
-            },
-            BackgroundColor(Color::hsla(0.0, 0.0, 0.25, 0.5)),
-        ));
-
-        right.spawn((
-            Text::new("Opponent"),
-            TextFont::from_font_size(SECTION_FONT_SIZE),
-            TextColor(TEXT_MUTED),
-        ));
-        right.spawn((
-            Text::new(
-                opponent_wizard
-                    .map(|w| w.display_name().to_string())
-                    .unwrap_or_else(|| "Choosing...".to_string()),
-            ),
-            TextFont::from_font_size(HEADING_FONT_SIZE),
-            TextColor(TEXT_PRIMARY),
-            Node {
-                margin: UiRect::bottom(Val::Px(6.0)),
-                ..default()
-            },
-        ));
-
-        let opp_status_color = if opponent_ready {
-            SUCCESS_COLOR
-        } else {
-            WARNING_COLOR
-        };
-        let opp_status_text = if opponent_ready {
-            "Ready!"
-        } else {
-            "Not ready"
-        };
-        right.spawn((
-            Text::new(format!("Opponent: {}", opp_status_text)),
-            TextFont::from_font_size(BODY_FONT_SIZE),
-            TextColor(opp_status_color),
-        ));
-
-        if let Some(ping) = connection.ping_ms {
-            spawn_ping_row(right, ping);
-        }
-
-        if my_ready && opponent_ready {
+        if let Some(w) = my_wizard {
             right.spawn((
-                Text::new("Both players ready — starting match!"),
+                Text::new(w.description().to_string()),
                 TextFont::from_font_size(BODY_FONT_SIZE),
-                TextColor(SUCCESS_COLOR),
+                TextColor(TEXT_MUTED),
                 Node {
-                    margin: UiRect::top(Val::Px(12.0)),
+                    margin: UiRect::bottom(Val::Px(12.0)),
                     ..default()
                 },
             ));
         }
+
+        if my_ready {
+            // Can't change wizard while Ready — unready first.
+            spawn_button(right, "Switch Wizard", (), &DISABLED_BUTTON_STYLE);
+            right.spawn((
+                Text::new("Unready to switch wizard."),
+                TextFont::from_font_size(BODY_FONT_SIZE),
+                TextColor(TEXT_MUTED),
+            ));
+        } else {
+            spawn_button(
+                right,
+                "Switch Wizard",
+                MpTabAction::SwitchWizard,
+                &BUTTON_STYLE,
+            );
+        }
     });
+}
+
+fn spawn_player_row(
+    parent: &mut ChildSpawnerCommands,
+    label: &str,
+    wizard: Option<WizardType>,
+    ready: bool,
+) {
+    parent.spawn((
+        Text::new(label),
+        TextFont::from_font_size(SECTION_FONT_SIZE),
+        TextColor(TEXT_MUTED),
+    ));
+    parent.spawn((
+        Text::new(
+            wizard
+                .map(|w| w.display_name().to_string())
+                .unwrap_or_else(|| "Choosing...".to_string()),
+        ),
+        TextFont::from_font_size(HEADING_FONT_SIZE),
+        TextColor(TEXT_PRIMARY),
+    ));
+    let (status_text, status_color) = if ready {
+        ("Ready!", SUCCESS_COLOR)
+    } else {
+        ("Not ready", WARNING_COLOR)
+    };
+    parent.spawn((
+        Text::new(status_text),
+        TextFont::from_font_size(BODY_FONT_SIZE),
+        TextColor(status_color),
+    ));
+}
+
+fn spawn_divider(parent: &mut ChildSpawnerCommands) {
+    parent.spawn((
+        Node {
+            width: Val::Percent(80.0),
+            height: Val::Px(1.0),
+            margin: UiRect::vertical(Val::Px(10.0)),
+            ..default()
+        },
+        BackgroundColor(Color::hsla(0.0, 0.0, 0.25, 0.5)),
+    ));
 }

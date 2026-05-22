@@ -27,7 +27,8 @@ pub(super) async fn run_transport(
     event_tx: Sender<TransportEvent>,
     reliable_rx: Receiver<Vec<u8>>,
     unreliable_rx: Receiver<Vec<u8>>,
-    data_notify: Arc<Notify>,
+    reliable_notify: Arc<Notify>,
+    unreliable_notify: Arc<Notify>,
 ) {
     loop {
         let cmd = match command_rx.recv().await {
@@ -43,7 +44,8 @@ pub(super) async fn run_transport(
                     &event_tx,
                     &reliable_rx,
                     &unreliable_rx,
-                    &data_notify,
+                    &reliable_notify,
+                    &unreliable_notify,
                 )
                 .await;
             }
@@ -54,7 +56,8 @@ pub(super) async fn run_transport(
                     &event_tx,
                     &reliable_rx,
                     &unreliable_rx,
-                    &data_notify,
+                    &reliable_notify,
+                    &unreliable_notify,
                 )
                 .await;
             }
@@ -72,7 +75,8 @@ async fn handle_host(
     event_tx: &Sender<TransportEvent>,
     reliable_rx: &Receiver<Vec<u8>>,
     unreliable_rx: &Receiver<Vec<u8>>,
-    data_notify: &Arc<Notify>,
+    reliable_notify: &Arc<Notify>,
+    unreliable_notify: &Arc<Notify>,
 ) {
     let ep = if use_relay {
         Endpoint::builder(presets::N0)
@@ -155,7 +159,8 @@ async fn handle_host(
         event_tx,
         reliable_rx,
         unreliable_rx,
-        data_notify,
+        reliable_notify,
+        unreliable_notify,
     )
     .await;
 
@@ -169,7 +174,8 @@ async fn handle_guest(
     event_tx: &Sender<TransportEvent>,
     reliable_rx: &Receiver<Vec<u8>>,
     unreliable_rx: &Receiver<Vec<u8>>,
-    data_notify: &Arc<Notify>,
+    reliable_notify: &Arc<Notify>,
+    unreliable_notify: &Arc<Notify>,
 ) {
     send_event(
         event_tx,
@@ -215,7 +221,8 @@ async fn handle_guest(
         event_tx,
         reliable_rx,
         unreliable_rx,
-        data_notify,
+        reliable_notify,
+        unreliable_notify,
     )
     .await;
 
@@ -234,7 +241,8 @@ async fn run_connection_io(
     event_tx: &Sender<TransportEvent>,
     reliable_rx: &Receiver<Vec<u8>>,
     unreliable_rx: &Receiver<Vec<u8>>,
-    data_notify: &Arc<Notify>,
+    reliable_notify: &Arc<Notify>,
+    unreliable_notify: &Arc<Notify>,
 ) {
     // Deterministic stream setup: host opens, guest accepts.
     let (send_stream, recv_stream) = if is_host {
@@ -262,7 +270,7 @@ async fn run_connection_io(
     let send_reliable_handle = tokio::spawn(send_reliable_loop(
         send_stream,
         reliable_rx.clone(),
-        data_notify.clone(),
+        reliable_notify.clone(),
         shutdown.clone(),
     ));
     let recv_reliable_handle = tokio::spawn(recv_reliable_loop(
@@ -274,7 +282,7 @@ async fn run_connection_io(
         conn.clone(),
         unreliable_rx.clone(),
         sequence_counter,
-        data_notify.clone(),
+        unreliable_notify.clone(),
         shutdown.clone(),
     ));
     let recv_unreliable_handle = tokio::spawn(recv_unreliable_loop(

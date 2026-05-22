@@ -9,6 +9,8 @@ use crate::game::input::messages::MouseClicked;
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection, PeerRole};
 use crate::networking::transport::{TransportCommand, TransportHandle};
+use crate::state::AppState;
+use crate::ui::wizard_tower::layout::RightPanelView;
 
 use super::state::{JoinCodeInputBox, LobbyPhase, MpTabAction, MultiplayerLobby};
 
@@ -21,6 +23,9 @@ pub(crate) fn handle_mp_tab_actions(
     mut lobby: ResMut<MultiplayerLobby>,
     mut connection: ResMut<NetworkConnection>,
     transport: Option<Res<TransportHandle>>,
+    mut commands: Commands,
+    mut right_panel_view: ResMut<RightPanelView>,
+    mut next_app_state: ResMut<NextState<AppState>>,
 ) {
     let send = |cmd: TransportCommand| {
         if let Some(ref t) = transport {
@@ -128,16 +133,24 @@ pub(crate) fn handle_mp_tab_actions(
                     connection.outgoing_messages.push(NetworkMessage::Unready);
                 }
             }
-            MpTabAction::SelectWizard(wizard_type) => {
-                if let LobbyPhase::WizardSelect { my_ready: true, .. } = &lobby.phase {
+            MpTabAction::SwitchWizard => {
+                // Can't switch while Ready.
+                if matches!(
+                    &lobby.phase,
+                    LobbyPhase::WizardSelect { my_ready: true, .. }
+                ) {
                     continue;
                 }
-                if let LobbyPhase::WizardSelect { my_wizard, .. } = &mut lobby.phase {
-                    *my_wizard = Some(wizard_type);
-                    connection
-                        .outgoing_messages
-                        .push(NetworkMessage::WizardSelected(wizard_type));
-                }
+                // Hand off to the shared wizard-card grid.
+                *right_panel_view = RightPanelView::WizardSelect;
+            }
+            MpTabAction::StartGame => {
+                super::lobby_messages::commit_host_start(
+                    &lobby,
+                    &mut connection,
+                    &mut commands,
+                    &mut next_app_state,
+                );
             }
         }
     }

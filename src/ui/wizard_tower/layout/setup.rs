@@ -480,6 +480,14 @@ fn return_to_main_menu(
 // Panel rebuild on tab change
 // ---------------------------------------------------------------------------
 
+/// Multiplayer lobby + connection state, bundled so `rebuild_panels_on_tab_change`
+/// stays under Bevy's 16-parameter system limit.
+#[derive(bevy::ecs::system::SystemParam)]
+pub(crate) struct MultiplayerPanelData<'w> {
+    lobby: Res<'w, super::super::multiplayer_tab::MultiplayerLobby>,
+    connection: Res<'w, crate::networking::resources::NetworkConnection>,
+}
+
 /// When the active tab changes, despawn children of both panels and rebuild
 /// with the appropriate tab's content.
 #[allow(clippy::too_many_arguments)]
@@ -499,6 +507,7 @@ pub(crate) fn rebuild_panels_on_tab_change(
     mut progress_materials: ResMut<Assets<super::super::materials::RadialProgressMaterial>>,
     mut ring_materials: ResMut<Assets<super::super::materials::ConcentricRingsMaterial>>,
     mut star_sky_materials: ResMut<Assets<super::super::materials::StarSkyMaterial>>,
+    multiplayer: MultiplayerPanelData,
 ) {
     // The run_if condition already gates this system to only run when
     // tab, right_panel_view, or RogueliteRunState changes/removes.
@@ -590,9 +599,17 @@ pub(crate) fn rebuild_panels_on_tab_change(
             );
         }
         WizardTowerTab::Multiplayer => {
-            // Panel content is built by rebuild_multiplayer_on_lobby_change in plugin.rs,
-            // which fires whenever MultiplayerLobby or NetworkConnection changes.
-            // On initial tab switch we build it here using the current lobby state.
+            // Build the panels for the current lobby state. This covers tab
+            // switches and returning from the shared wizard-card grid;
+            // mid-tab lobby changes are handled by
+            // `rebuild_multiplayer_on_lobby_change` in plugin.rs.
+            super::super::multiplayer_tab::panels::build_multiplayer_panels(
+                &mut commands,
+                left_entity,
+                right_entity,
+                &multiplayer.lobby,
+                &multiplayer.connection,
+            );
         }
     }
 }

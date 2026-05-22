@@ -9,10 +9,12 @@ use crate::networking::transport::TransportHandle;
 use crate::state::MetaGameState;
 use crate::ui::plugin::ButtonActionSet;
 
+use crate::ui::wizard_tower::wizard_cards::SelectedWizard;
+
 use super::interaction::handle_mp_tab_actions;
 use super::lobby_messages::process_lobby_messages;
 use super::state::{LobbyPhase, MultiplayerLobby};
-use super::sync::sync_lobby_with_connection;
+use super::sync::{sync_lobby_with_connection, sync_mp_wizard_selection};
 use super::text_input::handle_join_code_input;
 
 /// Plugin that registers all systems for the multiplayer tab.
@@ -36,6 +38,18 @@ impl Plugin for MultiplayerTabPlugin {
                 )
                     .run_if(in_state(MetaGameState::WizardTower))
                     .run_if(multiplayer_tab_active),
+            )
+            // The wizard-selection sync needs `SelectedWizard` to exist (it is
+            // inserted lazily), so it carries its own resource-gated condition.
+            .add_systems(
+                Update,
+                sync_mp_wizard_selection
+                    .run_if(in_state(MetaGameState::WizardTower))
+                    .run_if(multiplayer_tab_active)
+                    .run_if(
+                        resource_exists::<SelectedWizard>
+                            .and(resource_changed::<SelectedWizard>),
+                    ),
             );
     }
 }
@@ -95,6 +109,8 @@ fn handle_pending_rematch_on_enter(
         my_ready: false,
         opponent_ready: false,
     };
+    // Seed the shared wizard-card grid's selection.
+    commands.insert_resource(SelectedWizard(initial));
 
     // Notify the opponent of our initial selection (connection is still alive)
     connection

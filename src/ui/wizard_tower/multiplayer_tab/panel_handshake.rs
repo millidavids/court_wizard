@@ -1,4 +1,4 @@
-//! Handshake-phase panel builders: connected, waiting on PlayerInfo exchange.
+//! Handshake-phase right panel: connected, waiting on PlayerInfo exchange.
 
 use bevy::prelude::*;
 
@@ -10,13 +10,7 @@ use super::panel_styles::{BODY_FONT_SIZE, HEADING_FONT_SIZE, SMALL_BUTTON_STYLE}
 use super::panels::spawn_ping_row;
 use super::state::MpTabAction;
 
-pub(super) fn build_handshake_left(commands: &mut Commands, entity: Entity) {
-    commands.entity(entity).with_children(|left| {
-        spawn_button(left, "Cancel", MpTabAction::Cancel, &SMALL_BUTTON_STYLE);
-    });
-}
-
-pub(super) fn build_handshake_right(
+pub(super) fn build_handshake(
     commands: &mut Commands,
     entity: Entity,
     connection: &NetworkConnection,
@@ -36,5 +30,7 @@ pub(super) fn build_handshake_right(
         if let Some(ping) = connection.ping_ms {
             spawn_ping_row(right, ping);
         }
+
+        spawn_button(right, "Cancel", MpTabAction::Cancel, &SMALL_BUTTON_STYLE);
     });
 }

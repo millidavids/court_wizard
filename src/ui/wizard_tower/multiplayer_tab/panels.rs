@@ -1,19 +1,24 @@
-//! Top-level dispatcher that builds the multiplayer tab's left + right panels
-//! based on the current `LobbyPhase`. Per-phase builders live in sibling files.
+//! Top-level dispatcher that builds the multiplayer tab's panels based on the
+//! current `LobbyPhase`.
+//!
+//! Connection setup (Connect / Hosting / Joining / Handshake / Failed) lives
+//! entirely in the RIGHT panel — the left panel stays empty until a connection
+//! is made. Once connected (`WizardSelect`), the LEFT panel becomes the match
+//! details panel and the RIGHT panel shows the player's wizard + Switch Wizard.
 
 use bevy::prelude::*;
 
 use crate::networking::resources::NetworkConnection;
 
-use super::panel_connect::{build_connect_left, build_connect_right};
-use super::panel_failed::{build_failed_left, build_failed_right};
-use super::panel_handshake::{build_handshake_left, build_handshake_right};
-use super::panel_hosting::{build_hosting_left, build_hosting_right};
-use super::panel_joining::{build_joining_left, build_joining_right};
+use super::panel_connect::build_connect;
+use super::panel_failed::build_failed;
+use super::panel_handshake::build_handshake;
+use super::panel_hosting::build_hosting;
+use super::panel_joining::build_joining;
 use super::panel_wizard_select::{build_wizard_select_left, build_wizard_select_right};
 use super::state::{LobbyPhase, MultiplayerLobby};
 
-/// Spawns left + right panel content for the multiplayer tab based on current lobby phase.
+/// Spawns panel content for the multiplayer tab based on the current lobby phase.
 ///
 /// The caller (`rebuild_panels_on_tab_change` or `rebuild_multiplayer_on_lobby_change`)
 /// has already despawned existing children from both panels.
@@ -41,23 +46,18 @@ pub(crate) fn build_multiplayer_panels(
 
     match &lobby.phase {
         LobbyPhase::Connect => {
-            build_connect_left(commands, left_entity, lobby.use_relay);
-            build_connect_right(commands, right_entity, connection);
+            build_connect(commands, right_entity, connection, lobby.use_relay);
         }
         LobbyPhase::Hosting => {
-            build_hosting_left(commands, left_entity);
-            build_hosting_right(commands, right_entity, connection);
+            build_hosting(commands, right_entity, connection);
         }
         LobbyPhase::Joining => {
-            build_joining_left(commands, left_entity);
-            build_joining_right(commands, right_entity, lobby);
+            build_joining(commands, right_entity, lobby);
         }
         LobbyPhase::Handshake => {
-            build_handshake_left(commands, left_entity);
-            build_handshake_right(commands, right_entity, connection);
+            build_handshake(commands, right_entity, connection);
         }
         LobbyPhase::WizardSelect {
-            my_wizard_types,
             my_wizard,
             opponent_wizard,
             my_ready,
@@ -67,23 +67,16 @@ pub(crate) fn build_multiplayer_panels(
             build_wizard_select_left(
                 commands,
                 left_entity,
-                my_wizard_types,
-                *my_wizard,
-                *my_ready,
-            );
-            build_wizard_select_right(
-                commands,
-                right_entity,
                 *my_wizard,
                 *opponent_wizard,
                 *my_ready,
                 *opponent_ready,
                 connection,
             );
+            build_wizard_select_right(commands, right_entity, *my_wizard, *my_ready);
         }
         LobbyPhase::Failed { reason } => {
-            build_failed_left(commands, left_entity);
-            build_failed_right(commands, right_entity, reason);
+            build_failed(commands, right_entity, reason);
         }
     }
 

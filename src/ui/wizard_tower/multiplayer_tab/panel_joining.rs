@@ -1,4 +1,4 @@
-//! Joining-phase panel builders: paste code, focused text input, connect.
+//! Joining-phase right panel: paste code, focused text input, connect.
 
 use bevy::prelude::*;
 
@@ -11,25 +11,14 @@ use super::panel_styles::{
 };
 use super::state::{JoinCodeInputBox, JoinCodeInputDisplay, MpTabAction, MultiplayerLobby};
 
-pub(super) fn build_joining_left(commands: &mut Commands, entity: Entity) {
-    commands.entity(entity).with_children(|left| {
-        left.spawn((
+pub(super) fn build_joining(commands: &mut Commands, entity: Entity, lobby: &MultiplayerLobby) {
+    commands.entity(entity).with_children(|right| {
+        right.spawn((
             Text::new("Join Game"),
             TextFont::from_font_size(HEADING_FONT_SIZE),
             TextColor(TEXT_PRIMARY),
         ));
 
-        spawn_button(left, "Connect", MpTabAction::ConfirmJoin, &BUTTON_STYLE);
-        spawn_button(left, "Cancel", MpTabAction::Cancel, &SMALL_BUTTON_STYLE);
-    });
-}
-
-pub(super) fn build_joining_right(
-    commands: &mut Commands,
-    entity: Entity,
-    lobby: &MultiplayerLobby,
-) {
-    commands.entity(entity).with_children(|right| {
         right.spawn((
             Text::new("Paste the host's connection code below, then click Connect."),
             TextFont::from_font_size(BODY_FONT_SIZE),
@@ -37,7 +26,7 @@ pub(super) fn build_joining_right(
         ));
 
         right.spawn((
-            Text::new("Code expires ~60 seconds after the host creates it — be quick!"),
+            Text::new("The code stays valid while the host keeps their screen open."),
             TextFont::from_font_size(HINT_FONT_SIZE),
             TextColor(TEXT_MUTED),
             Node {
@@ -60,7 +49,7 @@ pub(super) fn build_joining_right(
                 flex_direction: FlexDirection::Row,
                 align_items: AlignItems::Center,
                 column_gap: Val::Px(8.0),
-                margin: UiRect::bottom(Val::Px(4.0)),
+                margin: UiRect::bottom(Val::Px(8.0)),
                 ..default()
             })
             .with_children(|row| {
@@ -121,5 +110,8 @@ pub(super) fn build_joining_right(
                     ));
                 });
             });
+
+        spawn_button(right, "Connect", MpTabAction::ConfirmJoin, &BUTTON_STYLE);
+        spawn_button(right, "Cancel", MpTabAction::Cancel, &SMALL_BUTTON_STYLE);
     });
 }

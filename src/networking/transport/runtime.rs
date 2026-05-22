@@ -67,8 +67,15 @@ pub(crate) struct TransportHandle {
     /// Send unreliable data to the remote peer (raw binary snapshots).
     pub(super) unreliable_tx: crossbeam_channel::Sender<Vec<u8>>,
 
-    /// Wakes the async send loops when outgoing data is available.
-    pub(super) data_notify: Arc<tokio::sync::Notify>,
+    /// Wakes the reliable send loop when outgoing reliable data is available.
+    ///
+    /// Each send loop has its own notifier — a single shared `Notify` with
+    /// `notify_one()` would wake only one of the two loops, silently stranding
+    /// messages destined for the other.
+    pub(super) reliable_notify: Arc<tokio::sync::Notify>,
+
+    /// Wakes the unreliable send loop when outgoing unreliable data is available.
+    pub(super) unreliable_notify: Arc<tokio::sync::Notify>,
 }
 
 impl TransportHandle {

@@ -5,15 +5,14 @@ All notable changes to this project will be documented in this file.
 ## [pending]
 
 ### Added
-- **Multiplayer is back** — you can now host or join a game directly from the **Multiplayer** tab in the Wizard Tower. No separate lobby screen needed. Click Host Game, copy your code, share it with a friend, and they paste it in to connect. Once you're both connected, pick your wizards, click Ready, and the match kicks off automatically
+- **Multiplayer is back** — host or join a game directly from the **Multiplayer** tab in the Wizard Tower, with no separate lobby screen. Host a game and share your code; your friend pastes it in to connect. Once you're both connected, each player picks a wizard and readies up, and the host starts the match
 
 ### Changed
-- **Clearer multiplayer connection screen** — the Copy and Paste buttons now sit right next to the code box, so it's obvious what you're sharing or pasting, and a short confirmation message appears when a code is copied or pasted. The connection mode toggle now reads plainly as "Online" or "LAN", and starts on Online so you can play with friends anywhere by default
+- **Multiplayer lobby reworked** — the connection controls (Host Game, Join Game, Online/LAN) now sit in the right-hand panel like the rest of the game. Once you're connected, the left panel becomes a match-details view showing who picked which wizard and who's ready, with a Ready button for each player and a Start Game button for the host that unlocks once both players are ready. You switch wizard using the same picker the other game modes use. The Copy and Paste buttons sit right next to the code box with a confirmation message, and the connection mode reads plainly as "Online" or "LAN", defaulting to Online so you can play with friends anywhere
 
 ### Fixed
+- **Multiplayer players now stay in sync** — ready status and wizard choices weren't reliably reaching the other player, which could leave a match unable to start. Lobby updates now come through correctly
 - **All your unlocked wizards now show up in the multiplayer picker** — wizards beyond the starter four were being silently dropped from the wizard-select list, even if you had them unlocked. Every wizard you've earned is now selectable in multiplayer
-- **Clicking the join-code box no longer wipes your code** — clicking into the paste field used to clear anything you'd already typed or pasted. The text now stays put when you click the box
-- **Tidier multiplayer panel layout** — the connection info no longer runs edge-to-edge against the panel border, and the Copy and Paste buttons keep their proper size and spacing
 
 ## [v0.7.367] - 2026-05-10
 

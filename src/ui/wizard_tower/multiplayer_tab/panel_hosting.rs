@@ -1,4 +1,4 @@
-//! Hosting-phase panel builders: show local ticket code, wait for guest.
+//! Hosting-phase right panel: show local ticket code, wait for guest.
 
 use bevy::prelude::*;
 
@@ -13,24 +13,18 @@ use super::panel_styles::{
 use super::panels::spawn_ping_row;
 use super::state::MpTabAction;
 
-pub(super) fn build_hosting_left(commands: &mut Commands, entity: Entity) {
-    commands.entity(entity).with_children(|left| {
-        left.spawn((
-            Text::new("Hosting"),
-            TextFont::from_font_size(HEADING_FONT_SIZE),
-            TextColor(TEXT_PRIMARY),
-        ));
-
-        spawn_button(left, "Cancel", MpTabAction::Cancel, &SMALL_BUTTON_STYLE);
-    });
-}
-
-pub(super) fn build_hosting_right(
+pub(super) fn build_hosting(
     commands: &mut Commands,
     entity: Entity,
     connection: &NetworkConnection,
 ) {
     commands.entity(entity).with_children(|right| {
+        right.spawn((
+            Text::new("Hosting"),
+            TextFont::from_font_size(HEADING_FONT_SIZE),
+            TextColor(TEXT_PRIMARY),
+        ));
+
         right.spawn((
             Text::new("Share this code with your friend:"),
             TextFont::from_font_size(BODY_FONT_SIZE),
@@ -105,5 +99,7 @@ pub(super) fn build_hosting_right(
         if let Some(ping) = connection.ping_ms {
             spawn_ping_row(right, ping);
         }
+
+        spawn_button(right, "Cancel", MpTabAction::Cancel, &SMALL_BUTTON_STYLE);
     });
 }

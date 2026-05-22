@@ -75,6 +75,11 @@ pub(crate) fn process_lobby_messages(
                         my_ready: false,
                         opponent_ready: false,
                     };
+                    // Seed the shared wizard-card grid's selection so it
+                    // highlights the correct card if the player opens it.
+                    commands.insert_resource(
+                        crate::ui::wizard_tower::wizard_cards::SelectedWizard(initial),
+                    );
                     connection
                         .outgoing_messages
                         .push(NetworkMessage::WizardSelected(initial));
@@ -125,13 +130,13 @@ pub(crate) fn process_lobby_messages(
             connection.incoming_messages.extend(unhandled);
         }
     }
-
-    check_both_ready(&lobby, &mut connection, &mut commands, &mut next_app_state);
 }
 
-/// If local is host AND both wizards selected AND both ready, send `StartGame`
-/// and transition to `MultiplayerLoading`.
-fn check_both_ready(
+/// Host-only: if both wizards are selected and both players are ready, build
+/// the `MultiplayerSession`, send `StartGame`, and transition to
+/// `MultiplayerLoading`. Called by the host's explicit "Start Game" button.
+/// No-ops if preconditions aren't met or the local peer isn't the host.
+pub(super) fn commit_host_start(
     lobby: &MultiplayerLobby,
     connection: &mut NetworkConnection,
     commands: &mut Commands,

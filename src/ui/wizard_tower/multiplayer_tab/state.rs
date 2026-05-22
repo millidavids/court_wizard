@@ -116,8 +116,10 @@ pub(crate) enum MpTabAction {
     Ready,
     /// Unmark ready.
     Unready,
-    /// Select a wizard type during WizardSelect phase.
-    SelectWizard(WizardType),
+    /// Open the shared wizard-card grid to switch wizard.
+    SwitchWizard,
+    /// Host only: start the match (enabled once both players are ready).
+    StartGame,
 }
 
 // ---------------------------------------------------------------------------
@@ -131,10 +133,6 @@ pub(crate) struct JoinCodeInputDisplay;
 /// Marker on the join-code input box (clickable to focus).
 #[derive(Component)]
 pub(crate) struct JoinCodeInputBox;
-
-/// Marker on a wizard card button in WizardSelect phase, recording which wizard it represents.
-#[derive(Component)]
-pub(crate) struct MpWizardCardMarker(#[allow(dead_code)] pub WizardType);
 
 // ---------------------------------------------------------------------------
 // Helpers

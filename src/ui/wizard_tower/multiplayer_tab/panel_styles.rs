@@ -16,12 +16,6 @@ pub(super) const CODE_FONT_SIZE: f32 = 10.0;
 /// Inner padding for the right panel content (the right panel node itself has none).
 pub(super) const PANEL_PADDING: f32 = 16.0;
 
-pub(super) const CARD_BG: Color = Color::hsla(220.0, 0.08, 0.11, 0.75);
-pub(super) const CARD_BORDER: Color = Color::hsla(0.0, 0.0, 0.20, 0.6);
-pub(super) const CARD_BORDER_SELECTED: Color = crate::ui::constants::GOLD_ACCENT;
-pub(super) const CARD_BORDER_WIDTH: f32 = 1.0;
-pub(super) const CARD_BORDER_RADIUS: f32 = 4.0;
-
 pub(super) const CODE_BOX_BG: Color = Color::hsla(270.0, 0.08, 0.08, 1.0);
 pub(super) const CODE_BOX_BORDER_FOCUSED: Color = Color::hsla(270.0, 0.65, 0.55, 1.0);
 pub(super) const CODE_BOX_BORDER_UNFOCUSED: Color = Color::hsla(270.0, 0.35, 0.35, 1.0);
@@ -80,6 +74,20 @@ pub(super) const UNREADY_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     border: Color::hsla(0.0, 0.50, 0.35, 1.0),
     text_color: Color::hsla(0.0, 0.20, 0.85, 1.0),
     text_shadow: true,
+};
+
+/// Muted style for a button that is currently disabled (e.g. Start Game
+/// before both players are ready). Paired with an empty `()` action so clicks
+/// do nothing.
+pub(super) const DISABLED_BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: 180.0,
+    height: 40.0,
+    border_width: 1.0,
+    font_size: 14.0,
+    background: BUTTON_BG_SUBTLE,
+    border: BUTTON_BORDER_SUBTLE,
+    text_color: Color::hsla(0.0, 0.0, 0.40, 1.0),
+    text_shadow: false,
 };
 
 pub(super) const DISCONNECT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
