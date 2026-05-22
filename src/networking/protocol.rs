@@ -33,8 +33,9 @@ pub enum NetworkMessage {
     /// Player cancelled their ready state.
     Unready,
 
-    /// Host tells guest to start loading the match.
-    StartGame,
+    /// Host tells guest to start loading the match, sharing the run seed so
+    /// both peers seed their RNG identically.
+    StartGame { seed: u64 },
 
     /// Player has finished loading.
     GameLoaded,

@@ -102,8 +102,8 @@ pub(crate) fn process_lobby_messages(
                         *opponent_ready = false;
                     }
                 }
-                NetworkMessage::StartGame => {
-                    info!("[MP Lobby] Received StartGame from host");
+                NetworkMessage::StartGame { seed } => {
+                    info!("[MP Lobby] Received StartGame from host (seed {seed})");
                     if let LobbyPhase::WizardSelect {
                         my_wizard: Some(my_wiz),
                         opponent_wizard: Some(opp_wiz),
@@ -120,6 +120,9 @@ pub(crate) fn process_lobby_messages(
                         };
                         commands.insert_resource(session);
                     }
+                    // Seed the shared RNG from the host's seed so both peers
+                    // produce identical randomness.
+                    insert_game_rng(&mut commands, seed);
                     next_app_state.set(AppState::MultiplayerLoading);
                 }
                 other => unhandled.push(other),
@@ -164,7 +167,23 @@ pub(super) fn commit_host_start(
             guest_spells: Vec::new(),
         };
         commands.insert_resource(session);
-        connection.outgoing_messages.push(NetworkMessage::StartGame);
+
+        // Pick the shared run seed, seed our own RNG, and send it to the guest.
+        let seed = rand::random::<u64>();
+        insert_game_rng(commands, seed);
+        connection
+            .outgoing_messages
+            .push(NetworkMessage::StartGame { seed });
         next_app_state.set(AppState::MultiplayerLoading);
     }
+}
+
+/// Inserts the `GameSeed` and `GameRng` resources. Multiplayer doesn't go
+/// through `AppState::Loading` (where single-player seeds its RNG), so the
+/// lobby seeds it here from the host-chosen seed shared over the network.
+fn insert_game_rng(commands: &mut Commands, seed: u64) {
+    use crate::game::seeded_rng::resources::{GameRng, GameSeed};
+    let game_seed = GameSeed(seed);
+    commands.insert_resource(GameRng::new(&game_seed));
+    commands.insert_resource(game_seed);
 }
