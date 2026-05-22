@@ -6,7 +6,7 @@ use crate::game::multiplayer::components::PendingRematch;
 use crate::networking::resources::NetworkConnection;
 use crate::networking::transport::TransportCommand;
 use crate::networking::transport::TransportHandle;
-use crate::state::MetaGameState;
+use crate::state::{AppState, MetaGameState};
 use crate::ui::plugin::ButtonActionSet;
 
 use crate::ui::wizard_tower::wizard_cards::SelectedWizard;
@@ -119,12 +119,25 @@ fn handle_pending_rematch_on_enter(
 }
 
 /// When leaving WizardTower, disconnect and reset the lobby to `Connect` phase.
+///
+/// Starting a multiplayer match also exits WizardTower — but in that case the
+/// live connection must survive into the match, so the teardown is skipped
+/// when the destination is a multiplayer loading/game state.
 fn reset_lobby_on_exit(
     mut lobby: ResMut<MultiplayerLobby>,
     mut connection: ResMut<NetworkConnection>,
     transport: Option<Res<TransportHandle>>,
+    app_state: Res<State<AppState>>,
 ) {
     use crate::networking::resources::ConnectionState;
+
+    if matches!(
+        app_state.get(),
+        AppState::MultiplayerLoading | AppState::MultiplayerGame
+    ) {
+        return;
+    }
+
     if connection.state != ConnectionState::Disconnected {
         if let Some(t) = transport {
             t.send_command(TransportCommand::Disconnect);
