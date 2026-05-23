@@ -22,6 +22,12 @@ pub fn setup_battlefield(
     ground_materials: &mut Assets<GroundMaterial>,
     stone_materials: &mut Assets<StoneNoiseMaterial>,
     battlefield_assets: &BattlefieldAssets,
+    // World-space transform composed onto every spawned visual. Single-player
+    // and the multiplayer host pass `Transform::IDENTITY`. The multiplayer
+    // guest passes a 180° Y-rotation so their copy of the battlefield (which
+    // is purely visual — units and terrain remain in shared world coords) is
+    // mirrored to match their mirrored camera.
+    origin_transform: Transform,
 ) {
     // Add a light source so we can see 3D objects
     commands.spawn((
@@ -30,12 +36,19 @@ pub fn setup_battlefield(
             shadows_enabled: false,
             ..default()
         },
-        Transform::from_xyz(0.0, 1000.0, 0.0),
+        origin_transform * Transform::from_xyz(0.0, 1000.0, 0.0),
         OnGameplayScreen,
     ));
 
     // Spawn battlefield as a grid of textured ground tiles
-    spawn_ground_tiles(rng, commands, meshes, ground_materials, battlefield_assets);
+    spawn_ground_tiles(
+        rng,
+        commands,
+        meshes,
+        ground_materials,
+        battlefield_assets,
+        origin_transform,
+    );
 
     // Spawn castle wall as a textured plane the wizard stands on
     spawn_castle_wall(
@@ -46,6 +59,7 @@ pub fn setup_battlefield(
         CASTLE_POSITION,
         CASTLE_ROTATION_DEGREES,
         OnGameplayScreen,
+        origin_transform,
     );
 
     // Spawn wall backdrops (vertical walls get depth_bias so they render behind game entities)
@@ -58,9 +72,10 @@ pub fn setup_battlefield(
         battlefield_assets.right_wall.clone(),
         RIGHT_WALL_WIDTH,
         RIGHT_WALL_HEIGHT,
-        Transform::from_translation(RIGHT_WALL_POSITION).with_rotation(Quat::from_rotation_y(
-            RIGHT_WALL_ROTATION_DEGREES.to_radians(),
-        )),
+        origin_transform
+            * Transform::from_translation(RIGHT_WALL_POSITION).with_rotation(
+                Quat::from_rotation_y(RIGHT_WALL_ROTATION_DEGREES.to_radians()),
+            ),
     );
     spawn_wall_backdrop(
         commands,
@@ -69,7 +84,7 @@ pub fn setup_battlefield(
         battlefield_assets.left_wall.clone(),
         LEFT_WALL_WIDTH,
         LEFT_WALL_HEIGHT,
-        Transform::from_translation(LEFT_WALL_POSITION),
+        origin_transform * Transform::from_translation(LEFT_WALL_POSITION),
         LeftWall,
         0.0,
     );
@@ -94,12 +109,13 @@ pub fn setup_battlefield(
         commands.spawn((
             Mesh3d(meshes.add(sand_mesh)),
             MeshMaterial3d(sand_material),
-            Transform::from_xyz(
-                WATER_POOL_POSITION.x + 100.0,
-                0.5,
-                WATER_POOL_POSITION.z - 100.0,
-            )
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            origin_transform
+                * Transform::from_xyz(
+                    WATER_POOL_POSITION.x + 100.0,
+                    0.5,
+                    WATER_POOL_POSITION.z - 100.0,
+                )
+                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
             OnGameplayScreen,
         ));
 
@@ -126,8 +142,9 @@ pub fn setup_battlefield(
             MeshMaterial3d(stone_material),
             // Center further from camera than wall_floor (Z=-1000) so transparent
             // sort order puts this behind the wall floor.
-            Transform::from_xyz(WALL_FLOOR_POSITION.x, 0.5, -1500.0)
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            origin_transform
+                * Transform::from_xyz(WALL_FLOOR_POSITION.x, 0.5, -1500.0)
+                    .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
             OnGameplayScreen,
         ));
     }
@@ -149,8 +166,9 @@ pub fn setup_battlefield(
         commands.spawn((
             Mesh3d(meshes.add(mesh)),
             MeshMaterial3d(material),
-            Transform::from_translation(WALL_FLOOR_POSITION)
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            origin_transform
+                * Transform::from_translation(WALL_FLOOR_POSITION)
+                    .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
             WallFloor,
             OnGameplayScreen,
         ));
@@ -158,7 +176,7 @@ pub fn setup_battlefield(
 
     // Spawn lava pool marker (drives fire/smoke/spark effects)
     commands.spawn((
-        Transform::from_translation(LAVA_POOL_POSITION),
+        origin_transform * Transform::from_translation(LAVA_POOL_POSITION),
         Visibility::default(),
         LavaPool,
         OnGameplayScreen,
@@ -235,6 +253,7 @@ fn spawn_right_wall_backdrop(
 ///
 /// The plane uses the castle_wall.png image at its natural aspect ratio,
 /// scaled to CASTLE_WIDTH wide. The wizard and cauldron stand on this plane.
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_castle_wall<M: Component + Clone>(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -243,6 +262,7 @@ pub fn spawn_castle_wall<M: Component + Clone>(
     castle_position: Vec3,
     rotation_degrees: f32,
     screen_marker: M,
+    origin_transform: Transform,
 ) {
     // Size the plane to match the image's aspect ratio (629x1024), scaled 3x.
     // Width = CASTLE_WIDTH * 3, depth computed from aspect ratio.
@@ -264,8 +284,9 @@ pub fn spawn_castle_wall<M: Component + Clone>(
     commands.spawn((
         Mesh3d(meshes.add(wall_mesh)),
         MeshMaterial3d(wall_material),
-        Transform::from_translation(castle_position)
-            .with_rotation(Quat::from_rotation_y(rotation_degrees.to_radians())),
+        origin_transform
+            * Transform::from_translation(castle_position)
+                .with_rotation(Quat::from_rotation_y(rotation_degrees.to_radians())),
         Castle,
         screen_marker,
     ));
@@ -324,6 +345,7 @@ fn spawn_ground_tiles(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<GroundMaterial>,
     battlefield_assets: &BattlefieldAssets,
+    origin_transform: Transform,
 ) {
     let half = BATTLEFIELD_SIZE / 2.0;
     let tiles_per_side = (BATTLEFIELD_SIZE / TILE_WORLD_SIZE) as usize;
@@ -353,7 +375,7 @@ fn spawn_ground_tiles(
             commands.spawn((
                 Mesh3d(tile_meshes[tile_index].clone()),
                 MeshMaterial3d(tile_material.clone()),
-                Transform::from_xyz(x, -1.0, z),
+                origin_transform * Transform::from_xyz(x, -1.0, z),
                 Battlefield,
                 OnGameplayScreen,
             ));

@@ -289,6 +289,7 @@ pub fn process_spawn_queue(
                     &mut ground_materials,
                     &mut stone_materials,
                     battlefield_assets,
+                    Transform::IDENTITY,
                 );
             }
             SpawnTask::Castle => {

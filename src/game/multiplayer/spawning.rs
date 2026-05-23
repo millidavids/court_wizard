@@ -32,7 +32,9 @@ use super::components::OnMultiplayerGameScreen;
 ///
 /// Tagged `OnGameplayScreen` to match the castle that `setup_battlefield`
 /// spawns (Castle 1) — both castles share one cleanup marker so any future
-/// query that looks them up by marker finds both.
+/// query that looks them up by marker finds both. `origin_transform` is the
+/// same per-client visual mirror passed to `setup_battlefield`.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn spawn_castle(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
@@ -40,6 +42,7 @@ pub(super) fn spawn_castle(
     battlefield_assets: &BattlefieldAssets,
     position: Vec3,
     rotation_degrees: f32,
+    origin_transform: Transform,
 ) {
     crate::game::battlefield::systems::spawn_castle_wall(
         commands,
@@ -49,6 +52,7 @@ pub(super) fn spawn_castle(
         position,
         rotation_degrees,
         crate::game::components::OnGameplayScreen,
+        origin_transform,
     );
 }
 

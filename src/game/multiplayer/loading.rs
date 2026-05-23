@@ -267,12 +267,25 @@ pub fn process_mp_spawn_queue(
     let (battlefield_assets, mut ground_materials, mut stone_materials, mut game_rng) =
         battlefield;
 
+    // Per-client visual mirror: the battlefield/walls/lava/water are purely
+    // visual and rendered locally — units and terrain stay in shared world
+    // coords. The guest spawns its copy rotated 180° around the world origin
+    // so that, combined with its mirrored camera, the asymmetric SP wall art
+    // (right wall with tunnels, left wall) appears correctly oriented from
+    // the guest's perspective.
+    let origin_transform = if session.role == PeerRole::Guest {
+        Transform::from_rotation(Quat::from_rotation_y(std::f32::consts::PI))
+    } else {
+        Transform::IDENTITY
+    };
+
     if let Some(task) = spawn_queue.pop_next() {
         match task {
             MpSpawnTask::Battlefield => {
                 // Reuse single-player's battlefield builder verbatim. Both
                 // peers draw ground-tile RNG from the shared `GameRng`, so
-                // tile placement is identical.
+                // tile placement is identical; the guest's `origin_transform`
+                // mirrors the result to match its camera.
                 crate::game::battlefield::systems::setup_battlefield(
                     &mut game_rng.0,
                     &mut commands,
@@ -281,6 +294,7 @@ pub fn process_mp_spawn_queue(
                     &mut ground_materials,
                     &mut stone_materials,
                     &battlefield_assets,
+                    origin_transform,
                 );
             }
             MpSpawnTask::Castle2 => {
@@ -291,6 +305,7 @@ pub fn process_mp_spawn_queue(
                     &battlefield_assets,
                     CASTLE_2_POSITION,
                     CASTLE_2_ROTATION_DEGREES,
+                    origin_transform,
                 );
             }
             MpSpawnTask::PathfindingGrid => {
