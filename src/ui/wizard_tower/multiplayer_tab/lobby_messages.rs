@@ -7,47 +7,28 @@
 use bevy::prelude::*;
 
 use crate::networking::protocol::NetworkMessage;
-use crate::networking::resources::{ConnectionState, NetworkConnection, PeerRole};
+use crate::networking::resources::{NetworkConnection, PeerRole};
 use crate::networking::session::MultiplayerSession;
 use crate::state::AppState;
 
 use super::state::{LobbyPhase, MultiplayerLobby, load_my_unlocked_content};
 
-/// Drains `NetworkConnection.incoming_messages`, sends `PlayerInfo` on first
-/// connect, handles `PlayerInfo`/`WizardSelected`/`ReadyUp`/`Unready`/`StartGame`.
+/// Drains `NetworkConnection.incoming_messages` and handles
+/// `PlayerInfo`/`WizardSelected`/`ReadyUp`/`Unready`/`StartGame`.
+///
+/// `PlayerInfo` is *sent* once by `sync_lobby_with_connection` at the moment the
+/// lobby reaches `Handshake` — not here — so it is never re-sent per frame.
 pub(crate) fn process_lobby_messages(
-    connection: ResMut<NetworkConnection>,
+    mut connection: ResMut<NetworkConnection>,
     mut lobby: ResMut<MultiplayerLobby>,
     mut commands: Commands,
     mut next_app_state: ResMut<NextState<AppState>>,
 ) {
-    let should_send_info = connection.state == ConnectionState::Connected
-        && matches!(lobby.phase, LobbyPhase::Handshake);
-
-    let has_messages = !connection.incoming_messages.is_empty();
-
-    if !should_send_info && !has_messages {
+    if connection.incoming_messages.is_empty() {
         return;
     }
 
-    let mut connection = connection;
-
-    if should_send_info {
-        let (wizard_types, spells) = load_my_unlocked_content();
-        info!(
-            "[MP Lobby] Connected — sending PlayerInfo ({} wizard types, {} spells)",
-            wizard_types.len(),
-            spells.len()
-        );
-        connection
-            .outgoing_messages
-            .push(NetworkMessage::PlayerInfo {
-                wizard_types: wizard_types.clone(),
-                spells: spells.clone(),
-            });
-    }
-
-    if has_messages {
+    {
         let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
         let mut unhandled = Vec::new();
 
@@ -104,6 +85,9 @@ pub(crate) fn process_lobby_messages(
                 }
                 NetworkMessage::StartGame { seed } => {
                     info!("[MP Lobby] Received StartGame from host (seed {seed})");
+                    // Only start if we have a valid wizard-select state — the
+                    // session and RNG must be in place before the transition,
+                    // or `init_mp_loading` panics on the missing resource.
                     if let LobbyPhase::WizardSelect {
                         my_wizard: Some(my_wiz),
                         opponent_wizard: Some(opp_wiz),
@@ -119,11 +103,13 @@ pub(crate) fn process_lobby_messages(
                             guest_spells: my_spells,
                         };
                         commands.insert_resource(session);
+                        // Seed the shared RNG from the host's seed so both
+                        // peers produce identical randomness.
+                        insert_game_rng(&mut commands, seed);
+                        next_app_state.set(AppState::MultiplayerLoading);
+                    } else {
+                        warn!("[MP Lobby] Ignoring StartGame received outside wizard select");
                     }
-                    // Seed the shared RNG from the host's seed so both peers
-                    // produce identical randomness.
-                    insert_game_rng(&mut commands, seed);
-                    next_app_state.set(AppState::MultiplayerLoading);
                 }
                 other => unhandled.push(other),
             }

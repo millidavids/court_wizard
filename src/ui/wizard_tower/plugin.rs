@@ -70,14 +70,17 @@ impl Plugin for WizardTowerPlugin {
                                 >),
                         ),
                     ),
+                    // Tab switches are handled by `rebuild_panels_on_tab_change`;
+                    // this only handles mid-tab lobby/connection changes, so it
+                    // must NOT also fire on `WizardTowerTab` change or the panels
+                    // would be built twice in one frame.
                     rebuild_multiplayer_on_lobby_change
                         .after(super::layout::rebuild_panels_on_tab_change)
                         .run_if(
                             resource_exists::<WizardTowerTab>
                                 .and(multiplayer_tab_active)
                                 .and(
-                                    resource_changed::<WizardTowerTab>
-                                        .or(resource_changed::<MultiplayerLobby>)
+                                    resource_changed::<MultiplayerLobby>
                                         .or(resource_changed::<NetworkConnection>),
                                 ),
                         ),

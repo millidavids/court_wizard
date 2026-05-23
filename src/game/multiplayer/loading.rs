@@ -1,16 +1,28 @@
 //! Multiplayer loading systems.
 //!
-//! Builds and processes a multiplayer-specific spawn queue that sets up
-//! dual castles, armies for both sides, and two wizards. The host spawns
-//! all gameplay entities; the guest spawns only visual entities (units
-//! will come from state snapshots in Milestone 4).
+//! Builds and processes a multiplayer-specific spawn queue. Both peers spawn
+//! the full single-player battlefield and the same deterministic terrain
+//! (driven by the host-shared seed), so each client sees the same world. The
+//! host additionally enqueues all gameplay entities (kings, guards, infantry,
+//! archers); the guest receives those via state snapshots.
 
 use bevy::prelude::*;
 
 use super::spawning::*;
+use crate::config::GameConfig;
+use crate::config::save_data::{SavedBoulder, SavedBush, SavedFlora, SavedPond, SavedTree};
 use crate::game::battlefield::components::BattlefieldAssets;
+use crate::game::battlefield::ground_material::{GroundMaterial, StoneNoiseMaterial};
 use crate::game::constants::*;
 use crate::game::loading::resources::LoadingProgress;
+use crate::game::pathfinding::messages::ObstacleChanged;
+use crate::game::seeded_rng::resources::{GameRng, GameSeed};
+use crate::game::shared_systems::ShadowAssets;
+use crate::game::terrain::boulder::resources::BoulderAssets;
+use crate::game::terrain::bush::resources::BushAssets;
+use crate::game::terrain::flora::resources::FloraAssets;
+use crate::game::terrain::pond::resources::PondAssets;
+use crate::game::terrain::tree::resources::TreeAssets;
 use crate::game::units::archer::ArcherAssets;
 use crate::game::units::components::Team;
 use crate::game::units::infantry::resources::InfantryAssets;
@@ -23,36 +35,36 @@ use crate::state::AppState;
 
 /// Multiplayer-specific spawn tasks.
 pub enum MpSpawnTask {
-    /// Spawn the battlefield ground plane and lighting.
+    /// Build the full single-player battlefield (tiled ground, castle #1,
+    /// left/right wall backdrops, wall-floor, stone/sand underlays, lava
+    /// pool, water-ripple mesh).
     Battlefield,
-    /// Spawn Castle 1 (host's castle).
-    Castle1,
-    /// Spawn Castle 2 (guest's castle).
+    /// Spawn the second castle (Castle 1 is spawned by `setup_battlefield`).
     Castle2,
     /// Initialize the pathfinding grid.
     PathfindingGrid,
     /// Load wizard sprite sheet assets.
     LoadWizardAssets,
-    /// Spawn host's wizard at Castle 1.
     HostWizard,
-    /// Spawn guest's wizard at Castle 2.
     GuestWizard,
-    /// Spawn a host-side defender infantry (near Castle 1).
     HostInfantry { unit_index: u32 },
-    /// Spawn a host-side defender archer (near Castle 1).
     HostArcher { unit_index: u32 },
-    /// Spawn a guest-side infantry (near Castle 2).
     GuestInfantry { unit_index: u32 },
-    /// Spawn a guest-side archer (near Castle 2).
     GuestArcher { unit_index: u32 },
-    /// Spawn the host-side King near Castle 1.
     HostKing,
-    /// Spawn a host-side King's Guard unit.
     HostKingsGuard { guard_index: u32 },
-    /// Spawn the guest-side King near Castle 2.
     GuestKing,
-    /// Spawn a guest-side King's Guard unit.
     GuestKingsGuard { guard_index: u32 },
+    /// A single flora decoration (visual only).
+    Flora { flora: SavedFlora },
+    /// A single boulder (pathfinding obstacle).
+    TerrainBoulder { boulder: SavedBoulder },
+    /// A single tree (pathfinding obstacle).
+    TerrainTree { tree: SavedTree },
+    /// A single pond (slow terrain).
+    TerrainPond { pond: SavedPond },
+    /// A single bush (slow terrain).
+    TerrainBush { bush: SavedBush },
 }
 
 /// Resource that holds the multiplayer spawn queue.
@@ -86,38 +98,104 @@ pub struct MpLoadingSync {
     pub peer_loaded: bool,
 }
 
+/// Snapshot of the `GameConfig` fields multiplayer overwrites during loading,
+/// so MP exit can restore them and not pollute later single-player runs.
+#[derive(Resource)]
+pub struct MpConfigBackup {
+    pub previous_seed: Option<u64>,
+    pub previous_current_level: u32,
+}
+
 /// Initializes the multiplayer loading spawn queue.
-pub fn init_mp_loading(mut commands: Commands, session: Res<MultiplayerSession>) {
+///
+/// Sets `GameConfig.seed` to the host-shared seed, runs the same deterministic
+/// terrain generators single-player uses, and enqueues one spawn task per
+/// generated terrain element — so both peers produce an identical world.
+pub fn init_mp_loading(
+    mut commands: Commands,
+    session: Res<MultiplayerSession>,
+    game_seed: Res<GameSeed>,
+    mut config: ResMut<GameConfig>,
+) {
     commands.insert_resource(LoadingProgress::new());
     commands.insert_resource(MpLoadingSync::default());
 
+    // Stash the SP seed/level so MP exit can restore them.
+    commands.insert_resource(MpConfigBackup {
+        previous_seed: config.seed,
+        previous_current_level: config.current_level,
+    });
+
+    // Seed the deterministic terrain generators with the host-shared seed.
+    config.seed = Some(game_seed.0);
+    // `generate_flora_positions` reads `config.current_level` for its seed
+    // derivation (not a parameter), so we MUST override it here too. Otherwise
+    // each peer would use its own single-player progression level and the two
+    // clients would generate different flora — which cascades into different
+    // boulder/tree/bush/pond placements (those generators consult saved_flora
+    // for obstacle avoidance).
+    config.current_level = MP_TERRAIN_LEVEL;
+
+    // Wipe any cached terrain (left over from a prior single-player run) so
+    // the generators produce fresh content keyed off the MP seed.
+    config.saved_flora.clear();
+    config.saved_trees.clear();
+    config.saved_ponds.clear();
+    config.saved_bushes.clear();
+    config.saved_boulders.clear();
+
+    // Generate terrain identically on both peers — both call the same
+    // seeded RNG path that single-player uses, independent of `GameRng`.
+    crate::game::terrain::flora::systems::generate_flora_positions(&mut config);
+    crate::game::loading::terrain_generation::generate_terrain(
+        &mut config,
+        MP_TERRAIN_LEVEL,
+        1.0,
+    );
+
     let mut queue = MpSpawnQueue::new();
 
-    // Both host and guest spawn the visual world
+    // Static world.
     queue.tasks.push(MpSpawnTask::Battlefield);
-    queue.tasks.push(MpSpawnTask::Castle1);
     queue.tasks.push(MpSpawnTask::Castle2);
     queue.tasks.push(MpSpawnTask::PathfindingGrid);
 
-    // Host spawns all gameplay entities (both armies)
+    // Terrain — one task per element, mirroring single-player's queue layout.
+    for boulder in &config.saved_boulders {
+        queue.tasks.push(MpSpawnTask::TerrainBoulder {
+            boulder: boulder.clone(),
+        });
+    }
+    for tree in &config.saved_trees {
+        queue.tasks.push(MpSpawnTask::TerrainTree { tree: tree.clone() });
+    }
+    for pond in &config.saved_ponds {
+        queue.tasks.push(MpSpawnTask::TerrainPond { pond: pond.clone() });
+    }
+    for bush in &config.saved_bushes {
+        queue.tasks.push(MpSpawnTask::TerrainBush { bush: bush.clone() });
+    }
+    for flora in &config.saved_flora {
+        queue.tasks.push(MpSpawnTask::Flora {
+            flora: flora.clone(),
+        });
+    }
+
+    // Host spawns all gameplay entities (both armies). Guest receives them
+    // via state snapshots once the match starts.
     if session.role == PeerRole::Host {
-        // Host's King and Guard
         queue.tasks.push(MpSpawnTask::HostKing);
         for i in 0..KINGS_GUARD_COUNT {
             queue
                 .tasks
                 .push(MpSpawnTask::HostKingsGuard { guard_index: i });
         }
-
-        // Guest's King and Guard
         queue.tasks.push(MpSpawnTask::GuestKing);
         for i in 0..KINGS_GUARD_COUNT {
             queue
                 .tasks
                 .push(MpSpawnTask::GuestKingsGuard { guard_index: i });
         }
-
-        // Host-side army (near Castle 1)
         for i in 0..MP_INFANTRY_COUNT {
             queue
                 .tasks
@@ -126,8 +204,6 @@ pub fn init_mp_loading(mut commands: Commands, session: Res<MultiplayerSession>)
         for i in 0..MP_ARCHER_COUNT {
             queue.tasks.push(MpSpawnTask::HostArcher { unit_index: i });
         }
-
-        // Guest-side army (near Castle 2)
         for i in 0..MP_INFANTRY_COUNT {
             queue
                 .tasks
@@ -138,7 +214,6 @@ pub fn init_mp_loading(mut commands: Commands, session: Res<MultiplayerSession>)
         }
     }
 
-    // Load wizard sprite sheet, then spawn wizards
     queue.tasks.push(MpSpawnTask::LoadWizardAssets);
     queue.tasks.push(MpSpawnTask::HostWizard);
     queue.tasks.push(MpSpawnTask::GuestWizard);
@@ -146,40 +221,66 @@ pub fn init_mp_loading(mut commands: Commands, session: Res<MultiplayerSession>)
     commands.insert_resource(queue);
 }
 
-/// Processes one multiplayer spawn task per frame.
+/// Processes one multiplayer spawn task per frame, then handles the
+/// "both peers loaded" handshake.
 #[allow(clippy::too_many_arguments)]
 pub fn process_mp_spawn_queue(
     mut commands: Commands,
-    mut loading_progress: ResMut<LoadingProgress>,
-    mut spawn_queue: ResMut<MpSpawnQueue>,
-    mut loading_sync: ResMut<MpLoadingSync>,
     mut connection: ResMut<NetworkConnection>,
     session: Res<MultiplayerSession>,
-    infantry_assets: Res<InfantryAssets>,
-    archer_assets: Res<ArcherAssets>,
-    king_assets: Res<crate::game::units::king::resources::KingAssets>,
-    mut king_spawned: ResMut<KingSpawned>,
+    mut next_state: ResMut<NextState<AppState>>,
+    progress: (
+        ResMut<LoadingProgress>,
+        ResMut<MpSpawnQueue>,
+        ResMut<MpLoadingSync>,
+    ),
+    unit_assets: (
+        Res<InfantryAssets>,
+        Res<ArcherAssets>,
+        Res<crate::game::units::king::resources::KingAssets>,
+        ResMut<KingSpawned>,
+    ),
+    terrain_assets: (
+        Res<BoulderAssets>,
+        Res<TreeAssets>,
+        Res<PondAssets>,
+        Res<BushAssets>,
+        Res<FloraAssets>,
+        Res<ShadowAssets>,
+    ),
+    battlefield: (
+        Res<BattlefieldAssets>,
+        ResMut<Assets<GroundMaterial>>,
+        ResMut<Assets<StoneNoiseMaterial>>,
+        ResMut<GameRng>,
+    ),
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut next_state: ResMut<NextState<AppState>>,
-    battlefield_assets: Res<BattlefieldAssets>,
     asset_server: Res<AssetServer>,
     wizard_assets: Option<Res<WizardAssets>>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
-    // Process one task per frame
+    let (mut loading_progress, mut spawn_queue, mut loading_sync) = progress;
+    let (infantry_assets, archer_assets, king_assets, mut king_spawned) = unit_assets;
+    let (boulder_assets, tree_assets, pond_assets, bush_assets, flora_assets, shadow_assets) =
+        terrain_assets;
+    let (battlefield_assets, mut ground_materials, mut stone_materials, mut game_rng) =
+        battlefield;
+
     if let Some(task) = spawn_queue.pop_next() {
         match task {
             MpSpawnTask::Battlefield => {
-                spawn_mp_battlefield(&mut commands, &mut meshes, &mut materials);
-            }
-            MpSpawnTask::Castle1 => {
-                spawn_castle(
+                // Reuse single-player's battlefield builder verbatim. Both
+                // peers draw ground-tile RNG from the shared `GameRng`, so
+                // tile placement is identical.
+                crate::game::battlefield::systems::setup_battlefield(
+                    &mut game_rng.0,
                     &mut commands,
                     &mut meshes,
                     &mut materials,
+                    &mut ground_materials,
+                    &mut stone_materials,
                     &battlefield_assets,
-                    CASTLE_POSITION,
-                    CASTLE_ROTATION_DEGREES,
                 );
             }
             MpSpawnTask::Castle2 => {
@@ -236,7 +337,7 @@ pub fn process_mp_spawn_queue(
                     &mut materials,
                     unit_index,
                     Team::Defenders,
-                    true, // host side (Castle 1)
+                    true,
                 );
             }
             MpSpawnTask::GuestInfantry { unit_index } => {
@@ -246,7 +347,7 @@ pub fn process_mp_spawn_queue(
                     &mut materials,
                     unit_index,
                     Team::Attackers,
-                    false, // guest side (Castle 2)
+                    false,
                 );
             }
             MpSpawnTask::HostArcher { unit_index } => {
@@ -317,6 +418,60 @@ pub fn process_mp_spawn_queue(
                     Team::Attackers,
                 );
             }
+            MpSpawnTask::Flora { flora } => {
+                crate::game::terrain::flora::systems::spawn_single_flora(
+                    &mut commands,
+                    &flora_assets,
+                    &shadow_assets,
+                    &flora,
+                );
+            }
+            MpSpawnTask::TerrainBoulder { boulder } => {
+                crate::game::terrain::boulder::systems::spawn_terrain_boulder(
+                    &mut commands,
+                    &boulder_assets,
+                    &shadow_assets,
+                    boulder.x,
+                    boulder.z,
+                    boulder.scale,
+                    boulder.sprite_index,
+                    &mut obstacle_events,
+                );
+            }
+            MpSpawnTask::TerrainTree { tree } => {
+                crate::game::terrain::tree::systems::spawn_single_tree(
+                    &mut commands,
+                    &tree_assets,
+                    &shadow_assets,
+                    tree.x,
+                    tree.z,
+                    tree.scale,
+                    tree.sprite_index,
+                    &mut obstacle_events,
+                );
+            }
+            MpSpawnTask::TerrainPond { pond } => {
+                crate::game::terrain::pond::systems::spawn_single_pond(
+                    &mut commands,
+                    &pond_assets,
+                    pond.x,
+                    pond.z,
+                    pond.radius,
+                    &mut obstacle_events,
+                );
+            }
+            MpSpawnTask::TerrainBush { bush } => {
+                crate::game::terrain::bush::systems::spawn_single_bush(
+                    &mut commands,
+                    &bush_assets,
+                    &shadow_assets,
+                    bush.x,
+                    bush.z,
+                    bush.scale,
+                    bush.sprite_index,
+                    &mut obstacle_events,
+                );
+            }
         }
     }
 
@@ -349,11 +504,31 @@ pub fn process_mp_spawn_queue(
     }
 }
 
-/// Cleans up multiplayer loading resources.
-pub fn cleanup_mp_loading(mut commands: Commands) {
+/// Cleans up multiplayer loading resources and restores any `GameConfig`
+/// fields multiplayer overwrote — runs on every exit of `MultiplayerLoading`
+/// (success or abort), so the seed/level/saved-terrain mutations never leak
+/// into a subsequent single-player run.
+pub fn cleanup_mp_loading(
+    mut commands: Commands,
+    mut config: ResMut<GameConfig>,
+    backup: Option<Res<MpConfigBackup>>,
+) {
     commands.remove_resource::<LoadingProgress>();
     commands.remove_resource::<MpSpawnQueue>();
     commands.remove_resource::<MpLoadingSync>();
+
+    if let Some(backup) = backup {
+        config.seed = backup.previous_seed;
+        config.current_level = backup.previous_current_level;
+        commands.remove_resource::<MpConfigBackup>();
+    }
+    // The terrain was already enqueued (the queue holds owned clones of each
+    // `Saved*` element), so clearing here doesn't affect the in-flight spawn.
+    config.saved_flora.clear();
+    config.saved_trees.clear();
+    config.saved_ponds.clear();
+    config.saved_bushes.clear();
+    config.saved_boulders.clear();
 }
 
 /// Sets up the camera for the multiplayer game based on role.

@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **Multiplayer is back** — host or join a game directly from the **Multiplayer** tab in the Wizard Tower, with no separate lobby screen. Host a game and share your code; your friend pastes it in to connect. Once you're both connected, each player picks a wizard and readies up, and the host starts the match
+- **Multiplayer battles are now properly rendered** — the multiplayer arena now has the full visuals you'd expect: tiled ground, walls, the lava pool and water pond, plus boulders, trees, ponds, bushes, and flowers scattered around. Both players see the exact same terrain layout (with the guest viewing the field from the opposite side)
 
 ### Changed
 - **Multiplayer lobby reworked** — the connection controls (Host Game, Join Game, Online/LAN) now sit in the right-hand panel like the rest of the game. Once you're connected, the left panel becomes a match-details view showing who picked which wizard and who's ready, with a Ready button for each player and a Start Game button for the host that unlocks once both players are ready. You switch wizard using the same picker the other game modes use. The Copy and Paste buttons sit right next to the code box with a confirmation message, and the connection mode reads plainly as "Online" or "LAN", defaulting to Online so you can play with friends anywhere

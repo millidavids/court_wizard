@@ -152,6 +152,11 @@ pub const MP_INFANTRY_COUNT: u32 = 60;
 /// Fixed archer count for each side in multiplayer.
 pub const MP_ARCHER_COUNT: u32 = 10;
 
+/// Fixed "level" passed to the single-player terrain generator for multiplayer
+/// matches (multiplayer has no level progression). Scales the count of boulders,
+/// trees, ponds, and bushes; tier saturates at level 5.
+pub const MP_TERRAIN_LEVEL: u32 = 3;
+
 /// Ground-plane distance from wizard to defender spawn grid in multiplayer.
 /// Much closer than single-player so units spawn right against the castles.
 pub const MP_DEFENDER_GRID_GROUND_RANGE: f32 = 100.0;

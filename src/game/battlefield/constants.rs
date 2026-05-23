@@ -4,9 +4,6 @@ use crate::game::constants::*;
 
 // ===== Battlefield =====
 
-/// Battlefield ground plane color (#346D54).
-pub(crate) const BATTLEFIELD_COLOR: Color = Color::srgb(0.204, 0.427, 0.329);
-
 // ===== Battlefield Tile Constants =====
 
 /// World size of each ground tile (square).

@@ -2,8 +2,7 @@
 
 use bevy::prelude::*;
 
-use crate::game::battlefield::components::{Battlefield, BattlefieldAssets};
-use crate::game::battlefield::constants::BATTLEFIELD_COLOR;
+use crate::game::battlefield::components::BattlefieldAssets;
 use crate::game::components::Billboard;
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
@@ -29,40 +28,11 @@ use crate::networking::resources::PeerRole;
 
 use super::components::OnMultiplayerGameScreen;
 
-pub(super) fn spawn_mp_battlefield(
-    commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-) {
-    // Light
-    commands.spawn((
-        PointLight {
-            intensity: 2_000_000.0,
-            shadows_enabled: false,
-            ..default()
-        },
-        Transform::from_xyz(0.0, 1000.0, 0.0),
-        OnMultiplayerGameScreen,
-    ));
-
-    // Ground plane
-    let battlefield_mesh = Plane3d::default()
-        .mesh()
-        .size(BATTLEFIELD_SIZE, BATTLEFIELD_SIZE);
-    commands.spawn((
-        Mesh3d(meshes.add(battlefield_mesh)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: BATTLEFIELD_COLOR,
-            unlit: true,
-            ..default()
-        })),
-        Transform::from_xyz(0.0, 0.0, 0.0),
-        Battlefield,
-        OnMultiplayerGameScreen,
-    ));
-}
-
 /// Spawns a castle wall plane at the given position and rotation.
+///
+/// Tagged `OnGameplayScreen` to match the castle that `setup_battlefield`
+/// spawns (Castle 1) — both castles share one cleanup marker so any future
+/// query that looks them up by marker finds both.
 pub(super) fn spawn_castle(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
@@ -78,7 +48,7 @@ pub(super) fn spawn_castle(
         battlefield_assets,
         position,
         rotation_degrees,
-        OnMultiplayerGameScreen,
+        crate::game::components::OnGameplayScreen,
     );
 }
 

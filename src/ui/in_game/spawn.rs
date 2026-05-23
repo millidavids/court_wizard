@@ -42,13 +42,21 @@ pub(super) fn block_spell_input_on_button_interaction(
 pub(super) fn gamepad_hud_shortcuts(
     active: Res<ActiveInputDevice>,
     gamepads: Query<&Gamepad>,
-    current_state: Res<State<InGameState>>,
+    current_state: Option<Res<State<InGameState>>>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     config: Res<crate::config::GameConfig>,
     mut next_in_game_state: Option<ResMut<NextState<InGameState>>>,
     mut next_mp_state: Option<ResMut<NextState<MultiplayerGameState>>>,
 ) {
-    if *current_state.get() != InGameState::Running {
+    // Gameplay must be actively running — `InGameState` exists only in
+    // single-player, `MultiplayerGameState` only in multiplayer.
+    let sp_running = current_state
+        .as_ref()
+        .is_some_and(|s| *s.get() == InGameState::Running);
+    let mp_running = mp_state
+        .as_ref()
+        .is_some_and(|s| *s.get() == MultiplayerGameState::Running);
+    if !sp_running && !mp_running {
         return;
     }
     let Some(gp_entity) = active.gamepad_entity() else {
@@ -83,12 +91,19 @@ pub(super) fn keyboard_input(
     active: Res<ActiveInputDevice>,
     gamepads: Query<&Gamepad>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
-    current_state: Res<State<InGameState>>,
-    mut next_in_game_state: ResMut<NextState<InGameState>>,
+    current_state: Option<Res<State<InGameState>>>,
+    next_in_game_state: Option<ResMut<NextState<InGameState>>>,
 ) {
+    // Multiplayer pause is handled by `mp_escape_key_handler`; the
+    // `InGameState` resources only exist in single-player anyway.
     if mp_state.is_some() {
         return;
     }
+    let (Some(current_state), Some(mut next_in_game_state)) =
+        (current_state, next_in_game_state)
+    else {
+        return;
+    };
     if *current_state.get() != InGameState::Running {
         return;
     }

@@ -107,6 +107,10 @@ pub(super) fn cleanup_mp_game(
     mut cauldron_buffs: ResMut<CauldronBuffs>,
     mut game_outcome: ResMut<GameOutcome>,
 ) {
+    // `OnGameplayScreen` entities (battlefield + terrain, spawned via the
+    // reused single-player path) are despawned by `shared_systems::cleanup_game`,
+    // which is already registered on OnExit(MultiplayerGame). We only handle
+    // the multiplayer-specific marker here.
     for entity in &mp_entities {
         if let Ok(mut ec) = commands.get_entity(entity) {
             ec.try_despawn();

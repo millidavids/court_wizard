@@ -12,11 +12,11 @@ use crate::networking::resources::{ConnectionState, NetworkConnection};
 use crate::networking::session::MultiplayerSession;
 use crate::ui::wizard_tower::wizard_cards::SelectedWizard;
 
-use super::state::{LobbyPhase, MultiplayerLobby};
+use super::state::{LobbyPhase, MultiplayerLobby, load_my_unlocked_content};
 
 pub(crate) fn sync_lobby_with_connection(
     mut lobby: ResMut<MultiplayerLobby>,
-    connection: Res<NetworkConnection>,
+    mut connection: ResMut<NetworkConnection>,
     session: Option<Res<MultiplayerSession>>,
 ) {
     if matches!(lobby.phase, LobbyPhase::Failed { .. }) {
@@ -40,6 +40,22 @@ pub(crate) fn sync_lobby_with_connection(
         // The clipboard feedback ("Code copied…") is no longer relevant once
         // the two players are connected.
         lobby.status_message = None;
+
+        // Send our PlayerInfo exactly once — at the Handshake transition.
+        // Doing it here (rather than per-frame in `process_lobby_messages`)
+        // guarantees it is sent only once per connection.
+        let (wizard_types, spells) = load_my_unlocked_content();
+        info!(
+            "[MP Lobby] Connected — sending PlayerInfo ({} wizard types, {} spells)",
+            wizard_types.len(),
+            spells.len()
+        );
+        connection
+            .outgoing_messages
+            .push(NetworkMessage::PlayerInfo {
+                wizard_types,
+                spells,
+            });
     }
 }
 

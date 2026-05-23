@@ -6,7 +6,7 @@ use crate::game::multiplayer::components::PendingRematch;
 use crate::networking::resources::NetworkConnection;
 use crate::networking::transport::TransportCommand;
 use crate::networking::transport::TransportHandle;
-use crate::state::{AppState, MetaGameState};
+use crate::state::{AppState, MenuState, MetaGameState};
 use crate::ui::plugin::ButtonActionSet;
 
 use crate::ui::wizard_tower::wizard_cards::SelectedWizard;
@@ -23,18 +23,31 @@ pub struct MultiplayerTabPlugin;
 impl Plugin for MultiplayerTabPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MultiplayerLobby>()
+            // A rematch routes through the main menu; bounce straight back into
+            // the tower so `handle_pending_rematch_on_enter` can pick it up.
+            .add_systems(
+                OnEnter(MenuState::Landing),
+                route_pending_rematch_from_menu,
+            )
             .add_systems(
                 OnEnter(MetaGameState::WizardTower),
                 handle_pending_rematch_on_enter,
             )
             .add_systems(OnExit(MetaGameState::WizardTower), reset_lobby_on_exit)
+            // The lobby network pump must run on any Wizard Tower tab — not just
+            // the Multiplayer tab — so a connection isn't stranded if the player
+            // switches tabs mid-handshake.
+            .add_systems(
+                Update,
+                (process_lobby_messages, sync_lobby_with_connection)
+                    .run_if(in_state(MetaGameState::WizardTower)),
+            )
+            // Tab UI interaction only runs while the Multiplayer tab is shown.
             .add_systems(
                 Update,
                 (
                     handle_mp_tab_actions.in_set(ButtonActionSet),
                     handle_join_code_input,
-                    process_lobby_messages,
-                    sync_lobby_with_connection,
                 )
                     .run_if(in_state(MetaGameState::WizardTower))
                     .run_if(multiplayer_tab_active),
@@ -51,6 +64,18 @@ impl Plugin for MultiplayerTabPlugin {
                             .and(resource_changed::<SelectedWizard>),
                     ),
             );
+    }
+}
+
+/// When the main-menu landing screen is entered with a `PendingRematch`
+/// resource present, immediately route into the Wizard Tower so the rematch
+/// lobby can be set up. Without this the player is stranded on the main menu.
+fn route_pending_rematch_from_menu(
+    pending: Option<Res<PendingRematch>>,
+    mut next_app_state: ResMut<NextState<AppState>>,
+) {
+    if pending.is_some() {
+        next_app_state.set(AppState::MetaGame);
     }
 }
 
@@ -111,6 +136,13 @@ fn handle_pending_rematch_on_enter(
     };
     // Seed the shared wizard-card grid's selection.
     commands.insert_resource(SelectedWizard(initial));
+
+    // Drop any messages left over from the previous match (GameOver, stale
+    // ReadyUp, etc.) so they don't mis-advance the fresh rematch lobby.
+    connection.incoming_messages.clear();
+    connection.outgoing_messages.clear();
+    connection.incoming_unreliable.clear();
+    connection.outgoing_unreliable.clear();
 
     // Notify the opponent of our initial selection (connection is still alive)
     connection
