@@ -4,7 +4,6 @@ use super::super::super::components::{
 use super::components::SleepTalentParams;
 use super::constants;
 use crate::config::GameConfig;
-use crate::game::constants::SPELL_ORIGIN;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
@@ -484,8 +483,9 @@ pub fn update_narcoleptic_wave(
     }
 }
 
-/// Dreamwalker: sleepwalking units walk away from the castle (back toward spawn).
-/// Overrides their targeting velocity so they move in the opposite direction of SPELL_ORIGIN.
+/// Dreamwalker: sleepwalking units walk away from the local wizard's castle (back toward spawn).
+/// Overrides their targeting velocity so they move in the opposite direction of `LocalSpellOrigin`,
+/// which resolves to the host's wizard in SP/host and the guest's wizard in MP guest.
 pub fn update_sleepwalkers(
     mut query: Query<(
         &Transform,
@@ -493,11 +493,10 @@ pub fn update_sleepwalkers(
         &mut TargetingVelocity,
         &MovementSpeed,
     )>,
+    local_origin: Res<crate::game::units::wizard::spells::utils::LocalSpellOrigin>,
 ) {
     for (transform, sleepwalking, mut targeting, movement_speed) in query.iter_mut() {
-        // Walk away from the castle (SPELL_ORIGIN). This is a host-only
-        // gameplay system; the host's wizard is at SPELL_ORIGIN.
-        let away_dir = transform.translation - SPELL_ORIGIN;
+        let away_dir = transform.translation - local_origin.0;
         let horizontal = Vec3::new(away_dir.x, 0.0, away_dir.z);
         let length = horizontal.length();
 

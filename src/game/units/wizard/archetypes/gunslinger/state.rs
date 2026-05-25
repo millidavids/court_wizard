@@ -9,8 +9,10 @@ use crate::game::units::wizard::spells::utils::local_spell_origin_snapshot;
 
 /// Gun spawn position — `local_spell_origin + (0, 30, 0)`. Computed each
 /// call from the lock-free `LocalSpellOrigin` snapshot so the multiplayer
-/// guest's aim calculations use their own wizard's position.
-fn gun_spawn_pos() -> Vec3 {
+/// guest's aim calculations and gun visuals both originate from their own
+/// wizard. Shared by `fire.rs` (projectile spawn) and `aim_at_cursor` below
+/// (aim direction) so the two can never drift.
+pub(super) fn gun_spawn_pos() -> Vec3 {
     let origin = local_spell_origin_snapshot();
     Vec3::new(origin.x, origin.y + 30.0, origin.z)
 }

@@ -146,7 +146,13 @@ pub const SPELL_2_ORIGIN: Vec3 = Vec3::new(
 // ===== Castle 2 Positioning (Multiplayer — opposite corner) =====
 
 /// Castle 2 position in 3D space (diagonally opposite from Castle 1).
-pub const CASTLE_2_POSITION: Vec3 = Vec3::new(1550.0, 1200.0, -1550.0);
+///
+/// Exact 180° Y-axis mirror of `CASTLE_POSITION` (x and z negated, y kept).
+/// This is required so the guest's mirrored visual battlefield (which
+/// rotates Castle 1's mesh 180° around world origin) lands the mesh at the
+/// SAME world position as `CASTLE_2_POSITION` — keeping the guest's wizard
+/// sprite (in shared world coords) correctly aligned on the castle.
+pub const CASTLE_2_POSITION: Vec3 = Vec3::new(-CASTLE_POSITION.x, CASTLE_POSITION.y, -CASTLE_POSITION.z);
 
 /// Castle 2 rotation in degrees (facing opposite direction).
 pub const CASTLE_2_ROTATION_DEGREES: f32 = CASTLE_ROTATION_DEGREES + 180.0;

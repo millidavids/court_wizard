@@ -312,9 +312,16 @@ pub(in crate::game) fn generate_terrain(
             }
             let forest_bushes: Vec<SavedBush> = config.saved_bushes[bushes_before..].to_vec();
             for bush in &forest_bushes {
+                let mx = -bush.x;
+                let mz = -bush.z;
+                let radius = BUSH_RADIUS * bush.scale;
+                // Mirrored bushes must also be in `placed` so subsequent
+                // scattered terrain (ponds, scattered trees/bushes/boulders)
+                // respects the min-separation distance against them.
+                placed.push((Vec2::new(mx, mz), radius));
                 config.saved_bushes.push(SavedBush {
-                    x: -bush.x,
-                    z: -bush.z,
+                    x: mx,
+                    z: mz,
                     scale: bush.scale,
                     sprite_index: bush.sprite_index,
                 });

@@ -1,6 +1,6 @@
 //! Gun firing systems for each weapon type.
 
-use super::state::{aim_at_cursor, apply_cone_spread, apply_spread};
+use super::state::{aim_at_cursor, apply_cone_spread, apply_spread, gun_spawn_pos};
 use bevy::prelude::*;
 use rand::Rng;
 
@@ -18,16 +18,8 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::fireball::systems::spawn_fireball_entity;
-use crate::game::units::wizard::spells::utils::{get_cursor_world_position, local_spell_origin_snapshot};
+use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-
-/// Gun spawn position — `local_spell_origin + (0, 30, 0)`. Computed each
-/// call from the lock-free `LocalSpellOrigin` snapshot so the multiplayer
-/// guest's gun visuals originate from their own wizard.
-fn gun_spawn_pos() -> Vec3 {
-    let origin = local_spell_origin_snapshot();
-    Vec3::new(origin.x, origin.y + 30.0, origin.z)
-}
 
 /// Initialize gun state when entering gameplay.
 #[allow(clippy::too_many_arguments)]

@@ -175,9 +175,16 @@ impl Plugin for GamePlugin {
                 (
                     shared_systems::tick_attack_cycle,
                     shared_systems::tick_elapsed_time,
-                    wave_systems::tick_wave_timer,
                 )
                     .run_if(is_gameplay_running),
+            )
+            // Wave staging is single-player only. Multiplayer's attacker
+            // armies are spawned in full at match start (`init_mp_loading`);
+            // there is no off-screen wave to stage in.
+            .add_systems(
+                Update,
+                wave_systems::tick_wave_timer
+                    .run_if(is_gameplay_running.and(in_state(AppState::InGame))),
             )
             .add_systems(
                 Update,

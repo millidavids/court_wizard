@@ -19,7 +19,7 @@ use crate::game::units::components::{Corpse, MindControlled, Team};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
-    clamp_cursor_to_spell_range, cleanup_spell_caster, ground_projected_range,
+    clamp_cursor_to_spell_range_with_origin, cleanup_spell_caster, ground_projected_range,
     spawn_circle_indicator, update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
@@ -139,7 +139,7 @@ pub(super) fn handle_mind_control_casting(
         return;
     };
     let spell_range = ground_projected_range(wizard.spell_range, local_origin.0.y);
-    let cursor_pos = clamp_cursor_to_spell_range(raw_cursor_pos, wizard.spell_range, 0.0);
+    let cursor_pos = clamp_cursor_to_spell_range_with_origin(raw_cursor_pos, local_origin.0, wizard.spell_range, 0.0);
     if primed_spell.spell != Spell::MindControl {
         return;
     }

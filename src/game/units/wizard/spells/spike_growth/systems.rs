@@ -25,7 +25,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     self, SpellCircleIndicator, TargetAssistWorldPos, UniqueHitTracker, apply_target_assist,
-    build_wizard_input, clamp_cursor_to_spell_range, cleanup_spell_caster, handle_spell_release,
+    build_wizard_input, clamp_cursor_to_spell_range_with_origin, cleanup_spell_caster, handle_spell_release,
     try_start_cast_with_indicator, update_indicator_position, xz_distance,
 };
 use crate::game::units::wizard::spells::vfx;
@@ -139,7 +139,7 @@ pub fn handle_spike_growth_casting(
 
     // Clamp cursor to spell range
     let clamped_cursor =
-        clamp_cursor_to_spell_range(input.cursor_pos, wizard.spell_range, effective_radius);
+        clamp_cursor_to_spell_range_with_origin(input.cursor_pos, local_origin.0, wizard.spell_range, effective_radius);
 
     // Handle release — clean up indicator
     if handle_spell_release(

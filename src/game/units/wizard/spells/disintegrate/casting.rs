@@ -492,9 +492,7 @@ pub fn apply_disintegrate_damage(
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,
-    local_origin: Res<LocalSpellOrigin>,
 ) {
-    let _local_origin = local_origin.0; // reserved for future per-peer falloff
     for (mut beam, mut hit_tracker) in beam_query.iter_mut() {
         beam.update_damage_timer(time.delta_secs());
         beam.update_time_alive(time.delta_secs());

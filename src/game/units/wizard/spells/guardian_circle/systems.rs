@@ -16,7 +16,7 @@ use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
-    clamp_cursor_to_spell_range, cleanup_spell_caster, handle_spell_release,
+    clamp_cursor_to_spell_range_with_origin, cleanup_spell_caster, handle_spell_release,
     spawn_circle_indicator, update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
@@ -79,8 +79,9 @@ pub fn handle_guardian_circle_casting(
     };
 
     // Clamp cursor to spell range
-    let clamped_cursor = clamp_cursor_to_spell_range(
+    let clamped_cursor = clamp_cursor_to_spell_range_with_origin(
         input.cursor_pos,
+        local_origin.0,
         wizard.spell_range,
         constants::CIRCLE_RADIUS * primed_spell.empowerment * radius_mult,
     );

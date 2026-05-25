@@ -40,10 +40,14 @@ impl Default for LocalSpellOrigin {
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
-static LOCAL_ORIGIN_X: AtomicU32 = AtomicU32::new(0);
-static LOCAL_ORIGIN_Y: AtomicU32 = AtomicU32::new(0);
-static LOCAL_ORIGIN_Z: AtomicU32 = AtomicU32::new(0);
-static LOCAL_ORIGIN_INIT: std::sync::Once = std::sync::Once::new();
+// Initialised directly to `SPELL_ORIGIN`'s bit pattern so the snapshot is
+// already correct for SP / MP host before any system runs. The previous
+// `Once`-based lazy init had a race: if `update_local_spell_origin_snapshot`
+// wrote SPELL_2_ORIGIN first (guest), a later reader's `call_once` would
+// stomp it back to SPELL_ORIGIN — permanently, for the rest of the process.
+static LOCAL_ORIGIN_X: AtomicU32 = AtomicU32::new(SPELL_ORIGIN.x.to_bits());
+static LOCAL_ORIGIN_Y: AtomicU32 = AtomicU32::new(SPELL_ORIGIN.y.to_bits());
+static LOCAL_ORIGIN_Z: AtomicU32 = AtomicU32::new(SPELL_ORIGIN.z.to_bits());
 
 pub(crate) fn set_local_spell_origin_snapshot(pos: Vec3) {
     LOCAL_ORIGIN_X.store(pos.x.to_bits(), Ordering::Relaxed);
@@ -52,7 +56,6 @@ pub(crate) fn set_local_spell_origin_snapshot(pos: Vec3) {
 }
 
 pub(crate) fn local_spell_origin_snapshot() -> Vec3 {
-    LOCAL_ORIGIN_INIT.call_once(|| set_local_spell_origin_snapshot(SPELL_ORIGIN));
     Vec3::new(
         f32::from_bits(LOCAL_ORIGIN_X.load(Ordering::Relaxed)),
         f32::from_bits(LOCAL_ORIGIN_Y.load(Ordering::Relaxed)),
@@ -257,29 +260,7 @@ pub(crate) fn clamp_to_spell_range_ground(
     }
 }
 
-/// Convenience wrapper that clamps an optional cursor position to spell range on the ground plane.
-///
-/// Returns `None` if `cursor_pos` is `None`, otherwise clamps the position using
-/// [`clamp_to_spell_range_ground`] with `SPELL_ORIGIN` as the wizard position.
-///
-/// **For multiplayer correctness**, prefer
-/// [`clamp_cursor_to_spell_range_with_origin`] and pass the value from the
-/// `LocalSpellOrigin` resource so the guest's cursor is clamped from their own
-/// wizard's position rather than the host's.
-pub(crate) fn clamp_cursor_to_spell_range(
-    cursor_pos: Option<Vec3>,
-    spell_range: f32,
-    effect_radius: f32,
-) -> Option<Vec3> {
-    clamp_cursor_to_spell_range_with_origin(
-        cursor_pos,
-        SPELL_ORIGIN,
-        spell_range,
-        effect_radius,
-    )
-}
-
-/// Like [`clamp_cursor_to_spell_range`] but accepts an explicit local origin —
+/// Like the (deprecated) un-suffixed variant but accepts an explicit local origin —
 /// callers should pass the `LocalSpellOrigin` resource so the clamp is computed
 /// from the correct wizard position on both the host and the guest.
 pub(crate) fn clamp_cursor_to_spell_range_with_origin(

@@ -46,12 +46,21 @@ impl Plugin for InGamePlugin {
                     systems::update_level_display,
                     systems::update_past_victory_display,
                     systems::update_level_clock,
-                    systems::update_wave_display,
-                    systems::update_wave_incoming_flash,
                     systems::spawn_retreat_flash,
                     systems::update_retreat_flash,
                 )
                     .run_if(is_gameplay_running),
+            )
+            // Wave HUD: SP-only — the wave timer doesn't tick in MP
+            // (MP spawns all attackers up-front, no staging waves) and the
+            // MP HUD doesn't include a WaveDisplay node anyway.
+            .add_systems(
+                Update,
+                (
+                    systems::update_wave_display,
+                    systems::update_wave_incoming_flash,
+                )
+                    .run_if(is_gameplay_running.and(in_state(AppState::InGame))),
             )
             // Cast/overlay bars: use is_spell_effects_active so they update during
             // urgent mode menus (SP) and for both host+guest (MP).

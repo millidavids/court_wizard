@@ -22,7 +22,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::systems::create_sprite_material;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_cursor_to_spell_range,
+    TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_cursor_to_spell_range_with_origin,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -225,7 +225,7 @@ pub fn handle_polymorph_casting(
         return;
     }
 
-    let cursor_pos = clamp_cursor_to_spell_range(input.cursor_pos, wizard.spell_range, 0.0);
+    let cursor_pos = clamp_cursor_to_spell_range_with_origin(input.cursor_pos, local_origin.0, wizard.spell_range, 0.0);
     input.cursor_pos = cursor_pos;
 
     let talent_params = compute_talent_params(active_talents.as_deref());

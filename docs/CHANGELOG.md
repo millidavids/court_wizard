@@ -14,7 +14,11 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **Multiplayer players now stay in sync** — ready status and wizard choices weren't reliably reaching the other player, which could leave a match unable to start. Lobby updates now come through correctly
 - **All your unlocked wizards now show up in the multiplayer picker** — wizards beyond the starter four were being silently dropped from the wizard-select list, even if you had them unlocked. Every wizard you've earned is now selectable in multiplayer
-- **Spells you cast as the guest now come from your own wizard** — every spell visual, projectile, beam, cast flare, aim line, and gun shot was originating from the host's wizard on the guest's screen. They all now spawn from the guest's own wizard, and audio falloff is measured from each player's wizard too
+- **Spells you cast as the guest now come from your own wizard** — every spell visual, projectile, beam, cast flare, aim line, and gun shot was originating from the host's wizard on the guest's screen. They all now spawn from the guest's own wizard, and audio falloff is measured from each player's wizard too. Targeted spells (Guardian Circle, Entangle, Haste, Berserker Rage, Healing Plume, Spike Growth, Banishment, Polymorph, Mind Control) also now measure their range circle from the guest's own wizard instead of the host's
+- **Guest's wizard now stands on the castle wall** — the guest's wizard sprite was floating off to the side of the castle instead of sitting on top of it. He's now correctly aligned with his castle wall
+- **Sleepwalking enemies on the guest's side now walk the right way** — units put to sleep with the Dreamwalker talent on the guest's side were wandering toward the wrong corner of the map. They now walk away from the guest's own castle, as intended
+- **Multiplayer no longer spawns staging waves** — attacker waves from single-player were leaking into multiplayer matches, marching in from off-screen in formation. Multiplayer now uses only the armies spawned at match start, no incoming waves
+- **Cleaner mirrored forest backdrop** — the mirrored trees and bushes lining each player's far wall no longer occasionally end up overlapping nearby ponds or scattered terrain
 
 ## [v0.7.367] - 2026-05-10
 

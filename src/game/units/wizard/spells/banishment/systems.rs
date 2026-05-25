@@ -24,7 +24,7 @@ use crate::game::units::components::{
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_cursor_to_spell_range,
+    TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_cursor_to_spell_range_with_origin,
     ground_projected_range,
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -200,7 +200,7 @@ pub fn handle_banishment_casting(
     }
 
     let spell_range = ground_projected_range(wizard.spell_range, local_origin.0.y);
-    input.cursor_pos = clamp_cursor_to_spell_range(input.cursor_pos, wizard.spell_range, 0.0);
+    input.cursor_pos = clamp_cursor_to_spell_range_with_origin(input.cursor_pos, local_origin.0, wizard.spell_range, 0.0);
 
     let talent_params = compute_talent_params(active_talents.as_deref());
 
