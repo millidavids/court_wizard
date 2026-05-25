@@ -41,6 +41,11 @@ pub fn apply_state_snapshot(
     // virtually paused, even though real time keeps advancing and snapshots
     // keep arriving.
     time: Res<Time<bevy::time::Real>>,
+    // Wall-clock time of the most recent snapshot we processed. Used to
+    // decay ghost velocities toward zero during extended snapshot outages
+    // so units don't appear to walk-in-place forever during a network
+    // blip. `0.0` sentinel = "no snapshot yet, don't decay anything."
+    mut last_snapshot_real_time: Local<f32>,
     mut connection: ResMut<NetworkConnection>,
     mut entity_map: ResMut<NetworkEntityMap>,
     infantry_assets: Res<InfantryAssets>,
@@ -91,20 +96,43 @@ pub fn apply_state_snapshot(
     // Re-queue non-game data for other systems (spell snapshots)
     connection.incoming_unreliable = other_data;
 
-    // Zero all ghost velocities up front. If a snapshot arrived, the per-unit
-    // loop below will overwrite each one with a fresh synthesised value; if
-    // no snapshot arrived (or some ghosts aren't represented in the latest
-    // snapshot), they fall through with zero velocity so the shared walking
-    // animation reverts to the idle frame instead of looping the last-known
-    // motion forever.
-    for (_, _, _, _, _, mut vel, _, _, _, _, _, _) in &mut ghost_query {
-        vel.x = 0.0;
-        vel.z = 0.0;
+    // NB: we deliberately do NOT blanket-zero ghost velocities every tick.
+    // The guest renders faster than snapshots arrive and any tick where the
+    // datagram queue is empty would otherwise reset every velocity → flash
+    // to idle every gap frame → units sliding without animating. Instead,
+    // velocity persists until the next snapshot overwrites it (the host's
+    // own "unit stopped" tick sends delta=0 → velocity=0 → idle on the
+    // correct frame).
+    //
+    // BUT: if we go a long time without ANY snapshot (real network blip),
+    // the persisted velocity would keep cycling the walk animation
+    // indefinitely. Decay all velocities toward zero after a short
+    // blackout so the world doesn't appear to keep marching when nothing
+    // is actually arriving.
+    const SNAPSHOT_BLACKOUT_SECS: f32 = 0.5;
+    if *last_snapshot_real_time > 0.0
+        && latest_game_data.is_none()
+        && time.elapsed_secs() - *last_snapshot_real_time > SNAPSHOT_BLACKOUT_SECS
+    {
+        for (_, _, _, _, _, mut vel, _, _, _, _, _, _) in &mut ghost_query {
+            vel.x *= 0.85;
+            vel.z *= 0.85;
+            if vel.x.abs() < 0.5 {
+                vel.x = 0.0;
+            }
+            if vel.z.abs() < 0.5 {
+                vel.z = 0.0;
+            }
+        }
     }
 
     let Some(game_bytes) = latest_game_data else {
         return;
     };
+
+    // Mark a fresh snapshot received — used by the blackout decay above
+    // on subsequent frames where no snapshot arrives.
+    *last_snapshot_real_time = time.elapsed_secs();
 
     let Ok(snapshot) = bincode::deserialize::<GameSnapshot>(game_bytes) else {
         warn!(

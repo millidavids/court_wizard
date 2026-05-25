@@ -389,12 +389,18 @@ pub(super) fn spawn_spell_effect(
             // Reconstruct forward/right from rotation
             let forward = rotation * Vec3::X;
             let right = Vec3::new(-forward.z, 0.0, forward.x);
+            // Inserting `WallRising` makes the shared `animate_rising_walls`
+            // system play the rise-from-the-ground animation here on the
+            // remote peer too, instead of the wall just popping into
+            // existence at full height. Spawn underground (`-height / 2.0`)
+            // so the very first frame of the animator pulls the wall up
+            // instead of yanking it from full height down to underground.
             Some(
                 commands
                     .spawn((
                         Mesh3d(assets.unit_cuboid.clone()),
                         MeshMaterial3d(assets.wall_of_stone.clone()),
-                        Transform::from_translation(Vec3::new(pos.x, height / 2.0, pos.z))
+                        Transform::from_translation(Vec3::new(pos.x, -height / 2.0, pos.z))
                             .with_rotation(rotation)
                             .with_scale(Vec3::new(half_length * 2.0, height, half_width * 2.0)),
                         WallOfStone {
@@ -410,6 +416,9 @@ pub(super) fn spawn_spell_effect(
                             empowerment: 1.0,
                             permanent: false,
                         },
+                        crate::game::units::wizard::spells::wall_of_stone::components::WallRising::new(
+                            crate::game::units::wizard::spells::wall_of_stone::constants::WALL_RISE_DURATION,
+                        ),
                         OnMultiplayerGameScreen,
                     ))
                     .id(),

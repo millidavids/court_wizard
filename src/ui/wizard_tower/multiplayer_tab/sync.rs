@@ -18,19 +18,57 @@ pub(crate) fn sync_lobby_with_connection(
     mut lobby: ResMut<MultiplayerLobby>,
     mut connection: ResMut<NetworkConnection>,
     session: Option<Res<MultiplayerSession>>,
+    // Local: have we ever seen the transport reach a "live" state for the
+    // current lobby session? Set once `state` becomes `Connecting`,
+    // `WaitingForSignaling`, or `Connected`; reset when phase returns to
+    // `Connect` (i.e. a fresh attempt). Used to distinguish "Disconnected
+    // is the uninitialised default" from "Disconnected after the transport
+    // came up and then went away" without losing the latter case for
+    // `Hosting`/`Joining`.
+    mut saw_active: Local<bool>,
 ) {
+    // Reset the lifecycle flag whenever the player is back at the Connect
+    // screen (cancelled, re-entered the tab, or arrived from a recovery path).
+    if matches!(lobby.phase, LobbyPhase::Connect) {
+        *saw_active = false;
+    }
+    if matches!(
+        connection.state,
+        ConnectionState::Connecting
+            | ConnectionState::WaitingForSignaling
+            | ConnectionState::Connected
+    ) {
+        *saw_active = true;
+    }
+
     if matches!(lobby.phase, LobbyPhase::Failed { .. }) {
         return;
     }
 
-    // Both Failed (transport error) and Disconnected (graceful peer close
-    // OR the loading-disconnect recovery path that calls `connection.reset()`
-    // before kicking us back to the wizard tower) leave the lobby with a
-    // stale `WizardSelect`/`Handshake` phase otherwise.
-    if matches!(
-        connection.state,
-        ConnectionState::Failed | ConnectionState::Disconnected
-    ) && !matches!(&lobby.phase, LobbyPhase::Connect)
+    // Transport-level errors always flip us to Failed (except from the
+    // Connect screen, where the user hasn't tried to do anything yet).
+    if connection.state == ConnectionState::Failed
+        && !matches!(&lobby.phase, LobbyPhase::Connect)
+    {
+        let reason = connection
+            .error
+            .clone()
+            .unwrap_or_else(|| "Connection failed".to_string());
+        lobby.phase = LobbyPhase::Failed { reason };
+        return;
+    }
+
+    // `Disconnected` after the transport had once gone live (Connecting /
+    // WaitingForSignaling / Connected) means the link is genuinely gone:
+    // peer hung up, transport task died without flagging `Failed`, or the
+    // loading-disconnect recovery path called `connection.reset()` while
+    // the lobby was still in a post-handshake phase. The `saw_active`
+    // guard prevents this from misfiring during the brief
+    // `Disconnected → Connecting` window the moment the player clicks
+    // Host or Join (which used to bounce them straight to a Failed panel).
+    if connection.state == ConnectionState::Disconnected
+        && *saw_active
+        && !matches!(&lobby.phase, LobbyPhase::Connect)
     {
         let reason = connection
             .error

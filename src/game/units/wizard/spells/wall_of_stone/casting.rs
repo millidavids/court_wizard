@@ -351,10 +351,15 @@ fn wall_of_stone_casting_logic(
 
                     let obs_bounds = wall.obstacle_bounds();
 
+                    // Start the transform underground so `animate_rising_walls`
+                    // can drive the y up from below the floor on its first
+                    // tick (eased=0 → y=-wall.height). Spawning at the final
+                    // y=wall_height/2 produced a one-frame full-height flash
+                    // before the animator yanked it down.
                     let mut entity_commands = commands.spawn((
                         Mesh3d(assets.unit_cuboid.clone()),
                         MeshMaterial3d(assets.wall_of_stone.clone()),
-                        Transform::from_xyz(center.x, wall_height / 2.0, center.z)
+                        Transform::from_xyz(center.x, -wall_height / 2.0, center.z)
                             .with_rotation(rotation)
                             .with_scale(Vec3::new(segment_length, wall_height, wall_width)),
                         wall,
