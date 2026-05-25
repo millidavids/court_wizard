@@ -23,11 +23,19 @@ pub(crate) fn sync_lobby_with_connection(
         return;
     }
 
-    if connection.state == ConnectionState::Failed {
+    // Both Failed (transport error) and Disconnected (graceful peer close
+    // OR the loading-disconnect recovery path that calls `connection.reset()`
+    // before kicking us back to the wizard tower) leave the lobby with a
+    // stale `WizardSelect`/`Handshake` phase otherwise.
+    if matches!(
+        connection.state,
+        ConnectionState::Failed | ConnectionState::Disconnected
+    ) && !matches!(&lobby.phase, LobbyPhase::Connect)
+    {
         let reason = connection
             .error
             .clone()
-            .unwrap_or_else(|| "Connection failed".to_string());
+            .unwrap_or_else(|| "Connection lost".to_string());
         lobby.phase = LobbyPhase::Failed { reason };
         return;
     }

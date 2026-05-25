@@ -48,12 +48,16 @@ impl Plugin for PathfindingPlugin {
                     .run_if(is_gameplay_running),
             )
             // Wave activation: tag new attackers, check wave thresholds.
+            // Single-player only — multiplayer has no staging phase, armies
+            // are spawned in full at match start and run straight at their
+            // targets without ever being tagged as `StagingAttacker`.
             .add_systems(
                 Update,
                 (tag_new_attackers, check_wave_activation)
                     .chain()
                     .run_if(resource_exists::<PathfindingGrid>)
-                    .run_if(is_gameplay_running),
+                    .run_if(is_gameplay_running)
+                    .run_if(in_state(crate::state::AppState::InGame)),
             )
             // Game-speed management runs whenever a game is in progress —
             // NOT gated on `is_gameplay_running` so it can actively DROP the

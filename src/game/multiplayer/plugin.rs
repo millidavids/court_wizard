@@ -20,10 +20,10 @@ use super::loading;
 use super::spell_sync;
 use super::systems::{
     cleanup_mp_disconnected, cleanup_mp_game, cleanup_mp_pause_menu, cleanup_mp_score_screen,
-    detect_mp_disconnect, handle_mp_disconnected_buttons, handle_mp_pause_buttons,
-    handle_mp_score_buttons, handle_mp_score_messages, in_mp_disconnected, in_mp_paused,
-    in_mp_running, in_mp_score_screen, init_mp_game, mp_escape_key_handler, setup_mp_disconnected,
-    setup_mp_pause_menu, setup_mp_score_screen,
+    detect_mp_disconnect, detect_mp_loading_disconnect, handle_mp_disconnected_buttons,
+    handle_mp_pause_buttons, handle_mp_score_buttons, handle_mp_score_messages, in_mp_disconnected,
+    in_mp_paused, in_mp_running, in_mp_score_screen, init_mp_game, mp_escape_key_handler,
+    setup_mp_disconnected, setup_mp_pause_menu, setup_mp_score_screen,
 };
 
 /// Plugin that manages multiplayer gameplay.
@@ -224,9 +224,17 @@ impl Plugin for MultiplayerGamePlugin {
         );
 
         // ── Disconnect Detection ──────────────────────────────────────
+        // Covers the in-match path (`MultiplayerGame`) and the loading
+        // path (`MultiplayerLoading`). The lobby path inside the wizard
+        // tower has its own connection-state watcher in
+        // `multiplayer_tab::sync::sync_lobby_with_connection`.
         app.add_systems(
             Update,
             detect_mp_disconnect.run_if(in_state(AppState::MultiplayerGame)),
+        );
+        app.add_systems(
+            Update,
+            detect_mp_loading_disconnect.run_if(in_state(AppState::MultiplayerLoading)),
         );
     }
 }

@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::game::battlefield::components::BattlefieldAssets;
 use crate::game::components::Billboard;
 use crate::game::constants::*;
-use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
+use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, WaveGroup};
 use crate::game::units::archer::components::{ArcherMovementTimer, AttackRange};
 use crate::game::units::archer::constants::ARCHER_RADIUS;
 use crate::game::units::archer::constants::{
@@ -199,32 +199,41 @@ pub(super) fn spawn_mp_infantry(
                 FlowFieldInfluence::Attacker
             };
 
-            commands
-                .spawn((
-                    Mesh3d(infantry_assets.sprite_mesh.clone()),
-                    MeshMaterial3d(material),
-                    Transform::from_xyz(final_x, spawn_y, final_z),
-                    crate::game::components::Velocity::default(),
-                    crate::game::components::Acceleration::new(),
-                    hitbox,
-                    Health::new(UNIT_HEALTH),
-                    MovementSpeed(UNIT_MOVEMENT_SPEED),
-                    AttackTiming::new(),
-                    Effectiveness::new(),
-                    team,
-                    Infantry,
-                ))
-                .insert((
-                    anim,
-                    FacingDirection::default(),
-                    TargetingVelocity::default(),
-                    FlockingVelocity::default(),
-                    FlowFieldVelocity::default(),
-                    flow_field,
-                    Teleportable,
-                    Billboard,
-                    OnMultiplayerGameScreen,
-                ));
+            let mut ec = commands.spawn((
+                Mesh3d(infantry_assets.sprite_mesh.clone()),
+                MeshMaterial3d(material),
+                Transform::from_xyz(final_x, spawn_y, final_z),
+                crate::game::components::Velocity::default(),
+                crate::game::components::Acceleration::new(),
+                hitbox,
+                Health::new(UNIT_HEALTH),
+                MovementSpeed(UNIT_MOVEMENT_SPEED),
+                AttackTiming::new(),
+                Effectiveness::new(),
+                team,
+                Infantry,
+            ));
+            ec.insert((
+                anim,
+                FacingDirection::default(),
+                TargetingVelocity::default(),
+                FlockingVelocity::default(),
+                FlowFieldVelocity::default(),
+                flow_field,
+                Teleportable,
+                Billboard,
+                OnMultiplayerGameScreen,
+            ));
+            // MP attackers are pre-activated — no staging phase. `WaveGroup(0)`
+            // marks them as already-tagged so `is_staging_attacker` returns
+            // false (otherwise the missing `WaveGroup` would have implicitly
+            // classed them as staging, and dispeller/wave-speedup logic
+            // would treat them as inactive). Predicate on `team` rather than
+            // `host_side` so future spawn paths that decouple the two don't
+            // silently break the staging guard.
+            if team == Team::Attackers {
+                ec.insert(WaveGroup(0));
+            }
             return;
         }
         units_counted += units_in_this_cell;
@@ -280,38 +289,40 @@ pub(super) fn spawn_mp_archer(
                 FlowFieldInfluence::Attacker
             };
 
-            commands
-                .spawn((
-                    Mesh3d(archer_assets.sprite_mesh.clone()),
-                    MeshMaterial3d(material),
-                    Transform::from_xyz(final_x, spawn_y, final_z),
-                    crate::game::components::Velocity::default(),
-                    crate::game::components::Acceleration::new(),
-                    hitbox,
-                    Health::new(UNIT_HEALTH),
-                    MovementSpeed(ARCHER_MOVEMENT_SPEED),
-                    AttackTiming::new(),
-                    Effectiveness::new(),
-                    team,
-                    Archer,
-                ))
-                .insert((
-                    anim,
-                    FacingDirection::default(),
-                    AttackRange {
-                        min_range: ARCHER_MIN_RANGE,
-                        max_range: ARCHER_MAX_RANGE,
-                    },
-                    ArcherMovementTimer::new(),
-                    TargetingVelocity::default(),
-                    FlockingVelocity::default(),
-                    FlowFieldVelocity::default(),
-                    flow_field,
-                    crate::game::units::components::FlockingModifier::new(1.0, 1.0, 0.0),
-                    Teleportable,
-                    Billboard,
-                    OnMultiplayerGameScreen,
-                ));
+            let mut ec = commands.spawn((
+                Mesh3d(archer_assets.sprite_mesh.clone()),
+                MeshMaterial3d(material),
+                Transform::from_xyz(final_x, spawn_y, final_z),
+                crate::game::components::Velocity::default(),
+                crate::game::components::Acceleration::new(),
+                hitbox,
+                Health::new(UNIT_HEALTH),
+                MovementSpeed(ARCHER_MOVEMENT_SPEED),
+                AttackTiming::new(),
+                Effectiveness::new(),
+                team,
+                Archer,
+            ));
+            ec.insert((
+                anim,
+                FacingDirection::default(),
+                AttackRange {
+                    min_range: ARCHER_MIN_RANGE,
+                    max_range: ARCHER_MAX_RANGE,
+                },
+                ArcherMovementTimer::new(),
+                TargetingVelocity::default(),
+                FlockingVelocity::default(),
+                FlowFieldVelocity::default(),
+                flow_field,
+                crate::game::units::components::FlockingModifier::new(1.0, 1.0, 0.0),
+                Teleportable,
+                Billboard,
+                OnMultiplayerGameScreen,
+            ));
+            if team == Team::Attackers {
+                ec.insert(WaveGroup(0));
+            }
             return;
         }
         units_counted += units_in_this_cell;
@@ -398,6 +409,13 @@ pub(super) fn spawn_mp_king(
         ))
         .id();
 
+    // MP attacker kings/guards are pre-activated — see infantry/archer
+    // spawn for rationale. WaveGroup(0) prevents `is_staging_attacker`
+    // from classing them as inactive due to the missing tag.
+    if team == Team::Attackers {
+        commands.entity(king_entity).insert(WaveGroup(0));
+    }
+
     // Visual aura circle
     let aura_circle = Circle::new(KING_AURA_RADIUS);
     let y_offset = 5.0 - spawn_y;
@@ -453,27 +471,32 @@ pub(super) fn spawn_mp_kings_guard(
         KINGS_GUARD_SPRITE_TINT,
     );
 
-    commands
-        .spawn((
-            Mesh3d(infantry_assets.sprite_mesh.clone()),
-            MeshMaterial3d(guard_material),
-            Transform::from_xyz(final_x, spawn_y, final_z),
-            hitbox,
-            Health::new(UNIT_HEALTH),
-            AttackTiming::new(),
-            Effectiveness::new(),
-            team,
-            Infantry,
-            KingsGuard(guard_index),
-        ))
-        .insert((
-            anim,
-            FacingDirection::default(),
-            Teleportable,
-            Billboard,
-            OnMultiplayerGameScreen,
-            EliteHealthBonus(crate::game::units::elite::ELITE_HEALTH_BONUS),
-            EliteDamageBonus(crate::game::units::elite::ELITE_DAMAGE_BONUS),
-            EliteSpeedBonus(crate::game::units::elite::ELITE_SPEED_BONUS),
-        ));
+    let mut ec = commands.spawn((
+        Mesh3d(infantry_assets.sprite_mesh.clone()),
+        MeshMaterial3d(guard_material),
+        Transform::from_xyz(final_x, spawn_y, final_z),
+        hitbox,
+        Health::new(UNIT_HEALTH),
+        AttackTiming::new(),
+        Effectiveness::new(),
+        team,
+        Infantry,
+        KingsGuard(guard_index),
+    ));
+    ec.insert((
+        anim,
+        FacingDirection::default(),
+        Teleportable,
+        Billboard,
+        OnMultiplayerGameScreen,
+        EliteHealthBonus(crate::game::units::elite::ELITE_HEALTH_BONUS),
+        EliteDamageBonus(crate::game::units::elite::ELITE_DAMAGE_BONUS),
+        EliteSpeedBonus(crate::game::units::elite::ELITE_SPEED_BONUS),
+        crate::game::units::elite::EliteAttackSpeedBonus(
+            crate::game::units::elite::ELITE_ATTACK_SPEED_BONUS,
+        ),
+    ));
+    if team == Team::Attackers {
+        ec.insert(WaveGroup(0));
+    }
 }

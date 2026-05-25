@@ -373,8 +373,75 @@ pub(super) fn detect_mp_disconnect(
         return;
     }
 
-    if connection.state == ConnectionState::Failed {
+    // Both Failed (transport error) and Disconnected (peer-initiated graceful
+    // close) are treated as unexpected loss here. The transport emits
+    // `StateChanged(Disconnected)` after the peer closes cleanly, and without
+    // this we'd silently leave the player stuck in a live match with a dead
+    // socket.
+    if matches!(
+        connection.state,
+        ConnectionState::Failed | ConnectionState::Disconnected
+    ) {
         next_mp_state.set(MultiplayerGameState::Disconnected);
+    }
+}
+
+/// Detects connection loss while we're still in `MultiplayerLoading` (before
+/// the `MultiplayerGame` sub-state machine exists) and bails out cleanly.
+///
+/// Without this, a disconnect during loading would let `process_mp_spawn_queue`
+/// keep ticking against a dead connection until the queue completed and the
+/// game transitioned to `MultiplayerGame` — at which point `detect_mp_disconnect`
+/// would finally fire. This system shortcuts that by sending the player
+/// straight back to the wizard tower with the connection torn down.
+pub(super) fn detect_mp_loading_disconnect(
+    mut commands: Commands,
+    mut connection: ResMut<NetworkConnection>,
+    session: Option<Res<MultiplayerSession>>,
+    transport: Option<Res<TransportHandle>>,
+    mut next_app_state: ResMut<NextState<crate::state::AppState>>,
+    // Despawn any battlefield, units, terrain, or screen-tagged UI that the
+    // spawn queue produced before the disconnect hit. Without these the 3D
+    // meshes leak into the wizard tower scene after we transition.
+    gameplay_entities: Query<
+        Entity,
+        Or<(
+            With<crate::game::components::OnGameplayScreen>,
+            With<super::components::OnMultiplayerGameScreen>,
+        )>,
+    >,
+) {
+    // Mirror `detect_mp_disconnect`'s guard: a missing session means we're
+    // not actually in a live match — the `Disconnected` default-state could
+    // otherwise spuriously fire this handler on the first frame of loading.
+    if session.is_none() {
+        return;
+    }
+
+    if matches!(
+        connection.state,
+        ConnectionState::Failed | ConnectionState::Disconnected
+    ) {
+        warn!("[MP] Connection lost during loading; returning to wizard tower.");
+        if let Some(t) = transport.as_ref() {
+            t.send_command(TransportCommand::Disconnect);
+        }
+        // Clean up everything the loading queue had already spawned —
+        // `OnExit(MultiplayerLoading)` only tears down the loading screen
+        // and queue resources, so without these despawns the partially-built
+        // arena would leak into MetaGame.
+        for entity in &gameplay_entities {
+            if let Ok(mut ec) = commands.get_entity(entity) {
+                ec.try_despawn();
+            }
+        }
+        commands.remove_resource::<crate::game::pathfinding::resources::PathfindingGrid>();
+        connection.reset();
+        commands.remove_resource::<MultiplayerSession>();
+        // `MetaGameState` is a SubState of `AppState::MetaGame` and is
+        // re-initialised to its `#[default] = WizardTower` whenever the
+        // parent state enters — no explicit `next_meta_state.set` needed.
+        next_app_state.set(crate::state::AppState::MetaGame);
     }
 }
 

@@ -537,8 +537,15 @@ pub fn process_mp_spawn_queue(
         loading_sync.peer_loaded = true;
     }
 
-    // Both loaded — transition to gameplay
-    if loading_sync.my_loaded && loading_sync.peer_loaded {
+    // Both loaded — transition to gameplay. Guard against a same-frame
+    // disconnect: if `detect_mp_loading_disconnect` has just set NextState
+    // back to MetaGame, we must NOT clobber that transition by jumping
+    // into MultiplayerGame on a dead connection. Checking
+    // `connection.state == Connected` short-circuits the race.
+    if loading_sync.my_loaded
+        && loading_sync.peer_loaded
+        && connection.state == crate::networking::resources::ConnectionState::Connected
+    {
         next_state.set(AppState::MultiplayerGame);
     }
 }
