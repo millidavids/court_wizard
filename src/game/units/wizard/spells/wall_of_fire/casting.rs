@@ -10,7 +10,7 @@ use super::constants;
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
@@ -190,7 +190,7 @@ pub fn handle_wall_of_fire_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
+    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
     mut caster_query: Query<&mut WallOfFireCaster>,
     mut preview_query: Query<&mut Transform, (With<WallOfFirePreview>, Without<Wizard>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
@@ -201,7 +201,7 @@ pub fn handle_wall_of_fire_casting(
 ) {
     let scorched_mult =
         crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
-    let (corrected_cursor, target_assist) = cursor_resources;
+    let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 
@@ -227,7 +227,7 @@ pub fn handle_wall_of_fire_casting(
 
     let clamped_pos = input
         .cursor_pos
-        .map(|pos| clamp_to_spell_range(pos, SPELL_ORIGIN, wizard.spell_range));
+        .map(|pos| clamp_to_spell_range(pos, local_origin.0, wizard.spell_range));
 
     let cast_result = wall_of_fire_casting_logic(
         &input,
@@ -421,6 +421,7 @@ pub fn handle_wall_of_fire_casting(
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Fire,
             time.elapsed_secs(),
         );

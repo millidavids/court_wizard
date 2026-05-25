@@ -14,8 +14,9 @@ use super::components::{
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::constants::{
-    DEFENDER_GRID_CENTER_ANGLE, DEFENDER_GRID_GROUND_RANGE, SPELL_ORIGIN, WIZARD_POSITION,
+    DEFENDER_GRID_CENTER_ANGLE, DEFENDER_GRID_GROUND_RANGE, WIZARD_POSITION,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
@@ -182,6 +183,7 @@ pub fn handle_teleport_casting(
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
     ),
+    local_origin: Res<LocalSpellOrigin>,
 ) {
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -211,7 +213,7 @@ pub fn handle_teleport_casting(
 
     let clamped_pos = input
         .cursor_pos
-        .map(|pos| clamp_to_spell_range(pos, SPELL_ORIGIN, wizard.spell_range));
+        .map(|pos| clamp_to_spell_range(pos, local_origin.0, wizard.spell_range));
 
     let cast_result = teleport_casting_logic(
         &mut game_rng.0,
@@ -318,6 +320,7 @@ pub fn handle_teleport_casting(
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Force,
             time.elapsed_secs(),
         );

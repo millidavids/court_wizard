@@ -5,7 +5,6 @@ use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::units::components::{
@@ -674,8 +673,9 @@ pub fn despawn_distant_fireballs(
 
     let spell_range = wizard.spell_range;
 
+    let origin = crate::game::units::wizard::spells::utils::local_spell_origin_snapshot();
     for (entity, transform) in &fireballs {
-        let distance_from_wizard = transform.translation.distance(SPELL_ORIGIN);
+        let distance_from_wizard = transform.translation.distance(origin);
 
         if distance_from_wizard > spell_range {
             commands.entity(entity).try_despawn();

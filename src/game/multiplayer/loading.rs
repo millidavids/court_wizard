@@ -151,6 +151,7 @@ pub fn init_mp_loading(
         &mut config,
         MP_TERRAIN_LEVEL,
         1.0,
+        true, // multiplayer: mirror the forest band to the opposite side
     );
 
     let mut queue = MpSpawnQueue::new();

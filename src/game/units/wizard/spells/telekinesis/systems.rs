@@ -7,6 +7,7 @@ use super::components::{
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::drops::components::{FlyingToWizard, IngredientDrop};
 use crate::game::input::MouseButtonState;
@@ -86,7 +87,7 @@ pub(super) fn handle_telekinesis_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
+    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
     caster_query: Query<&SpellCaster>,
     drops_query: Query<(Entity, &Transform, &IngredientDrop), Without<FlyingToWizard>>,
     indicator_query: Query<&TelekinesisIndicator>,
@@ -105,7 +106,7 @@ pub(super) fn handle_telekinesis_casting(
         Without<IngredientDrop>,
     >,
 ) {
-    let (corrected_cursor, target_assist) = cursor_resources;
+    let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 
@@ -161,6 +162,7 @@ pub(super) fn handle_telekinesis_casting(
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Force,
             time.elapsed_secs(),
         );

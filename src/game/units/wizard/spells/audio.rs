@@ -3,11 +3,18 @@ use bevy::prelude::*;
 
 use crate::config::{GameConfig, WizardType};
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::local_spell_origin_snapshot;
 
 /// Maximum distance for sound effect attenuation.
 /// Effects at this distance or beyond are silent.
 const MAX_SFX_DISTANCE: f32 = 10000.0;
+
+/// Audio listener position — the player's local wizard. Read via the shared
+/// lock-free snapshot so distance attenuation works for both the single-player
+/// listener and the multiplayer guest (whose listener is at the guest wizard).
+pub(crate) fn audio_origin() -> Vec3 {
+    local_spell_origin_snapshot()
+}
 
 /// Preloaded audio handles for spell sound effects.
 #[derive(Resource)]
@@ -183,7 +190,7 @@ pub(crate) fn play_sfx_scaled(
     game_config: &GameConfig,
     volume_scale: f32,
 ) {
-    let distance = effect_pos.distance(SPELL_ORIGIN);
+    let distance = effect_pos.distance(audio_origin());
     let linear = (1.0 - distance / MAX_SFX_DISTANCE).clamp(0.0, 1.0);
     let attenuation = linear * linear * linear * linear * linear * linear; // steep falloff for distant sounds
     let volume = game_config.effective_sfx_volume() * attenuation * volume_scale;
@@ -238,7 +245,7 @@ pub(crate) fn play_looping_sfx_at(
     sfx_assets: &SpellSfxAssets,
 ) -> Entity {
     let handle = resolve_excremage_handle(handle, SfxKind::Channel, game_config, sfx_assets);
-    let distance = effect_pos.distance(SPELL_ORIGIN);
+    let distance = effect_pos.distance(audio_origin());
     let linear = (1.0 - distance / MAX_SFX_DISTANCE).clamp(0.0, 1.0);
     let attenuation = linear * linear * linear * linear * linear * linear;
     let volume = game_config.effective_sfx_volume() * attenuation;

@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::units::wizard::archetypes::swordcerer::resources::{
@@ -9,7 +8,7 @@ use crate::game::units::wizard::archetypes::swordcerer::resources::{
 };
 use crate::game::units::wizard::components::{LocalWizard, Wizard};
 use crate::game::units::wizard::spells::utils::{
-    clamp_to_spell_range_ground, get_cursor_world_position,
+    LocalSpellOrigin, clamp_to_spell_range_ground, get_cursor_world_position,
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
@@ -60,6 +59,7 @@ pub(super) fn update_aim_line(
     active: Res<ActiveInputDevice>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     swordcerer: Option<Res<SwordcererState>>,
+    local_origin: Res<LocalSpellOrigin>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     wizard_query: Query<(&Transform, &Wizard), (With<LocalWizard>, Without<AimLine>)>,
     mut line_query: Query<(&mut Transform, &mut Visibility), With<AimLine>>,
@@ -99,7 +99,7 @@ pub(super) fn update_aim_line(
         0.0,
     );
     // Spell-spawn point — same origin every projectile/beam fires from.
-    let origin = SPELL_ORIGIN;
+    let origin = local_origin.0;
 
     let diff = clamped - origin;
     let length = diff.length();

@@ -81,6 +81,16 @@ pub(super) fn init_mp_game(
     };
     commands.insert_resource(peer_id);
 
+    // Point the spell-origin resource at the local player's wizard so all the
+    // shared spell-casting code spawns visuals at the correct corner.
+    use crate::game::constants::{SPELL_2_ORIGIN, SPELL_ORIGIN};
+    use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
+    let origin = match connection.role {
+        Some(PeerRole::Guest) => SPELL_2_ORIGIN,
+        _ => SPELL_ORIGIN,
+    };
+    commands.insert_resource(LocalSpellOrigin(origin));
+
     // Insert MP-only resources
     commands.init_resource::<EntityIdCounter>();
     commands.init_resource::<NetworkEntityMap>();
@@ -125,6 +135,12 @@ pub(super) fn cleanup_mp_game(
     defenders_activated.active = false;
     cauldron_buffs.active_buffs.clear();
     *game_outcome = GameOutcome::Victory;
+
+    // Restore the spell origin to the single-player default so a subsequent
+    // SP run doesn't inherit the guest's mirrored origin.
+    commands.insert_resource(
+        crate::game::units::wizard::spells::utils::LocalSpellOrigin::default(),
+    );
 
     // Remove MP-only resources that are created in init_mp_game.
     commands.remove_resource::<crate::networking::crdt::PeerId>();

@@ -4,7 +4,7 @@ use super::components::{LightningRod, LightningRodTalentParams, LightningStrike}
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -143,6 +143,7 @@ pub(super) fn handle_lightning_rod_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
     target_assist: Res<TargetAssistWorldPos>,
+    local_origin: Res<LocalSpellOrigin>,
 ) {
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -158,7 +159,7 @@ pub(super) fn handle_lightning_rod_casting(
 
     let clamped_pos = input
         .cursor_pos
-        .map(|pos| clamp_to_spell_range_ground(pos, SPELL_ORIGIN, wizard.spell_range, 0.0));
+        .map(|pos| clamp_to_spell_range_ground(pos, local_origin.0, wizard.spell_range, 0.0));
 
     // Spawn indicator on Resting -> Casting transition
     if matches!(*casting_state, CastingState::Resting)
@@ -214,12 +215,14 @@ pub(super) fn handle_lightning_rod_casting(
         &sfx,
         &game_config,
         active_talents.as_deref(),
+        local_origin.0,
     );
 
     if completed {
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Lightning,
             time.elapsed_secs(),
         );
@@ -243,8 +246,9 @@ fn lightning_rod_casting_logic(
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
     active_talents: Option<&ActiveTalents>,
+    local_origin: Vec3,
 ) -> bool {
-    let wizard_pos = SPELL_ORIGIN;
+    let wizard_pos = local_origin;
 
     // Check for release event - cancel cast
     if handle_spell_release(input, commands, wizard_entity, casting_state, caster_query) {

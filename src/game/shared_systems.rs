@@ -306,7 +306,7 @@ pub fn update_battle_ambience(
             .iter()
             .fold(Vec3::ZERO, |acc, (_, t)| acc + t.translation)
             / melee_count;
-        let distance = avg_pos.distance(SPELL_ORIGIN);
+        let distance = avg_pos.distance(crate::game::units::wizard::spells::utils::local_spell_origin_snapshot());
         let linear = (1.0 - distance / BATTLE_AMBIENCE_MAX_DISTANCE).clamp(0.0, 1.0);
         let attenuation = linear * linear * linear;
 
@@ -348,7 +348,7 @@ pub fn update_crowd_ambience(
     let sfx_volume = game_config.effective_sfx_volume();
 
     // Distance from battlefield center to wizard
-    let distance = BATTLEFIELD_CENTER.distance(SPELL_ORIGIN);
+    let distance = BATTLEFIELD_CENTER.distance(crate::game::units::wizard::spells::utils::local_spell_origin_snapshot());
     let linear = (1.0 - distance / BATTLE_AMBIENCE_MAX_DISTANCE).clamp(0.0, 1.0);
     let attenuation = linear * linear * linear;
     let volume = sfx_volume * attenuation * CROWD_AMBIENCE_VOLUME_SCALE;

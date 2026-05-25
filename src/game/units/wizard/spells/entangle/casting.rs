@@ -8,6 +8,7 @@ use super::constants;
 use super::vines::apply_entangle;
 use crate::config::GameConfig;
 use crate::game::achievements::messages::EntangleHitDefenderMessage;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
@@ -94,7 +95,7 @@ pub fn handle_entangle_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
+    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     targets_query: Query<(Entity, &Transform, &Team), (Without<Wizard>, Without<Corpse>)>,
@@ -116,7 +117,7 @@ pub fn handle_entangle_casting(
     let scorched_mult =
         crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let (mut meshes, mut materials) = mesh_and_materials;
-    let (corrected_cursor, target_assist) = cursor_resources;
+    let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 
@@ -187,6 +188,7 @@ pub fn handle_entangle_casting(
                     vfx::systems::spawn_school_flare(
                         &mut commands,
                         &visual_assets,
+                        local_origin.0,
                         vfx::systems::SpellSchool::Nature,
                         time.elapsed_secs(),
                     );

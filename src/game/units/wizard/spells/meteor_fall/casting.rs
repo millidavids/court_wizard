@@ -7,7 +7,7 @@ use rand::Rng;
 use super::components::{MeteorExplosion, MeteorFallStorm, MeteorProjectile};
 use super::constants::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -153,6 +153,7 @@ pub(super) fn handle_meteor_fall_casting(
     existing_storms: Query<Entity, With<MeteorFallStorm>>,
     active_talents: Option<Res<ActiveTalents>>,
     target_assist: Res<TargetAssistWorldPos>,
+    local_origin: Res<LocalSpellOrigin>,
 ) {
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -183,12 +184,14 @@ pub(super) fn handle_meteor_fall_casting(
         &visual_assets,
         &mut meshes,
         &talent_cfg,
+        local_origin.0,
     );
 
     if completed {
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Fire,
             time.elapsed_secs(),
         );
@@ -213,6 +216,7 @@ fn meteor_fall_casting_logic(
     assets: &SpellVisualAssets,
     meshes: &mut Assets<Mesh>,
     talent_cfg: &MeteorTalentConfig,
+    local_origin: Vec3,
 ) -> bool {
     let mut completed = false;
 
@@ -228,7 +232,7 @@ fn meteor_fall_casting_logic(
         return false;
     };
 
-    let wizard_pos = SPELL_ORIGIN;
+    let wizard_pos = local_origin;
     let scale = primed_spell.empowerment;
     let storm_radius = STORM_RADIUS * scale * talent_cfg.storm_radius_mult;
     let effective_mana_cost = MANA_COST * talent_cfg.mana_cost_mult;

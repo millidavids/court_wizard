@@ -10,7 +10,7 @@ use super::super::super::components::{
 use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -104,7 +104,7 @@ pub(super) fn handle_mind_control_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
+    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
     enemies_query: Query<
         (Entity, &Transform, &Team, &MeshMaterial3d<StandardMaterial>),
         (
@@ -128,7 +128,7 @@ pub(super) fn handle_mind_control_casting(
     let (ref mut materials, ref mut meshes) = assets;
     let (ref sfx, ref visual_assets, ref game_config) = loaded_assets;
     let (active_talents, mut talent_progress) = talent_resources;
-    let (corrected_cursor, target_assist) = cursor_resources;
+    let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
     let raw_cursor_pos = input.cursor_pos;
@@ -138,7 +138,7 @@ pub(super) fn handle_mind_control_casting(
     else {
         return;
     };
-    let spell_range = ground_projected_range(wizard.spell_range, SPELL_ORIGIN.y);
+    let spell_range = ground_projected_range(wizard.spell_range, local_origin.0.y);
     let cursor_pos = clamp_cursor_to_spell_range(raw_cursor_pos, wizard.spell_range, 0.0);
     if primed_spell.spell != Spell::MindControl {
         return;
@@ -223,7 +223,8 @@ pub(super) fn handle_mind_control_casting(
                 }
             } else {
                 // Find nearest enemy to cursor each frame and update highlight
-                let nearest = find_nearest_enemy(&enemies_query, cursor_pos, spell_range);
+                let nearest =
+                    find_nearest_enemy(&enemies_query, cursor_pos, spell_range, local_origin.0);
                 update_highlight(
                     &mut commands,
                     materials,
@@ -238,6 +239,7 @@ pub(super) fn handle_mind_control_casting(
                     vfx::systems::spawn_school_flare(
                         &mut commands,
                         visual_assets,
+                        local_origin.0,
                         vfx::systems::SpellSchool::Dark,
                         time.elapsed_secs(),
                     );
@@ -355,8 +357,9 @@ fn find_nearest_enemy(
     >,
     cursor_pos: Option<Vec3>,
     spell_range: f32,
+    local_origin: Vec3,
 ) -> Option<Entity> {
-    let wizard_pos = SPELL_ORIGIN;
+    let wizard_pos = local_origin;
     cursor_pos.and_then(|pos| {
         enemies_query
             .iter()

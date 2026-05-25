@@ -7,7 +7,7 @@ use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -44,6 +44,7 @@ pub fn handle_fireball_casting(
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
+    local_origin: Res<LocalSpellOrigin>,
 ) {
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -71,12 +72,14 @@ pub fn handle_fireball_casting(
         &sfx,
         &game_config,
         &active_talents,
+        local_origin.0,
     );
 
     if completed {
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Fire,
             time.elapsed_secs(),
         );
@@ -101,6 +104,7 @@ fn fireball_casting_logic(
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
     active_talents: &Option<Res<ActiveTalents>>,
+    local_origin: Vec3,
 ) -> bool {
     let mut completed = false;
 
@@ -134,7 +138,7 @@ fn fireball_casting_logic(
                     && let Some(target_pos) = input.cursor_pos
                 {
                     let spawn_origin =
-                        SPELL_ORIGIN + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+                        local_origin + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
                     spawn_fireball_with_talents(
                         commands,
                         assets,
@@ -152,7 +156,7 @@ fn fireball_casting_logic(
         }
         CastingState::Resting => {
             if input.just_pressed || input.pressed {
-                let indicator_pos = input.cursor_pos.unwrap_or(SPELL_ORIGIN);
+                let indicator_pos = input.cursor_pos.unwrap_or(local_origin);
                 let indicator_radius = constants::EXPLOSION_RADIUS * primed_spell.empowerment;
                 try_start_cast_with_indicator(
                     commands,

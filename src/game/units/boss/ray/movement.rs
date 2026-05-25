@@ -33,7 +33,7 @@ use crate::game::units::wizard::spells::audio::SpellSfxAssets;
 pub(super) fn ray_sfx_volume(effect_pos: Vec3, game_config: &GameConfig) -> f32 {
     const RAY_SFX_BASE_SCALE: f32 = 0.6;
     const RAY_SFX_MAX_DIST: f32 = 8000.0;
-    let distance = effect_pos.distance(SPELL_ORIGIN);
+    let distance = effect_pos.distance(crate::game::units::wizard::spells::audio::audio_origin());
     let linear = (1.0 - distance / RAY_SFX_MAX_DIST).clamp(0.0, 1.0);
     game_config.effective_sfx_volume() * linear * RAY_SFX_BASE_SCALE
 }

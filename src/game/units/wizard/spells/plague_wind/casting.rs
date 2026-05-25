@@ -5,7 +5,7 @@ use super::components::{PlagueWindIndicator, PlagueWindTalentParams};
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -83,7 +83,7 @@ pub fn handle_plague_wind_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
+    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
     caster_query: Query<&SpellCaster>,
     circle_indicator_query: Query<&SpellCircleIndicator>,
     indicator_query: Query<&PlagueWindIndicator>,
@@ -92,7 +92,7 @@ pub fn handle_plague_wind_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let (corrected_cursor, target_assist) = cursor_resources;
+    let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 
@@ -105,7 +105,7 @@ pub fn handle_plague_wind_casting(
         return;
     }
 
-    let wizard_pos = SPELL_ORIGIN;
+    let wizard_pos = local_origin.0;
     let scale = primed_spell.empowerment;
     let radius = constants::CLOUD_RADIUS * scale;
     let clamped_pos = input
@@ -193,12 +193,14 @@ pub fn handle_plague_wind_casting(
         &game_config,
         talent_params,
         clamped_pos,
+        local_origin.0,
     );
 
     if completed {
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Nature,
             time.elapsed_secs(),
         );
@@ -224,8 +226,9 @@ fn plague_wind_casting_logic(
     game_config: &GameConfig,
     talent_params: PlagueWindTalentParams,
     cursor_pos: Option<Vec3>,
+    local_origin: Vec3,
 ) -> bool {
-    let wizard_pos = SPELL_ORIGIN;
+    let wizard_pos = local_origin;
     let scale = primed_spell.empowerment;
     let radius = constants::CLOUD_RADIUS * scale * talent_params.radius_mult;
 

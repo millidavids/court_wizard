@@ -4,7 +4,7 @@ use super::components::{BlackHole, BlackHoleSfx, BlackHoleTalentParams};
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -133,6 +133,7 @@ pub(super) fn handle_black_hole_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
     target_assist: Res<TargetAssistWorldPos>,
+    local_origin: Res<LocalSpellOrigin>,
 ) {
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -164,7 +165,7 @@ pub(super) fn handle_black_hole_casting(
     // Clamp cursor to spell range for indicator positioning
     let clamped_cursor = input
         .cursor_pos
-        .map(|pos| clamp_to_spell_range(pos, SPELL_ORIGIN, wizard.spell_range));
+        .map(|pos| clamp_to_spell_range(pos, local_origin.0, wizard.spell_range));
 
     // Handle release -- clean up indicator and SpellCaster
     if input.just_released {
@@ -209,12 +210,14 @@ pub(super) fn handle_black_hole_casting(
         primed_spell,
         wizard,
         mana_mult,
+        local_origin.0,
     );
 
     if cast_result.completed {
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Arcane,
             time.elapsed_secs(),
         );
@@ -272,6 +275,7 @@ fn black_hole_casting_logic(
     primed_spell: &PrimedSpell,
     wizard: &Wizard,
     mana_mult: f32,
+    local_origin: Vec3,
 ) -> CastResult {
     let mut result = CastResult {
         completed: false,
@@ -298,7 +302,7 @@ fn black_hole_casting_logic(
             if casting_state.is_complete(primed_spell.cast_time) {
                 if let Some(cursor_pos) = input.cursor_pos {
                     let clamped_pos =
-                        clamp_to_spell_range(cursor_pos, SPELL_ORIGIN, wizard.spell_range);
+                        clamp_to_spell_range(cursor_pos, local_origin, wizard.spell_range);
 
                     if mana.consume(total_mana_cost) {
                         result.completed = true;

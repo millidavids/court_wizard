@@ -10,6 +10,7 @@ use super::components::{
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
@@ -98,8 +99,11 @@ pub fn handle_spike_growth_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
-    target_assist: Res<TargetAssistWorldPos>,
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
+    ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
@@ -111,6 +115,7 @@ pub fn handle_spike_growth_casting(
         Option<Res<ActiveToggles>>,
     ),
 ) {
+    let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let (active_talents, _talent_progress, active_toggles) = talent_resources;
     let scorched_mult =
         crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
@@ -184,6 +189,7 @@ pub fn handle_spike_growth_casting(
                     vfx::systems::spawn_school_flare(
                         &mut commands,
                         &visual_assets,
+                        local_origin.0,
                         vfx::systems::SpellSchool::Nature,
                         time.elapsed_secs(),
                     );

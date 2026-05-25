@@ -88,8 +88,10 @@ pub(super) fn fragment_datagram(
 
 /// Reassembly buffer for incoming datagram fragments.
 pub(super) struct DatagramReassembler {
-    /// Current sequence number being assembled.
-    current_sequence: u16,
+    /// Current sequence number being assembled. `None` until the first
+    /// fragment is received — distinguishes "uninitialised" from
+    /// "seq == 0", which the sender uses as its very first sequence.
+    current_sequence: Option<u16>,
     /// Expected total fragment count.
     expected_count: u8,
     /// Received fragments indexed by fragment_index.
@@ -101,7 +103,7 @@ pub(super) struct DatagramReassembler {
 impl DatagramReassembler {
     pub(super) fn new() -> Self {
         Self {
-            current_sequence: 0,
+            current_sequence: None,
             expected_count: 0,
             fragments: Vec::new(),
             received_count: 0,
@@ -123,19 +125,25 @@ impl DatagramReassembler {
             return None;
         }
 
-        if sequence != self.current_sequence {
-            // Different sequence — check if newer (wrapping comparison).
-            let diff = sequence.wrapping_sub(self.current_sequence);
-            if diff > 0 && diff <= 32768 {
-                // Newer sequence: reset and start fresh.
-                self.current_sequence = sequence;
-                self.expected_count = fragment_count;
-                self.fragments = vec![None; fragment_count as usize];
-                self.received_count = 0;
-            } else {
-                // Older or way-future sequence — drop.
-                return None;
+        let is_new_sequence = match self.current_sequence {
+            None => true,
+            Some(cur) if cur != sequence => {
+                // Different sequence — check if newer (wrapping comparison).
+                let diff = sequence.wrapping_sub(cur);
+                if diff == 0 || diff > 32768 {
+                    // Older sequence — drop.
+                    return None;
+                }
+                true
             }
+            Some(_) => false,
+        };
+
+        if is_new_sequence {
+            self.current_sequence = Some(sequence);
+            self.expected_count = fragment_count;
+            self.fragments = vec![None; fragment_count as usize];
+            self.received_count = 0;
         } else if fragment_count != self.expected_count {
             // Same sequence but different fragment_count — corrupted, ignore.
             return None;
@@ -164,7 +172,11 @@ impl DatagramReassembler {
                 result.extend_from_slice(data);
             }
             // Advance sequence so duplicates are dropped.
-            self.current_sequence = self.current_sequence.wrapping_add(1);
+            self.current_sequence = Some(
+                self.current_sequence
+                    .map(|s| s.wrapping_add(1))
+                    .unwrap_or(1),
+            );
             self.received_count = 0;
             self.fragments.clear();
             Some(result)

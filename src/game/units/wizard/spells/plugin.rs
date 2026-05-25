@@ -50,6 +50,16 @@ pub struct SpellsPlugin;
 impl Plugin for SpellsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<TargetAssistWorldPos>()
+            .init_resource::<super::utils::LocalSpellOrigin>()
+            // Keep the lock-free local-origin snapshot (used by audio
+            // attenuation, the gunslinger's gun spawn position, and other
+            // const-context callers) in sync with the `LocalSpellOrigin`
+            // resource so they all see each peer's own wizard.
+            .add_systems(
+                Update,
+                super::utils::update_local_spell_origin_snapshot
+                    .run_if(resource_changed::<super::utils::LocalSpellOrigin>),
+            )
             .add_systems(
                 Update,
                 super::utils::compute_target_assist.run_if(is_spell_effects_active),

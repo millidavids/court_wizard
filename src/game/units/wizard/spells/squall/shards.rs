@@ -11,7 +11,6 @@ use super::components::{
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen};
-use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -587,6 +586,7 @@ pub(super) fn update_blizzard_position(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     wizard_query: Query<&Wizard, With<LocalWizard>>,
+    local_origin: Res<crate::game::units::wizard::spells::utils::LocalSpellOrigin>,
 ) {
     let Some(cursor_pos) = get_cursor_world_position(&camera_query, &corrected_cursor) else {
         return;
@@ -603,8 +603,12 @@ pub(super) fn update_blizzard_position(
         }
 
         // Clamp target to spell range
-        let target =
-            clamp_to_spell_range_ground(cursor_pos, SPELL_ORIGIN, wizard.spell_range, storm.radius);
+        let target = clamp_to_spell_range_ground(
+            cursor_pos,
+            local_origin.0,
+            wizard.spell_range,
+            storm.radius,
+        );
 
         // Lerp storm position toward cursor
         let direction = Vec3::new(

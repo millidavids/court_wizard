@@ -9,7 +9,7 @@ use super::components::{
 };
 use super::constants;
 use crate::config::GameConfig;
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::terrain::messages::TerrainDamageMessage;
@@ -159,7 +159,7 @@ pub fn handle_disintegrate_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
+    cursor_resources: (Res<CorrectedCursorPosition>, Res<LocalSpellOrigin>),
     mut beams: Query<(Entity, &mut DisintegrateBeam), Without<CrystalSpawn>>,
     visual_assets: Res<SpellVisualAssets>,
     glow_query: Query<Entity, With<BeamGlow>>,
@@ -171,6 +171,7 @@ pub fn handle_disintegrate_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
+    let (corrected_cursor, local_origin) = cursor_resources;
     let released = left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
@@ -199,6 +200,7 @@ pub fn handle_disintegrate_casting(
         wizard,
         has_existing_beam,
         talent_cfg.mana_cost_multiplier,
+        local_origin.0,
     );
 
     match result.beam_action {
@@ -238,6 +240,7 @@ pub fn handle_disintegrate_casting(
             vfx::systems::spawn_school_flare(
                 &mut commands,
                 &visual_assets,
+                local_origin.0,
                 vfx::systems::SpellSchool::Arcane,
                 time.elapsed_secs(),
             );
@@ -246,7 +249,7 @@ pub fn handle_disintegrate_casting(
             if talent_cfg.annihilation {
                 // Use the already range-clamped target from casting logic
                 let ground_target = origin + direction * length;
-                let wizard_xz = Vec3::new(SPELL_ORIGIN.x, 0.0, SPELL_ORIGIN.z);
+                let wizard_xz = Vec3::new(local_origin.0.x, 0.0, local_origin.0.z);
                 let target_xz = Vec3::new(ground_target.x, 0.0, ground_target.z);
                 annihilation_forward = (target_xz - wizard_xz).normalize_or(Vec3::X);
 
@@ -360,12 +363,13 @@ fn disintegrate_casting_logic(
     wizard: &Wizard,
     has_existing_beam: bool,
     mana_cost_multiplier: f32,
+    local_origin: Vec3,
 ) -> CastingResult {
     let mut result = CastingResult {
         beam_action: BeamAction::None,
     };
 
-    let wizard_pos = SPELL_ORIGIN;
+    let wizard_pos = local_origin;
 
     // Check for release
     if input.just_released {
@@ -488,7 +492,9 @@ pub fn apply_disintegrate_damage(
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,
+    local_origin: Res<LocalSpellOrigin>,
 ) {
+    let _local_origin = local_origin.0; // reserved for future per-peer falloff
     for (mut beam, mut hit_tracker) in beam_query.iter_mut() {
         beam.update_damage_timer(time.delta_secs());
         beam.update_time_alive(time.delta_secs());

@@ -42,7 +42,18 @@ const BOULDER_BASE_COUNT_MIN: u32 = 2;
 const BOULDER_BASE_COUNT_MAX: u32 = 6;
 
 /// Generates all terrain (trees, ponds, bushes, boulders) for the first battle.
-pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, terrain_density: f32) {
+///
+/// `mp_mirror_forest`: when `true`, every tree/bush/boulder placed inside the
+/// forest band is duplicated rotated 180° around the world origin. Used by
+/// multiplayer so each peer's back-wall forest has a matching counterpart on
+/// the opposite side — host and guest both see a forest in their far field
+/// of view. Single-player passes `false`.
+pub(in crate::game) fn generate_terrain(
+    config: &mut GameConfig,
+    level: u32,
+    terrain_density: f32,
+    mp_mirror_forest: bool,
+) {
     if terrain_density <= 0.0 {
         return;
     }
@@ -141,6 +152,12 @@ pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, ter
     // (Z = -2900) and thinning toward the center of the battlefield.
     {
         use crate::game::terrain::tree::constants::tree_radius_for_variant;
+
+        // Capture counts before the forest band so we can mirror just the
+        // forest's trees and bushes afterward (boulders are intentionally
+        // not mirrored — see the mirror block below).
+        let trees_before = config.saved_trees.len();
+        let bushes_before = config.saved_bushes.len();
 
         const FOREST_Z_START: f32 = -2950.0; // 50 units from left wall at Z = -3000
         const FOREST_Z_END: f32 = -200.0;
@@ -270,6 +287,37 @@ pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, ter
                     let radius = ROCK_RADIUS * scale;
                     placed.push((pos, radius));
                 }
+            }
+        }
+
+        // Multiplayer mirror: duplicate every forest tree and bush rotated
+        // 180° around the world origin, so the guest's side of the map has a
+        // matching forest in their far field of view. Boulders are NOT
+        // mirrored (they're gameplay obstacles and only the foresty cover
+        // is replicated). Mirrored trees are added to `placed` so later
+        // scattered terrain avoids them too.
+        if mp_mirror_forest {
+            let forest_trees: Vec<SavedTree> = config.saved_trees[trees_before..].to_vec();
+            for tree in &forest_trees {
+                let mx = -tree.x;
+                let mz = -tree.z;
+                let radius = tree_radius_for_variant(tree.sprite_index) * tree.scale;
+                placed.push((Vec2::new(mx, mz), radius));
+                config.saved_trees.push(SavedTree {
+                    x: mx,
+                    z: mz,
+                    scale: tree.scale,
+                    sprite_index: tree.sprite_index,
+                });
+            }
+            let forest_bushes: Vec<SavedBush> = config.saved_bushes[bushes_before..].to_vec();
+            for bush in &forest_bushes {
+                config.saved_bushes.push(SavedBush {
+                    x: -bush.x,
+                    z: -bush.z,
+                    scale: bush.scale,
+                    sprite_index: bush.sprite_index,
+                });
             }
         }
     }

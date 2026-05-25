@@ -8,7 +8,7 @@ use super::constants;
 use super::effects::spawn_necrotic_explosion;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::crt_effect::ScreenDesaturateMessage;
 use crate::game::input::MouseButtonState;
@@ -149,6 +149,7 @@ pub fn handle_finger_of_death_casting(
     mut beams: Query<(Entity, &mut FingerOfDeathBeam)>,
     active_talents: Option<Res<ActiveTalents>>,
     target_assist: Res<TargetAssistWorldPos>,
+    local_origin: Res<LocalSpellOrigin>,
 ) {
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -178,6 +179,7 @@ pub fn handle_finger_of_death_casting(
         on_cooldown,
         has_existing_beam,
         &talent_params,
+        local_origin.0,
     );
 
     // Apply component changes
@@ -244,13 +246,14 @@ fn finger_of_death_casting_logic(
     on_cooldown: bool,
     has_existing_beam: bool,
     talent_params: &FodTalentParams,
+    local_origin: Vec3,
 ) -> CastingResult {
     let mut result = CastingResult {
         beam_action: BeamAction::None,
         remove_awaiting_release: false,
     };
 
-    let wizard_pos = SPELL_ORIGIN;
+    let wizard_pos = local_origin;
 
     // Check for release event
     if input.just_released {
@@ -440,6 +443,7 @@ pub fn apply_finger_of_death_damage(
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    local_origin: Res<LocalSpellOrigin>,
 ) {
     let mut any_fired = false;
 
@@ -562,13 +566,14 @@ pub fn apply_finger_of_death_damage(
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Dark,
             time.elapsed_secs(),
         );
         audio::play_sfx(
             &mut commands,
             &sfx.finger_of_death_cast,
-            SPELL_ORIGIN,
+            local_origin.0,
             &game_config,
             &sfx,
         );

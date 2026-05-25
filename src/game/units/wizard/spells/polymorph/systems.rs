@@ -10,6 +10,7 @@ use super::constants;
 use super::sheep_visual::SheepBounce;
 use crate::config::GameConfig;
 use crate::game::components::Billboard;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -209,6 +210,7 @@ pub fn handle_polymorph_casting(
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
     ),
+    local_origin: Res<LocalSpellOrigin>,
 ) {
     let (active_talents, mut talent_progress) = talent_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
@@ -245,6 +247,7 @@ pub fn handle_polymorph_casting(
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Transmutation,
             time.elapsed_secs(),
         );

@@ -9,7 +9,7 @@ use super::components::{
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen};
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
@@ -82,15 +82,19 @@ pub fn handle_fog_cloud_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
+    ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
     active_toggles: Option<Res<ActiveToggles>>,
-    target_assist: Res<TargetAssistWorldPos>,
 ) {
+    let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let scorched_mult =
         crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
@@ -124,12 +128,14 @@ pub fn handle_fog_cloud_casting(
         &game_config,
         &talent_params,
         scorched_mult,
+        local_origin.0,
     );
 
     if completed {
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Force,
             time.elapsed_secs(),
         );
@@ -156,6 +162,7 @@ fn fog_cloud_casting_logic(
     game_config: &GameConfig,
     talent_params: &FogCloudTalentParams,
     scorched_mult: f32,
+    local_origin: Vec3,
 ) -> bool {
     let mut completed = false;
 
@@ -167,7 +174,7 @@ fn fog_cloud_casting_logic(
         return false;
     };
 
-    let wizard_pos = SPELL_ORIGIN;
+    let wizard_pos = local_origin;
     let wizard_height = wizard_pos.y;
     let max_ground_radius = if wizard_height < wizard.spell_range {
         (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()

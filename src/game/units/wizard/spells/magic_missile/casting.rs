@@ -10,7 +10,7 @@ use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftHeld;
 use crate::game::units::components::{Corpse, Team};
@@ -97,6 +97,7 @@ pub fn handle_magic_missile_casting(
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     camera_query: Query<&GlobalTransform, With<Camera>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
+    local_origin: Res<LocalSpellOrigin>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
     peer_id: Option<Res<PeerId>>,
@@ -205,11 +206,12 @@ pub fn handle_magic_missile_casting(
     vfx::systems::spawn_school_flare(
         &mut commands,
         &visual_assets,
+        local_origin.0,
         vfx::systems::SpellSchool::Arcane,
         time.elapsed_secs(),
     );
 
-    let spawn_origin = SPELL_ORIGIN;
+    let spawn_origin = local_origin.0;
 
     // Spawn missiles with modified parameters
     for _ in 0..params.missile_count {
@@ -255,6 +257,7 @@ pub fn update_arcane_barrage(
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     camera_query: Query<&GlobalTransform, With<Camera>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
+    local_origin: Res<LocalSpellOrigin>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
     sfx: Res<SpellSfxAssets>,
@@ -271,7 +274,7 @@ pub fn update_arcane_barrage(
     barrage.timer -= barrage.interval;
 
     let cursor_pos = get_cursor_world_position(&camera_query_3d, &corrected_cursor);
-    let spawn_origin = SPELL_ORIGIN;
+    let spawn_origin = local_origin.0;
 
     let params = MissileParams {
         missile_count: barrage.missile_count,

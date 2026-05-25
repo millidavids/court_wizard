@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **Multiplayer is back** — host or join a game directly from the **Multiplayer** tab in the Wizard Tower, with no separate lobby screen. Host a game and share your code; your friend pastes it in to connect. Once you're both connected, each player picks a wizard and readies up, and the host starts the match
-- **Multiplayer battles are now properly rendered** — the multiplayer arena now has the full visuals you'd expect: tiled ground, walls, the lava pool and water pond, plus boulders, trees, ponds, bushes, and flowers scattered around. Both players see the same terrain layout, each from their own side of the arena, with walls and ground oriented correctly from their own perspective
+- **Multiplayer battles are now properly rendered** — the multiplayer arena now has the full visuals you'd expect: tiled ground, walls, the lava pool and water pond, plus boulders, trees, ponds, bushes, and flowers scattered around. A matching tree-and-bush forest backdrops each player's far wall so both sides have the same foresty feel. Both players see the same terrain layout, each from their own side of the arena, with walls and ground oriented correctly from their own perspective
 
 ### Changed
 - **Multiplayer lobby reworked** — the connection controls (Host Game, Join Game, Online/LAN) now sit in the right-hand panel like the rest of the game. Once you're connected, the left panel becomes a match-details view showing who picked which wizard and who's ready, with a Ready button for each player and a Start Game button for the host that unlocks once both players are ready. You switch wizard using the same picker the other game modes use. The Copy and Paste buttons sit right next to the code box with a confirmation message, and the connection mode reads plainly as "Online" or "LAN", defaulting to Online so you can play with friends anywhere
@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **Multiplayer players now stay in sync** — ready status and wizard choices weren't reliably reaching the other player, which could leave a match unable to start. Lobby updates now come through correctly
 - **All your unlocked wizards now show up in the multiplayer picker** — wizards beyond the starter four were being silently dropped from the wizard-select list, even if you had them unlocked. Every wizard you've earned is now selectable in multiplayer
+- **Spells you cast as the guest now come from your own wizard** — every spell visual, projectile, beam, cast flare, aim line, and gun shot was originating from the host's wizard on the guest's screen. They all now spawn from the guest's own wizard, and audio falloff is measured from each player's wizard too
 
 ## [v0.7.367] - 2026-05-10
 

@@ -8,7 +8,6 @@ use super::constants;
 use super::constants::UPWARD_ROTATION;
 use crate::game::components::Billboard;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 pub fn spawn_cast_flare(
@@ -78,11 +77,15 @@ pub enum SpellSchool {
     Transmutation,
 }
 
-/// Spawns a cast flare at SPELL_ORIGIN using the given spell school's colors.
-/// Convenience wrapper around `spawn_cast_flare` for use in spell cast functions.
+/// Spawns a cast flare at the local spell origin using the given spell school's
+/// colors. Convenience wrapper around `spawn_cast_flare` for use in spell cast
+/// functions. Callers pass `local_origin` as a `Vec3` (typically
+/// `local_origin.0` from the `LocalSpellOrigin` resource) so the flare
+/// originates from each player's own wizard on both peers.
 pub fn spawn_school_flare(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    local_origin: Vec3,
     school: SpellSchool,
     time_secs: f32,
 ) {
@@ -120,7 +123,7 @@ pub fn spawn_school_flare(
             assets.flare_transmutation_spark.clone(),
         ),
     };
-    spawn_cast_flare(commands, assets, SPELL_ORIGIN, glow, spark, time_secs);
+    spawn_cast_flare(commands, assets, local_origin, glow, spark, time_secs);
 }
 
 /// Updates cast flare glow: expands and fades over lifetime.

@@ -383,6 +383,12 @@ async fn send_unreliable_loop(
     data_notify: Arc<Notify>,
     shutdown: Arc<Notify>,
 ) {
+    // Rate-limit send-error logging — if datagrams are failing every frame
+    // we want to know but not flood the log.
+    let mut last_send_error_log = std::time::Instant::now()
+        .checked_sub(std::time::Duration::from_secs(60))
+        .unwrap_or_else(std::time::Instant::now);
+
     loop {
         // Drain all pending data first.
         while let Ok(data) = unreliable_rx.try_recv() {
@@ -390,7 +396,14 @@ async fn send_unreliable_loop(
             let seq = sequence.fetch_add(1, Ordering::Relaxed);
             let fragments = codec::fragment_datagram(&data, seq, max_size);
             for frag in fragments {
-                let _ = conn.send_datagram(frag);
+                if let Err(e) = conn.send_datagram(frag) {
+                    if last_send_error_log.elapsed() > std::time::Duration::from_secs(2) {
+                        warn!(
+                            "Unreliable datagram send failed (max_size={max_size}): {e}"
+                        );
+                        last_send_error_log = std::time::Instant::now();
+                    }
+                }
             }
         }
 

@@ -3,7 +3,7 @@ use super::super::super::components::{
 };
 use super::constants;
 use crate::config::GameConfig;
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -13,7 +13,7 @@ use crate::game::units::components::{
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
-    clamp_cursor_to_spell_range, cleanup_spell_caster, handle_spell_release,
+    cleanup_spell_caster, handle_spell_release,
     spawn_circle_indicator, update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
@@ -35,7 +35,11 @@ pub fn handle_battle_hymn_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
+    ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut targets_query: Query<
@@ -56,7 +60,7 @@ pub fn handle_battle_hymn_casting(
     >,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let (corrected_cursor, target_assist) = cursor_resources;
+    let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 
@@ -85,8 +89,9 @@ pub fn handle_battle_hymn_casting(
     };
 
     // Clamp cursor to spell range
-    let clamped_cursor = clamp_cursor_to_spell_range(
+    let clamped_cursor = crate::game::units::wizard::spells::utils::clamp_cursor_to_spell_range_with_origin(
         input.cursor_pos,
+        local_origin.0,
         wizard.spell_range,
         constants::CIRCLE_RADIUS * primed_spell.empowerment,
     );
@@ -151,6 +156,7 @@ pub fn handle_battle_hymn_casting(
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Holy,
             time.elapsed_secs(),
         );
@@ -160,13 +166,13 @@ pub fn handle_battle_hymn_casting(
                 &mut commands,
                 &visual_assets,
                 visual_assets.battle_hymn_aura_sphere.clone(),
-                SPELL_ORIGIN,
+                local_origin.0,
                 200.0,
                 2.5,
             );
             apply_battle_hymn_buff(
                 &mut commands,
-                SPELL_ORIGIN,
+                local_origin.0,
                 0.0, // radius unused since Chorus of Valor ignores radius
                 primed_spell.empowerment,
                 &mut targets_query,
@@ -176,7 +182,7 @@ pub fn handle_battle_hymn_casting(
             audio::play_sfx(
                 &mut commands,
                 &sfx.battle_hymn_cast,
-                SPELL_ORIGIN,
+                local_origin.0,
                 &game_config,
                 &sfx,
             );

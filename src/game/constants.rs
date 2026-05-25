@@ -123,10 +123,24 @@ const SPELL_OFFSET: Vec3 = Vec3::new(100.0, 90.0, 30.0);
 
 /// Spell origin point — where projectiles and beams originate from.
 /// Same as wizard position since the wizard doesn't move.
+///
+/// This is the **host / single-player** origin. In multiplayer the guest's
+/// local spells originate from `SPELL_2_ORIGIN` instead. Most code should
+/// read the `LocalSpellOrigin` resource rather than this constant directly
+/// so it produces the right value on both peers.
 pub const SPELL_ORIGIN: Vec3 = Vec3::new(
     WIZARD_POSITION.x + SPELL_OFFSET.x,
     WIZARD_POSITION.y + SPELL_OFFSET.y,
     WIZARD_POSITION.z + SPELL_OFFSET.z,
+);
+
+/// Spell origin point for the **multiplayer guest** (mirrors `SPELL_ORIGIN`
+/// across the world origin so the guest's spells visibly originate from
+/// their own wizard's hand).
+pub const SPELL_2_ORIGIN: Vec3 = Vec3::new(
+    WIZARD_2_POSITION.x - SPELL_OFFSET.x,
+    WIZARD_2_POSITION.y + SPELL_OFFSET.y,
+    WIZARD_2_POSITION.z - SPELL_OFFSET.z,
 );
 
 // ===== Castle 2 Positioning (Multiplayer — opposite corner) =====

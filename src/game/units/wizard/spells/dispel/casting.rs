@@ -4,7 +4,7 @@ use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen};
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
@@ -80,6 +80,7 @@ pub fn handle_dispel_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
     visual_assets: Res<SpellVisualAssets>,
+    local_origin: Res<LocalSpellOrigin>,
 ) {
     if !mouse.just_pressed(MouseButton::Left) {
         return;
@@ -105,10 +106,11 @@ pub fn handle_dispel_casting(
         return;
     }
 
-    let origin = SPELL_ORIGIN;
+    let origin = local_origin.0;
     vfx::systems::spawn_school_flare(
         &mut commands,
         &visual_assets,
+        local_origin.0,
         vfx::systems::SpellSchool::Arcane,
         time.elapsed_secs(),
     );

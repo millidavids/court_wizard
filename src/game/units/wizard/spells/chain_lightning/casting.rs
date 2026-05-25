@@ -12,7 +12,7 @@ use super::constants;
 use super::constants::arc_width_at_depth;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -136,7 +136,11 @@ pub fn handle_chain_lightning_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
+    ),
     enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     rods_query: Query<(Entity, &Transform, &mut LightningRod)>,
     crystals_query: Query<(Entity, &Transform), With<ArcaneCrystal>>,
@@ -153,7 +157,7 @@ pub fn handle_chain_lightning_casting(
         MessageWriter<crate::game::crt_effect::ScreenFlashMessage>,
     ),
 ) {
-    let (corrected_cursor, target_assist) = cursor_resources;
+    let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 
@@ -182,6 +186,7 @@ pub fn handle_chain_lightning_casting(
         &mut health_query,
         &talent_config,
         talent_progress.as_deref_mut(),
+        local_origin.0,
     );
 
     if completed {
@@ -194,13 +199,14 @@ pub fn handle_chain_lightning_casting(
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Lightning,
             time.elapsed_secs(),
         );
         audio::play_sfx(
             &mut commands,
             &sfx.chain_lightning_cast,
-            SPELL_ORIGIN,
+            local_origin.0,
             &game_config,
             &sfx,
         );
@@ -229,6 +235,7 @@ fn chain_lightning_casting_logic(
     )>,
     talent_config: &ChainLightningTalentConfig,
     mut talent_progress: Option<&mut BattleTalentProgress>,
+    local_origin: Vec3,
 ) -> bool {
     let mut completed = false;
 
@@ -268,7 +275,7 @@ fn chain_lightning_casting_logic(
                             already_targeted.push(target_entity);
 
                             let wizard_pos =
-                                SPELL_ORIGIN + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+                                local_origin + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
                             // Scale damage by empowerment and talent multiplier
                             let initial_damage = primed_spell.scale(constants::INITIAL_DAMAGE)
@@ -299,7 +306,7 @@ fn chain_lightning_casting_logic(
                                 commands,
                                 target_entity,
                                 target_pos,
-                                SPELL_ORIGIN,
+                                local_origin,
                                 talent_config.static_charge,
                                 talent_config.magnetic_pull,
                                 None,

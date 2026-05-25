@@ -102,6 +102,7 @@ pub fn init_loading_progress(
                 &mut config,
                 level,
                 terrain_density,
+                false, // single-player: no mirrored forest
             );
         }
 

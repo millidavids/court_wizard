@@ -13,7 +13,8 @@ use super::components::{
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::{BATTLEFIELD_SIZE, SPELL_ORIGIN};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
+use crate::game::constants::BATTLEFIELD_SIZE;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -184,6 +185,7 @@ pub fn handle_banishment_casting(
     mut progress: ResMut<BattleTalentProgress>,
     visual_assets: Res<SpellVisualAssets>,
     target_assist: Res<TargetAssistWorldPos>,
+    local_origin: Res<LocalSpellOrigin>,
 ) {
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -197,7 +199,7 @@ pub fn handle_banishment_casting(
         return;
     }
 
-    let spell_range = ground_projected_range(wizard.spell_range, SPELL_ORIGIN.y);
+    let spell_range = ground_projected_range(wizard.spell_range, local_origin.0.y);
     input.cursor_pos = clamp_cursor_to_spell_range(input.cursor_pos, wizard.spell_range, 0.0);
 
     let talent_params = compute_talent_params(active_talents.as_deref());
@@ -214,12 +216,14 @@ pub fn handle_banishment_casting(
         spell_range,
         &visual_assets,
         time.elapsed_secs(),
+        local_origin.0,
     );
 
     if banished_count > 0 {
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Force,
             time.elapsed_secs(),
         );
@@ -227,7 +231,7 @@ pub fn handle_banishment_casting(
         audio::play_sfx(
             &mut commands,
             &sfx.banishment_cast,
-            SPELL_ORIGIN,
+            local_origin.0,
             &game_config,
             &sfx,
         );
@@ -236,6 +240,7 @@ pub fn handle_banishment_casting(
 }
 
 /// Core banishment casting logic. Returns the number of units banished.
+#[allow(clippy::too_many_arguments)]
 #[allow(clippy::too_many_arguments)]
 fn banishment_casting_logic(
     input: &WizardInput,
@@ -256,6 +261,7 @@ fn banishment_casting_logic(
     spell_range: f32,
     visual_assets: &SpellVisualAssets,
     time_secs: f32,
+    local_origin: Vec3,
 ) -> u32 {
     // Check for release event
     if input.just_released {
@@ -292,6 +298,7 @@ fn banishment_casting_logic(
                             spell_range,
                             visual_assets,
                             time_secs,
+                            local_origin,
                         )
                     } else {
                         cast_single_banishment(
@@ -304,6 +311,7 @@ fn banishment_casting_logic(
                             spell_range,
                             visual_assets,
                             time_secs,
+                            local_origin,
                         )
                     };
                     casting_state.cancel();
@@ -321,13 +329,14 @@ fn banishment_casting_logic(
 }
 
 /// Returns true if the target is within the wizard's spell range.
-fn is_in_spell_range(target_pos: Vec3, spell_range: f32) -> bool {
-    let dx = target_pos.x - SPELL_ORIGIN.x;
-    let dz = target_pos.z - SPELL_ORIGIN.z;
+fn is_in_spell_range(target_pos: Vec3, spell_range: f32, local_origin: Vec3) -> bool {
+    let dx = target_pos.x - local_origin.x;
+    let dz = target_pos.z - local_origin.z;
     (dx * dx + dz * dz) <= spell_range * spell_range
 }
 
 /// Standard single-target (or dual-target) banishment.
+#[allow(clippy::too_many_arguments)]
 #[allow(clippy::too_many_arguments)]
 fn cast_single_banishment(
     commands: &mut Commands,
@@ -346,6 +355,7 @@ fn cast_single_banishment(
     spell_range: f32,
     visual_assets: &SpellVisualAssets,
     time_secs: f32,
+    local_origin: Vec3,
 ) -> u32 {
     let duration = params.duration * empowerment;
     let mut banished_count = 0u32;
@@ -354,7 +364,9 @@ fn cast_single_banishment(
     let mut candidates: Vec<(Entity, f32, Vec3, &Health)> = enemies_query
         .iter()
         .filter(|(_, _, team, _)| Team::Defenders.is_enemy(team))
-        .filter(|(_, transform, _, _)| is_in_spell_range(transform.translation, spell_range))
+        .filter(|(_, transform, _, _)| {
+            is_in_spell_range(transform.translation, spell_range, local_origin)
+        })
         .map(|(entity, transform, _, health)| {
             let xz_dist = crate::game::units::wizard::spells::utils::xz_distance(
                 transform.translation,
@@ -421,6 +433,7 @@ fn cast_mass_banishment(
     spell_range: f32,
     visual_assets: &SpellVisualAssets,
     time_secs: f32,
+    local_origin: Vec3,
 ) -> u32 {
     let duration = constants::MASS_BANISHMENT_DURATION * empowerment;
     let mut banished_count = 0u32;
@@ -429,7 +442,7 @@ fn cast_mass_banishment(
         if !Team::Defenders.is_enemy(team) {
             continue;
         }
-        if !is_in_spell_range(transform.translation, spell_range) {
+        if !is_in_spell_range(transform.translation, spell_range, local_origin) {
             continue;
         }
         let xz_dist = crate::game::units::wizard::spells::utils::xz_distance(

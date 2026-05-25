@@ -5,6 +5,7 @@ use super::components::SleepTalentParams;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -89,18 +90,22 @@ pub fn handle_sleep_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
+    ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     targets_query: Query<(Entity, &Transform, &Health, &Team), Without<Corpse>>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    target_assist: Res<TargetAssistWorldPos>,
     talent_resources: (
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
     ),
 ) {
+    let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let (active_talents, mut talent_progress) = talent_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -134,12 +139,14 @@ pub fn handle_sleep_casting(
         &game_config,
         &talent_params,
         &mut talent_progress,
+        local_origin.0,
     );
 
     if completed {
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Dark,
             time.elapsed_secs(),
         );
@@ -167,6 +174,7 @@ fn sleep_casting_logic(
     game_config: &GameConfig,
     talent_params: &SleepTalentParams,
     talent_progress: &mut Option<ResMut<BattleTalentProgress>>,
+    local_origin: Vec3,
 ) -> bool {
     // Check for release event
     if handle_spell_release(input, commands, wizard_entity, casting_state, caster_query) {
@@ -177,7 +185,7 @@ fn sleep_casting_logic(
         return false;
     };
 
-    let wizard_pos = SPELL_ORIGIN;
+    let wizard_pos = local_origin;
     let wizard_height = wizard_pos.y;
     let max_ground_radius = if wizard_height < wizard.spell_range {
         (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
@@ -487,7 +495,8 @@ pub fn update_sleepwalkers(
     )>,
 ) {
     for (transform, sleepwalking, mut targeting, movement_speed) in query.iter_mut() {
-        // Walk away from the castle (SPELL_ORIGIN)
+        // Walk away from the castle (SPELL_ORIGIN). This is a host-only
+        // gameplay system; the host's wizard is at SPELL_ORIGIN.
         let away_dir = transform.translation - SPELL_ORIGIN;
         let horizontal = Vec3::new(away_dir.x, 0.0, away_dir.z);
         let length = horizontal.length();

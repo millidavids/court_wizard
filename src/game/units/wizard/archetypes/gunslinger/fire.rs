@@ -9,7 +9,6 @@ use super::constants;
 use super::resources::{FlamethrowerSfx, GunState};
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
@@ -19,10 +18,16 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::fireball::systems::spawn_fireball_entity;
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::units::wizard::spells::utils::{get_cursor_world_position, local_spell_origin_snapshot};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
-const GUN_SPAWN_POS: Vec3 = Vec3::new(SPELL_ORIGIN.x, SPELL_ORIGIN.y + 30.0, SPELL_ORIGIN.z);
+/// Gun spawn position — `local_spell_origin + (0, 30, 0)`. Computed each
+/// call from the lock-free `LocalSpellOrigin` snapshot so the multiplayer
+/// guest's gun visuals originate from their own wizard.
+fn gun_spawn_pos() -> Vec3 {
+    let origin = local_spell_origin_snapshot();
+    Vec3::new(origin.x, origin.y + 30.0, origin.z)
+}
 
 /// Initialize gun state when entering gameplay.
 #[allow(clippy::too_many_arguments)]
@@ -63,7 +68,7 @@ pub fn fire_machine_gun(
     // Spawn hitscan ray for instant damage (from origin to cursor ground position)
     spawn_hitscan_ray(
         &mut commands,
-        GUN_SPAWN_POS,
+        gun_spawn_pos(),
         shot_dir,
         range,
         constants::MACHINE_GUN_DAMAGE,
@@ -73,11 +78,11 @@ pub fn fire_machine_gun(
     spawn_tracer(
         &mut commands,
         &visual_assets,
-        GUN_SPAWN_POS,
+        gun_spawn_pos(),
         shot_dir * constants::MACHINE_GUN_BULLET_SPEED,
         range,
     );
-    spawn_muzzle_flash(&mut commands, &visual_assets, GUN_SPAWN_POS);
+    spawn_muzzle_flash(&mut commands, &visual_assets, gun_spawn_pos());
 
     ammo.current -= 1;
     ammo.fire_cooldown = constants::MACHINE_GUN_FIRE_INTERVAL;
@@ -85,7 +90,7 @@ pub fn fire_machine_gun(
     audio::play_sfx(
         &mut commands,
         &sfx.machine_gun_shot,
-        GUN_SPAWN_POS,
+        gun_spawn_pos(),
         &config,
         &sfx,
     );
@@ -122,7 +127,7 @@ pub fn fire_magnum(
 
     spawn_hitscan_ray(
         &mut commands,
-        GUN_SPAWN_POS,
+        gun_spawn_pos(),
         dir,
         range,
         constants::MAGNUM_DAMAGE,
@@ -131,11 +136,11 @@ pub fn fire_magnum(
     spawn_tracer(
         &mut commands,
         &visual_assets,
-        GUN_SPAWN_POS,
+        gun_spawn_pos(),
         dir * constants::MAGNUM_BULLET_SPEED,
         range,
     );
-    spawn_muzzle_flash(&mut commands, &visual_assets, GUN_SPAWN_POS);
+    spawn_muzzle_flash(&mut commands, &visual_assets, gun_spawn_pos());
 
     ammo.current -= 1;
     ammo.fire_cooldown = constants::MAGNUM_FIRE_INTERVAL;
@@ -143,7 +148,7 @@ pub fn fire_magnum(
     audio::play_sfx(
         &mut commands,
         &sfx.magnum_shot,
-        GUN_SPAWN_POS,
+        gun_spawn_pos(),
         &config,
         &sfx,
     );
@@ -176,7 +181,7 @@ pub fn fire_rocket(
     let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let Some(target) = cursor_pos else { return };
 
-    let direction = (target - GUN_SPAWN_POS).normalize();
+    let direction = (target - gun_spawn_pos()).normalize();
     let velocity = direction * constants::ROCKET_SPEED;
 
     // Use Fireball's own explosion radius so the rocket's detonation looks
@@ -184,7 +189,7 @@ pub fn fire_rocket(
     spawn_fireball_entity(
         &mut commands,
         &visual_assets,
-        GUN_SPAWN_POS,
+        gun_spawn_pos(),
         velocity,
         constants::ROCKET_DAMAGE,
         DamageType::Fire,
@@ -194,7 +199,7 @@ pub fn fire_rocket(
         constants::ROCKET_RADIUS * 2.0,
     );
 
-    spawn_muzzle_flash(&mut commands, &visual_assets, GUN_SPAWN_POS);
+    spawn_muzzle_flash(&mut commands, &visual_assets, gun_spawn_pos());
 
     ammo.current -= 1;
     ammo.fire_cooldown = constants::ROCKET_FIRE_INTERVAL;
@@ -202,7 +207,7 @@ pub fn fire_rocket(
     audio::play_sfx(
         &mut commands,
         &sfx.rocket_launcher_shot,
-        GUN_SPAWN_POS,
+        gun_spawn_pos(),
         &config,
         &sfx,
     );
@@ -245,7 +250,7 @@ pub fn fire_shotgun(
 
         spawn_hitscan_ray(
             &mut commands,
-            GUN_SPAWN_POS,
+            gun_spawn_pos(),
             pellet_dir,
             range,
             constants::SHOTGUN_PELLET_DAMAGE,
@@ -254,13 +259,13 @@ pub fn fire_shotgun(
         spawn_tracer(
             &mut commands,
             &visual_assets,
-            GUN_SPAWN_POS,
+            gun_spawn_pos(),
             pellet_dir * constants::SHOTGUN_BULLET_SPEED,
             range,
         );
     }
 
-    spawn_muzzle_flash(&mut commands, &visual_assets, GUN_SPAWN_POS);
+    spawn_muzzle_flash(&mut commands, &visual_assets, gun_spawn_pos());
 
     ammo.current -= 1;
     ammo.fire_cooldown = constants::SHOTGUN_FIRE_INTERVAL;
@@ -268,7 +273,7 @@ pub fn fire_shotgun(
     audio::play_sfx(
         &mut commands,
         &sfx.shotgun_shot,
-        GUN_SPAWN_POS,
+        gun_spawn_pos(),
         &config,
         &sfx,
     );
@@ -331,7 +336,7 @@ pub fn fire_flamethrower(
     // along the flame's path each frame so the projectile reads as a
     // billowing flame rather than a single sphere sprite.
     commands.spawn((
-        Transform::from_translation(GUN_SPAWN_POS),
+        Transform::from_translation(gun_spawn_pos()),
         FlameParticle {
             velocity,
             damage: constants::FLAMETHROWER_DAMAGE,

@@ -10,10 +10,61 @@ use rand::Rng;
 use bevy::prelude::Annulus;
 
 use crate::game::components::OnGameplayScreen;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, Team};
 use crate::game::units::wizard::components::{CastingState, SpellCaster, Wizard, WizardInput};
+
+/// World-space position the **local** player's spells originate from. Single-
+/// player and the multiplayer host use `SPELL_ORIGIN`; the multiplayer guest
+/// uses `SPELL_2_ORIGIN`. Set at app startup to the SP default and overridden
+/// by `init_mp_game` based on the peer's role.
+#[derive(Resource, Debug, Clone, Copy)]
+pub struct LocalSpellOrigin(pub Vec3);
+
+impl Default for LocalSpellOrigin {
+    fn default() -> Self {
+        Self(SPELL_ORIGIN)
+    }
+}
+
+// ----- Lock-free snapshot of the local spell origin for non-system callers -----
+//
+// Some helper code paths (audio attenuation, const-derived gunslinger spawn
+// positions) cannot easily take `Res<LocalSpellOrigin>` as a system param
+// because they are either plain functions or const-context expressions. They
+// read this snapshot instead. `LocalSpellOriginSyncPlugin` keeps it updated
+// from the `LocalSpellOrigin` resource so the multiplayer guest sees their
+// own wizard's value.
+
+use std::sync::atomic::{AtomicU32, Ordering};
+
+static LOCAL_ORIGIN_X: AtomicU32 = AtomicU32::new(0);
+static LOCAL_ORIGIN_Y: AtomicU32 = AtomicU32::new(0);
+static LOCAL_ORIGIN_Z: AtomicU32 = AtomicU32::new(0);
+static LOCAL_ORIGIN_INIT: std::sync::Once = std::sync::Once::new();
+
+pub(crate) fn set_local_spell_origin_snapshot(pos: Vec3) {
+    LOCAL_ORIGIN_X.store(pos.x.to_bits(), Ordering::Relaxed);
+    LOCAL_ORIGIN_Y.store(pos.y.to_bits(), Ordering::Relaxed);
+    LOCAL_ORIGIN_Z.store(pos.z.to_bits(), Ordering::Relaxed);
+}
+
+pub(crate) fn local_spell_origin_snapshot() -> Vec3 {
+    LOCAL_ORIGIN_INIT.call_once(|| set_local_spell_origin_snapshot(SPELL_ORIGIN));
+    Vec3::new(
+        f32::from_bits(LOCAL_ORIGIN_X.load(Ordering::Relaxed)),
+        f32::from_bits(LOCAL_ORIGIN_Y.load(Ordering::Relaxed)),
+        f32::from_bits(LOCAL_ORIGIN_Z.load(Ordering::Relaxed)),
+    )
+}
+
+/// Bevy system: pushes the current `LocalSpellOrigin` resource into the
+/// lock-free snapshot whenever it changes.
+pub(crate) fn update_local_spell_origin_snapshot(local_origin: Res<LocalSpellOrigin>) {
+    set_local_spell_origin_snapshot(local_origin.0);
+}
 
 /// Returns the XZ-plane distance between two points (ignoring Y).
 pub(crate) fn xz_distance(a: Vec3, b: Vec3) -> f32 {
@@ -210,15 +261,37 @@ pub(crate) fn clamp_to_spell_range_ground(
 ///
 /// Returns `None` if `cursor_pos` is `None`, otherwise clamps the position using
 /// [`clamp_to_spell_range_ground`] with `SPELL_ORIGIN` as the wizard position.
+///
+/// **For multiplayer correctness**, prefer
+/// [`clamp_cursor_to_spell_range_with_origin`] and pass the value from the
+/// `LocalSpellOrigin` resource so the guest's cursor is clamped from their own
+/// wizard's position rather than the host's.
 pub(crate) fn clamp_cursor_to_spell_range(
     cursor_pos: Option<Vec3>,
+    spell_range: f32,
+    effect_radius: f32,
+) -> Option<Vec3> {
+    clamp_cursor_to_spell_range_with_origin(
+        cursor_pos,
+        SPELL_ORIGIN,
+        spell_range,
+        effect_radius,
+    )
+}
+
+/// Like [`clamp_cursor_to_spell_range`] but accepts an explicit local origin —
+/// callers should pass the `LocalSpellOrigin` resource so the clamp is computed
+/// from the correct wizard position on both the host and the guest.
+pub(crate) fn clamp_cursor_to_spell_range_with_origin(
+    cursor_pos: Option<Vec3>,
+    local_origin: Vec3,
     spell_range: f32,
     effect_radius: f32,
 ) -> Option<Vec3> {
     let pos = cursor_pos?;
     Some(clamp_to_spell_range_ground(
         pos,
-        crate::game::constants::SPELL_ORIGIN,
+        local_origin,
         spell_range,
         effect_radius,
     ))

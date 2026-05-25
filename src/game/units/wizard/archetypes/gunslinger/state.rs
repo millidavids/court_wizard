@@ -5,9 +5,15 @@ use bevy::prelude::*;
 use super::messages::{ReloadMessage, SelectGunMessage};
 use super::resources::{FlamethrowerSfx, GunState};
 use crate::config::input_bindings::InputBindings;
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::local_spell_origin_snapshot;
 
-const GUN_SPAWN_POS: Vec3 = Vec3::new(SPELL_ORIGIN.x, SPELL_ORIGIN.y + 30.0, SPELL_ORIGIN.z);
+/// Gun spawn position — `local_spell_origin + (0, 30, 0)`. Computed each
+/// call from the lock-free `LocalSpellOrigin` snapshot so the multiplayer
+/// guest's aim calculations use their own wizard's position.
+fn gun_spawn_pos() -> Vec3 {
+    let origin = local_spell_origin_snapshot();
+    Vec3::new(origin.x, origin.y + 30.0, origin.z)
+}
 
 /// Initialize gun state when entering gameplay.
 pub fn init_gun_state(mut commands: Commands) {
@@ -89,7 +95,7 @@ pub fn auto_reload(mut gun_state: ResMut<GunState>) {
 /// Returns the direction and distance from the gun spawn position toward the cursor world position.
 pub(super) fn aim_at_cursor(cursor_pos: Option<Vec3>) -> Option<(Vec3, f32)> {
     cursor_pos.and_then(|target| {
-        let diff = target - GUN_SPAWN_POS;
+        let diff = target - gun_spawn_pos();
         let distance = diff.length();
         if distance < 1.0 {
             None

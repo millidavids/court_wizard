@@ -9,6 +9,7 @@ use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::constants::{UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, Effectiveness, PermanentCorpse, Team};
@@ -124,7 +125,7 @@ pub fn handle_raise_the_dead_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
+    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     corpse_query: Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
@@ -138,7 +139,7 @@ pub fn handle_raise_the_dead_casting(
     ),
 ) {
     let (active_talents, mut talent_progress) = talents_and_progress;
-    let (corrected_cursor, target_assist) = cursor_resources;
+    let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 
@@ -218,6 +219,7 @@ pub fn handle_raise_the_dead_casting(
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Dark,
             time.elapsed_secs(),
         );

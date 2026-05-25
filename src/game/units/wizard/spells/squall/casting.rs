@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use super::components::{SquallStorm, SquallStormRing, SquallTalentParams};
 use super::constants::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -135,6 +135,7 @@ pub(super) fn handle_squall_casting(
     existing_rings: Query<Entity, With<SquallStormRing>>,
     active_talents: Option<Res<ActiveTalents>>,
     target_assist: Res<TargetAssistWorldPos>,
+    local_origin: Res<LocalSpellOrigin>,
 ) {
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -166,12 +167,14 @@ pub(super) fn handle_squall_casting(
         &mut meshes,
         &visual_assets,
         &talent_params,
+        local_origin.0,
     );
 
     if completed {
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Force,
             time.elapsed_secs(),
         );
@@ -197,6 +200,7 @@ fn squall_casting_logic(
     meshes: &mut Assets<Mesh>,
     assets: &SpellVisualAssets,
     talent_params: &SquallTalentParams,
+    local_origin: Vec3,
 ) -> bool {
     let mut completed = false;
 
@@ -210,7 +214,7 @@ fn squall_casting_logic(
         return false;
     };
 
-    let wizard_pos = SPELL_ORIGIN;
+    let wizard_pos = local_origin;
     let scale = primed_spell.empowerment;
     let storm_radius = STORM_RADIUS * scale * talent_params.radius_mult;
 

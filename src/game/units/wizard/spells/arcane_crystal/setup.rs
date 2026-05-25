@@ -8,7 +8,7 @@ use super::components::*;
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -184,15 +184,19 @@ pub(super) fn handle_arcane_crystal_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
+    ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
     existing_crystals: Query<(Entity, &ArcaneCrystal)>,
-    target_assist: Res<TargetAssistWorldPos>,
 ) {
+    let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 
@@ -208,7 +212,7 @@ pub(super) fn handle_arcane_crystal_casting(
     // Clamp cursor to spell range
     let clamped_cursor = input
         .cursor_pos
-        .map(|pos| clamp_to_spell_range(pos, SPELL_ORIGIN, wizard.spell_range));
+        .map(|pos| clamp_to_spell_range(pos, local_origin.0, wizard.spell_range));
 
     // Handle release -- clean up indicator and SpellCaster
     if handle_spell_release(
@@ -258,6 +262,7 @@ pub(super) fn handle_arcane_crystal_casting(
         vfx::systems::spawn_school_flare(
             &mut commands,
             &visual_assets,
+            local_origin.0,
             vfx::systems::SpellSchool::Arcane,
             time.elapsed_secs(),
         );
