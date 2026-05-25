@@ -326,6 +326,30 @@ pub fn manage_staging_speedup(
     sp_state: Option<Res<State<crate::state::InGameState>>>,
     mp_state: Option<Res<State<crate::state::MultiplayerGameState>>>,
 ) {
+    // Multiplayer has no staging phase — armies are spawned in full at match
+    // start. WaveState still exists as a global resource (default
+    // `waves_complete: false`) which would otherwise leave `waves_remaining`
+    // true forever in MP, locking the game at 3x. Force baseline game speed
+    // whenever the player is in an *active* MP state — `Disconnected` and
+    // `ScoreScreen` are deliberately left alone so a future slow-motion
+    // replay or end-of-match effect can override speed without this system
+    // stamping it back to baseline every frame.
+    if mp_state.as_ref().is_some_and(|s| {
+        matches!(
+            *s.get(),
+            crate::state::MultiplayerGameState::Running
+                | crate::state::MultiplayerGameState::Paused
+                | crate::state::MultiplayerGameState::SpellBook
+                | crate::state::MultiplayerGameState::CauldronMenu
+        )
+    }) {
+        let base_speed = config.game_speed as f64;
+        if (time.relative_speed_f64() - base_speed).abs() > 0.01 {
+            time.set_relative_speed_f64(base_speed);
+        }
+        return;
+    }
+
     let has_staging = !staging_query.is_empty();
 
     let has_activated = activated_attackers

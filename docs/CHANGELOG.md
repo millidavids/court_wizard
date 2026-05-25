@@ -21,6 +21,9 @@ All notable changes to this project will be documented in this file.
 - **Multiplayer no longer spawns staging waves** — attacker waves from single-player were leaking into multiplayer matches, marching in from off-screen in formation. Multiplayer now uses only the armies spawned at match start, no incoming waves
 - **Cleaner mirrored forest backdrop** — the mirrored trees and bushes lining each player's far wall no longer occasionally end up overlapping nearby ponds or scattered terrain
 - **Smoother and more reliable multiplayer unit movement** — the network layer was dropping large position updates whenever a smaller message arrived in the middle of one, which left the other player seeing units stutter, teleport, or vanish entirely. Position updates now arrive consistently and the battlefield stays in sync. As a knock-on, spells you cast as the guest now reliably appear on the host's screen too
+- **Multiplayer units now animate properly on both screens** — the other player's units were sliding around without ever playing their walk or attack cycles, and dying units popped instantly into a corpse pose with no death frames. The same animation pipeline single-player uses now drives both players' views: walking, facing, attacking, and the full dying animation all play for every unit, on both sides
+- **Multiplayer no longer runs at 3× speed** — single-player's "wave incoming" speed-up was leaking into multiplayer and locking matches at triple time. Multiplayer now always runs at the normal game speed
+- **Marching armies no longer all step in unison** — when a fresh army first appeared on the other player's screen, every unit's walk cycle started on exactly the same frame, making them look like a single mass. Each unit's animation is now staggered by a small random offset, matching the look of single-player
 
 ## [v0.7.367] - 2026-05-10
 

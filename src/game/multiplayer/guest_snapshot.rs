@@ -35,6 +35,12 @@ use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 #[allow(clippy::type_complexity)]
 pub fn apply_state_snapshot(
     mut commands: Commands,
+    // Real (wall) time, NOT virtual time: the velocity synthesis below
+    // computes `delta / dt` and dividing by virtual-time delta blows up when
+    // the player has `config.game_speed = 0.0` or the game is otherwise
+    // virtually paused, even though real time keeps advancing and snapshots
+    // keep arriving.
+    time: Res<Time<bevy::time::Real>>,
     mut connection: ResMut<NetworkConnection>,
     mut entity_map: ResMut<NetworkEntityMap>,
     infantry_assets: Res<InfantryAssets>,
@@ -42,6 +48,7 @@ pub fn apply_state_snapshot(
     king_assets: Res<KingAssets>,
     spell_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut ghost_query: Query<
         (
             Entity,
@@ -49,6 +56,7 @@ pub fn apply_state_snapshot(
             &mut MeshMaterial3d<StandardMaterial>,
             &mut CrdtHealth,
             &mut Health,
+            &mut crate::game::components::Velocity,
             Option<&OriginalMaterial>,
             Has<RemoteFireEffect>,
             Has<RemoteFrostEffect>,
@@ -82,6 +90,17 @@ pub fn apply_state_snapshot(
 
     // Re-queue non-game data for other systems (spell snapshots)
     connection.incoming_unreliable = other_data;
+
+    // Zero all ghost velocities up front. If a snapshot arrived, the per-unit
+    // loop below will overwrite each one with a fresh synthesised value; if
+    // no snapshot arrived (or some ghosts aren't represented in the latest
+    // snapshot), they fall through with zero velocity so the shared walking
+    // animation reverts to the idle frame instead of looping the last-known
+    // motion forever.
+    for (_, _, _, _, _, mut vel, _, _, _, _, _, _) in &mut ghost_query {
+        vel.x = 0.0;
+        vel.z = 0.0;
+    }
 
     let Some(game_bytes) = latest_game_data else {
         return;
@@ -149,6 +168,7 @@ pub fn apply_state_snapshot(
                 material_ref,
                 mut crdt_health,
                 mut health,
+                mut velocity,
                 original_mat,
                 has_remote_fire,
                 has_remote_frost,
@@ -157,6 +177,29 @@ pub fn apply_state_snapshot(
                 has_corpse,
             )) = ghost_query.get_mut(local_entity)
             {
+                // Synthesise a per-second velocity from the snapshot delta
+                // so the shared animation systems (walking, facing) treat
+                // the ghost the same as a host-simulated unit.
+                //
+                // Clamp the XZ magnitude to `MAX_SYNTH_SPEED` so a single
+                // large jump (teleport, knockback, lag spike) doesn't
+                // produce a 1000+ u/s spike that flashes the walking pose
+                // and snaps facing for one frame before the next snapshot
+                // zeros it. The cap is set well above any natural unit
+                // movement speed so normal motion is never throttled.
+                const MAX_SYNTH_SPEED: f32 = 400.0;
+                let delta = pos - transform.translation;
+                let dt = time.delta_secs().max(1.0e-4);
+                let raw_xz = Vec3::new(delta.x, 0.0, delta.z) / dt;
+                let speed = raw_xz.length();
+                let clamped_xz = if speed > MAX_SYNTH_SPEED {
+                    raw_xz * (MAX_SYNTH_SPEED / speed)
+                } else {
+                    raw_xz
+                };
+                velocity.x = clamped_xz.x;
+                velocity.z = clamped_xz.z;
+
                 transform.translation = pos;
 
                 // Merge CRDT state from host (takes max of each slot)
@@ -230,15 +273,36 @@ pub fn apply_state_snapshot(
                     }
                 }
 
-                // Sync corpse state so spell targeting filters work correctly
+                // Sync corpse state so spell targeting filters work correctly.
+                // On the non-corpse → corpse transition, also kick off the
+                // shared `DyingAnimation` so the ghost plays the death frames
+                // before settling into its corpse pose — matching the SP
+                // visual where units don't pop straight from standing to
+                // laid-flat. King has no death sprite sheet (instant corpse
+                // swap in SP), so it's skipped here.
                 if is_corpse && !has_corpse {
-                    commands.entity(entity).insert(Corpse);
+                    let mut ec = commands.entity(entity);
+                    ec.insert(Corpse);
+                    if !is_king {
+                        let death_texture = if is_archer {
+                            archer_assets.death_texture.clone()
+                        } else {
+                            infantry_assets.death_texture.clone()
+                        };
+                        ec.insert(crate::game::units::components::DyingAnimation::new(
+                            death_texture,
+                        ));
+                    }
                 } else if !is_corpse && has_corpse {
                     commands.entity(entity).remove::<Corpse>();
                 }
             }
         } else {
-            // Spawn new ghost entity with Team, Health, and CrdtHealth for spell targeting
+            // Spawn new ghost entity with Team, Health, and CrdtHealth for spell targeting.
+            // Animation components (Velocity + FacingDirection + WalkingAnimation) let the
+            // shared animation systems run for ghosts the same way they run for
+            // host-simulated units — Velocity is synthesised in this system on subsequent
+            // snapshots from the position delta.
             let initial_health = Health::new(remote_crdt.max_hp);
             let entity = commands
                 .spawn((
@@ -252,6 +316,13 @@ pub fn apply_state_snapshot(
                     initial_health,
                     remote_crdt,
                     OnMultiplayerGameScreen,
+                    crate::game::components::Velocity::default(),
+                    crate::game::units::components::FacingDirection::default(),
+                    // Stagger the walk cycle so a freshly-snapshot army
+                    // doesn't flip animation frames in unison.
+                    crate::game::units::components::WalkingAnimation::new_staggered(
+                        &mut game_rng.0,
+                    ),
                 ))
                 .id();
 

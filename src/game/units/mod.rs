@@ -37,5 +37,5 @@ pub use components::UnitType;
 pub use damage::DamageType;
 pub use elite::EliteHealthBonus;
 pub use plugin::UnitsPlugin;
-pub use sets::{ApplyTransformsSet, MovementCalculationSet};
+pub use sets::{ApplyTransformsSet, GuestSnapshotSet, MovementCalculationSet};
 pub(crate) use spawning::random_position_in_cell;

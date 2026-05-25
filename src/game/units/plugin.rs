@@ -94,14 +94,48 @@ impl Plugin for UnitsPlugin {
                         .run_if(any_with_component::<ChannelingCast>),
                     movement::apply_unit_movement.in_set(ApplyTransformsSet),
                     movement::clear_corpse_velocity.after(movement::apply_unit_movement),
+                    channel::update_channel_particles.run_if(any_with_component::<ChannelParticle>),
+                    (
+                        ranged_bolt::move_magic_bolts,
+                        ranged_bolt::check_magic_bolt_collisions,
+                    )
+                        .chain()
+                        .run_if(any_with_component::<MagicBolt>),
+                )
+                    .run_if(is_gameplay_running),
+            )
+            // Animation systems run for the guest too so MP ghost units
+            // animate from their synthesised Velocity (derived in
+            // `apply_state_snapshot` from snapshot-to-snapshot position
+            // deltas) — gated on `is_spell_effects_active` rather than
+            // `is_gameplay_running` so both peers tick.
+            //
+            // Ordering:
+            // - `.after(ApplyTransformsSet)`: read SP host velocity after
+            //   `apply_unit_movement` has integrated it for the frame.
+            // - `.after(GuestSnapshotSet)`: read MP guest ghost velocity
+            //   after `apply_state_snapshot` has synthesised it from the
+            //   latest snapshot. Both `.after()`s resolve vacuously on
+            //   peers where the dependency set doesn't run.
+            // - `update_combat_animation.after(update_facing_direction)`:
+            //   so the combat sprite picks the just-updated directional row.
+            .add_systems(
+                Update,
+                (
                     systems::update_walking_animation
                         .after(ApplyTransformsSet)
+                        .after(crate::game::units::GuestSnapshotSet)
                         .run_if(any_with_component::<WalkingAnimation>),
                     systems::update_pulsing_animation
                         .after(ApplyTransformsSet)
                         .run_if(any_with_component::<PulsingAnimation>),
+                    systems::update_facing_direction
+                        .after(ApplyTransformsSet)
+                        .after(crate::game::units::GuestSnapshotSet)
+                        .run_if(any_with_component::<FacingDirection>),
                     systems::update_combat_animation
                         .after(ApplyTransformsSet)
+                        .after(systems::update_facing_direction)
                         .run_if(any_with_component::<CombatAnimation>),
                     systems::update_dying_animation
                         .after(ApplyTransformsSet)
@@ -112,18 +146,8 @@ impl Plugin for UnitsPlugin {
                     systems::update_rising_animation
                         .after(ApplyTransformsSet)
                         .run_if(any_with_component::<RisingAnimation>),
-                    systems::update_facing_direction
-                        .after(ApplyTransformsSet)
-                        .run_if(any_with_component::<FacingDirection>),
-                    channel::update_channel_particles.run_if(any_with_component::<ChannelParticle>),
-                    (
-                        ranged_bolt::move_magic_bolts,
-                        ranged_bolt::check_magic_bolt_collisions,
-                    )
-                        .chain()
-                        .run_if(any_with_component::<MagicBolt>),
                 )
-                    .run_if(is_gameplay_running),
+                    .run_if(crate::game::run_conditions::is_spell_effects_active),
             )
             // Spell damage effects must run on both host AND guest so that
             // guest spell DoTs tick and feed damage into the CRDT.

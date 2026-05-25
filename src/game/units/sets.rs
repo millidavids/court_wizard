@@ -11,3 +11,10 @@ pub struct MovementCalculationSet;
 /// This set runs after MovementCalculationSet.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ApplyTransformsSet;
+
+/// System set wrapping the multiplayer guest's snapshot-application system
+/// (`apply_state_snapshot`). Animation systems order themselves after this
+/// set so they read the synthesised ghost `Velocity` written by the snapshot
+/// rather than the previous frame's value.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct GuestSnapshotSet;
