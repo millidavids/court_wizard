@@ -3,6 +3,7 @@ use bevy::prelude::*;
 
 use crate::game::run_conditions::is_gameplay_running;
 use crate::state::AppState;
+use crate::state::MultiplayerGameState;
 
 use crate::game::messages::ComboDiscoveredMessage;
 
@@ -25,15 +26,20 @@ impl Plugin for CauldronPlugin {
             .add_message::<BrewCompleteMessage>()
             .add_message::<CancelBrewMessage>()
             .add_message::<ComboDiscoveredMessage>()
-            // Message handlers run across all InGame states so messages sent
-            // from CauldronMenu aren't lost during the state transition.
+            // Message handlers run across all InGame states (SP) and the full
+            // MultiplayerGame state tree so messages sent from CauldronMenu
+            // aren't lost during the state transition back to Running.
             .add_systems(
                 Update,
                 (
                     systems::handle_start_brew.run_if(on_message::<StartBrewMessage>),
                     systems::handle_cancel_brew.run_if(on_message::<CancelBrewMessage>),
                 )
-                    .run_if(in_state(AppState::InGame)),
+                    .run_if(
+                        in_state(AppState::InGame)
+                            .or(in_state(MultiplayerGameState::CauldronMenu))
+                            .or(in_state(MultiplayerGameState::Running)),
+                    ),
             )
             // Brewing loop, animation, and buff systems only run during gameplay.
             .add_systems(

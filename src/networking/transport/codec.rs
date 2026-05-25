@@ -86,28 +86,82 @@ pub(super) fn fragment_datagram(
         .collect()
 }
 
-/// Reassembly buffer for incoming datagram fragments.
-pub(super) struct DatagramReassembler {
-    /// Current sequence number being assembled. `None` until the first
-    /// fragment is received — distinguishes "uninitialised" from
-    /// "seq == 0", which the sender uses as its very first sequence.
-    current_sequence: Option<u16>,
-    /// Expected total fragment count.
+/// One in-flight fragmented payload.
+struct PendingPayload {
+    sequence: u16,
     expected_count: u8,
-    /// Received fragments indexed by fragment_index.
-    fragments: Vec<Option<Vec<u8>>>,
-    /// How many fragments have been received for the current sequence.
     received_count: u8,
+    fragments: Vec<Option<Vec<u8>>>,
+}
+
+/// Max number of concurrent in-progress sequences we keep around.
+///
+/// The host typically pushes 3 distinct payload kinds per frame (game
+/// snapshot, spell snapshot, CRDT snapshot), each with up to ~10 fragments.
+/// Under normal UDP reordering, fragments from successive payloads
+/// interleave — a single-slot reassembler would discard whichever payload
+/// hadn't finished yet. 8 slots leaves headroom for ~2 frames' worth of
+/// in-flight payloads.
+const MAX_PENDING_SEQUENCES: usize = 8;
+/// A "completed" sentinel kept in the recent-completions ring so duplicates
+/// or late stragglers from a finished sequence don't restart it.
+const COMPLETED_SENTINEL_LEN: usize = 16;
+
+/// Reassembly buffer for incoming datagram fragments.
+///
+/// Supports multiple concurrent in-progress sequences so a small/fast payload
+/// arriving during the middle of a fragmented larger payload doesn't cause
+/// the larger one to be dropped (which was the previous single-slot
+/// behaviour).
+pub(super) struct DatagramReassembler {
+    /// In-progress payloads. Bounded by `MAX_PENDING_SEQUENCES`; when full,
+    /// the oldest entry is evicted to make room for a new sequence.
+    pending: Vec<PendingPayload>,
+    /// Recently completed sequence numbers, to drop late duplicates.
+    recently_completed: std::collections::VecDeque<u16>,
 }
 
 impl DatagramReassembler {
     pub(super) fn new() -> Self {
         Self {
-            current_sequence: None,
-            expected_count: 0,
-            fragments: Vec::new(),
-            received_count: 0,
+            pending: Vec::with_capacity(MAX_PENDING_SEQUENCES),
+            recently_completed: std::collections::VecDeque::with_capacity(COMPLETED_SENTINEL_LEN),
         }
+    }
+
+    fn mark_completed(&mut self, sequence: u16) {
+        if self.recently_completed.len() >= COMPLETED_SENTINEL_LEN {
+            self.recently_completed.pop_front();
+        }
+        self.recently_completed.push_back(sequence);
+    }
+
+    /// Returns the highest sequence number currently being tracked across
+    /// both `pending` and `recently_completed`, using forward-progression
+    /// (small wrapping_sub deltas) as the ordering metric. `None` if both
+    /// are empty (cold start — no historical context to compare against).
+    fn newest_pending_or_completed_sequence(&self) -> Option<u16> {
+        let mut newest: Option<u16> = None;
+        for seq in self
+            .pending
+            .iter()
+            .map(|p| p.sequence)
+            .chain(self.recently_completed.iter().copied())
+        {
+            newest = Some(match newest {
+                None => seq,
+                Some(cur) => {
+                    // `seq` is "newer" than `cur` iff seq - cur is small
+                    // (forward progression in wrap-aware terms).
+                    if seq.wrapping_sub(cur) < 32768 {
+                        seq
+                    } else {
+                        cur
+                    }
+                }
+            });
+        }
+        newest
     }
 
     /// Feed a raw datagram fragment. Returns the reassembled payload if complete.
@@ -125,60 +179,83 @@ impl DatagramReassembler {
             return None;
         }
 
-        let is_new_sequence = match self.current_sequence {
-            None => true,
-            Some(cur) if cur != sequence => {
-                // Different sequence — check if newer (wrapping comparison).
-                let diff = sequence.wrapping_sub(cur);
-                if diff == 0 || diff > 32768 {
-                    // Older sequence — drop.
-                    return None;
-                }
-                true
+        // Drop late stragglers from already-completed sequences.
+        if self.recently_completed.contains(&sequence) {
+            return None;
+        }
+
+        // Drop fragments whose sequence is "much older" than anything we are
+        // currently tracking, using wrap-aware comparison. This prevents a
+        // post-wrap sequence number from being treated as a brand-new
+        // payload when an orphan from the old wrap cycle could still arrive.
+        if let Some(newest) = self.newest_pending_or_completed_sequence() {
+            let diff_back = newest.wrapping_sub(sequence);
+            // diff_back small (< 32768) means `sequence` is "older" than newest.
+            // If it's older AND not actively pending, it's a wrap-around stale
+            // packet — drop it.
+            if diff_back > 0
+                && diff_back < 32768
+                && !self.pending.iter().any(|p| p.sequence == sequence)
+            {
+                return None;
             }
-            Some(_) => false,
+        }
+
+        // Find or create the pending entry for this sequence.
+        let slot = if let Some(idx) = self.pending.iter().position(|p| p.sequence == sequence) {
+            idx
+        } else {
+            if self.pending.len() >= MAX_PENDING_SEQUENCES {
+                // Evict the oldest (front) entry.
+                self.pending.remove(0);
+            }
+            self.pending.push(PendingPayload {
+                sequence,
+                expected_count: fragment_count,
+                received_count: 0,
+                fragments: vec![None; fragment_count as usize],
+            });
+            self.pending.len() - 1
         };
 
-        if is_new_sequence {
-            self.current_sequence = Some(sequence);
-            self.expected_count = fragment_count;
-            self.fragments = vec![None; fragment_count as usize];
-            self.received_count = 0;
-        } else if fragment_count != self.expected_count {
-            // Same sequence but different fragment_count — corrupted, ignore.
+        let entry = &mut self.pending[slot];
+
+        if fragment_count != entry.expected_count {
+            // Same sequence but mismatched fragment_count — treat as corrupt and drop.
             return None;
         }
 
         let idx = fragment_index as usize;
-        if idx >= self.fragments.len() {
+        if idx >= entry.fragments.len() {
             return None;
         }
 
-        if self.fragments[idx].is_none() {
-            self.received_count += 1;
+        if entry.fragments[idx].is_none() {
+            entry.received_count += 1;
         }
-        self.fragments[idx] = Some(payload);
+        entry.fragments[idx] = Some(payload);
 
-        // All fragments received — reassemble.
-        if self.received_count == self.expected_count {
-            let total_len: usize = self
+        if entry.received_count == entry.expected_count {
+            // Complete — reassemble and remove from pending.
+            let completed = self.pending.remove(slot);
+            let total_len: usize = completed
                 .fragments
                 .iter()
                 .filter_map(|f| f.as_ref())
                 .map(|f| f.len())
                 .sum();
-            let mut result = Vec::with_capacity(total_len);
-            for data in self.fragments.iter().flatten() {
-                result.extend_from_slice(data);
+            self.mark_completed(sequence);
+            // Reject zero-length reassemblies — no legitimate sender ships an
+            // empty payload, and an empty `Vec<u8>` would surface to the
+            // game-layer deserializers as a "Failed to deserialize (0 bytes)"
+            // warning on every such datagram.
+            if total_len == 0 {
+                return None;
             }
-            // Advance sequence so duplicates are dropped.
-            self.current_sequence = Some(
-                self.current_sequence
-                    .map(|s| s.wrapping_add(1))
-                    .unwrap_or(1),
-            );
-            self.received_count = 0;
-            self.fragments.clear();
+            let mut result = Vec::with_capacity(total_len);
+            for chunk in completed.fragments.iter().flatten() {
+                result.extend_from_slice(chunk);
+            }
             Some(result)
         } else {
             None

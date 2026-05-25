@@ -62,6 +62,7 @@ pub fn is_gameplay_running(
             MultiplayerGameState::Running
                 | MultiplayerGameState::Paused
                 | MultiplayerGameState::SpellBook
+                | MultiplayerGameState::CauldronMenu
         )
     }) {
         return session.is_some_and(|s| s.role == PeerRole::Host);
@@ -110,6 +111,7 @@ pub fn is_local_wizard_active(
             MultiplayerGameState::Running
                 | MultiplayerGameState::Paused
                 | MultiplayerGameState::SpellBook
+                | MultiplayerGameState::CauldronMenu
         )
     }) {
         return true;
@@ -141,6 +143,7 @@ pub fn is_spell_effects_active(
             MultiplayerGameState::Running
                 | MultiplayerGameState::Paused
                 | MultiplayerGameState::SpellBook
+                | MultiplayerGameState::CauldronMenu
         )
     })
 }

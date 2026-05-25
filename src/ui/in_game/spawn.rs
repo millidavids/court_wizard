@@ -485,7 +485,7 @@ pub(super) fn spawn_mp_hud(mut commands: Commands, config: Res<GameConfig>) {
                     ..default()
                 })
                 .with_children(|row| {
-                    // Button group (top-left) — Spells only, no Cauldron in MP
+                    // Button group (top-left) — Spells + Cauldron
                     row.spawn(Node {
                         flex_direction: FlexDirection::Row,
                         column_gap: Val::Px(10.0),
@@ -503,6 +503,12 @@ pub(super) fn spawn_mp_hud(mut commands: Commands, config: Res<GameConfig>) {
                                 &BUTTON_STYLE,
                             );
                         }
+                        spawn_button(
+                            buttons,
+                            "Cauldron",
+                            HudButtonAction::OpenCauldronMenu,
+                            &BUTTON_STYLE,
+                        );
                     });
                 });
 
@@ -593,9 +599,11 @@ pub(super) fn hud_button_action(
                     }
                 }
                 HudButtonAction::OpenCauldronMenu => {
-                    // Cauldron only exists in single-player
                     if let Some(ref mut next_sp) = next_in_game_state {
                         next_sp.set(InGameState::CauldronMenu);
+                    }
+                    if let Some(ref mut next_mp) = next_mp_state {
+                        next_mp.set(MultiplayerGameState::CauldronMenu);
                     }
                 }
             }

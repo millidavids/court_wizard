@@ -65,6 +65,10 @@ pub enum MpSpawnTask {
     TerrainPond { pond: SavedPond },
     /// A single bush (slow terrain).
     TerrainBush { bush: SavedBush },
+    /// Load the cauldron sprite-sheet asset (must precede `Cauldron`).
+    LoadCauldronAssets,
+    /// Spawn the cauldron entity so brewing works in multiplayer.
+    Cauldron,
 }
 
 /// Resource that holds the multiplayer spawn queue.
@@ -218,6 +222,8 @@ pub fn init_mp_loading(
     queue.tasks.push(MpSpawnTask::LoadWizardAssets);
     queue.tasks.push(MpSpawnTask::HostWizard);
     queue.tasks.push(MpSpawnTask::GuestWizard);
+    queue.tasks.push(MpSpawnTask::LoadCauldronAssets);
+    queue.tasks.push(MpSpawnTask::Cauldron);
 
     commands.insert_resource(queue);
 }
@@ -259,6 +265,7 @@ pub fn process_mp_spawn_queue(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
     wizard_assets: Option<Res<WizardAssets>>,
+    cauldron_assets: Option<Res<crate::game::cauldron::resources::CauldronAssets>>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     let (mut loading_progress, mut spawn_queue, mut loading_sync) = progress;
@@ -487,6 +494,22 @@ pub fn process_mp_spawn_queue(
                     bush.sprite_index,
                     &mut obstacle_events,
                 );
+            }
+            MpSpawnTask::LoadCauldronAssets => {
+                crate::game::cauldron::systems::load_cauldron_assets(
+                    commands.reborrow(),
+                    Res::clone(&asset_server),
+                );
+            }
+            MpSpawnTask::Cauldron => {
+                if let Some(assets) = cauldron_assets.as_deref() {
+                    crate::game::cauldron::systems::spawn_cauldron(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        assets,
+                    );
+                }
             }
         }
     }

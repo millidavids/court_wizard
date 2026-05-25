@@ -37,6 +37,7 @@ pub(super) fn in_mp_running(state: Option<Res<State<MultiplayerGameState>>>) -> 
             MultiplayerGameState::Running
                 | MultiplayerGameState::Paused
                 | MultiplayerGameState::SpellBook
+                | MultiplayerGameState::CauldronMenu
         )
     })
 }
@@ -395,7 +396,9 @@ pub(super) fn mp_escape_key_handler(
         MultiplayerGameState::Running => {
             next_mp_state.set(MultiplayerGameState::Paused);
         }
-        MultiplayerGameState::Paused | MultiplayerGameState::SpellBook => {
+        MultiplayerGameState::Paused
+        | MultiplayerGameState::SpellBook
+        | MultiplayerGameState::CauldronMenu => {
             next_mp_state.set(MultiplayerGameState::Running);
         }
         _ => {}

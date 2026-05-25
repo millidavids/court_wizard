@@ -190,6 +190,9 @@ pub enum MultiplayerGameState {
     /// Spell book overlay (gameplay continues in background).
     SpellBook,
 
+    /// Cauldron menu overlay (gameplay continues in background).
+    CauldronMenu,
+
     /// Score screen shown after multiplayer battle ends.
     ScoreScreen,
 

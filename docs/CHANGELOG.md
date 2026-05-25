@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **Multiplayer is back** — host or join a game directly from the **Multiplayer** tab in the Wizard Tower, with no separate lobby screen. Host a game and share your code; your friend pastes it in to connect. Once you're both connected, each player picks a wizard and readies up, and the host starts the match
 - **Multiplayer battles are now properly rendered** — the multiplayer arena now has the full visuals you'd expect: tiled ground, walls, the lava pool and water pond, plus boulders, trees, ponds, bushes, and flowers scattered around. A matching tree-and-bush forest backdrops each player's far wall so both sides have the same foresty feel. Both players see the same terrain layout, each from their own side of the arena, with walls and ground oriented correctly from their own perspective
+- **Cauldron is available in multiplayer** — the Cauldron button now appears on the in-match HUD for both players. Open it mid-battle to brew an ingredient and apply the same buffs you'd get in single-player. Gameplay, projectiles, and the brew timer all keep ticking in the background while the menu is open, just like the Spell Book
 
 ### Changed
 - **Multiplayer lobby reworked** — the connection controls (Host Game, Join Game, Online/LAN) now sit in the right-hand panel like the rest of the game. Once you're connected, the left panel becomes a match-details view showing who picked which wizard and who's ready, with a Ready button for each player and a Start Game button for the host that unlocks once both players are ready. You switch wizard using the same picker the other game modes use. The Copy and Paste buttons sit right next to the code box with a confirmation message, and the connection mode reads plainly as "Online" or "LAN", defaulting to Online so you can play with friends anywhere
@@ -19,6 +20,7 @@ All notable changes to this project will be documented in this file.
 - **Sleepwalking enemies on the guest's side now walk the right way** — units put to sleep with the Dreamwalker talent on the guest's side were wandering toward the wrong corner of the map. They now walk away from the guest's own castle, as intended
 - **Multiplayer no longer spawns staging waves** — attacker waves from single-player were leaking into multiplayer matches, marching in from off-screen in formation. Multiplayer now uses only the armies spawned at match start, no incoming waves
 - **Cleaner mirrored forest backdrop** — the mirrored trees and bushes lining each player's far wall no longer occasionally end up overlapping nearby ponds or scattered terrain
+- **Smoother and more reliable multiplayer unit movement** — the network layer was dropping large position updates whenever a smaller message arrived in the middle of one, which left the other player seeing units stutter, teleport, or vanish entirely. Position updates now arrive consistently and the battlefield stays in sync. As a knock-on, spells you cast as the guest now reliably appear on the host's screen too
 
 ## [v0.7.367] - 2026-05-10
 
