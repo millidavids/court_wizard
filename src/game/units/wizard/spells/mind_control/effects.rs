@@ -56,6 +56,7 @@ fn confused_combat_attack(
     attacker_pos: Vec3,
     attacker_hitbox: &Hitbox,
     current_time: f32,
+    last_time: f32,
     timing: &mut AttackTiming,
     potential_targets: &mut Query<
         (
@@ -68,7 +69,6 @@ fn confused_combat_attack(
         Without<Corpse>,
     >,
 ) {
-    let last_time = (current_time - crate::game::constants::APPROX_FRAME_TIME).max(0.0);
     if !timing.can_attack(current_time, last_time) {
         return;
     }
@@ -146,6 +146,7 @@ pub(super) fn tick_amnesia_effect(
 ) {
     let delta = time.delta_secs();
     let current_time = attack_cycle.current_time;
+    let last_time = attack_cycle.previous_time;
 
     for (entity, transform, hitbox, mut amnesia, mut timing) in &mut amnesia_query {
         amnesia.time_remaining -= delta;
@@ -160,6 +161,7 @@ pub(super) fn tick_amnesia_effect(
             transform.translation,
             hitbox,
             current_time,
+            last_time,
             &mut timing,
             &mut potential_targets,
         );

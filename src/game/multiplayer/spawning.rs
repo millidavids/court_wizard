@@ -38,7 +38,13 @@ use super::components::OnMultiplayerGameScreen;
 fn staggered_attack_timing() -> AttackTiming {
     use rand::Rng;
     let mut rng = rand::rng();
-    let offset = rng.random_range(0.0..crate::game::constants::ATTACK_CYCLE_DURATION);
+    // `f32::EPSILON..` excludes exactly 0.0 — combined with
+    // `can_attack`'s strict `attack_time > last_time`, a recorded slot of
+    // 0.0 paired with the cycle's `last_time` also being 0.0 (on the very
+    // first frame after game start) would silently block that unit for a
+    // full cycle. Vanishingly rare with random_range, but easy to exclude.
+    let offset =
+        rng.random_range(f32::EPSILON..crate::game::constants::ATTACK_CYCLE_DURATION);
     let mut timing = AttackTiming::new();
     timing.last_attack_time = Some(offset);
     timing
@@ -491,6 +497,11 @@ pub(super) fn spawn_mp_kings_guard(
         Mesh3d(infantry_assets.sprite_mesh.clone()),
         MeshMaterial3d(guard_material),
         Transform::from_xyz(final_x, spawn_y, final_z),
+        // `Velocity` is required so the entity passes the host's
+        // `send_state_snapshots` query (`&Velocity`). Without it King's
+        // Guards silently fall out of every snapshot → guest never sees
+        // them and they appear invincible/missing.
+        crate::game::components::Velocity::default(),
         hitbox,
         Health::new(UNIT_HEALTH),
         staggered_attack_timing(),

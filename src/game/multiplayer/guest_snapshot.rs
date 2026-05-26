@@ -88,17 +88,6 @@ pub fn forward_spell_hits_to_host(
 #[allow(clippy::type_complexity)]
 pub fn apply_state_snapshot(
     mut commands: Commands,
-    // Real (wall) time, NOT virtual time: the velocity synthesis below
-    // computes `delta / dt` and dividing by virtual-time delta blows up when
-    // the player has `config.game_speed = 0.0` or the game is otherwise
-    // virtually paused, even though real time keeps advancing and snapshots
-    // keep arriving.
-    time: Res<Time<bevy::time::Real>>,
-    // Wall-clock time of the most recent snapshot we processed. Used to
-    // decay ghost velocities toward zero during extended snapshot outages
-    // so units don't appear to walk-in-place forever during a network
-    // blip. `0.0` sentinel = "no snapshot yet, don't decay anything."
-    mut last_snapshot_real_time: Local<f32>,
     mut connection: ResMut<NetworkConnection>,
     mut entity_map: ResMut<NetworkEntityMap>,
     infantry_assets: Res<InfantryAssets>,
@@ -149,14 +138,13 @@ pub fn apply_state_snapshot(
     // Re-queue non-game data for other systems (spell snapshots)
     connection.incoming_unreliable = other_data;
 
-    // Ghost velocities deliberately persist between snapshots — when a
-    // packet drops, continuing the previous animation looks better than
-    // flickering to idle. The host's "unit stopped" tick will eventually
-    // send delta=0 → velocity=0 → idle on the correct frame.
+    // Velocities are now host-authoritative (shipped in `UnitSnapshot.vx/vz`);
+    // between snapshots the last written value persists, which is exactly
+    // what we want — animations stay smooth during brief packet gaps and
+    // wind down naturally when the host's next snapshot reports zero.
     let Some(game_bytes) = latest_game_data else {
         return;
     };
-    *last_snapshot_real_time = time.elapsed_secs();
 
     let Ok(snapshot) = bincode::deserialize::<GameSnapshot>(game_bytes) else {
         warn!(
@@ -229,28 +217,35 @@ pub fn apply_state_snapshot(
                 has_corpse,
             )) = ghost_query.get_mut(local_entity)
             {
-                // Synthesise a per-second velocity from the snapshot delta
-                // so the shared animation systems (walking, facing) treat
-                // the ghost the same as a host-simulated unit.
+                // Use the host's AUTHORITATIVE velocity from the snapshot.
+                // Synthesising velocity locally from position deltas caused
+                // the walking animation to reset to idle every time the
+                // host's unit briefly stopped (between targeting decisions,
+                // wall-avoidance moments, etc.) — the delta was zero, the
+                // synthesised speed was below the animation move threshold,
+                // and `update_walking_animation` reset to frame 0. With the
+                // host's actual `Velocity` shipped in the snapshot, guest
+                // animations match the host's exactly.
                 //
-                // Clamp the XZ magnitude to `MAX_SYNTH_SPEED` so a single
-                // large jump (teleport, knockback, lag spike) doesn't
-                // produce a 1000+ u/s spike that flashes the walking pose
-                // and snaps facing for one frame before the next snapshot
-                // zeros it. The cap is set well above any natural unit
-                // movement speed so normal motion is never throttled.
-                const MAX_SYNTH_SPEED: f32 = 400.0;
-                let delta = pos - transform.translation;
-                let dt = time.delta_secs().max(1.0e-4);
-                let raw_xz = Vec3::new(delta.x, 0.0, delta.z) / dt;
-                let speed = raw_xz.length();
-                let clamped_xz = if speed > MAX_SYNTH_SPEED {
-                    raw_xz * (MAX_SYNTH_SPEED / speed)
+                // Defence-in-depth: reject NaN/Inf (which would propagate
+                // into `speed_sq` and make every IEEE comparison return
+                // false → animation ticks forever and any future system
+                // that integrates this velocity into a Transform corrupts
+                // position), and cap magnitude at a sane upper bound so a
+                // pathological host spike (knockback math error, etc.)
+                // doesn't flash through the animation for one frame.
+                const MAX_REMOTE_SPEED: f32 = 400.0;
+                let raw_x = if unit.vx.is_finite() { unit.vx } else { 0.0 };
+                let raw_z = if unit.vz.is_finite() { unit.vz } else { 0.0 };
+                let raw_speed_sq = raw_x * raw_x + raw_z * raw_z;
+                let (cx, cz) = if raw_speed_sq > MAX_REMOTE_SPEED * MAX_REMOTE_SPEED {
+                    let scale = MAX_REMOTE_SPEED / raw_speed_sq.sqrt();
+                    (raw_x * scale, raw_z * scale)
                 } else {
-                    raw_xz
+                    (raw_x, raw_z)
                 };
-                velocity.x = clamped_xz.x;
-                velocity.z = clamped_xz.z;
+                velocity.x = cx;
+                velocity.z = cz;
 
                 transform.translation = pos;
 
@@ -353,8 +348,8 @@ pub fn apply_state_snapshot(
             // Spawn new ghost entity with Team, Health, and CrdtHealth for spell targeting.
             // Animation components (Velocity + FacingDirection + WalkingAnimation) let the
             // shared animation systems run for ghosts the same way they run for
-            // host-simulated units — Velocity is synthesised in this system on subsequent
-            // snapshots from the position delta.
+            // host-simulated units — Velocity starts at default and is overwritten
+            // on subsequent snapshots from the host's authoritative `UnitSnapshot.vx/vz`.
             // Give the ghost the SAME `Hitbox` SP uses for this unit type
             // so SP spell-collision systems (fireball, ice, etc.) running
             // on this peer can land on it. Damage applied to the ghost's

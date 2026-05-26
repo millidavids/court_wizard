@@ -242,7 +242,10 @@ pub fn units_attack_blocking_rocks(
     mut rocks: Query<(Entity, &Boulder, &mut ObstacleHealth)>,
 ) {
     let current_time = attack_cycle.current_time;
-    let last_time = (current_time - crate::game::constants::APPROX_FRAME_TIME).max(0.0);
+    // `previous_time` is the cycle position before the most recent `tick()` —
+    // see `GlobalAttackCycle` doc for why this is preferred over the
+    // `current_time - APPROX_FRAME_TIME` approximation.
+    let last_time = attack_cycle.previous_time;
 
     for (transform, hitbox, flow_vel, mut attack_timing, _health, _temp_hp) in &mut blocked_units {
         // Only target boulders if this unit has no valid path

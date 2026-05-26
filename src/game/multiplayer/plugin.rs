@@ -132,11 +132,12 @@ impl Plugin for MultiplayerGamePlugin {
         );
 
         // ── Guest: Unit Snapshot Rendering + CRDT Send ─────────────────
-        // `apply_state_snapshot` writes ghost `Velocity` from snapshot
-        // deltas. Tagging it with `GuestSnapshotSet` lets the shared
-        // animation systems (registered in `UnitsPlugin`) order themselves
-        // after the write via `.after(GuestSnapshotSet)`, so they always
-        // read the just-synthesised velocity.
+        // `apply_state_snapshot` writes ghost `Velocity` straight from the
+        // host's `UnitSnapshot.vx/vz` fields. Tagging it with
+        // `GuestSnapshotSet` lets the shared animation systems (registered
+        // in `UnitsPlugin`) order themselves after the write via
+        // `.after(GuestSnapshotSet)` so they always see the host's
+        // authoritative velocity for this frame.
         app.add_systems(
             Update,
             (

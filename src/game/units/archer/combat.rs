@@ -81,7 +81,10 @@ pub fn archer_melee_combat(
     )>,
 ) {
     let current_time = attack_cycle.current_time;
-    let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
+    // `previous_time` is the cycle position before the most recent `tick()` —
+    // see `GlobalAttackCycle` doc for why this is preferred over the
+    // `current_time - APPROX_FRAME_TIME` approximation.
+    let last_time = attack_cycle.previous_time;
 
     // Collect snapshot of all targets
     let targets_snapshot: Vec<_> = targets

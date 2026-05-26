@@ -50,6 +50,11 @@ pub fn send_state_snapshots(
     units: Query<(
         &NetworkEntityId,
         &Transform,
+        // Host-authoritative velocity — ships in the snapshot so the guest
+        // can write it directly onto ghost units instead of synthesising
+        // from position deltas (which jitters whenever the host's unit
+        // briefly stops, causing the walking animation to reset to idle).
+        &crate::game::components::Velocity,
         &Team,
         &Health,
         Option<&CrdtHealth>,
@@ -75,6 +80,7 @@ pub fn send_state_snapshots(
     for (
         net_id,
         transform,
+        velocity,
         team,
         health,
         crdt_health,
@@ -91,6 +97,7 @@ pub fn send_state_snapshots(
         snapshot.units.push(build_unit_snapshot(
             net_id,
             transform,
+            velocity,
             team,
             health,
             crdt_health,

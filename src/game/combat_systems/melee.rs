@@ -113,7 +113,14 @@ pub fn combat(
     let (combat_infantry_assets, combat_assassin_assets, combat_undead_assets) =
         &combat_anim_assets;
     let current_time = attack_cycle.current_time;
-    let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
+    // Real previous cycle time, recorded by `tick()`. Using the actual
+    // delta (rather than `current_time - APPROX_FRAME_TIME`) keeps the
+    // can_attack window exactly as wide as the cycle advanced this frame,
+    // which prevents the "fast-frame re-fire" instakill (window too wide
+    // → unit fires twice) and the "slow-frame slot skip" miss (window
+    // too narrow → unit misses its turn) both inherent to the old
+    // constant-subtraction approximation.
+    let last_time = attack_cycle.previous_time;
 
     // Collect snapshot of all units for enemy detection (includes bosses as targets)
     // Exclude banished units so they cannot be targeted while removed from play.

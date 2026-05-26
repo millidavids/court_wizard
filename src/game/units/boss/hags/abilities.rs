@@ -928,7 +928,10 @@ pub fn mind_controlled_combat(
     >,
 ) {
     let current_time = attack_cycle.current_time;
-    let last_time = (current_time - crate::game::constants::APPROX_FRAME_TIME).max(0.0);
+    // `previous_time` is the cycle position before the most recent `tick()` —
+    // see `GlobalAttackCycle` doc for why this is preferred over the
+    // `current_time - APPROX_FRAME_TIME` approximation.
+    let last_time = attack_cycle.previous_time;
 
     for (mc_entity, mc_transform, mc_hitbox, mc_team, mut timing, mc) in &mut controlled {
         if !timing.can_attack(current_time, last_time) {

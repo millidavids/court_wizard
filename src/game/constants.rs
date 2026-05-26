@@ -245,9 +245,6 @@ pub const MELEE_SLOWDOWN_FACTOR: f32 = 0.3;
 /// Distance threshold to be considered "in melee" for slowdown purposes.
 pub const MELEE_SLOWDOWN_DISTANCE: f32 = 50.0 * UNIT_SCALE;
 
-/// Approximate frame time for attack window detection (in seconds).
-pub const APPROX_FRAME_TIME: f32 = 0.016;
-
 // ===== Flocking Constants =====
 
 /// Maximum distance to consider a unit as a neighbor for flocking behavior.

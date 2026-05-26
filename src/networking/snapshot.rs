@@ -27,6 +27,19 @@ pub struct GameSnapshot {
 }
 
 /// Per-unit state with CRDT health data (~37 bytes).
+/// Per-unit network snapshot.
+///
+/// **Wire-format note:** bincode 1.x encodes fields positionally with no
+/// version tags, so adding/removing/reordering any field is a breaking
+/// change — mixed-version peers silently misread later fields as garbage
+/// rather than failing fast. MP currently requires same-version peers.
+/// If you ever need cross-version sessions, prefix the snapshot with a
+/// protocol-version byte or move to a tagged encoding.
+///
+/// Velocity is XZ-only (`vx`, `vz`). The `Velocity` component itself has
+/// no `y`, and animation systems read only XZ. If a future airborne ghost
+/// type ever cares about vertical motion, add a `vy` field here and ship
+/// it through `build_unit_snapshot`.
 #[derive(Serialize, Deserialize)]
 pub struct UnitSnapshot {
     /// Network entity ID assigned by the host.
@@ -37,6 +50,10 @@ pub struct UnitSnapshot {
     pub y: f32,
     /// World position Z.
     pub z: f32,
+    /// Velocity X (host-authoritative, used by guest animation systems).
+    pub vx: f32,
+    /// Velocity Z (host-authoritative, used by guest animation systems).
+    pub vz: f32,
     /// Team encoded as u8: 0=Defenders, 1=Attackers, 2=Undead.
     pub team: u8,
     /// Health as a 0-100 percentage (for visual rendering).
@@ -91,6 +108,7 @@ pub fn u8_to_team(val: u8) -> Team {
 pub fn build_unit_snapshot(
     net_id: &NetworkEntityId,
     transform: &Transform,
+    velocity: &crate::game::components::Velocity,
     team: &Team,
     health: &Health,
     crdt_health: Option<&crate::networking::crdt::CrdtHealth>,
@@ -148,6 +166,8 @@ pub fn build_unit_snapshot(
         x: transform.translation.x,
         y: transform.translation.y,
         z: transform.translation.z,
+        vx: velocity.x,
+        vz: velocity.z,
         team: team_to_u8(team),
         health_pct,
         flags,

@@ -206,6 +206,14 @@ impl AttackTiming {
     /// Returns true if the unit can attack at the current cycle time.
     /// Units can attack if they haven't attacked yet, or if the cycle has come back
     /// around to their attack time.
+    ///
+    /// **Window is `(last_time, current_time]`** — strictly greater than
+    /// `last_time`. If we used `>=`, then immediately after `record_attack`
+    /// (which sets `attack_time = current_time`) the next frame's window
+    /// `[last=current, new_current]` would still contain `attack_time`,
+    /// causing the unit to fire every frame until the cycle wraps — a
+    /// 60-hits-per-second instakill in tight melee. The strict `>` makes
+    /// the unit's slot fire exactly once per cycle.
     pub fn can_attack(&self, current_time: f32, last_time: f32) -> bool {
         match self.last_attack_time {
             None => true, // Never attacked, can attack immediately
@@ -214,10 +222,10 @@ impl AttackTiming {
                 // Handle wrap-around: if current < last, we wrapped around
                 if current_time < last_time {
                     // We wrapped, check if attack_time is in the wrapped portion
-                    attack_time >= last_time || attack_time <= current_time
+                    attack_time > last_time || attack_time <= current_time
                 } else {
                     // Normal case: check if we're in the window since last update
-                    attack_time >= last_time && attack_time <= current_time
+                    attack_time > last_time && attack_time <= current_time
                 }
             }
         }
