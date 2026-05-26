@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.8.26] - 2026-05-26
 
 ### Added
 - **Multiplayer is back** — host or join a game directly from the **Multiplayer** tab in the Wizard Tower, with no separate lobby screen. Host a game and share your code; your friend pastes it in to connect. Once you're both connected, each player picks a wizard and readies up, and the host starts the match
