@@ -26,6 +26,59 @@ use crate::networking::snapshot::{
 use super::components::{GhostArrow, GhostEntity, OnMultiplayerGameScreen};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
+/// Guest-side forwarder: when a spell on the guest applies damage to a
+/// ghost unit, SP's `apply_spell_damage` inserts a `PendingDamageEffect`
+/// on the target. We **poll** for any such component (deliberately not
+/// `Added<>`) each frame because `apply_spell_damage` queues inserts via
+/// `Commands`; the component isn't visible to an `Added` filter until
+/// after the next command flush, and a ghost killed before the flush
+/// would never be forwarded. Polling catches both same-frame inserts and
+/// any that survive across a frame.
+///
+/// The host then owns status-effect bookkeeping (DoT stacks, durations,
+/// snapshot flags). After forwarding, the local `PendingDamageEffect` is
+/// removed so the guest doesn't *also* tick the DoT (which would double-
+/// apply on top of the host-ticked damage that propagates back via CRDT).
+///
+/// Excremage conversion: a guest playing Excremage should turn every spell
+/// hit into a Poop hit, but `process_pending_damage_effects` does that
+/// lookup against the LOCAL `GameConfig.wizard_type` — and on the host
+/// that's the host's wizard, not the guest's. So we do the conversion here
+/// on the guest before forwarding, using the guest's own config.
+pub fn forward_spell_hits_to_host(
+    mut commands: Commands,
+    mut connection: ResMut<NetworkConnection>,
+    config: Res<crate::config::GameConfig>,
+    hits: Query<
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::components::PendingDamageEffect,
+        ),
+        With<super::components::GhostEntity>,
+    >,
+) {
+    let excremage =
+        config.wizard_type == crate::config::WizardType::Excremage;
+    for (entity, net_id, pending) in &hits {
+        let damage_type = if excremage {
+            crate::game::units::damage::DamageType::Poop
+        } else {
+            pending.damage_type
+        };
+        connection
+            .outgoing_messages
+            .push(crate::networking::protocol::NetworkMessage::SpellHitUnit {
+                target_network_id: net_id.0,
+                damage: pending.damage,
+                damage_type: damage_type.to_u8(),
+            });
+        commands
+            .entity(entity)
+            .remove::<crate::game::units::components::PendingDamageEffect>();
+    }
+}
+
 /// Receives the latest unit state snapshot from the host and creates/updates/despawns
 /// ghost entities to match the host's game state.
 ///
@@ -302,6 +355,39 @@ pub fn apply_state_snapshot(
             // shared animation systems run for ghosts the same way they run for
             // host-simulated units — Velocity is synthesised in this system on subsequent
             // snapshots from the position delta.
+            // Give the ghost the SAME `Hitbox` SP uses for this unit type
+            // so SP spell-collision systems (fireball, ice, etc.) running
+            // on this peer can land on it. Damage applied to the ghost's
+            // `Health` flows through `sync_health_to_crdt` → CRDT slot →
+            // peer snapshot → host's authoritative units lose HP. This is
+            // the entire reason guest-cast spells now reach host units
+            // without any per-spell network-message plumbing.
+            //
+            // **Known gap (latent):** today MP only spawns infantry / archer
+            // / king / king's-guard, all covered by this three-way branch.
+            // If MP ever spawns brutes / healers / dispellers / etc., add
+            // their unit type to `UnitFlags` and a corresponding branch
+            // here — otherwise their ghosts get the infantry hitbox (32u
+            // vs e.g. brute's 80u) and spells will miss them.
+            use crate::game::units::components::Hitbox;
+            let hitbox = if is_king {
+                Hitbox::new(
+                    crate::game::units::king::constants::KING_RADIUS,
+                    crate::game::units::king::constants::KING_HITBOX_HEIGHT,
+                )
+            } else if is_archer {
+                Hitbox::new(
+                    crate::game::units::archer::constants::ARCHER_RADIUS,
+                    crate::game::constants::DEFENDER_HITBOX_HEIGHT,
+                )
+            } else {
+                // Infantry and king's guards both use the standard unit radius.
+                Hitbox::new(
+                    crate::game::units::infantry::constants::UNIT_RADIUS,
+                    crate::game::constants::DEFENDER_HITBOX_HEIGHT,
+                )
+            };
+
             let initial_health = Health::new(remote_crdt.max_hp);
             let entity = commands
                 .spawn((
@@ -314,6 +400,7 @@ pub fn apply_state_snapshot(
                     NetworkEntityId(unit.id),
                     initial_health,
                     remote_crdt,
+                    hitbox,
                     OnMultiplayerGameScreen,
                     crate::game::components::Velocity::default(),
                     crate::game::units::components::FacingDirection::default(),

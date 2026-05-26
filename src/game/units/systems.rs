@@ -332,14 +332,21 @@ pub fn process_pending_damage_effects(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     config: Res<GameConfig>,
-    pending_query: Query<(
-        Entity,
-        &PendingDamageEffect,
-        &Transform,
-        Has<SpellShield>,
-        Has<ColdModifier>,
-        Has<DryModifier>,
-    )>,
+    // `Without<GhostEntity>` keeps multiplayer ghost units out of the
+    // local SP pipeline — those get their PendingDamageEffect forwarded
+    // to the host via `forward_spell_hits_to_host` and processed on the
+    // host's authoritative copy instead.
+    pending_query: Query<
+        (
+            Entity,
+            &PendingDamageEffect,
+            &Transform,
+            Has<SpellShield>,
+            Has<ColdModifier>,
+            Has<DryModifier>,
+        ),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
     mut fire_query: Query<&mut FireDoT>,
     mut frost_query: Query<&mut FrostAccumulation>,
     mut electric_query: Query<&mut Shocked>,
@@ -545,15 +552,21 @@ pub fn update_frost_accumulation(
 pub fn update_fire_dot(
     mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<(
-        Entity,
-        &mut FireDoT,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-        Has<SpellShield>,
-        Has<WetModifier>,
-        Option<&FrostAccumulation>,
-    )>,
+    // Skip multiplayer ghost units — the host owns their authoritative
+    // FireDoT and ticks damage there; CRDT propagates the resulting HP
+    // back to the ghost. Ticking it locally would double-apply.
+    mut query: Query<
+        (
+            Entity,
+            &mut FireDoT,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+            Has<WetModifier>,
+            Option<&FrostAccumulation>,
+        ),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
 ) {
     /// Rate at which frost quenches fire DPS (DPS reduction per second per frost level).
     const FROST_QUENCHES_FIRE_RATE: f32 = 5.0;
@@ -686,7 +699,11 @@ pub fn update_electric_charge(
             &Team,
             Has<ChargedModifier>,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            // Ghosts: host owns Shocked → CRDT propagates damage; skip locally.
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
     target_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut health_query: Query<
@@ -816,7 +833,10 @@ pub fn update_electric_charge(
 pub fn update_poisoned(
     mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<(Entity, &mut PoisonedModifier, &mut Effectiveness)>,
+    mut query: Query<
+        (Entity, &mut PoisonedModifier, &mut Effectiveness),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
     mut sickened_events: MessageWriter<crate::game::achievements::messages::UnitSickenedMessage>,
 ) {
     let delta = time.delta_secs();
@@ -856,7 +876,10 @@ pub fn update_poisoned(
 pub fn update_sickened(
     mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<(Entity, &mut SickenedModifier)>,
+    mut query: Query<
+        (Entity, &mut SickenedModifier),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
 ) {
     let delta = time.delta_secs();
 

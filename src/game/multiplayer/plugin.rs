@@ -166,6 +166,31 @@ impl Plugin for MultiplayerGamePlugin {
             host_systems::receive_teleport_message.run_if(mp_running.and(is_multiplayer_host)),
         );
 
+        // ── Host: Receive Guest Spell Hits ────────────────────────────
+        // Ordered explicitly `.before(process_pending_damage_effects)` so
+        // the inserted `PendingDamageEffect` is at least visible to the
+        // pending-processor on the very next frame after the command flush;
+        // without the ordering Bevy could schedule the processor first and
+        // delay the DoT by two frames instead of one.
+        app.add_systems(
+            Update,
+            host_systems::receive_spell_hit_messages
+                .before(crate::game::units::systems::process_pending_damage_effects)
+                .run_if(mp_running.and(is_multiplayer_host)),
+        );
+
+        // ── Guest: Forward Local Spell Hits to Host ───────────────────
+        // When a guest's local spell explosion damages a ghost unit (which
+        // inserts `PendingDamageEffect` via SP's `apply_spell_damage`), this
+        // system catches the new component, ships a `SpellHitUnit` message
+        // to the host, then removes the local `PendingDamageEffect` so the
+        // guest doesn't double-tick the DoT against the host-ticked one.
+        app.add_systems(
+            Update,
+            guest_systems::forward_spell_hits_to_host
+                .run_if(mp_running.and(is_multiplayer_guest)),
+        );
+
         // ── Guest: Game Over Message ──────────────────────────────────
         app.add_systems(
             Update,

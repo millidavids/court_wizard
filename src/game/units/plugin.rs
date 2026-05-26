@@ -149,8 +149,20 @@ impl Plugin for UnitsPlugin {
                 )
                     .run_if(crate::game::run_conditions::is_spell_effects_active),
             )
-            // Spell damage effects must run on both host AND guest so that
-            // guest spell DoTs tick and feed damage into the CRDT.
+            // Status-effect bookkeeping runs on BOTH peers — but the
+            // affected queries skip ghost units (see `Without<GhostEntity>`
+            // inside each system). That gives us:
+            //   • Local wizards on each peer process their own DoTs locally
+            //     (e.g. guest takes friendly-fire fireball → guest's wizard
+            //     burns) — without this the wizard's PendingDamageEffect would
+            //     accumulate forever with no FireDoT ever applied.
+            //   • Host's authoritative units run the full SP pipeline as in
+            //     SP — process → FireDoT → tick damage → CRDT.
+            //   • Guest's GHOST units are NOT processed locally. Instead,
+            //     `forward_spell_hits_to_host` ships a `SpellHitUnit` message
+            //     to the host, which applies the effect on its authoritative
+            //     copy; the resulting status bit comes back via the snapshot
+            //     and renders as `RemoteFireEffect` on the ghost.
             .add_systems(
                 Update,
                 (

@@ -347,7 +347,14 @@ fn spawn_cluster_bombs(
             ))
             .id();
 
-        vfx::systems::spawn_fire_glow(commands, assets, entity, origin, visual_radius);
+        vfx::systems::spawn_fire_glow(
+            commands,
+            assets,
+            entity,
+            origin,
+            visual_radius,
+            OnGameplayScreen,
+        );
     }
 }
 

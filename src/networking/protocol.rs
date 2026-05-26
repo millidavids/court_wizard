@@ -68,6 +68,23 @@ pub enum NetworkMessage {
         dest_z: f32,
         radius: f32,
     },
+
+    /// Guest tells the host that one of its spells just impacted a unit.
+    ///
+    /// Status-effect bookkeeping is host-authoritative: the host receives this
+    /// message, inserts the standard `PendingDamageEffect` on the matching
+    /// local entity (resolved through `NetworkEntityMap`), and SP's existing
+    /// `process_pending_damage_effects` pipeline takes over from there —
+    /// FireDoT / FrostAccumulation / Shocked / Poisoned all flow through that
+    /// shared code path on the host. The host's normal snapshot then ships
+    /// the resulting status flag (e.g. `UnitFlags::FIRE_EFFECT`) back to the
+    /// guest, which renders the visual via `RemoteFireEffect` etc.
+    SpellHitUnit {
+        target_network_id: u32,
+        damage: f32,
+        /// Serialized `DamageType` ordinal — see `DamageType::from_u8`.
+        damage_type: u8,
+    },
 }
 
 /// Result of a multiplayer match.

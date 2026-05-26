@@ -253,17 +253,9 @@ fn spawn_fireball_with_talents(
     fireball.chain_ignition = chain_ignition;
     fireball.explosion_duration = explosion_duration;
 
-    let entity = commands
-        .spawn((
-            Mesh3d(assets.cross_plane_sphere.clone()),
-            MeshMaterial3d(assets.fireball_projectile.clone()),
-            Transform::from_translation(spawn_origin).with_scale(Vec3::splat(visual_radius)),
-            fireball,
-            OnGameplayScreen,
-        ))
-        .id();
-
-    vfx::systems::spawn_fire_glow(commands, assets, entity, spawn_origin, visual_radius);
+    let entity =
+        spawn_fireball_visuals(commands, assets, spawn_origin, visual_radius, OnGameplayScreen);
+    commands.entity(entity).insert(fireball);
 }
 
 /// Spawns a raw fireball entity with explicit parameters.
@@ -282,25 +274,41 @@ pub(crate) fn spawn_fireball_entity(
     empowerment: f32,
     visual_radius: f32,
 ) -> Entity {
+    let entity =
+        spawn_fireball_visuals(commands, assets, origin, visual_radius, OnGameplayScreen);
+    commands.entity(entity).insert(Fireball::new(
+        velocity,
+        damage,
+        damage_type,
+        explosion_radius,
+        collision_radius,
+        empowerment,
+    ));
+    entity
+}
+
+/// Visual-only fireball entity: the projectile sphere mesh + material +
+/// transform + the orbiting fire-glow halo sibling. No `Fireball` sim
+/// component — the caller adds that and any additional markers.
+///
+/// `screen_marker` tags BOTH the parent and the glow sibling with the
+/// same cleanup marker (SP: `OnGameplayScreen`; MP ghost:
+/// `OnMultiplayerGameScreen`) so neither outlives its lifetime.
+pub(crate) fn spawn_fireball_visuals<M: Component + Clone>(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    origin: Vec3,
+    visual_radius: f32,
+    screen_marker: M,
+) -> Entity {
     let entity = commands
         .spawn((
             Mesh3d(assets.cross_plane_sphere.clone()),
             MeshMaterial3d(assets.fireball_projectile.clone()),
             Transform::from_translation(origin).with_scale(Vec3::splat(visual_radius)),
-            Fireball::new(
-                velocity,
-                damage,
-                damage_type,
-                explosion_radius,
-                collision_radius,
-                empowerment,
-            ),
-            OnGameplayScreen,
+            screen_marker.clone(),
         ))
         .id();
-
-    // Spawn glow halo sibling
-    vfx::systems::spawn_fire_glow(commands, assets, entity, origin, visual_radius);
-
+    vfx::systems::spawn_fire_glow(commands, assets, entity, origin, visual_radius, screen_marker);
     entity
 }

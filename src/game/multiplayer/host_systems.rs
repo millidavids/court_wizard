@@ -209,6 +209,63 @@ pub fn receive_teleport_message(
     }
 }
 
+/// Receives `SpellHitUnit` messages from the guest and inserts the standard
+/// `PendingDamageEffect` on the matching authoritative unit. From there the
+/// host runs SP's full status-effect pipeline (`process_pending_damage_effects`
+/// → `FireDoT` / `Shocked` / etc. → `update_fire_dot` → CRDT damage tick),
+/// and the resulting status flag is shipped back to the guest in the next
+/// state snapshot for visual rendering — the guest never owns status state
+/// itself.
+pub fn receive_spell_hit_messages(
+    mut commands: Commands,
+    mut connection: ResMut<NetworkConnection>,
+    // Restrict to entities that actually have `Health` — this excludes
+    // `NetworkedSpellEffect` entities (walls / zones) that share the
+    // `NetworkEntityId` counter but have no use for a status effect.
+    units: Query<(Entity, &NetworkEntityId), With<Health>>,
+) {
+    if connection.incoming_messages.is_empty() {
+        return;
+    }
+
+    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let mut unhandled = Vec::new();
+
+    for msg in messages {
+        match msg {
+            NetworkMessage::SpellHitUnit {
+                target_network_id,
+                damage,
+                damage_type,
+            } => {
+                // The host owns `NetworkEntityId` for every unit (assigned by
+                // `assign_network_ids`); scan for the matching one. ~200
+                // units max, trivial.
+                let Some(local_entity) = units
+                    .iter()
+                    .find_map(|(e, id)| (id.0 == target_network_id).then_some(e))
+                else {
+                    // Unit may have despawned between the guest's hit
+                    // detection and this message arriving — silently drop.
+                    continue;
+                };
+                if let Ok(mut ec) = commands.get_entity(local_entity) {
+                    ec.insert(crate::game::units::components::PendingDamageEffect {
+                        damage,
+                        damage_type:
+                            crate::game::units::damage::DamageType::from_u8(damage_type),
+                    });
+                }
+            }
+            other => unhandled.push(other),
+        }
+    }
+
+    if !unhandled.is_empty() {
+        connection.incoming_messages.extend(unhandled);
+    }
+}
+
 /// Receives CRDT health updates from the guest and merges into local unit state.
 ///
 /// The guest sends its CRDT counters (guest spell damage/healing) over the

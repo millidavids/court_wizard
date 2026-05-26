@@ -235,12 +235,17 @@ pub fn collect_spell_projectile_snapshots(
     spell_data.spell_projectiles.clear();
     spell_data.spell_arcs.clear();
 
+    // Read the visual radius the local caster used straight from
+    // `Transform.scale` — both SP and ghost spawns set this via
+    // `.with_scale(Vec3::splat(visual_radius))`, so it's a faithful
+    // capture of talent + empowerment scaling without re-deriving.
     for t in &fireballs {
         spell_data.spell_projectiles.push(SpellProjectileSnapshot {
             kind: 0,
             x: t.translation.x,
             y: t.translation.y,
             z: t.translation.z,
+            scale: t.scale.x,
         });
     }
 
@@ -250,6 +255,7 @@ pub fn collect_spell_projectile_snapshots(
             x: t.translation.x,
             y: t.translation.y,
             z: t.translation.z,
+            scale: t.scale.x,
         });
     }
 
@@ -259,6 +265,7 @@ pub fn collect_spell_projectile_snapshots(
             x: t.translation.x,
             y: t.translation.y,
             z: t.translation.z,
+            scale: t.scale.x,
         });
     }
 
@@ -493,37 +500,48 @@ pub fn apply_remote_spell_snapshot(
     }
 
     for proj in &snapshot.spell_projectiles {
-        let (mesh, material) = match proj.kind {
-            0 => (
-                assets.cross_plane_sphere.clone(),
-                assets.fireball_projectile.clone(),
-            ),
-            1 => (
-                assets.cross_plane_sphere.clone(),
-                assets.ice_projectile.clone(),
-            ),
-            2 => (
-                assets.cross_plane_sphere.clone(),
-                assets.meteor_projectile.clone(),
-            ),
+        let pos = Vec3::new(proj.x, proj.y, proj.z);
+        // Fireball uses the SP spawn helper so the receiver gets the exact
+        // same mesh + material + glow sibling that the caster sees. Ice and
+        // meteor still fall back to the slim mesh+material spawn — they'll
+        // be migrated to their own shared visual helpers in subsequent
+        // iterations of this refactor.
+        match proj.kind {
+            0 => {
+                // `spawn_fireball_visuals` tags BOTH the parent sphere and
+                // the glow halo sibling with `OnMultiplayerGameScreen`, so
+                // both are cleaned up by `cleanup_mp_game`.
+                let entity = crate::game::units::wizard::spells::fireball::casting::spawn_fireball_visuals(
+                    &mut commands,
+                    &assets,
+                    pos,
+                    proj.scale.max(0.01),
+                    OnMultiplayerGameScreen,
+                );
+                commands.entity(entity).insert(GhostSpellProjectile);
+            }
+            1 => {
+                commands.spawn((
+                    Mesh3d(assets.cross_plane_sphere.clone()),
+                    MeshMaterial3d(assets.ice_projectile.clone()),
+                    Transform::from_translation(pos)
+                        .with_scale(Vec3::splat(proj.scale.max(0.01))),
+                    GhostSpellProjectile,
+                    OnMultiplayerGameScreen,
+                ));
+            }
+            2 => {
+                commands.spawn((
+                    Mesh3d(assets.cross_plane_sphere.clone()),
+                    MeshMaterial3d(assets.meteor_projectile.clone()),
+                    Transform::from_translation(pos)
+                        .with_scale(Vec3::splat(proj.scale.max(0.01))),
+                    GhostSpellProjectile,
+                    OnMultiplayerGameScreen,
+                ));
+            }
             _ => continue,
-        };
-
-        let scale = match proj.kind {
-            0 => 12.0,
-            1 => 8.0,
-            2 => 10.0,
-            _ => 8.0,
-        };
-
-        commands.spawn((
-            Mesh3d(mesh),
-            MeshMaterial3d(material),
-            Transform::from_translation(Vec3::new(proj.x, proj.y, proj.z))
-                .with_scale(Vec3::splat(scale)),
-            GhostSpellProjectile,
-            OnMultiplayerGameScreen,
-        ));
+        }
     }
 
     // ── Tier 1: Ephemeral Spell Arcs ─────────────────────────────────────

@@ -103,6 +103,7 @@ pub(super) fn spawn_meteor_smoke_trail(
                 entity,
                 transform.translation,
                 projectile.mesh_radius,
+                OnGameplayScreen,
             );
         }
     }

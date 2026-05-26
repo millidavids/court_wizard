@@ -341,6 +341,17 @@ pub struct SpellProjectileSnapshot {
     pub y: f32,
     /// World position Z.
     pub z: f32,
+    /// Sphere radius the local caster spawned the projectile at — needed so
+    /// the receiver can spawn a visually identical ghost (talents and
+    /// empowerment scale this from the caster's `PrimedSpell` /
+    /// `Fireball::radius`, neither of which is otherwise networked).
+    ///
+    /// **Wire-format note:** `bincode` is positional and field-tagless, so
+    /// adding/removing/reordering any field of this struct is a breaking
+    /// change. MP requires same-version peers; consider promoting the
+    /// protocol to a versioned/tagged encoding if cross-version sessions
+    /// are ever supported.
+    pub scale: f32,
 }
 
 /// Ephemeral spell arc/beam snapshot (~25 bytes).

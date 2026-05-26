@@ -101,12 +101,20 @@ pub fn update_fire_sparks(
 }
 
 /// Spawns a glow halo sibling for a fire projectile.
-pub fn spawn_fire_glow(
+///
+/// The glow gets the same screen-cleanup marker as its source via the
+/// generic `screen_marker` parameter — single-player passes
+/// `OnGameplayScreen`, the multiplayer ghost path passes
+/// `OnMultiplayerGameScreen`. Without this the glow would otherwise leak
+/// past the wrong cleanup boundary (e.g., an MP-ghost glow with
+/// `OnGameplayScreen` survives `cleanup_mp_game`).
+pub fn spawn_fire_glow<M: Component>(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     source_entity: Entity,
     position: Vec3,
     base_radius: f32,
+    screen_marker: M,
 ) {
     commands.spawn((
         FireGlow {
@@ -116,7 +124,7 @@ pub fn spawn_fire_glow(
         Mesh3d(assets.particle_quad.clone()),
         MeshMaterial3d(assets.fire_glow.clone()),
         Transform::from_translation(position).with_rotation(UPWARD_ROTATION),
-        OnGameplayScreen,
+        screen_marker,
     ));
 }
 
