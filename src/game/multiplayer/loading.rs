@@ -284,6 +284,7 @@ pub fn process_mp_spawn_queue(
     asset_server: Res<AssetServer>,
     wizard_assets: Option<Res<WizardAssets>>,
     cauldron_assets: Option<Res<crate::game::cauldron::resources::CauldronAssets>>,
+    spell_assets: Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     let (mut spawn_queue, mut loading_sync) = progress;
@@ -441,7 +442,7 @@ pub fn process_mp_spawn_queue(
                 spawn_mp_king(
                     &mut commands,
                     &king_assets,
-                    &mut meshes,
+                    &spell_assets,
                     &mut materials,
                     &mut king_spawned,
                     WIZARD_POSITION,
@@ -454,7 +455,7 @@ pub fn process_mp_spawn_queue(
                 spawn_mp_king(
                     &mut commands,
                     &king_assets,
-                    &mut meshes,
+                    &spell_assets,
                     &mut materials,
                     &mut king_spawned,
                     WIZARD_2_POSITION,

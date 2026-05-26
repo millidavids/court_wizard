@@ -98,16 +98,8 @@ pub fn spawn_king(
         ))
         .id();
 
-    // Spawn visual aura sphere around the King
-    let aura_entity = commands
-        .spawn((
-            Mesh3d(spell_assets.explosion_sphere.clone()),
-            MeshMaterial3d(spell_assets.king_aura_sphere.clone()),
-            Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(KING_AURA_RADIUS)),
-            OnGameplayScreen,
-        ))
-        .id();
-    commands.entity(king_entity).add_child(aura_entity);
+    // Spawn the visual aura sphere as a child of the king.
+    spawn_king_aura_visual(commands, king_entity, spell_assets, OnGameplayScreen);
 
     // Mark that King has been spawned
     king_spawned.0 = true;
@@ -353,95 +345,118 @@ pub fn snap_kings_guard_to_king(
     }
 }
 
-/// Attaches SpellShield to the King in multiplayer games.
+/// Attaches the `SpellShield` marker component to every King that appears in
+/// a multiplayer match. Runs once per king on the host (via `Added<King>`).
 ///
-/// Runs once when a King is first spawned (via `Added<King>` filter).
-/// Only activates when a `MultiplayerSession` resource exists.
-/// Also spawns the translucent shield visual as a child entity.
+/// **Host only.** The guest must NOT independently attach SpellShield —
+/// shield state is host-authoritative and propagates to the guest via the
+/// `apply_state_snapshot` spell-shield transition handler. If the guest ran
+/// this too, it would insert SpellShield on every ghost king the frame after
+/// the ghost gets its `King` marker, racing with (and briefly overriding)
+/// the snapshot's intended state.
+///
+/// No separate visual is spawned here — the king's aura (added by the spawn
+/// path; see `spawn_king_aura_visual`) is the constant visual.
 pub fn attach_king_spell_shield(
     mut commands: Commands,
     session: Option<Res<MultiplayerSession>>,
-    new_kings: Query<(Entity, &Transform), Added<King>>,
-    spell_assets: Res<SpellVisualAssets>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    new_kings: Query<Entity, Added<King>>,
 ) {
-    if session.is_none() {
+    use crate::networking::resources::PeerRole;
+    if !session.is_some_and(|s| s.role == PeerRole::Host) {
         return;
     }
 
-    for (entity, _transform) in &new_kings {
+    for entity in &new_kings {
         commands.entity(entity).insert(SpellShield);
-        spawn_spell_shield_visual(
-            &mut commands,
-            entity,
-            &spell_assets,
-            &mut materials,
-            SPELL_SHIELD_COLOR,
-            SPELL_SHIELD_RADIUS,
-            None,
-        );
     }
 }
 
-/// Spawns a translucent cross-plane sphere shield visual as a child of the given entity.
-/// If `emissive` is provided, the material will glow with that color.
-pub(in crate::game) fn spawn_spell_shield_visual(
+/// Spawns the king's aura sphere (the SP-style halo) as a child of the given
+/// king entity. Both single-player and multiplayer kings — host-local AND
+/// ghost — call this so the aura looks identical on every peer. Generic over
+/// the screen-cleanup marker (`OnGameplayScreen` for SP, `OnMultiplayerGameScreen`
+/// for MP) so the right cleanup hook sweeps it.
+///
+/// The mesh + material are the same shared `explosion_sphere` and
+/// `king_aura_sphere` handles used everywhere else; both are reference-counted
+/// asset handles and nothing later mutates them per-entity, so sharing is safe.
+pub(in crate::game) fn spawn_king_aura_visual<M: Component>(
     commands: &mut Commands,
     parent_entity: Entity,
     spell_assets: &SpellVisualAssets,
-    materials: &mut Assets<StandardMaterial>,
-    color: Color,
-    radius: f32,
-    emissive: Option<LinearRgba>,
+    screen_marker: M,
 ) {
-    let mut mat = StandardMaterial {
-        base_color: color,
-        unlit: true,
-        alpha_mode: AlphaMode::Blend,
-        ..default()
-    };
-    if let Some(emissive_color) = emissive {
-        mat.emissive = emissive_color;
-    }
-    let shield_visual = commands
+    let aura_entity = commands
         .spawn((
-            Mesh3d(spell_assets.cross_plane_sphere.clone()),
-            MeshMaterial3d(materials.add(mat)),
-            Transform::from_scale(Vec3::splat(radius)),
-            SpellShieldVisual,
-            OnGameplayScreen,
+            Mesh3d(spell_assets.explosion_sphere.clone()),
+            MeshMaterial3d(spell_assets.king_aura_sphere.clone()),
+            Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(KING_AURA_RADIUS)),
+            // `KingAuraVisual` marker lets `despawn_king_aura_on_death`
+            // find and despawn the aura when the king dies — the king's
+            // entity itself becomes a corpse rather than being despawned,
+            // so child hierarchy cleanup does not fire.
+            super::components::KingAuraVisual,
+            screen_marker,
         ))
         .id();
-    commands.entity(parent_entity).add_child(shield_visual);
+    commands.entity(parent_entity).add_child(aura_entity);
 }
 
-/// Removes the King's spell shield when fewer than 10% of non-King defenders remain.
+/// Despawns the king's aura sphere when the king becomes a corpse. Without
+/// this, the flat corpse sprite ends up surrounded by the still-glowing
+/// aura halo — visually wrong on both SP and MP. The aura is a child of
+/// the king entity, so we look it up via `Children` rather than a global
+/// query (avoids tearing down the OTHER king's aura when one king dies).
+pub fn despawn_king_aura_on_death(
+    mut commands: Commands,
+    dead_kings: Query<&Children, (With<King>, Added<Corpse>)>,
+    aura_visuals: Query<(), With<super::components::KingAuraVisual>>,
+) {
+    for children in &dead_kings {
+        for child in children.iter() {
+            if aura_visuals.contains(child)
+                && let Ok(mut ec) = commands.get_entity(child)
+            {
+                ec.try_despawn();
+            }
+        }
+    }
+}
+
+/// Removes a King's spell shield when fewer than 10% of their own team's
+/// non-King units remain alive. Iterates per-king so both kings in MP get
+/// independent shield-degradation tracking. The aura visual is unrelated
+/// and stays on as long as the king lives — this only touches the marker.
 pub fn update_king_spell_shield(
     mut commands: Commands,
-    king_query: Query<Entity, (With<King>, With<SpellShield>, Without<Corpse>)>,
-    defenders: Query<&Team, (Without<Corpse>, Without<King>)>,
+    kings: Query<(Entity, &Team), (With<King>, With<SpellShield>, Without<Corpse>)>,
+    units: Query<&Team, (Without<Corpse>, Without<King>)>,
     initial_count: Option<Res<InitialDefenderCount>>,
-    shield_visuals: Query<Entity, With<SpellShieldVisual>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
-    let Some(initial_count) = initial_count else {
+    // Initial-count source differs by mode:
+    // - SP: `InitialDefenderCount` is set by the SP loader to the actual
+    //   defender army size, which scales with progression. Only the
+    //   Defender team has a king in SP, so a single threshold suffices.
+    // - MP: both teams start with a known, symmetric army size; we use the
+    //   compile-time MP constants instead of plumbing per-team resources.
+    let initial = if session.is_some() {
+        use crate::game::constants::{KINGS_GUARD_COUNT, MP_ARCHER_COUNT, MP_INFANTRY_COUNT};
+        (MP_INFANTRY_COUNT + MP_ARCHER_COUNT + KINGS_GUARD_COUNT) as f32
+    } else if let Some(c) = initial_count {
+        c.0 as f32
+    } else {
         return;
     };
-
-    let Ok(king_entity) = king_query.single() else {
+    if initial <= 0.0 {
         return;
-    };
+    }
 
-    let living_defenders = defenders
-        .iter()
-        .filter(|t| matches!(t, Team::Defenders))
-        .count() as f32;
-
-    if living_defenders / initial_count.0 as f32 <= SPELL_SHIELD_THRESHOLD {
-        commands.entity(king_entity).remove::<SpellShield>();
-
-        // Despawn shield visual
-        for visual_entity in &shield_visuals {
-            commands.entity(visual_entity).try_despawn();
+    for (king_entity, team) in &kings {
+        let living = units.iter().filter(|t| *t == team).count() as f32;
+        if living / initial <= SPELL_SHIELD_THRESHOLD {
+            commands.entity(king_entity).remove::<SpellShield>();
         }
     }
 }

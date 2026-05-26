@@ -13,7 +13,7 @@ use crate::game::units::components::{
     RemoteFrostEffect, Shocked,
 };
 use crate::game::units::infantry::resources::InfantryAssets;
-use crate::game::units::king::components::{King, SpellShield, SpellShieldVisual};
+use crate::game::units::king::components::{King, SpellShield};
 use crate::game::units::king::resources::KingAssets;
 use crate::networking::crdt::CrdtHealth;
 use crate::networking::entity_map::{NetworkEntityId, NetworkEntityMap};
@@ -113,8 +113,6 @@ pub fn apply_state_snapshot(
         With<GhostEntity>,
     >,
     ghost_arrows: Query<Entity, With<GhostArrow>>,
-    shield_visuals: Query<(), With<SpellShieldVisual>>,
-    children_query: Query<&Children>,
 ) {
     // Filter for game snapshots only (type prefix 0x00), re-queue others
     let raw_data: Vec<Vec<u8>> = connection.incoming_unreliable.drain(..).collect();
@@ -324,44 +322,15 @@ pub fn apply_state_snapshot(
                     commands.entity(entity).remove::<RemoteElectricEffect>();
                 }
 
-                // Sync spell shield from host
+                // Sync spell shield component from host. No visual swap
+                // — the king's aura sphere is the constant visual and
+                // stays on regardless of shield state (matches SP, where
+                // the king has no shield mechanic and the aura is just
+                // always there).
                 if remote_spell_shield && !has_spell_shield {
                     commands.entity(entity).insert(SpellShield);
-                    // Spawn translucent cross-plane sphere visual as child
-                    use crate::game::units::king::constants::{
-                        SPELL_SHIELD_COLOR, SPELL_SHIELD_RADIUS,
-                    };
-                    let shield_visual = commands
-                        .spawn((
-                            Mesh3d(spell_assets.cross_plane_sphere.clone()),
-                            MeshMaterial3d(materials.add(StandardMaterial {
-                                base_color: SPELL_SHIELD_COLOR,
-                                unlit: true,
-                                alpha_mode: AlphaMode::Blend,
-                                ..default()
-                            })),
-                            Transform::from_scale(Vec3::splat(SPELL_SHIELD_RADIUS)),
-                            SpellShieldVisual,
-                            OnMultiplayerGameScreen,
-                        ))
-                        .id();
-                    commands.entity(entity).add_child(shield_visual);
                 } else if !remote_spell_shield && has_spell_shield {
                     commands.entity(entity).remove::<SpellShield>();
-                    // Despawn the shield visual that's a CHILD OF THIS KING.
-                    // The earlier global `for vis_entity in &shield_visuals`
-                    // iterated every SpellShieldVisual in the world — so when
-                    // one king's shield expired it also tore down the other
-                    // king's still-active shield sphere.
-                    if let Ok(children) = children_query.get(entity) {
-                        for child in children.iter() {
-                            if shield_visuals.contains(child)
-                                && let Ok(mut ec) = commands.get_entity(child)
-                            {
-                                ec.try_despawn();
-                            }
-                        }
-                    }
                 }
 
                 // Sync corpse state so spell targeting filters work correctly.
@@ -517,38 +486,31 @@ pub fn apply_state_snapshot(
                 ))
                 .id();
 
-            // Tag the ghost king with the `King` marker. The HP bar reads
-            // `Query<&Health, With<King>>` and otherwise wouldn't match
-            // any ghost on the guest (only the host spawns the local King
-            // entities), leaving the bar permanently at 0%. SP simulation
-            // systems that touch `With<King>` (king-aura movement, win/
-            // lose checks, etc.) are host-gated, so adding this marker on
-            // the guest only enables UI queries and is safe.
+            // Tag the ghost king with the `King` marker AND attach the
+            // SP-style aura sphere. The HP bar reads
+            // `Query<&Health, With<King>>` and otherwise wouldn't match any
+            // ghost on the guest. SP simulation systems that touch
+            // `With<King>` are host-gated, so adding this marker on the
+            // guest only enables UI queries and is safe. The aura visual
+            // is the same `explosion_sphere` + `king_aura_sphere` material
+            // SP uses, scaled to `KING_AURA_RADIUS` — both peers now see
+            // an identical king.
             if is_king {
                 commands.entity(entity).insert(King);
+                crate::game::units::king::systems::spawn_king_aura_visual(
+                    &mut commands,
+                    entity,
+                    &spell_assets,
+                    OnMultiplayerGameScreen,
+                );
             }
 
-            // Attach spell shield to newly spawned ghost King if host reports it
+            // Mirror spell-shield component state at spawn. No visual is
+            // spawned for the shield itself — the aura sphere above is the
+            // king's only visual indicator; shield state is invisible to
+            // the player (same as SP, which has no shield mechanic at all).
             if remote_spell_shield {
-                use crate::game::units::king::constants::{
-                    SPELL_SHIELD_COLOR, SPELL_SHIELD_RADIUS,
-                };
                 commands.entity(entity).insert(SpellShield);
-                let shield_visual = commands
-                    .spawn((
-                        Mesh3d(spell_assets.cross_plane_sphere.clone()),
-                        MeshMaterial3d(materials.add(StandardMaterial {
-                            base_color: SPELL_SHIELD_COLOR,
-                            unlit: true,
-                            alpha_mode: AlphaMode::Blend,
-                            ..default()
-                        })),
-                        Transform::from_scale(Vec3::splat(SPELL_SHIELD_RADIUS)),
-                        SpellShieldVisual,
-                        OnMultiplayerGameScreen,
-                    ))
-                    .id();
-                commands.entity(entity).add_child(shield_visual);
             }
 
             if is_corpse {

@@ -356,7 +356,7 @@ pub(super) fn spawn_mp_archer(
 pub(super) fn spawn_mp_king(
     commands: &mut Commands,
     king_assets: &crate::game::units::king::resources::KingAssets,
-    meshes: &mut ResMut<Assets<Mesh>>,
+    spell_assets: &crate::game::units::wizard::spells::visual_assets::SpellVisualAssets,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     king_spawned: &mut ResMut<KingSpawned>,
     wizard_position: Vec3,
@@ -438,24 +438,15 @@ pub(super) fn spawn_mp_king(
         commands.entity(king_entity).insert(WaveGroup(0));
     }
 
-    // Visual aura circle
-    let aura_circle = Circle::new(KING_AURA_RADIUS);
-    let y_offset = 5.0 - spawn_y;
-    let aura_entity = commands
-        .spawn((
-            Mesh3d(meshes.add(aura_circle)),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: KING_AURA_COLOR,
-                unlit: true,
-                alpha_mode: bevy::prelude::AlphaMode::Blend,
-                ..default()
-            })),
-            Transform::from_xyz(0.0, y_offset, 0.0)
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-            OnMultiplayerGameScreen,
-        ))
-        .id();
-    commands.entity(king_entity).add_child(aura_entity);
+    // Spawn the SP-style aura sphere as a child of the king. Replaces the
+    // earlier flat ground-plane circle so both MP peers — and SP — show
+    // the same volumetric aura halo.
+    crate::game::units::king::systems::spawn_king_aura_visual(
+        commands,
+        king_entity,
+        spell_assets,
+        OnMultiplayerGameScreen,
+    );
 
     king_spawned.0 = true;
 }

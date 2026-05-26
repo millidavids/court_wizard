@@ -10,11 +10,13 @@ pub struct King;
 pub struct KingSpawned(pub bool);
 
 /// Marker component that makes the King immune to spell damage.
-/// Only active in multiplayer. Removed when fewer than 10% of non-King
-/// defenders remain alive.
+/// Only active in multiplayer. Removed when fewer than 10% of the king's
+/// own team's non-king units remain alive.
 #[derive(Component)]
 pub struct SpellShield;
 
-/// Marker component for the spell shield visual sphere (child of King).
+/// Marker component for the king's aura sphere visual (child of King).
+/// Used to find and despawn the aura when the king dies (its parent does
+/// not auto-despawn the child — the parent stays as a corpse).
 #[derive(Component)]
-pub struct SpellShieldVisual;
+pub struct KingAuraVisual;

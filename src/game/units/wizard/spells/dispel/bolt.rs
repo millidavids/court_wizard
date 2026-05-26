@@ -11,7 +11,7 @@ use crate::game::units::components::{
     MindControlled, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::damage::DamageType;
-use crate::game::units::king::components::{SpellShield, SpellShieldVisual};
+use crate::game::units::king::components::SpellShield;
 use crate::game::units::shielder::components::ShielderDamageReduction;
 use crate::game::units::wizard::components::{LocalWizard, Mana, Spell};
 use crate::game::units::wizard::spells::grease::components::{GreaseIgnited, GreaseZone};
@@ -521,10 +521,10 @@ fn remove_mind_control_in_radius(
 
 // ===== Shared Helpers (moved from dispeller) =====
 
-/// Removes `SpellShield` and `ShielderDamageReduction` from all units
-/// within `radius` of `center`. The orphaned `SpellShieldVisual` children
-/// are cleaned up by `cleanup_orphaned_shield_visuals`.
-/// Returns the number of shields stripped.
+/// Removes `SpellShield` and `ShielderDamageReduction` from all units within
+/// `radius` of `center`. Returns the number of shields stripped. The king's
+/// always-on aura visual is independent of the shield, so nothing needs to
+/// despawn here.
 fn strip_spell_shields_in_radius(
     commands: &mut Commands,
     center: Vec3,
@@ -540,20 +540,6 @@ fn strip_spell_shields_in_radius(
         }
     }
     count
-}
-
-/// Despawns `SpellShieldVisual` entities whose parent no longer has `SpellShield`.
-/// This cleans up shield visuals after shields are dispelled.
-pub fn cleanup_orphaned_shield_visuals(
-    mut commands: Commands,
-    shield_visuals: Query<(Entity, &ChildOf), With<SpellShieldVisual>>,
-    shielded_units: Query<(), With<SpellShield>>,
-) {
-    for (visual_entity, child_of) in &shield_visuals {
-        if shielded_units.get(child_of.parent()).is_err() {
-            commands.entity(visual_entity).try_despawn();
-        }
-    }
 }
 
 /// Returns true if the spell effect kind is dispellable.

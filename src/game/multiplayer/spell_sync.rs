@@ -598,7 +598,7 @@ pub fn apply_remote_spell_snapshot(
             Vec3::new(width, length, 1.0)
         };
 
-        commands.spawn((
+        let mut ec = commands.spawn((
             Mesh3d(mesh),
             MeshMaterial3d(material),
             Transform::from_translation(midpoint)
@@ -607,6 +607,18 @@ pub fn apply_remote_spell_snapshot(
             GhostSpellArc,
             OnMultiplayerGameScreen,
         ));
+
+        // Disintegrate-kind ghost beams also get the real `DisintegrateBeam`
+        // component so the host's burning-tree / burning-bush ignition
+        // systems — which run on both peers — can see the remote caster's
+        // beam locally on the guest and ignite the guest's trees/bushes.
+        // Damage and timers still tick host-side only; the guest's copy is
+        // purely a query-target for the ignition logic, so we hand it the
+        // minimum geometry (`origin`, `direction`, `length`) and let
+        // `new()` fill the talent-related fields with safe defaults.
+        if arc.kind == 6 {
+            ec.insert(DisintegrateBeam::new(origin, direction, length, 1.0));
+        }
     }
 
     // ── Ephemeral Magic Missiles ─────────────────────────────────────────

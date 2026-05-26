@@ -44,6 +44,12 @@ impl Plugin for KingPlugin {
                     systems::update_king_spell_shield
                         .run_if(any_with_component::<SpellShield>)
                         .run_if(is_gameplay_running),
+                    // Despawn the king's aura sphere when the king dies.
+                    // The king entity itself becomes a Corpse rather than
+                    // being despawned, so child cleanup does not fire
+                    // automatically. Cheap `Added<Corpse>` filter keeps
+                    // this system effectively idle most frames.
+                    systems::despawn_king_aura_on_death,
                 ),
             );
     }

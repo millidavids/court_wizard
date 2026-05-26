@@ -12,8 +12,9 @@ pub const KING_MOVEMENT_SPEED: f32 = 115.0;
 // Spell shield (multiplayer only)
 /// Fraction of non-King defenders that must be alive for the shield to remain active.
 pub const SPELL_SHIELD_THRESHOLD: f32 = 0.10;
-pub const SPELL_SHIELD_RADIUS: f32 = 22.0 * UNIT_SCALE; // Slightly larger than KING_RADIUS (14.0)
-pub const SPELL_SHIELD_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.15);
+// Note: the dedicated shield visual (radius + color) was retired — the king's
+// aura sphere now serves as the constant visual on both peers. See
+// `spawn_king_aura_visual`.
 
 // King-specific cohesion force constants
 pub const KING_COHESION_BASE: f32 = 0.0; // No cohesion when no enemies inside aura
@@ -26,5 +27,5 @@ pub const KING_SPRITE_HEIGHT: f32 = 48.0 * UNIT_SCALE;
 pub const KING_SPRITE_TINT: Color = Color::srgb(1.4, 1.15, 0.4); // Golden
 
 pub use crate::game::units::commander::constants::{
-    KING_AURA_COLOR, KING_AURA_DAMAGE_PERCENTAGE, KING_AURA_RADIUS, KING_AURA_SPEED_PERCENTAGE,
+    KING_AURA_DAMAGE_PERCENTAGE, KING_AURA_RADIUS, KING_AURA_SPEED_PERCENTAGE,
 };
