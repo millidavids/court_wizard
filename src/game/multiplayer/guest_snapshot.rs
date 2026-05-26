@@ -13,7 +13,7 @@ use crate::game::units::components::{
     RemoteFrostEffect, Shocked,
 };
 use crate::game::units::infantry::resources::InfantryAssets;
-use crate::game::units::king::components::{SpellShield, SpellShieldVisual};
+use crate::game::units::king::components::{King, SpellShield, SpellShieldVisual};
 use crate::game::units::king::resources::KingAssets;
 use crate::networking::crdt::CrdtHealth;
 use crate::networking::entity_map::{NetworkEntityId, NetworkEntityMap};
@@ -110,11 +110,13 @@ pub fn apply_state_snapshot(
             Has<RemoteElectricEffect>,
             Has<SpellShield>,
             Has<Corpse>,
+            Has<crate::game::units::components::CombatAnimation>,
         ),
         With<GhostEntity>,
     >,
     ghost_arrows: Query<Entity, With<GhostArrow>>,
-    shield_visuals: Query<Entity, With<SpellShieldVisual>>,
+    shield_visuals: Query<(), With<SpellShieldVisual>>,
+    children_query: Query<&Children>,
 ) {
     // Filter for game snapshots only (type prefix 0x00), re-queue others
     let raw_data: Vec<Vec<u8>> = connection.incoming_unreliable.drain(..).collect();
@@ -200,6 +202,7 @@ pub fn apply_state_snapshot(
         let remote_frost = unit.flags & UnitFlags::FROST_EFFECT != 0;
         let remote_electric = unit.flags & UnitFlags::ELECTRIC_EFFECT != 0;
         let remote_spell_shield = unit.flags & UnitFlags::SPELL_SHIELD != 0;
+        let remote_combat = unit.flags & UnitFlags::COMBAT_ANIMATION != 0;
 
         if let Some(&local_entity) = entity_map.remote_to_local.get(&unit.id) {
             if let Ok((
@@ -215,6 +218,7 @@ pub fn apply_state_snapshot(
                 has_remote_electric,
                 has_spell_shield,
                 has_corpse,
+                has_combat,
             )) = ghost_query.get_mut(local_entity)
             {
                 // Use the host's AUTHORITATIVE velocity from the snapshot.
@@ -312,10 +316,18 @@ pub fn apply_state_snapshot(
                     commands.entity(entity).add_child(shield_visual);
                 } else if !remote_spell_shield && has_spell_shield {
                     commands.entity(entity).remove::<SpellShield>();
-                    // Despawn all shield visuals
-                    for vis_entity in &shield_visuals {
-                        if let Ok(mut ec) = commands.get_entity(vis_entity) {
-                            ec.try_despawn();
+                    // Despawn the shield visual that's a CHILD OF THIS KING.
+                    // The earlier global `for vis_entity in &shield_visuals`
+                    // iterated every SpellShieldVisual in the world — so when
+                    // one king's shield expired it also tore down the other
+                    // king's still-active shield sphere.
+                    if let Ok(children) = children_query.get(entity) {
+                        for child in children.iter() {
+                            if shield_visuals.contains(child)
+                                && let Ok(mut ec) = commands.get_entity(child)
+                            {
+                                ec.try_despawn();
+                            }
                         }
                     }
                 }
@@ -342,6 +354,47 @@ pub fn apply_state_snapshot(
                     }
                 } else if !is_corpse && has_corpse {
                     commands.entity(entity).remove::<Corpse>();
+                }
+
+                // Mirror CombatAnimation transitions from the host so the
+                // ghost plays its swing/shoot animation while the host's
+                // unit is mid-attack. Without this the ghost stays on the
+                // idle walking frame during melee. We ONLY insert on the
+                // off→on edge; we **do not** force-remove on the on→off
+                // edge — the shared SP system `update_combat_animation`
+                // ticks the local frames and self-removes the component
+                // when finished, AND in the same path restores the
+                // walking texture / resets the UV transform. A forced
+                // `commands.remove` here would bypass that cleanup and
+                // leave the ghost's material stuck on the combat sheet
+                // with a frozen mid-swing UV until the next attack
+                // overwrites it.
+                if remote_combat && !has_combat && !is_corpse && !is_king {
+                    let (combat_tex, walking_tex) = if is_archer {
+                        (
+                            archer_assets.shooting_texture.clone(),
+                            archer_assets.sprite_texture.clone(),
+                        )
+                    } else {
+                        // Infantry + king's guard share the infantry sheet.
+                        // King has no combat sheet in SP (skipped above).
+                        (
+                            infantry_assets.attacking_texture.clone(),
+                            infantry_assets.sprite_texture.clone(),
+                        )
+                    };
+                    let anim = if is_archer {
+                        crate::game::units::components::CombatAnimation::new_shooting(
+                            combat_tex,
+                            walking_tex,
+                        )
+                    } else {
+                        crate::game::units::components::CombatAnimation::new_attack(
+                            combat_tex,
+                            walking_tex,
+                        )
+                    };
+                    commands.entity(entity).insert(anim);
                 }
             }
         } else {
@@ -406,6 +459,17 @@ pub fn apply_state_snapshot(
                     ),
                 ))
                 .id();
+
+            // Tag the ghost king with the `King` marker. The HP bar reads
+            // `Query<&Health, With<King>>` and otherwise wouldn't match
+            // any ghost on the guest (only the host spawns the local King
+            // entities), leaving the bar permanently at 0%. SP simulation
+            // systems that touch `With<King>` (king-aura movement, win/
+            // lose checks, etc.) are host-gated, so adding this marker on
+            // the guest only enables UI queries and is safe.
+            if is_king {
+                commands.entity(entity).insert(King);
+            }
 
             // Attach spell shield to newly spawned ghost King if host reports it
             if remote_spell_shield {
@@ -496,15 +560,19 @@ pub fn send_crdt_snapshot(
     };
 
     for (net_id, crdt, has_fire, has_frost, has_electric) in &crdt_units {
+        // CRDT effects slot is u8 — UnitFlags constants are u16 now (after
+        // COMBAT_ANIMATION moved them past the 8-bit window), so cast
+        // each one back. All three fire/frost/electric flags live in the
+        // low byte so the truncation is lossless.
         let mut effects = 0u8;
         if has_fire {
-            effects |= UnitFlags::FIRE_EFFECT;
+            effects |= UnitFlags::FIRE_EFFECT as u8;
         }
         if has_frost {
-            effects |= UnitFlags::FROST_EFFECT;
+            effects |= UnitFlags::FROST_EFFECT as u8;
         }
         if has_electric {
-            effects |= UnitFlags::ELECTRIC_EFFECT;
+            effects |= UnitFlags::ELECTRIC_EFFECT as u8;
         }
         snapshot.units.push(CrdtUnitUpdate {
             id: net_id.0,

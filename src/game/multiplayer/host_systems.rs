@@ -50,10 +50,6 @@ pub fn send_state_snapshots(
     units: Query<(
         &NetworkEntityId,
         &Transform,
-        // Host-authoritative velocity — ships in the snapshot so the guest
-        // can write it directly onto ghost units instead of synthesising
-        // from position deltas (which jitters whenever the host's unit
-        // briefly stops, causing the walking animation to reset to idle).
         &crate::game::components::Velocity,
         &Team,
         &Health,
@@ -66,6 +62,7 @@ pub fn send_state_snapshots(
         Has<FrostAccumulation>,
         Has<Shocked>,
         Has<SpellShield>,
+        Has<crate::game::units::components::CombatAnimation>,
     )>,
     arrows: Query<&Transform, With<Arrow>>,
 ) {
@@ -92,6 +89,7 @@ pub fn send_state_snapshots(
         has_frost,
         has_electric,
         has_spell_shield,
+        has_combat_animation,
     ) in &units
     {
         snapshot.units.push(build_unit_snapshot(
@@ -109,6 +107,7 @@ pub fn send_state_snapshots(
             has_frost,
             has_electric,
             has_spell_shield,
+            has_combat_animation,
         ));
     }
 
@@ -226,9 +225,6 @@ pub fn receive_teleport_message(
 pub fn receive_spell_hit_messages(
     mut commands: Commands,
     mut connection: ResMut<NetworkConnection>,
-    // Restrict to entities that actually have `Health` — this excludes
-    // `NetworkedSpellEffect` entities (walls / zones) that share the
-    // `NetworkEntityId` counter but have no use for a status effect.
     units: Query<(Entity, &NetworkEntityId), With<Health>>,
 ) {
     if connection.incoming_messages.is_empty() {
@@ -245,22 +241,24 @@ pub fn receive_spell_hit_messages(
                 damage,
                 damage_type,
             } => {
-                // The host owns `NetworkEntityId` for every unit (assigned by
-                // `assign_network_ids`); scan for the matching one. ~200
-                // units max, trivial.
+                // HP damage flows via the CRDT pipeline (guest's local
+                // `apply_spell_damage` decrements ghost Health →
+                // `sync_health_to_crdt` records into guest's CRDT slot →
+                // CRDT snapshot → `receive_crdt_snapshot` merges →
+                // host's Health.current re-derives). This message ONLY
+                // carries the status-type so the host can stack the
+                // right DoT/status — `apply_spell_damage` on the guest
+                // already accounted for the immediate hit via CRDT.
                 let Some(local_entity) = units
                     .iter()
                     .find_map(|(e, id)| (id.0 == target_network_id).then_some(e))
                 else {
-                    // Unit may have despawned between the guest's hit
-                    // detection and this message arriving — silently drop.
                     continue;
                 };
                 if let Ok(mut ec) = commands.get_entity(local_entity) {
                     ec.insert(crate::game::units::components::PendingDamageEffect {
                         damage,
-                        damage_type:
-                            crate::game::units::damage::DamageType::from_u8(damage_type),
+                        damage_type: crate::game::units::damage::DamageType::from_u8(damage_type),
                     });
                 }
             }
@@ -277,7 +275,11 @@ pub fn receive_spell_hit_messages(
 ///
 /// The guest sends its CRDT counters (guest spell damage/healing) over the
 /// unreliable channel. The host merges these using element-wise max so that
-/// guest spell effects are reflected in the host's simulation.
+/// guest spell effects are reflected in the host's simulation. Critically
+/// for healing: the CRDT path lets the guest cast a heal spell (which
+/// touches `Health.current` upward), have that propagate to the host's
+/// authoritative unit, and have the host's HP converge — without needing
+/// per-spell heal messages.
 pub fn receive_crdt_snapshot(
     mut commands: Commands,
     mut connection: ResMut<NetworkConnection>,
@@ -291,7 +293,6 @@ pub fn receive_crdt_snapshot(
         Has<RemoteElectricEffect>,
     )>,
 ) {
-    // Filter for CRDT snapshots, re-queue everything else
     let raw_data: Vec<Vec<u8>> = connection.incoming_unreliable.drain(..).collect();
     let mut other_data = Vec::new();
     let mut latest_crdt_data: Option<&[u8]> = None;
@@ -324,15 +325,11 @@ pub fn receive_crdt_snapshot(
         return;
     };
 
-    // Build a temporary lookup: network_id → index in snapshot
     let mut update_map = std::collections::HashMap::with_capacity(snapshot.units.len());
     for (i, update) in snapshot.units.iter().enumerate() {
         update_map.insert(update.id, i);
     }
 
-    // Merge guest CRDT state into host entities and update Health to match.
-    // We must update Health.current here so that sync_health_to_crdt doesn't
-    // interpret the guest's damage as "local healing" (health.current > crdt_hp).
     for (
         entity,
         net_id,
@@ -353,10 +350,10 @@ pub fn receive_crdt_snapshot(
             crdt_health.merge(&remote);
             health.current = crdt_health.current_hp();
 
-            // Sync remote status effect visual markers from guest
-            let remote_fire = update.effects & UnitFlags::FIRE_EFFECT != 0;
-            let remote_frost = update.effects & UnitFlags::FROST_EFFECT != 0;
-            let remote_electric = update.effects & UnitFlags::ELECTRIC_EFFECT != 0;
+            // CRDT effects slot is u8 (lower 8 bits) — cast u16 constants to u8.
+            let remote_fire = update.effects & (UnitFlags::FIRE_EFFECT as u8) != 0;
+            let remote_frost = update.effects & (UnitFlags::FROST_EFFECT as u8) != 0;
+            let remote_electric = update.effects & (UnitFlags::ELECTRIC_EFFECT as u8) != 0;
 
             if remote_fire && !has_remote_fire {
                 commands.entity(entity).insert(RemoteFireEffect);

@@ -206,8 +206,13 @@ impl DatagramReassembler {
             idx
         } else {
             if self.pending.len() >= MAX_PENDING_SEQUENCES {
-                // Evict the oldest (front) entry.
-                self.pending.remove(0);
+                // Evict the oldest (front) entry AND record its sequence
+                // in `recently_completed` so any late-arriving fragments
+                // for that sequence are dropped rather than resurrecting
+                // it (which would evict another in-progress sequence and
+                // could cascade under sustained UDP reordering).
+                let evicted = self.pending.remove(0);
+                self.mark_completed(evicted.sequence);
             }
             self.pending.push(PendingPayload {
                 sequence,

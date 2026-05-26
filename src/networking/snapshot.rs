@@ -29,17 +29,19 @@ pub struct GameSnapshot {
 /// Per-unit state with CRDT health data (~37 bytes).
 /// Per-unit network snapshot.
 ///
+/// **HP via CRDT, not via `health_pct`:** the CRDT damage[2]/healing[2]
+/// slots are the source of truth for HP — they support both peers
+/// applying damage AND healing to the same unit and converging via
+/// element-wise max merge. `Health.current` is re-derived from CRDT on
+/// each peer. The previous `health_pct` field is dropped because it was
+/// redundant with the CRDT-derived value.
+///
 /// **Wire-format note:** bincode 1.x encodes fields positionally with no
 /// version tags, so adding/removing/reordering any field is a breaking
 /// change — mixed-version peers silently misread later fields as garbage
 /// rather than failing fast. MP currently requires same-version peers.
-/// If you ever need cross-version sessions, prefix the snapshot with a
-/// protocol-version byte or move to a tagged encoding.
 ///
-/// Velocity is XZ-only (`vx`, `vz`). The `Velocity` component itself has
-/// no `y`, and animation systems read only XZ. If a future airborne ghost
-/// type ever cares about vertical motion, add a `vy` field here and ship
-/// it through `build_unit_snapshot`.
+/// Velocity is XZ-only (`vx`, `vz`).
 #[derive(Serialize, Deserialize)]
 pub struct UnitSnapshot {
     /// Network entity ID assigned by the host.
@@ -56,13 +58,16 @@ pub struct UnitSnapshot {
     pub vz: f32,
     /// Team encoded as u8: 0=Defenders, 1=Attackers, 2=Undead.
     pub team: u8,
-    /// Health as a 0-100 percentage (for visual rendering).
-    pub health_pct: u8,
-    /// Bitfield flags (see `UnitFlags`).
-    pub flags: u8,
-    /// Maximum HP for CRDT health calculation.
+    /// Bitfield flags (see `UnitFlags`). u16 because the original u8 ran
+    /// out of bits when COMBAT_ANIMATION was added.
+    pub flags: u16,
+    /// Max HP — needed once but ships every frame (CRDT seed; could be
+    /// thinned later via a separate one-shot spawn message).
     pub max_hp: f32,
-    /// CRDT damage counters per peer (monotonically increasing).
+    /// CRDT damage counters per peer (monotonically increasing). Both
+    /// peers apply damage to their local Health → `sync_health_to_crdt`
+    /// records into their own slot → snapshots cross-fertilise → merge
+    /// = element-wise max so both sides converge.
     pub damage: [f32; 2],
     /// CRDT healing counters per peer (monotonically increasing).
     pub healing: [f32; 2],
@@ -72,14 +77,19 @@ pub struct UnitSnapshot {
 pub struct UnitFlags;
 
 impl UnitFlags {
-    pub const CORPSE: u8 = 1 << 0;
-    pub const KING: u8 = 1 << 1;
-    pub const ARCHER: u8 = 1 << 2;
-    pub const KINGS_GUARD: u8 = 1 << 3;
-    pub const FIRE_EFFECT: u8 = 1 << 4;
-    pub const FROST_EFFECT: u8 = 1 << 5;
-    pub const ELECTRIC_EFFECT: u8 = 1 << 6;
-    pub const SPELL_SHIELD: u8 = 1 << 7;
+    pub const CORPSE: u16 = 1 << 0;
+    pub const KING: u16 = 1 << 1;
+    pub const ARCHER: u16 = 1 << 2;
+    pub const KINGS_GUARD: u16 = 1 << 3;
+    pub const FIRE_EFFECT: u16 = 1 << 4;
+    pub const FROST_EFFECT: u16 = 1 << 5;
+    pub const ELECTRIC_EFFECT: u16 = 1 << 6;
+    pub const SPELL_SHIELD: u16 = 1 << 7;
+    /// Host's unit currently has a `CombatAnimation` component — set so
+    /// the guest can spawn the matching swing/shoot animation on its
+    /// ghost. Without this the ghost stays on the idle frame even though
+    /// the host's unit is actively swinging in melee.
+    pub const COMBAT_ANIMATION: u16 = 1 << 8;
 }
 
 /// Encodes a `Team` component into a u8.
@@ -102,8 +112,9 @@ pub fn u8_to_team(val: u8) -> Team {
 
 /// Builds a `UnitSnapshot` from an entity's components.
 ///
-/// If the entity has a `CrdtHealth` component, its CRDT state is used directly.
-/// Otherwise, we derive initial CRDT values from the `Health` component.
+/// HP rides in the CRDT damage/healing arrays (NOT a redundant `health_pct`)
+/// so both peers can apply damage AND healing and converge via element-wise
+/// max. `health_pct` is gone — guest derives `Health.current` from CRDT.
 #[allow(clippy::too_many_arguments)]
 pub fn build_unit_snapshot(
     net_id: &NetworkEntityId,
@@ -120,14 +131,9 @@ pub fn build_unit_snapshot(
     has_frost: bool,
     has_electric: bool,
     has_spell_shield: bool,
+    has_combat_animation: bool,
 ) -> UnitSnapshot {
-    let health_pct = if health.max > 0.0 {
-        ((health.current / health.max) * 100.0).clamp(0.0, 100.0) as u8
-    } else {
-        0
-    };
-
-    let mut flags = 0u8;
+    let mut flags = 0u16;
     if is_corpse {
         flags |= UnitFlags::CORPSE;
     }
@@ -152,11 +158,15 @@ pub fn build_unit_snapshot(
     if has_spell_shield {
         flags |= UnitFlags::SPELL_SHIELD;
     }
+    if has_combat_animation {
+        flags |= UnitFlags::COMBAT_ANIMATION;
+    }
 
     let (max_hp, damage, healing) = if let Some(crdt) = crdt_health {
         (crdt.max_hp, crdt.damage, crdt.healing)
     } else {
-        // Derive from Health: all damage is attributed to peer 0 (host)
+        // First snapshot before `attach_crdt_health` has run — derive
+        // initial CRDT state from `Health` (all loss attributed to peer 0).
         let total_damage = (health.max - health.current).max(0.0);
         (health.max, [total_damage, 0.0], [0.0, 0.0])
     };
@@ -169,7 +179,6 @@ pub fn build_unit_snapshot(
         vx: velocity.x,
         vz: velocity.z,
         team: team_to_u8(team),
-        health_pct,
         flags,
         max_hp,
         damage,

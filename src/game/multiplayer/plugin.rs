@@ -74,10 +74,20 @@ impl Plugin for MultiplayerGamePlugin {
         //   re-derives Health from converged CRDT state
         let mp_running = in_mp_running;
         app.add_systems(Update, crdt_sync::attach_crdt_health.run_if(mp_running));
+        // `sync_health_to_crdt` records the local Health delta (e.g. damage
+        // a guest-cast spell just dealt to a ghost) into the local CRDT
+        // slot. It MUST run before `apply_state_snapshot` (which sits in
+        // `GuestSnapshotSet`) — otherwise the snapshot's CRDT merge re-
+        // derives `Health.current` from the host's stale view (no guest
+        // damage recorded yet), erasing the just-dealt damage for a frame
+        // until the next round-trip. The `.before(GuestSnapshotSet)` is a
+        // soft constraint: vacuous on the host (no member systems), enforced
+        // on the guest.
         app.add_systems(
             Update,
             crdt_sync::sync_health_to_crdt
                 .after(PostCombatSet)
+                .before(crate::game::units::GuestSnapshotSet)
                 .run_if(mp_running),
         );
         app.add_systems(Update, crdt_sync::receive_wall_placement.run_if(mp_running));
@@ -189,6 +199,7 @@ impl Plugin for MultiplayerGamePlugin {
         app.add_systems(
             Update,
             guest_systems::forward_spell_hits_to_host
+                .before(crdt_sync::sync_health_to_crdt)
                 .run_if(mp_running.and(is_multiplayer_guest)),
         );
 

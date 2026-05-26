@@ -44,6 +44,13 @@ All notable changes to this project will be documented in this file.
 - **Burning effect now shows on both players' screens** — units set on fire only puffed smoke and sparks on the side that cast the spell. The burning visual now plays for the other player too, matching what they see locally
 - **No more mass first-frame deaths when armies first clash** — every multiplayer unit spawned ready to swing the instant they touched an enemy, so 20+ attackers piling onto one defender all hit on the same frame and instantly killed it. Each unit's attack now lands at its own staggered point in the attack cycle, like single-player does naturally through wave staging
 - **Multiplayer no longer shows a loading screen** — the brief multiplayer arena setup used to display a "Loading..." screen for about two seconds. Match setup now completes in a few imperceptible frames, just like single-player, and the screen is gone
+- **King's health bar now updates on the other player's screen** — the king's health bar on the multiplayer HUD used to stay empty the entire match on the other player's side, no matter how much damage their king took. It now correctly reflects the king's current health for both players
+- **Spell shields no longer disappear in pairs** — when one king's spell shield expired, the other king's shield bubble would also vanish even if it was still active. Each king's shield now ticks down independently
+- **Other player's swing animations now finish cleanly** — units would occasionally freeze on their attack pose mid-swing instead of completing the strike and returning to their walking animation. Swings now play through to the end
+- **Spell damage on the other player's units no longer flickers** — spell hits would briefly snap the target's health back up for a single frame before settling on the correct value, especially visible on the king's health bar. The hit now lands cleanly with no flicker
+- **Multiplayer network layer drops fewer messages under heavy traffic** — when many large snapshots arrived overlapping, late-arriving pieces of already-dropped messages could trigger a cascade that lost other messages too. Stragglers are now ignored properly
+- **Cauldron and wizards always appear in multiplayer setup** — in a rare timing race, the cauldron or one of the wizards could fail to spawn during match setup, leaving you with an unusable HUD button or a missing wizard for the whole match. Setup now waits for the assets and retries on the next frame instead of giving up
+- **No leftover multiplayer state after a finished match** — internal pathfinding data from the multiplayer arena used to linger in memory after the match ended. It's now released as soon as you return to the wizard tower
 
 ## [v0.7.367] - 2026-05-10
 

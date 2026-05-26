@@ -360,32 +360,42 @@ pub fn process_mp_spawn_queue(
                 );
             }
             MpSpawnTask::HostWizard => {
-                if let Some(ref assets) = wizard_assets {
-                    spawn_mp_wizard(
-                        &mut commands,
-                        &mut meshes,
-                        &mut materials,
-                        WIZARD_POSITION,
-                        session.host_wizard,
-                        session.role,
-                        true,
-                        assets,
-                    );
-                }
+                let Some(ref assets) = wizard_assets else {
+                    // `WizardAssets` was scheduled via deferred
+                    // `commands.insert_resource(...)` by LoadWizardAssets
+                    // and hasn't flushed yet. Re-push to the front and
+                    // bail so we retry next frame instead of silently
+                    // consuming the task and leaving the player with no
+                    // wizard.
+                    spawn_queue.tasks.insert(0, MpSpawnTask::HostWizard);
+                    break;
+                };
+                spawn_mp_wizard(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    WIZARD_POSITION,
+                    session.host_wizard,
+                    session.role,
+                    true,
+                    assets,
+                );
             }
             MpSpawnTask::GuestWizard => {
-                if let Some(ref assets) = wizard_assets {
-                    spawn_mp_wizard(
-                        &mut commands,
-                        &mut meshes,
-                        &mut materials,
-                        WIZARD_2_POSITION,
-                        session.guest_wizard,
-                        session.role,
-                        false,
-                        assets,
-                    );
-                }
+                let Some(ref assets) = wizard_assets else {
+                    spawn_queue.tasks.insert(0, MpSpawnTask::GuestWizard);
+                    break;
+                };
+                spawn_mp_wizard(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    WIZARD_2_POSITION,
+                    session.guest_wizard,
+                    session.role,
+                    false,
+                    assets,
+                );
             }
             MpSpawnTask::HostInfantry { unit_index } => {
                 spawn_mp_infantry(
@@ -536,14 +546,21 @@ pub fn process_mp_spawn_queue(
                 );
             }
             MpSpawnTask::Cauldron => {
-                if let Some(assets) = cauldron_assets.as_deref() {
-                    crate::game::cauldron::systems::spawn_cauldron(
-                        &mut commands,
-                        &mut meshes,
-                        &mut materials,
-                        assets,
-                    );
-                }
+                let Some(assets) = cauldron_assets.as_deref() else {
+                    // `CauldronAssets` was scheduled by LoadCauldronAssets
+                    // and hasn't flushed yet. Re-push and bail so we retry
+                    // next frame — silently consuming this task would leave
+                    // the match with no cauldron, permanently breaking
+                    // brewing for the rest of the game.
+                    spawn_queue.tasks.insert(0, MpSpawnTask::Cauldron);
+                    break;
+                };
+                crate::game::cauldron::systems::spawn_cauldron(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    assets,
+                );
             }
         }
     }

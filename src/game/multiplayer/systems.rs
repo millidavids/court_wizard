@@ -152,6 +152,14 @@ pub(super) fn cleanup_mp_game(
     commands.remove_resource::<crate::networking::snapshot::SpellSnapshotData>();
     commands.remove_resource::<super::spell_sync::LatestSpellSnapshot>();
 
+    // Tear down the pathfinding grid that MP loading populated with this
+    // match's terrain (boulders, ponds, etc.). Without removal, the grid
+    // leaks into MetaGame; a subsequent SP run reinitialises it but the
+    // stale ~MB-scale resource sits in memory in the meantime.
+    // `detect_mp_loading_disconnect` already removes this on the abort
+    // path; this is the corresponding teardown for a clean match exit.
+    commands.remove_resource::<crate::game::pathfinding::resources::PathfindingGrid>();
+
     // Only remove the session if this is NOT a rematch — keep connection alive for rematch
     if pending_rematch.is_none() {
         commands.remove_resource::<MultiplayerSession>();
