@@ -595,7 +595,15 @@ pub fn update_fire_dot(
 /// Spawn fire VFX (smoke, sparks, embers) on units with an active FireDoT.
 pub fn emit_burning_unit_vfx(
     mut commands: Commands,
-    burning_units: Query<(&Transform, &Hitbox), With<FireDoT>>,
+    // Fire smoke/sparks emit for any unit currently flagged as burning —
+    // host-simulated units carry the real `FireDoT`, and guest-rendered
+    // ghost units carry `RemoteFireEffect` (mirrored from the host's
+    // snapshot). Including both lets the burning VFX play on the guest
+    // for opposing units the same way SP shows it.
+    burning_units: Query<
+        (&Transform, &Hitbox),
+        Or<(With<FireDoT>, With<RemoteFireEffect>)>,
+    >,
     visual_assets: Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
     time: Res<Time>,
     mut smoke_timer: Local<f32>,

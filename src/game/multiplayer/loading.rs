@@ -14,7 +14,6 @@ use crate::config::save_data::{SavedBoulder, SavedBush, SavedFlora, SavedPond, S
 use crate::game::battlefield::components::BattlefieldAssets;
 use crate::game::battlefield::ground_material::{GroundMaterial, StoneNoiseMaterial};
 use crate::game::constants::*;
-use crate::game::loading::resources::LoadingProgress;
 use crate::game::pathfinding::messages::ObstacleChanged;
 use crate::game::seeded_rng::resources::{GameRng, GameSeed};
 use crate::game::shared_systems::ShadowAssets;
@@ -71,6 +70,30 @@ pub enum MpSpawnTask {
     Cauldron,
 }
 
+impl MpSpawnTask {
+    /// Tasks that read a resource inserted by a prior task via
+    /// `commands.insert_resource(...)`. The processor must flush the
+    /// command queue (end the frame) before running these — Bevy doesn't
+    /// apply deferred resource inserts until the next sync point.
+    fn needs_command_flush(&self) -> bool {
+        matches!(
+            self,
+            MpSpawnTask::HostWizard
+                | MpSpawnTask::GuestWizard
+                | MpSpawnTask::Cauldron,
+        )
+    }
+
+    /// Tasks that schedule a deferred `commands.insert_resource(...)` that
+    /// a subsequent task will need to read.
+    fn creates_deferred_state(&self) -> bool {
+        matches!(
+            self,
+            MpSpawnTask::LoadWizardAssets | MpSpawnTask::LoadCauldronAssets,
+        )
+    }
+}
+
 /// Resource that holds the multiplayer spawn queue.
 #[derive(Resource)]
 pub struct MpSpawnQueue {
@@ -121,7 +144,6 @@ pub fn init_mp_loading(
     game_seed: Res<GameSeed>,
     mut config: ResMut<GameConfig>,
 ) {
-    commands.insert_resource(LoadingProgress::new());
     commands.insert_resource(MpLoadingSync::default());
 
     // Stash the SP seed/level so MP exit can restore them.
@@ -236,11 +258,7 @@ pub fn process_mp_spawn_queue(
     mut connection: ResMut<NetworkConnection>,
     session: Res<MultiplayerSession>,
     mut next_state: ResMut<NextState<AppState>>,
-    progress: (
-        ResMut<LoadingProgress>,
-        ResMut<MpSpawnQueue>,
-        ResMut<MpLoadingSync>,
-    ),
+    progress: (ResMut<MpSpawnQueue>, ResMut<MpLoadingSync>),
     unit_assets: (
         Res<InfantryAssets>,
         Res<ArcherAssets>,
@@ -268,7 +286,7 @@ pub fn process_mp_spawn_queue(
     cauldron_assets: Option<Res<crate::game::cauldron::resources::CauldronAssets>>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
-    let (mut loading_progress, mut spawn_queue, mut loading_sync) = progress;
+    let (mut spawn_queue, mut loading_sync) = progress;
     let (infantry_assets, archer_assets, king_assets, mut king_spawned) = unit_assets;
     let (boulder_assets, tree_assets, pond_assets, bush_assets, flora_assets, shadow_assets) =
         terrain_assets;
@@ -287,7 +305,23 @@ pub fn process_mp_spawn_queue(
         Transform::IDENTITY
     };
 
-    if let Some(task) = spawn_queue.pop_next() {
+    // Bulk-process tasks each frame — matches single-player's `process_spawn_queue`.
+    // The break-on-deferred-state logic lets us still respect tasks that need
+    // a previous task's `commands.insert_resource(...)` to have flushed
+    // (HostWizard/GuestWizard need WizardAssets; Cauldron needs CauldronAssets).
+    // Without this, the entire MP arena materialises in ~3 frames instead of ~100,
+    // small enough that no loading screen is needed.
+    let mut created_deferred_state = false;
+    while let Some(task_ref) = spawn_queue.tasks.first() {
+        if task_ref.needs_command_flush() && created_deferred_state {
+            break;
+        }
+        let Some(task) = spawn_queue.pop_next() else {
+            break;
+        };
+        if task.creates_deferred_state() {
+            created_deferred_state = true;
+        }
         match task {
             MpSpawnTask::Battlefield => {
                 // Reuse single-player's battlefield builder verbatim. Both
@@ -514,10 +548,11 @@ pub fn process_mp_spawn_queue(
         }
     }
 
-    loading_progress.advance();
-
-    // When queue is done and minimum frames reached, signal loaded
-    if spawn_queue.is_complete() && loading_progress.is_complete() && !loading_sync.my_loaded {
+    // As soon as the spawn queue empties, tell the peer we're ready. The
+    // previous code waited for an artificial 100-frame floor (~1.7s) so the
+    // loading screen had something to show; with the bulk processor above,
+    // both peers complete in ~3 imperceptible frames and the screen is gone.
+    if spawn_queue.is_complete() && !loading_sync.my_loaded {
         loading_sync.my_loaded = true;
         connection
             .outgoing_messages
@@ -559,7 +594,6 @@ pub fn cleanup_mp_loading(
     mut config: ResMut<GameConfig>,
     backup: Option<Res<MpConfigBackup>>,
 ) {
-    commands.remove_resource::<LoadingProgress>();
     commands.remove_resource::<MpSpawnQueue>();
     commands.remove_resource::<MpLoadingSync>();
 

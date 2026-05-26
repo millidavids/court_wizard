@@ -1,3 +1,9 @@
+//! Loading-screen UI — intentionally retained for future long-running loads
+//! (cinematics, big asset packs). Today both SP and MP complete loading in
+//! a few imperceptible frames, so `LoadingUiPlugin` does not register any of
+//! these systems; they're left here ready to wire back up.
+#![allow(dead_code)]
+
 use bevy::prelude::*;
 
 /// Marker component for loading screen root.

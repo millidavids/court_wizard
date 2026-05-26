@@ -33,6 +33,9 @@ All notable changes to this project will be documented in this file.
 - **Wall of Stone rises out of the ground on the other player's screen** — when your opponent cast Wall of Stone, the wall used to just pop into existence at full height. It now plays its rise-from-the-ground animation on both screens
 - **Wall of Stone no longer flickers at full height for a single frame** — the rising-from-the-ground animation used to flash the wall at its final height for one frame before sinking down to start the rise. The wall now starts underground and rises smoothly from frame one
 - **Other player's units no longer keep walking in place during a network blip** — if the connection paused for a second or two, the opposing army would stop moving but their walk animations kept looping. Their animation now winds down smoothly when no new updates are arriving
+- **Burning effect now shows on both players' screens** — units set on fire only puffed smoke and sparks on the side that cast the spell. The burning visual now plays for the other player too, matching what they see locally
+- **No more mass first-frame deaths when armies first clash** — every multiplayer unit spawned ready to swing the instant they touched an enemy, so 20+ attackers piling onto one defender all hit on the same frame and instantly killed it. Each unit's attack now lands at its own staggered point in the attack cycle, like single-player does naturally through wave staging
+- **Multiplayer no longer shows a loading screen** — the brief multiplayer arena setup used to display a "Loading..." screen for about two seconds. Match setup now completes in a few imperceptible frames, just like single-player, and the screen is gone
 
 ## [v0.7.367] - 2026-05-10
 

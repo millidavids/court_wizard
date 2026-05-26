@@ -13,8 +13,8 @@ use super::components::{
     Airborne, BerserkerRageModifier, CombatAnimation, DeathAnimationFinished, DyingAnimation,
     FacingDirection, FearModifier, FireDoT, FogEvasionModifier, FrozenSolidModifier, HasteModifier,
     Knockback, MarkedForDeathModifier, Petrified, PoisonedModifier, PulsingAnimation,
-    RisingAnimation, RootedModifier, SickenedModifier, SlowMovementModifier, SmellyModifier,
-    Stunned, TemporaryHitPoints, WalkingAnimation,
+    RemoteFireEffect, RisingAnimation, RootedModifier, SickenedModifier, SlowMovementModifier,
+    SmellyModifier, Stunned, TemporaryHitPoints, WalkingAnimation,
 };
 use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
@@ -163,7 +163,13 @@ impl Plugin for UnitsPlugin {
                     systems::update_timed_modifier::<SmellyModifier>
                         .run_if(any_with_component::<SmellyModifier>),
                     systems::update_persistent_effect_visuals,
-                    systems::emit_burning_unit_vfx.run_if(any_with_component::<FireDoT>),
+                    // Fire on the guest's ghost units is tagged via
+                    // `RemoteFireEffect` rather than the real `FireDoT`.
+                    // Run the VFX emitter when either marker is present.
+                    systems::emit_burning_unit_vfx.run_if(
+                        any_with_component::<FireDoT>
+                            .or(any_with_component::<RemoteFireEffect>),
+                    ),
                 )
                     .run_if(is_spell_effects_active),
             )

@@ -28,6 +28,22 @@ use crate::networking::resources::PeerRole;
 
 use super::components::OnMultiplayerGameScreen;
 
+/// Returns an `AttackTiming` whose `last_attack_time` is randomised across
+/// the cycle. In SP, the staging phase spaces out first contact so units
+/// don't all swing on the same frame; MP has no staging, so without this
+/// pre-stagger every unit spawned with `last_attack_time = None` would
+/// `can_attack` on the very first frame of melee contact — letting 20+
+/// units one-shot a defender in a single frame. By seeding the cycle
+/// offset, first-contact damage is naturally distributed over ~2s.
+fn staggered_attack_timing() -> AttackTiming {
+    use rand::Rng;
+    let mut rng = rand::rng();
+    let offset = rng.random_range(0.0..crate::game::constants::ATTACK_CYCLE_DURATION);
+    let mut timing = AttackTiming::new();
+    timing.last_attack_time = Some(offset);
+    timing
+}
+
 /// Spawns a castle wall plane at the given position and rotation.
 ///
 /// Tagged `OnGameplayScreen` to match the castle that `setup_battlefield`
@@ -208,7 +224,7 @@ pub(super) fn spawn_mp_infantry(
                 hitbox,
                 Health::new(UNIT_HEALTH),
                 MovementSpeed(UNIT_MOVEMENT_SPEED),
-                AttackTiming::new(),
+                staggered_attack_timing(),
                 Effectiveness::new(),
                 team,
                 Infantry,
@@ -298,7 +314,7 @@ pub(super) fn spawn_mp_archer(
                 hitbox,
                 Health::new(UNIT_HEALTH),
                 MovementSpeed(ARCHER_MOVEMENT_SPEED),
-                AttackTiming::new(),
+                staggered_attack_timing(),
                 Effectiveness::new(),
                 team,
                 Archer,
@@ -377,7 +393,7 @@ pub(super) fn spawn_mp_king(
             hitbox,
             Health::new(KING_HEALTH),
             MovementSpeed(KING_MOVEMENT_SPEED),
-            AttackTiming::new(),
+            staggered_attack_timing(),
             Effectiveness::new(),
             DamageMultiplier(KING_DAMAGE_PERCENTAGE),
             team,
@@ -477,7 +493,7 @@ pub(super) fn spawn_mp_kings_guard(
         Transform::from_xyz(final_x, spawn_y, final_z),
         hitbox,
         Health::new(UNIT_HEALTH),
-        AttackTiming::new(),
+        staggered_attack_timing(),
         Effectiveness::new(),
         team,
         Infantry,
