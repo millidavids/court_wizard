@@ -100,11 +100,9 @@ pub fn apply_state_snapshot(
         (
             Entity,
             &mut Transform,
-            &mut MeshMaterial3d<StandardMaterial>,
             &mut CrdtHealth,
             &mut Health,
             &mut crate::game::components::Velocity,
-            Option<&OriginalMaterial>,
             Has<RemoteFireEffect>,
             Has<RemoteFrostEffect>,
             Has<RemoteElectricEffect>,
@@ -168,28 +166,24 @@ pub fn apply_state_snapshot(
         let is_guard = unit.flags & UnitFlags::KINGS_GUARD != 0;
         let team = u8_to_team(unit.team);
 
-        let material_handle = pick_material(
-            &infantry_assets,
-            &archer_assets,
-            &king_assets,
-            &mut materials,
-            team,
-            is_corpse,
-            is_king,
-            is_archer,
-            is_guard,
-        );
-
-        // Sprite-based units keep sprite_mesh for both live and corpse states
-        let mesh_handle = if is_king {
-            king_assets.sprite_mesh.clone()
-        } else if is_archer {
-            archer_assets.sprite_mesh.clone()
-        } else {
-            infantry_assets.sprite_mesh.clone()
-        };
-
         let pos = Vec3::new(unit.x, unit.y, unit.z);
+
+        // NOTE on material/mesh handles: do NOT compute them
+        // unconditionally outside the spawn/transition branches. For alive
+        // sprite units `pick_material` calls `materials.add(...)` which
+        // allocates a fresh `StandardMaterial` asset every invocation. If
+        // it ran on every snapshot for every ghost, two things broke:
+        //  1. The ghost's `MeshMaterial3d` would be overwritten with the
+        //     new (UV = identity) handle ~60 Hz, racing with — and
+        //     systematically erasing — the per-frame UV writes that
+        //     `update_walking_animation` / `update_combat_animation` made
+        //     to the previous material. The visible symptom was walking
+        //     and attack animations restarting on every frame.
+        //  2. ~60 fresh `StandardMaterial`s per ghost per second were
+        //     orphaned in the asset server, leaking memory linearly with
+        //     match duration.
+        // The material/mesh handles are now computed lazily inside the
+        // spawn branch and the corpse-transition branch only.
 
         // Build remote CRDT state from the snapshot
         let remote_crdt = CrdtHealth {
@@ -208,11 +202,9 @@ pub fn apply_state_snapshot(
             if let Ok((
                 entity,
                 mut transform,
-                material_ref,
                 mut crdt_health,
                 mut health,
                 mut velocity,
-                original_mat,
                 has_remote_fire,
                 has_remote_frost,
                 has_remote_electric,
@@ -259,20 +251,60 @@ pub fn apply_state_snapshot(
                 // Re-derive Health from converged CRDT state so damage systems see correct HP
                 health.current = crdt_health.current_hp();
 
-                // If a visual effect (fire/frost/electric tint) is active, don't
-                // overwrite the tinted material — but update the stored original so
-                // the correct base material is restored when the effect expires
-                // (e.g., unit becomes a corpse while burning).
-                if let Some(orig) = original_mat {
-                    if orig.0 != material_handle {
-                        commands
-                            .entity(entity)
-                            .insert(OriginalMaterial(material_handle));
+                // Material handling on corpse transition.
+                //
+                // For NON-KING units we DELIBERATELY do NOT swap the
+                // material here. The existing block below (lines ~342-357)
+                // inserts `Corpse` + `DyingAnimation`, and the shared SP
+                // animation pipeline (`update_dying_animation` →
+                // `DeathAnimationFinished` → `finalize_dying_to_corpse`)
+                // mutates the entity's CURRENT material in place — first
+                // setting its `base_color_texture` to the death sheet and
+                // ticking the death-frame UV, then converting it to the
+                // corpse appearance (corpse tint + `AlphaMode::Blend`).
+                // Because the ghost's material is the per-entity allocation
+                // from the spawn branch, those `get_mut` writes don't
+                // corrupt anything else.
+                //
+                // The previous version of this branch swapped to a SHARED
+                // handle cloned from `infantry_assets.defender_corpse_materials[idx]`
+                // (and similar). `update_dying_animation`'s first-frame
+                // `materials.get_mut(handle); mat.base_color_texture = death_sheet`
+                // then mutated the SHARED asset, replacing the texture for
+                // every other ghost or SP corpse holding that variant for
+                // the duration of one death sequence. Removing the swap
+                // here fixes that corruption.
+                //
+                // KINGS are special: kings have no death animation in SP
+                // (the existing block skips DyingAnimation for `is_king`),
+                // so `finalize_dying_to_corpse` never runs on them. They
+                // also use a dedicated corpse sprite, not a tint of the
+                // alive sprite. We swap directly to a king-corpse handle
+                // here. At most one king per team exists, and nothing ever
+                // calls `get_mut` on the king-corpse handle, so sharing
+                // the handle is safe.
+                if is_corpse != has_corpse {
+                    let mut ec = commands.entity(entity);
+                    if is_king {
+                        let new_handle = pick_material(
+                            &infantry_assets,
+                            &archer_assets,
+                            &king_assets,
+                            &mut materials,
+                            team,
+                            is_corpse,
+                            is_king,
+                            is_archer,
+                            is_guard,
+                        );
+                        ec.insert(MeshMaterial3d(new_handle));
                     }
-                } else if material_ref.0 != material_handle {
-                    commands
-                        .entity(entity)
-                        .insert(MeshMaterial3d(material_handle));
+                    // Clear stale tint state in both cases — if a tint was
+                    // active on the alive sprite, the SP corpse finalizer
+                    // (or, for kings, the snapshot swap above) supersedes
+                    // it, and we don't want a later tint-restore to put
+                    // the alive-looking material back on a corpse.
+                    ec.remove::<OriginalMaterial>();
                 }
 
                 // Sync remote status effect visual markers from host
@@ -436,6 +468,31 @@ pub fn apply_state_snapshot(
                 )
             };
 
+            // Sprite-based units keep `sprite_mesh` for both live and corpse states.
+            let mesh_handle = if is_king {
+                king_assets.sprite_mesh.clone()
+            } else if is_archer {
+                archer_assets.sprite_mesh.clone()
+            } else {
+                infantry_assets.sprite_mesh.clone()
+            };
+
+            // Compute the spawn material once. From this point on the
+            // animation systems own the ghost's `MeshMaterial3d` — the
+            // snapshot loop only touches it again on the alive→corpse
+            // transition (see the `is_corpse != has_corpse` branch above).
+            let material_handle = pick_material(
+                &infantry_assets,
+                &archer_assets,
+                &king_assets,
+                &mut materials,
+                team,
+                is_corpse,
+                is_king,
+                is_archer,
+                is_guard,
+            );
+
             let initial_health = Health::new(remote_crdt.max_hp);
             let entity = commands
                 .spawn((
@@ -496,6 +553,51 @@ pub fn apply_state_snapshot(
 
             if is_corpse {
                 commands.entity(entity).insert(Corpse);
+            }
+
+            // Apply effect markers / combat animation at spawn so a late-
+            // join ghost doesn't wait one extra snapshot tick for visuals
+            // that should be on right now. The on/off edge transitions in
+            // the update branch handle subsequent flag changes; without
+            // these spawn-time inserts the first frame would show the
+            // ghost un-tinted and not mid-swing even when the snapshot
+            // says otherwise. We intentionally skip `DyingAnimation` on
+            // spawn-as-corpse — the death already happened in the past
+            // from this guest's perspective; replaying its frames now
+            // would be wrong (the unit just appears already laid out).
+            if remote_fire {
+                commands.entity(entity).insert(RemoteFireEffect);
+            }
+            if remote_frost {
+                commands.entity(entity).insert(RemoteFrostEffect);
+            }
+            if remote_electric {
+                commands.entity(entity).insert(RemoteElectricEffect);
+            }
+            if remote_combat && !is_corpse && !is_king {
+                let (combat_tex, walking_tex) = if is_archer {
+                    (
+                        archer_assets.shooting_texture.clone(),
+                        archer_assets.sprite_texture.clone(),
+                    )
+                } else {
+                    (
+                        infantry_assets.attacking_texture.clone(),
+                        infantry_assets.sprite_texture.clone(),
+                    )
+                };
+                let anim = if is_archer {
+                    crate::game::units::components::CombatAnimation::new_shooting(
+                        combat_tex,
+                        walking_tex,
+                    )
+                } else {
+                    crate::game::units::components::CombatAnimation::new_attack(
+                        combat_tex,
+                        walking_tex,
+                    )
+                };
+                commands.entity(entity).insert(anim);
             }
 
             entity_map.insert(unit.id, entity);
