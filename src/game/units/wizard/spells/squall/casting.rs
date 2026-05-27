@@ -284,6 +284,16 @@ fn squall_casting_logic(
                                     primed_spell.empowerment,
                                     *talent_params,
                                 ),
+                                // Tag for MP visual sync — the host's storm
+                                // entity ships to the guest, which spawns a
+                                // local ghost SquallStorm so the reticle
+                                // mist + Sleet Storm evasion debuff systems
+                                // (gated on `Without<GhostSpellEffect>` for
+                                // gameplay-only) have something to attach
+                                // visuals to on the remote peer.
+                                crate::game::multiplayer::components::NetworkedSpellEffect {
+                                    kind: crate::networking::snapshot::SpellEffectKind::SquallStorm,
+                                },
                                 OnGameplayScreen,
                             ));
 

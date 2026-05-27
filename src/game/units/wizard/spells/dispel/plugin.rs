@@ -31,6 +31,26 @@ impl Plugin for DispelPlugin {
                 systems::update_null_zones
                     .run_if(any_exist::<NullZone>())
                     .run_if(is_gameplay_running),
+                // Guest-only: ship DispelSpellEffect / DispelShield messages
+                // for each impact's overlap with networked spell effects /
+                // shielded units. Host's `receive_dispel_messages` then
+                // performs the authoritative despawn / shield strip. Also
+                // gated `is_spell_effects_active` so the forwarder stops
+                // firing when the game is paused — otherwise stale dispel
+                // messages would pile up while the host's receiver is also
+                // paused, and process all-at-once on resume.
+                systems::forward_dispel_impacts_to_host
+                    .run_if(any_exist::<DispelImpact>())
+                    .run_if(is_spell_effects_active)
+                    .run_if(crate::networking::session::is_multiplayer_guest),
+                // Guest-only: visual-tick the GHOST DispelImpact entities
+                // so the expanding sphere actually animates on the remote
+                // peer (the main update_dispel_impacts is filtered out for
+                // ghosts to avoid double-despawning host spell effects).
+                systems::tick_ghost_dispel_impacts
+                    .run_if(any_exist::<DispelImpact>())
+                    .run_if(is_spell_effects_active)
+                    .run_if(crate::networking::session::is_multiplayer_guest),
             ),
         );
     }

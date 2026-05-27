@@ -260,7 +260,12 @@ pub(super) fn check_meteor_collisions(
                             + VOLCANIC_ERUPTION_STACK_BONUS * fire.eruption_charges as f32)
                             * projectile.empowerment;
 
-                        // Spawn eruption VFX (reuse explosion visual, scaled)
+                        // Spawn eruption VFX (reuse explosion visual, scaled).
+                        // `networked: true` so the remote MP peer sees the
+                        // mini-explosion via the existing MeteorExplosion
+                        // SpellEffectKind path (visual + damage on both peers
+                        // via CRDT). Without this, Volcanic Eruption damage
+                        // was the caster's-peer-only.
                         spawn_explosion_entity(
                             &mut commands,
                             &visual_assets,
@@ -268,7 +273,7 @@ pub(super) fn check_meteor_collisions(
                             fire.origin,
                             VOLCANIC_ERUPTION_RADIUS,
                             eruption_damage,
-                            false,
+                            true,
                         );
 
                         // Eruption smoke
@@ -382,12 +387,19 @@ pub(super) fn update_meteor_explosions(
     time: Res<Time>,
     mut commands: Commands,
     mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
-    mut explosions: Query<(
-        Entity,
-        &mut MeteorExplosion,
-        &mut Transform,
-        Option<&MeshMaterial3d<FireExplosionSphereMaterial>>,
-    )>,
+    // Host-only — Volcanic Eruption ships a ghost MeteorExplosion to the
+    // guest now; without this filter, the guest's ghost would also fire
+    // its damage_applied one-shot block locally, double-applying damage +
+    // talent progress + terrain-damage messages.
+    mut explosions: Query<
+        (
+            Entity,
+            &mut MeteorExplosion,
+            &mut Transform,
+            Option<&MeshMaterial3d<FireExplosionSphereMaterial>>,
+        ),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut units: Query<
         (
             Entity,

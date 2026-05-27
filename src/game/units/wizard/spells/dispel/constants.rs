@@ -102,6 +102,10 @@ pub fn spell_effect_mana_cost(kind: crate::networking::snapshot::SpellEffectKind
         SpellEffectKind::WallOfFire => s::wall_of_fire::constants::MANA_COST,
         SpellEffectKind::FireballExplosion
         | SpellEffectKind::MeteorExplosion
-        | SpellEffectKind::IceExplosion => 0.0, // Not dispellable
+        | SpellEffectKind::IceExplosion
+        | SpellEffectKind::DispelImpact
+        | SpellEffectKind::SquallStorm
+        | SpellEffectKind::ScorchedEarthFire
+        | SpellEffectKind::NapalmTrail => 0.0, // Not dispellable (or self-dispel)
     }
 }

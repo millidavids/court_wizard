@@ -48,6 +48,16 @@ pub struct NetworkedSpellEffect {
     pub kind: SpellEffectKind,
 }
 
+/// Marker for the guest's local copy of a host-owned spell effect (BlackHole
+/// pull, ArcaneCrystal hit-reactions, LightningRod strikes, PlagueWind DPS,
+/// etc.). SP-shared gameplay systems running on the guest must filter this
+/// out — only the HOST should run authoritative spell-effect logic; the guest
+/// only renders visuals. Without this filter, the guest's local copy of a
+/// host-cast spell would independently re-apply gameplay effects, doubling
+/// damage / status / forces (Category C "double-application" bugs).
+#[derive(Component)]
+pub struct GhostSpellEffect;
+
 /// Marker for ghost spell projectiles rendered on the guest (ephemeral).
 ///
 /// Used for fireball, ice projectile, and meteor projectile ghosts.

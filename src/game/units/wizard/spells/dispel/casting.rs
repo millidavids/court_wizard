@@ -139,6 +139,9 @@ pub fn handle_dispel_casting(
                 expand_speed: constants::ANTIMAGIC_PULSE_RADIUS
                     / constants::ANTIMAGIC_PULSE_DURATION,
             },
+            crate::game::multiplayer::components::NetworkedSpellEffect {
+                kind: crate::networking::snapshot::SpellEffectKind::DispelImpact,
+            },
             OnGameplayScreen,
         ));
         insert_talent_markers(&mut impact_entity, &talent_params);
@@ -292,6 +295,9 @@ pub fn move_dispel_projectiles(
                     time_alive: 0.0,
                     duration: constants::IMPACT_DURATION,
                     expand_speed: projectile.expand_speed,
+                },
+                crate::game::multiplayer::components::NetworkedSpellEffect {
+                    kind: crate::networking::snapshot::SpellEffectKind::DispelImpact,
                 },
                 OnGameplayScreen,
             ));

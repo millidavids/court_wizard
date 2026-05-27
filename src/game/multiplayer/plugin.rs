@@ -203,6 +203,63 @@ impl Plugin for MultiplayerGamePlugin {
                 .run_if(mp_running.and(is_multiplayer_guest)),
         );
 
+        // ── Guest: Forward Status Effects to Host ─────────────────────
+        // Generic forwarder watching for status components newly inserted
+        // on ghost units, so guest-cast Sleep/Root/Mark/Haste/etc. take
+        // hold on host-authoritative units. See `forward_status_effects_to_host`.
+        app.add_systems(
+            Update,
+            guest_systems::forward_status_effects_to_host
+                .run_if(mp_running.and(is_multiplayer_guest)),
+        );
+
+        // Pair each forwarded marker with a cleanup that removes the marker
+        // the frame after its underlying status component is removed. Without
+        // this, a second cast of the same status on the same ghost would be
+        // silently dropped (the Without<StatusEffectForwarded<T>> filter
+        // would keep the stale marker forever).
+        use guest_systems::cleanup_forwarded_marker as cleanup;
+        use crate::game::units::components as comp;
+        use crate::game::units::status_effects as sfx;
+        app.add_systems(
+            Update,
+            (
+                cleanup::<sfx::SleepModifier>,
+                cleanup::<sfx::RootedModifier>,
+                cleanup::<sfx::PolymorphedModifier>,
+                cleanup::<comp::MindControlled>,
+                cleanup::<sfx::BanishedModifier>,
+                cleanup::<sfx::MarkedForDeathModifier>,
+                cleanup::<sfx::HasteModifier>,
+                cleanup::<sfx::BattleHymnModifier>,
+                cleanup::<sfx::BerserkerRageModifier>,
+                cleanup::<comp::TemporaryHitPoints>,
+                cleanup::<comp::SlowMovementModifier>,
+                cleanup::<sfx::Stunned>,
+                cleanup::<sfx::FogEvasionModifier>,
+                cleanup::<comp::Knockback>,
+            )
+                .run_if(mp_running.and(is_multiplayer_guest)),
+        );
+
+        // ── Host: Receive Generic Status Effects ─────────────────────
+        app.add_systems(
+            Update,
+            host_systems::receive_apply_status_effect.run_if(mp_running.and(is_multiplayer_host)),
+        );
+
+        // ── Host: Receive Raise-Corpse Messages ─────────────────────
+        app.add_systems(
+            Update,
+            host_systems::receive_raise_corpse_messages.run_if(mp_running.and(is_multiplayer_host)),
+        );
+
+        // ── Host: Receive Dispel Messages ─────────────────────
+        app.add_systems(
+            Update,
+            host_systems::receive_dispel_messages.run_if(mp_running.and(is_multiplayer_host)),
+        );
+
         // ── Guest: Game Over Message ──────────────────────────────────
         app.add_systems(
             Update,

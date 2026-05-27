@@ -28,7 +28,10 @@ type DimensionalRiftUnitFilter = (
 );
 
 pub(super) fn apply_gravitational_forces(
-    mut black_holes: Query<&mut BlackHole>,
+    mut black_holes: Query<
+        &mut BlackHole,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut units: Query<
         (&Transform, &mut Acceleration),
         (
@@ -76,7 +79,10 @@ pub(super) fn apply_gravitational_forces(
 /// When a corpse intersects the black hole sphere, it is despawned.
 pub(super) fn apply_corpse_gravity_and_despawn(
     mut commands: Commands,
-    mut black_holes: Query<&BlackHole>,
+    mut black_holes: Query<
+        &BlackHole,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut corpses: Query<(Entity, &Transform, &mut Acceleration), With<Corpse>>,
 ) {
     for black_hole in black_holes.iter_mut() {
@@ -116,7 +122,13 @@ pub(super) fn apply_corpse_gravity_and_despawn(
 pub(super) fn apply_black_hole_damage(
     time: Res<Time>,
     mut commands: Commands,
-    mut black_holes: Query<&mut BlackHole>,
+    // `Without<GhostSpellEffect>` skips the guest's local copy of a host-cast
+    // BlackHole — only the host's authoritative entity applies damage, so MP
+    // doesn't double-hit units from both peers running this system.
+    mut black_holes: Query<
+        &mut BlackHole,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut units: Query<
         (
             Entity,
@@ -213,7 +225,10 @@ pub(super) fn apply_black_hole_damage(
 /// Removes tracking component when units leave the black hole.
 pub(super) fn remove_units_from_black_hole(
     mut commands: Commands,
-    black_holes: Query<&BlackHole>,
+    black_holes: Query<
+        &BlackHole,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     units: Query<(Entity, &Transform), With<UnitInBlackHole>>,
 ) {
     for (entity, transform) in units.iter() {
@@ -236,7 +251,10 @@ pub(super) fn remove_units_from_black_hole(
 /// Applies Crushing Pressure slow to units inside the black hole.
 pub(super) fn apply_crushing_pressure(
     mut commands: Commands,
-    black_holes: Query<&BlackHole>,
+    black_holes: Query<
+        &BlackHole,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     units: Query<(Entity, &Transform), (With<Team>, Without<Wizard>, Without<Corpse>)>,
 ) {
     // Only run if any black hole has crushing pressure
@@ -270,7 +288,10 @@ pub(super) fn apply_crushing_pressure(
 /// Dimensional Rift: periodically teleports all enemies inside to the center and deals burst damage.
 pub(super) fn apply_dimensional_rift(
     mut commands: Commands,
-    mut black_holes: Query<&mut BlackHole>,
+    mut black_holes: Query<
+        &mut BlackHole,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut units: Query<DimensionalRiftUnitData, DimensionalRiftUnitFilter>,
 ) {
     for mut black_hole in black_holes.iter_mut() {
@@ -342,7 +363,12 @@ pub(super) fn update_black_hole_visuals(
 /// Handles Singularity talent: deals collapse damage to all units inside on expiration.
 pub(super) fn despawn_expired_black_holes(
     mut commands: Commands,
-    black_holes: Query<(Entity, &BlackHole)>,
+    // Host-authoritative only — guest's ghost copy is despawned by the
+    // snapshot's stale-id cleanup when the host's entity disappears.
+    black_holes: Query<
+        (Entity, &BlackHole),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut units: Query<
         (
             Entity,

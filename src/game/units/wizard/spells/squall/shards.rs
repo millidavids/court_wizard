@@ -41,7 +41,13 @@ pub(super) fn spawn_ice_projectiles(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    mut storms: Query<&mut SquallStorm>,
+    // Host-only — guest's ghost SquallStorm must NOT independently spawn
+    // ice / apply CC; the host's authoritative storm drives gameplay and
+    // CRDT carries the result.
+    mut storms: Query<
+        &mut SquallStorm,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
 ) {
     let rng = &mut game_rng.0;
 
@@ -287,7 +293,10 @@ pub(super) fn update_ice_explosions(
         ),
         Without<IceExplosion>,
     >,
-    storms: Query<&SquallStorm>,
+    storms: Query<
+        &SquallStorm,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,
 ) {
@@ -421,7 +430,10 @@ pub(super) fn update_ice_explosions(
 
 /// Applies Sleet Storm evasion debuff to enemies inside the storm radius.
 pub(super) fn apply_sleet_storm_evasion(
-    storms: Query<&SquallStorm>,
+    storms: Query<
+        &SquallStorm,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut units: Query<(Entity, &Transform, &Team, Option<&mut FogEvasionModifier>), With<Health>>,
     mut commands: Commands,
 ) {
@@ -454,7 +466,14 @@ pub(super) fn apply_sleet_storm_evasion(
 /// Handles Absolute Zero: continuously drains mana, applies stacking slow + damage to units in storm.
 pub(super) fn update_absolute_zero(
     time: Res<Time>,
-    storms: Query<(Entity, &SquallStorm)>,
+    // Host-only — guest's ghost SquallStorm would otherwise drain the
+    // guest's wizard mana from a host-cast Absolute Zero spell, and the
+    // guest's mouse-release would prematurely despawn the host's storm
+    // ghost.
+    storms: Query<
+        (Entity, &SquallStorm),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     rings: Query<Entity, With<SquallStormRing>>,
     mut wizard_query: Query<&mut Mana, With<LocalWizard>>,
     mut units: Query<(
@@ -544,7 +563,10 @@ pub(super) fn update_absolute_zero(
 /// Decays and cleans up Absolute Zero slow when units leave the zone or channeling stops.
 pub(super) fn decay_absolute_zero_slow(
     time: Res<Time>,
-    storms: Query<&SquallStorm>,
+    storms: Query<
+        &SquallStorm,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut units: Query<(Entity, &Transform, &mut AbsoluteZeroSlow)>,
     mut commands: Commands,
 ) {
@@ -582,7 +604,13 @@ pub(super) fn decay_absolute_zero_slow(
 /// Handles Blizzard talent: storm follows cursor slowly.
 pub(super) fn update_blizzard_position(
     time: Res<Time>,
-    mut storms: Query<&mut SquallStorm>,
+    // Host-only — guest's ghost SquallStorm must NOT independently spawn
+    // ice / apply CC; the host's authoritative storm drives gameplay and
+    // CRDT carries the result.
+    mut storms: Query<
+        &mut SquallStorm,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     wizard_query: Query<&Wizard, With<LocalWizard>>,
@@ -629,7 +657,14 @@ pub(super) fn update_blizzard_position(
 /// Ends the Absolute Zero channeled storm when the mouse is released.
 pub(super) fn end_absolute_zero_on_release(
     mut mouse_released: MessageReader<MouseLeftReleased>,
-    storms: Query<(Entity, &SquallStorm)>,
+    // Host-only — guest's ghost SquallStorm would otherwise drain the
+    // guest's wizard mana from a host-cast Absolute Zero spell, and the
+    // guest's mouse-release would prematurely despawn the host's storm
+    // ghost.
+    storms: Query<
+        (Entity, &SquallStorm),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     rings: Query<Entity, With<SquallStormRing>>,
     mut commands: Commands,
 ) {
@@ -670,7 +705,10 @@ fn spawn_frozen_ground_patch(
 /// and despawns the ring when the storm is gone (concentration ended or AZ released).
 pub(super) fn update_storm_ring(
     time: Res<Time>,
-    storms: Query<&SquallStorm>,
+    storms: Query<
+        &SquallStorm,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut rings: Query<(Entity, &mut SquallStormRing, &mut Transform)>,
     mut commands: Commands,
 ) {
@@ -733,7 +771,10 @@ pub(super) fn spawn_snow_particles(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    storms: Query<&SquallStorm>,
+    storms: Query<
+        &SquallStorm,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
 ) {
     let rng = &mut game_rng.0;
     let time_secs = time.elapsed_secs();

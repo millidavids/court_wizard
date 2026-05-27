@@ -28,6 +28,9 @@ use crate::networking::snapshot::{SpellEffectKind, SpellEffectSnapshot};
 use crate::state::MultiplayerGameState;
 
 use super::components::OnMultiplayerGameScreen;
+// Note: `GhostSpellEffect` is inserted by the caller in `spell_sync.rs`
+// after `spawn_spell_effect` returns the entity, so this file doesn't
+// import it.
 use crate::game::units::wizard::spells::visual_assets::{
     FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material,
 };
@@ -113,6 +116,7 @@ pub(super) fn spawn_spell_effect(
     let kind = SpellEffectKind::try_from(effect.kind).ok()?;
     let pos = Vec3::new(effect.x, effect.y, effect.z);
     let extra = effect.extra;
+    let flags = effect.flags;
 
     // Rotation for flat circles (face up on the ground plane)
     let flat_rotation = Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2);
@@ -187,29 +191,49 @@ pub(super) fn spawn_spell_effect(
         }
 
         SpellEffectKind::FogCloudZone => {
+            use crate::game::units::wizard::spells::fog_cloud::components::{
+                BlindingMistZone, ChokingFogZone, ConcealingVeilZone, DisorientingVaporsZone,
+                PhantomFogZone, RollingFogZone,
+            };
             let radius = extra[0];
             let duration = extra[1];
+            // Bug fix: ghost zone previously got `evasion_chance=0.0` and
+            // `evasion_refresh_duration=0.0`, making the fog do nothing on
+            // the remote peer regardless of caster. The collector now packs
+            // these in `extra[2]` and `extra[3]` so the ghost matches the
+            // caster's values.
+            let evasion_chance = extra[2];
+            let evasion_refresh_duration = extra[3];
             let material = materials.add(materials.get(&assets.fog_cloud_zone)?.clone());
-            Some(
-                commands
-                    .spawn((
-                        Mesh3d(assets.unit_circle.clone()),
-                        MeshMaterial3d(material),
-                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                            .with_rotation(flat_rotation)
-                            .with_scale(Vec3::splat(radius)),
-                        FogCloudZone::new(
-                            Vec3::new(pos.x, 0.0, pos.z),
-                            radius,
-                            0.0,
-                            0.0,
-                            1.0,
-                            duration,
-                        ),
-                        OnMultiplayerGameScreen,
-                    ))
-                    .id(),
-            )
+            let mut ec = commands.spawn((
+                Mesh3d(assets.unit_circle.clone()),
+                MeshMaterial3d(material),
+                Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+                    .with_rotation(flat_rotation)
+                    .with_scale(Vec3::splat(radius)),
+                FogCloudZone::new(
+                    Vec3::new(pos.x, 0.0, pos.z),
+                    radius,
+                    evasion_chance,
+                    evasion_refresh_duration,
+                    1.0,
+                    duration,
+                ),
+                OnMultiplayerGameScreen,
+            ));
+            // Insert FogCloud talent marker components based on the host's
+            // packed flags. Gameplay-authoritative behavior (Choking DPS,
+            // Rolling drift, Phantom spawns) is host-only, so these markers
+            // on the ghost are mostly for visual consistency / system
+            // existence-checks. Default field values are fine — the host
+            // ticks the real ones.
+            if flags & (1 << 0) != 0 { ec.insert(BlindingMistZone); }
+            if flags & (1 << 1) != 0 { ec.insert(ConcealingVeilZone); }
+            if flags & (1 << 2) != 0 { ec.insert(DisorientingVaporsZone); }
+            if flags & (1 << 3) != 0 { ec.insert(PhantomFogZone { spawn_timer: 0.0 }); }
+            if flags & (1 << 4) != 0 { ec.insert(ChokingFogZone::new(0.0, 1.0)); }
+            if flags & (1 << 5) != 0 { ec.insert(RollingFogZone { speed: 0.0 }); }
+            Some(ec.id())
         }
 
         SpellEffectKind::GreaseZone => {
@@ -265,11 +289,25 @@ pub(super) fn spawn_spell_effect(
         }
 
         SpellEffectKind::PlagueWindCloud => {
+            use crate::game::units::wizard::spells::plague_wind::components::PlagueWindTalentParams;
             let radius = extra[0];
             let duration = extra[1];
             let speed = extra[2];
             let direction_angle = extra[3];
             let direction = Vec3::new(direction_angle.sin(), 0.0, direction_angle.cos());
+            // Unpack the talent boolean flags sent by the host (see the
+            // matching collector arm in `spell_sync.rs::collect_spell_effect_snapshots`).
+            // Numeric talent multipliers are kept at default — they are
+            // already baked into the host's authoritative damage values
+            // that flow back via the CRDT pipeline, so reproducing them on
+            // the ghost would double-count.
+            let mut talent_params = PlagueWindTalentParams::default();
+            talent_params.plague_carrier = flags & (1 << 0) != 0;
+            talent_params.toxic_weakness = flags & (1 << 1) != 0;
+            talent_params.choking_gas    = flags & (1 << 2) != 0;
+            talent_params.pandemic       = flags & (1 << 3) != 0;
+            talent_params.twin_plumes    = flags & (1 << 4) != 0;
+            talent_params.necrotic_rot   = flags & (1 << 5) != 0;
             let material = materials.add(materials.get(&assets.plague_wind_zone)?.clone());
             Some(
                 commands
@@ -287,7 +325,7 @@ pub(super) fn spawn_spell_effect(
                             duration,
                             speed,
                             direction,
-                            Default::default(),
+                            talent_params,
                         ),
                         OnMultiplayerGameScreen,
                     ))
@@ -322,16 +360,27 @@ pub(super) fn spawn_spell_effect(
 
         // ── Objects (3D meshes, shared materials) ──
         SpellEffectKind::BlackHole => {
+            use crate::game::units::wizard::spells::black_hole::components::BlackHoleTalentParams;
             let max_radius = extra[0];
             let empowerment = extra[1];
-            // Icosphere scaled by max_radius * growth_factor in update_black_hole_visuals
+            let mut talent_params = BlackHoleTalentParams::default();
+            talent_params.event_horizon     = flags & (1 << 0) != 0;
+            talent_params.crushing_pressure = flags & (1 << 1) != 0;
+            talent_params.void_siphon       = flags & (1 << 2) != 0;
+            talent_params.singularity       = flags & (1 << 3) != 0;
+            talent_params.dimensional_rift  = flags & (1 << 4) != 0;
+            // Icosphere scaled by max_radius * growth_factor in update_black_hole_visuals.
+            // The ghost still won't run the damage/pull/etc. systems (those
+            // are gated `Without<GhostSpellEffect>` for host-authoritative)
+            // — but visual systems and talent-driven extra visuals can now
+            // see the correct flags.
             Some(
                 commands
                     .spawn((
                         Mesh3d(assets.black_hole_sphere.clone()),
                         MeshMaterial3d(assets.black_hole.clone()),
-                        Transform::from_translation(pos).with_scale(Vec3::ZERO), // Grows from 0 via update_black_hole_visuals
-                        BlackHole::new(pos, max_radius, empowerment, Default::default()),
+                        Transform::from_translation(pos).with_scale(Vec3::ZERO),
+                        BlackHole::new(pos, max_radius, empowerment, talent_params),
                         OnMultiplayerGameScreen,
                     ))
                     .id(),
@@ -339,28 +388,58 @@ pub(super) fn spawn_spell_effect(
         }
 
         SpellEffectKind::ArcaneCrystal => {
+            use crate::game::units::wizard::spells::arcane_crystal::components::{
+                ArcaneCrystal, AutoCrystalTimer, CrystalNetwork, PrismaticExplosion,
+                ResonanceCascade,
+            };
             let range = extra[0];
             let duration = extra[1];
             let empowerment = extra[2];
             let height = 35.0 * empowerment; // CRYSTAL_HEIGHT * empowerment
             let sphere_radius = height / 3.0;
             // Cross-plane sphere scaled to crystal shape
-            Some(commands.spawn((
+            let mut ec = commands.spawn((
                 Mesh3d(assets.cross_plane_sphere.clone()),
                 MeshMaterial3d(assets.arcane_crystal.clone()),
                 Transform::from_translation(Vec3::new(pos.x, height / 2.0, pos.z))
                     .with_scale(Vec3::new(0.7 * sphere_radius, 1.5 * sphere_radius, 0.7 * sphere_radius)),
-                crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal::new(
+                ArcaneCrystal::new(
                     Vec3::new(pos.x, height / 2.0, pos.z),
                     range, duration, range * 0.15, empowerment,
                 ),
                 OnMultiplayerGameScreen,
-            )).id())
+            ));
+            // Re-insert any talent marker components present on the host's
+            // crystal so guest-side talent visuals / state systems attach
+            // correctly. Note: the talent GAMEPLAY systems
+            // (detect_fireball_hits, auto_crystal_fire, etc.) are gated
+            // `Without<GhostSpellEffect>` — they only run on the host —
+            // so these markers exist on the guest solely for visual/state
+            // consistency (e.g. Resonance Cascade absorption counter).
+            if flags & (1 << 0) != 0 { ec.insert(ResonanceCascade { absorptions: 0 }); }
+            if flags & (1 << 1) != 0 { ec.insert(PrismaticExplosion); }
+            if flags & (1 << 2) != 0 { ec.insert(AutoCrystalTimer { timer: 0.0 }); }
+            if flags & (1 << 3) != 0 { ec.insert(CrystalNetwork); }
+            Some(ec.id())
         }
 
         SpellEffectKind::LightningRod => {
+            use crate::game::units::wizard::spells::lightning_rod::components::{
+                LightningRod, LightningRodTalentParams,
+            };
             let duration = extra[0];
             let empowerment = extra[1];
+            // Unpack the talent booleans sent by the host. The numeric
+            // duration/strike-interval/arc-radius/damage multipliers are
+            // already baked into the host's authoritative strike damage
+            // (which flows back via CRDT), so they stay at default here.
+            let mut talent_params = LightningRodTalentParams::default();
+            talent_params.chain_reaction   = flags & (1 << 0) != 0;
+            talent_params.magnetic_field   = flags & (1 << 1) != 0;
+            talent_params.overcharge       = flags & (1 << 2) != 0;
+            talent_params.storm_spire      = flags & (1 << 3) != 0;
+            talent_params.tesla_coil       = flags & (1 << 4) != 0;
+            talent_params.lightning_nexus  = flags & (1 << 5) != 0;
             // Lightning rod uses a cylinder mesh; create one at spawn.
             // This is a small allocation but rods are rare (1-2 at most).
             let tower_height = 60.0; // TOWER_HEIGHT
@@ -370,10 +449,10 @@ pub(super) fn spawn_spell_effect(
                 MeshMaterial3d(assets.lightning_rod.clone()),
                 Transform::from_translation(Vec3::new(pos.x, tower_height / 2.0, pos.z))
                     .with_scale(Vec3::new(tower_radius * 2.0, tower_height, tower_radius * 2.0)),
-                crate::game::units::wizard::spells::lightning_rod::components::LightningRod::new(
+                LightningRod::new(
                     Vec3::new(pos.x, 0.0, pos.z),
                     duration, empowerment,
-                    crate::game::units::wizard::spells::lightning_rod::components::LightningRodTalentParams::default(),
+                    talent_params,
                 ),
                 OnMultiplayerGameScreen,
             )).id())
@@ -426,9 +505,17 @@ pub(super) fn spawn_spell_effect(
         }
 
         SpellEffectKind::WallOfFire => {
+            use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireTalentParams;
             let half_width = extra[0];
             let duration = extra[1];
             let wall_length = extra[2];
+            let mut talent_params = WallOfFireTalentParams::default();
+            talent_params.searing_heat      = flags & (1 << 0) != 0;
+            talent_params.scorched_earth    = flags & (1 << 1) != 0;
+            talent_params.spreading_flames  = flags & (1 << 2) != 0;
+            talent_params.firestorm         = flags & (1 << 3) != 0;
+            talent_params.twin_walls        = flags & (1 << 4) != 0;
+            talent_params.consuming_inferno = flags & (1 << 5) != 0;
             let material = materials.add(StandardMaterial {
                 base_color: Color::NONE,
                 alpha_mode: AlphaMode::Blend,
@@ -453,7 +540,7 @@ pub(super) fn spawn_spell_effect(
                             crate::game::units::DamageType::Fire,
                             1.0,
                             duration,
-                            Default::default(),
+                            talent_params,
                         ),
                         OnMultiplayerGameScreen,
                     ))
@@ -517,6 +604,125 @@ pub(super) fn spawn_spell_effect(
                         Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
                             .with_scale(Vec3::splat(0.1)),
                         IceExplosion::new(pos, max_radius, 0.0, empowerment),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
+        }
+
+        SpellEffectKind::DispelImpact => {
+            use crate::game::units::wizard::spells::dispel::components::DispelImpact;
+            let duration = extra[0];
+            let expand_speed = extra[1];
+            // Same mesh + material the host's DispelImpact uses, so the
+            // remote peer sees the expanding nullification sphere. SP's
+            // `update_dispel_impacts` is gated `is_spell_effects_active`
+            // (both peers), so it ticks the growth + despawn on the ghost.
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.explosion_sphere.clone()),
+                        MeshMaterial3d(assets.guardian_aura_sphere.clone()),
+                        Transform::from_translation(pos).with_scale(Vec3::ZERO),
+                        DispelImpact {
+                            time_alive: 0.0,
+                            duration,
+                            expand_speed,
+                        },
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
+        }
+
+        SpellEffectKind::SquallStorm => {
+            use crate::game::units::wizard::spells::squall::components::{
+                SquallStorm, SquallTalentParams,
+            };
+            let radius = extra[0];
+            let mut talent_params = SquallTalentParams::default();
+            talent_params.permafrost    = flags & (1 << 0) != 0;
+            talent_params.hailstones    = flags & (1 << 1) != 0;
+            talent_params.sleet_storm   = flags & (1 << 2) != 0;
+            talent_params.absolute_zero = flags & (1 << 3) != 0;
+            talent_params.blizzard      = flags & (1 << 4) != 0;
+            talent_params.ice_age       = flags & (1 << 5) != 0;
+            Some(
+                commands
+                    .spawn((
+                        Transform::from_translation(pos),
+                        Visibility::Hidden,
+                        SquallStorm::new(pos, radius, 1.0, talent_params),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
+        }
+
+        SpellEffectKind::ScorchedEarthFire => {
+            use crate::game::units::wizard::spells::fireball::components::{
+                FireballExplosion, ScorchedEarthFire,
+            };
+            let max_radius = extra[0];
+            let empowerment = extra[1];
+            let duration = extra[2];
+            let mat_handle =
+                clone_sphere_material(sphere_materials, &assets.fireball_explosion_sphere);
+            let mut explosion = FireballExplosion::new(
+                pos,
+                max_radius,
+                0.0,
+                crate::game::units::DamageType::Fire,
+                empowerment,
+            );
+            explosion.duration = duration;
+            explosion.skip_growth = true;
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.explosion_sphere.clone()),
+                        MeshMaterial3d(mat_handle),
+                        Transform::from_translation(pos)
+                            .with_scale(Vec3::splat(max_radius.max(0.01))),
+                        explosion,
+                        ScorchedEarthFire,
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
+        }
+
+        SpellEffectKind::NapalmTrail => {
+            use crate::game::units::wizard::spells::fireball::components::{
+                FireballExplosion, ScorchedEarthFire,
+            };
+            let max_radius = extra[0];
+            let empowerment = extra[1];
+            let duration = extra[2];
+            let mat_handle =
+                clone_sphere_material(sphere_materials, &assets.fireball_explosion_sphere);
+            let mut trail = FireballExplosion::new(
+                pos,
+                max_radius,
+                0.0,
+                crate::game::units::DamageType::Fire,
+                empowerment,
+            );
+            trail.duration = duration;
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.explosion_sphere.clone()),
+                        MeshMaterial3d(mat_handle),
+                        Transform::from_translation(pos)
+                            .with_scale(Vec3::splat(max_radius.max(0.01))),
+                        trail,
+                        // Same `ScorchedEarthFire` marker the SP path uses
+                        // — `spawn_scorched_earth_fire_smoke` is gated on
+                        // `any_exist::<ScorchedEarthFire>()`, so without
+                        // this the smoke VFX is missing for host-cast
+                        // napalm trails on the guest's screen.
+                        ScorchedEarthFire,
                         OnMultiplayerGameScreen,
                     ))
                     .id(),

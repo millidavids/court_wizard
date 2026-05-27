@@ -38,6 +38,27 @@ fn calculate_action_bar_font_size(name: &str) -> f32 {
     scale_font_by_text_width(max_line_width, 6.0, 11.0, 0.65, SPELL_NAME_FONT_SIZE)
 }
 
+/// Returns the spell that should appear in this action bar slot, filtering
+/// out any spells that are not allowed in the current session. Used by all
+/// the slot read sites so the user's saved loadout is preserved (we never
+/// mutate `config.action_bar_slots`) but the UI / input layer treats
+/// MP-disallowed spells as empty slots.
+///
+/// Currently only filters `Telekinesis` in MP (drops are SP-only); see
+/// `Spell::is_mp_allowed`.
+fn effective_slot(
+    config: &GameConfig,
+    slot_idx: usize,
+    mp_session: Option<&crate::networking::session::MultiplayerSession>,
+) -> Option<crate::game::units::wizard::components::Spell> {
+    let spell = *config.action_bar_slots.get(slot_idx)?;
+    let spell = spell?;
+    if mp_session.is_some() && !spell.is_mp_allowed() {
+        return None;
+    }
+    Some(spell)
+}
+
 /// Spawns the action bar UI at the bottom-left of the screen.
 /// Clears action bar spells that are blocked by the current wizard type.
 /// Runs once when entering gameplay, before the action bar is spawned.
@@ -60,6 +81,7 @@ pub(super) fn spawn_action_bar(
     icon_assets: Res<SpellIconAssets>,
     gun_icon_assets: Res<GunIconAssets>,
     layout_progress: Res<ActionBarLayoutProgress>,
+    mp_session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
     commands
         .spawn((
@@ -96,7 +118,7 @@ pub(super) fn spawn_action_bar(
                         let gun = guns[slot as usize];
                         ("", gun_icon_assets.get(&gun).cloned())
                     } else {
-                        let spell = config.action_bar_slots[slot as usize];
+                        let spell = effective_slot(&config, slot as usize, mp_session.as_deref());
                         let icon = spell.and_then(|s| icon_assets.get(&s).cloned());
                         let name = spell.map(|s| s.name()).unwrap_or("");
                         (name, icon)
@@ -253,6 +275,7 @@ pub(super) fn handle_slot_click(
     config: Res<GameConfig>,
     mut prime_spell: MessageWriter<PrimeSpellMessage>,
     mut select_gun: MessageWriter<SelectGunMessage>,
+    mp_session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
     let is_gunslinger = config.wizard_type == WizardType::Warglock;
     let guns = GunType::all();
@@ -268,7 +291,7 @@ pub(super) fn handle_slot_click(
                 }
             } else if config.wizard_type.uses_exclusive_casting() {
                 // RuneCaster/Randomancer can only cast via their own mechanics
-            } else if let Some(spell) = config.action_bar_slots[slot_idx] {
+            } else if let Some(spell) = effective_slot(&config, slot_idx, mp_session.as_deref()) {
                 prime_spell.write(PrimeSpellMessage {
                     spell: spell.primed_config(),
                 });
@@ -283,6 +306,7 @@ pub(super) fn handle_keyboard_input(
     config: Res<GameConfig>,
     mut prime_spell: MessageWriter<PrimeSpellMessage>,
     mut select_gun: MessageWriter<SelectGunMessage>,
+    mp_session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
     let is_gunslinger = config.wizard_type == WizardType::Warglock;
     let guns = GunType::all();
@@ -300,7 +324,7 @@ pub(super) fn handle_keyboard_input(
             WizardType::RuneCaster | WizardType::Randomancer
         ) {
             // RuneCaster/Randomancer can only cast via their own mechanics
-        } else if let Some(spell) = config.action_bar_slots[slot_idx] {
+        } else if let Some(spell) = effective_slot(&config, slot_idx, mp_session.as_deref()) {
             prime_spell.write(PrimeSpellMessage {
                 spell: spell.primed_config(),
             });
@@ -315,6 +339,7 @@ pub(super) fn update_action_bar_slots(
     icon_assets: Res<SpellIconAssets>,
     gun_icon_assets: Res<GunIconAssets>,
     gun_state: Option<Res<GunState>>,
+    mp_session: Option<Res<crate::networking::session::MultiplayerSession>>,
     mut slot_text_query: Query<(
         &mut Text,
         &mut TextFont,
@@ -386,7 +411,7 @@ pub(super) fn update_action_bar_slots(
         }
 
         for (mut text, mut text_font, mut visibility, mut node, slot_text) in &mut slot_text_query {
-            let spell = config.action_bar_slots[slot_text.slot as usize];
+            let spell = effective_slot(&config, slot_text.slot as usize, mp_session.as_deref());
             let spell_name = spell.map(|s| s.name()).unwrap_or("");
             **text = spell_name.to_string();
             text_font.font_size = calculate_action_bar_font_size(spell_name);
@@ -407,7 +432,7 @@ pub(super) fn update_action_bar_slots(
         }
 
         for (mut image_node, mut visibility, mut node, slot_icon) in &mut slot_icon_query {
-            let spell = config.action_bar_slots[slot_icon.slot as usize];
+            let spell = effective_slot(&config, slot_icon.slot as usize, mp_session.as_deref());
             if let Some(handle) = spell.and_then(|s| icon_assets.get(&s).cloned()) {
                 *image_node = ImageNode::new(handle);
                 *visibility = Visibility::Inherited;

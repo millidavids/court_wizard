@@ -307,6 +307,12 @@ pub enum SpellEffectKind {
     FireballExplosion = 30,
     MeteorExplosion = 31,
     IceExplosion = 32,
+    DispelImpact = 33,
+    // Storm parents (invisible markers driving reticles / mist visuals).
+    SquallStorm = 40,
+    // Ground hazards
+    ScorchedEarthFire = 50,
+    NapalmTrail = 51,
 }
 
 impl TryFrom<u8> for SpellEffectKind {
@@ -330,12 +336,16 @@ impl TryFrom<u8> for SpellEffectKind {
             30 => Ok(Self::FireballExplosion),
             31 => Ok(Self::MeteorExplosion),
             32 => Ok(Self::IceExplosion),
+            33 => Ok(Self::DispelImpact),
+            40 => Ok(Self::SquallStorm),
+            50 => Ok(Self::ScorchedEarthFire),
+            51 => Ok(Self::NapalmTrail),
             _ => Err(()),
         }
     }
 }
 
-/// Persistent spell effect snapshot (~40 bytes).
+/// Persistent spell effect snapshot (~44 bytes).
 ///
 /// Sent every frame. The guest uses it at spawn time for initial parameters
 /// and on subsequent frames only checks existence (for force-despawn).
@@ -355,6 +365,12 @@ pub struct SpellEffectSnapshot {
     pub rotation_y: f32,
     /// Kind-specific initialization data (radius, duration, empowerment, etc.).
     pub extra: [f32; 4],
+    /// Kind-specific talent bit flags. Each `SpellEffectKind`'s collector
+    /// packs talent booleans into this u32 so the ghost reconstructs the
+    /// host's talent-modified behaviour rather than running on defaults.
+    /// Bit layouts are local to each spell — see the per-spell collector
+    /// and `spawn_spell_effect` arm for the bit definitions.
+    pub flags: u32,
 }
 
 /// Ephemeral spell projectile snapshot (~13 bytes).
@@ -362,7 +378,8 @@ pub struct SpellEffectSnapshot {
 /// Despawned and re-spawned each frame on the guest, like arrows.
 #[derive(Serialize, Deserialize)]
 pub struct SpellProjectileSnapshot {
-    /// Projectile type: 0=Fireball, 1=IceProjectile, 2=MeteorProjectile.
+    /// Projectile type: 0=Fireball, 1=IceProjectile, 2=MeteorProjectile,
+    /// 3=DispelProjectile.
     pub kind: u8,
     /// World position X.
     pub x: f32,

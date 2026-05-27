@@ -297,6 +297,9 @@ fn spawn_explosion_with_talents(
             Visibility::default(),
             scorched,
             ScorchedEarthFire,
+            crate::game::multiplayer::components::NetworkedSpellEffect {
+                kind: crate::networking::snapshot::SpellEffectKind::ScorchedEarthFire,
+            },
             OnGameplayScreen,
         ));
     }
@@ -396,6 +399,9 @@ pub fn update_napalm_trails(
                 Transform::from_translation(pos)
                     .with_scale(Vec3::splat(30.0 * fireball.empowerment)),
                 trail_explosion,
+                crate::game::multiplayer::components::NetworkedSpellEffect {
+                    kind: crate::networking::snapshot::SpellEffectKind::NapalmTrail,
+                },
                 OnGameplayScreen,
             ));
         }
@@ -409,7 +415,14 @@ pub fn update_explosions(
     time: Res<Time>,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    mut explosions: Query<(&mut FireballExplosion, &mut Transform)>,
+    // Host-only — ghost ScorchedEarth / NapalmTrail explosions spawned on
+    // the guest must NOT advance their own time / spawn VFX from the
+    // ghost; the host's authoritative entity drives the visual snapshot,
+    // and apply_explosion_damage is gated similarly below.
+    mut explosions: Query<
+        (&mut FireballExplosion, &mut Transform),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
 ) {
     use rand::Rng;
     let time_secs = time.elapsed_secs();
@@ -480,7 +493,14 @@ pub fn update_explosions(
 /// Applies damage to units hit by the explosion on a tick interval.
 pub fn apply_explosion_damage(
     mut commands: Commands,
-    mut explosions: Query<&mut FireballExplosion>,
+    // Host-only — ghost fireball/ScorchedEarth/NapalmTrail explosions
+    // on the guest must NOT independently apply DPS. CRDT max-merge would
+    // absorb the HP delta but talent progress increments and
+    // TerrainDamageMessage events would double-fire.
+    mut explosions: Query<
+        &mut FireballExplosion,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut targets: Query<(
         Entity,
         &Transform,

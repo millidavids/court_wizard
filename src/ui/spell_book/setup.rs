@@ -47,6 +47,13 @@ pub(super) fn spawn_spell_book_ui(
         if is_shepherd && !spell.is_shepherd_allowed() {
             return false;
         }
+        // Hide spells that have no effect in MP (e.g. Telekinesis pulls
+        // IngredientDrops which are SP-only and never synced). Without
+        // this, the player can assign them to slots and see an empty
+        // action-bar slot with no feedback as to why.
+        if is_multiplayer && !spell.is_mp_allowed() {
+            return false;
+        }
         if is_multiplayer {
             return true;
         }

@@ -85,6 +85,143 @@ pub enum NetworkMessage {
         /// Serialized `DamageType` ordinal — see `DamageType::from_u8`.
         damage_type: u8,
     },
+
+    /// Guest tells the host to apply a non-damage status effect to a unit
+    /// (sleep, root, polymorph, mind control, banish, mark, haste, etc.).
+    ///
+    /// Used for ALL spell side-effects that aren't HP damage. The host inserts
+    /// the corresponding SP component on the authoritative unit so its combat
+    /// / movement / animation systems respect the state. The guest keeps the
+    /// component on the local ghost too — when the host's snapshot arrives,
+    /// the host-driven simulation overrides the ghost's position anyway, but
+    /// the local component lets guest-side visual systems (sleep Z animation,
+    /// polymorph sprite swap, etc.) react immediately without a round-trip.
+    ApplyStatusEffect {
+        target_network_id: u32,
+        /// `StatusEffectKind` ordinal — see `StatusEffectKind::from_u8`.
+        kind: u8,
+        /// Effect duration in seconds. Some effects ignore this (e.g.
+        /// permanent dominate-style talents) and use the flags payload.
+        duration: f32,
+        /// Effect-specific magnitude: damage multiplier (Mark), speed bonus
+        /// (Haste), wake threshold (Comatose), heal amount (TempHP), etc.
+        /// Interpretation depends on `kind`.
+        magnitude: f32,
+        /// Status-specific talent flags packed into 32 bits. The receiver's
+        /// match arm for each `kind` decodes whichever bits matter for it.
+        flags: u32,
+    },
+
+    /// Guest tells the host to raise (or convert) a specific corpse into an
+    /// Undead unit. Carries the corpse's network ID, the talent flags that
+    /// drive Plague Bearer / Perpetual Unrest / Revenant Lord / Empowered
+    /// Undead / Undead Detonation variants, and the cast's empowerment
+    /// multiplier (so HP / damage bonuses derive correctly host-side).
+    RaiseCorpse {
+        target_network_id: u32,
+        flags: u32,
+        empowerment: f32,
+    },
+
+    /// Guest tells the host to despawn the spell-effect entity identified by
+    /// its network ID (used by Dispel; the host owns the authoritative entity).
+    DispelSpellEffect { target_network_id: u32 },
+
+    /// Guest tells the host to strip `SpellShield` from a unit (Dispel impact
+    /// hitting a shielded king on the host).
+    DispelShield { target_network_id: u32 },
+}
+
+/// Discriminator for `NetworkMessage::ApplyStatusEffect`. Add new variants at
+/// the end so the wire ordinals stay stable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum StatusEffectKind {
+    Sleep = 0,
+    Root = 1,
+    Polymorph = 2,
+    MindControl = 3,
+    Banish = 4,
+    Mark = 5,
+    Haste = 6,
+    BattleHymn = 7,
+    BerserkerRage = 8,
+    GuardianTempHp = 9,
+    Slow = 10,
+    Knockback = 11,
+    Stun = 12,
+    FogEvasion = 13,
+}
+
+impl StatusEffectKind {
+    pub fn to_u8(self) -> u8 {
+        self as u8
+    }
+
+    pub fn from_u8(v: u8) -> Option<Self> {
+        match v {
+            0 => Some(Self::Sleep),
+            1 => Some(Self::Root),
+            2 => Some(Self::Polymorph),
+            3 => Some(Self::MindControl),
+            4 => Some(Self::Banish),
+            5 => Some(Self::Mark),
+            6 => Some(Self::Haste),
+            7 => Some(Self::BattleHymn),
+            8 => Some(Self::BerserkerRage),
+            9 => Some(Self::GuardianTempHp),
+            10 => Some(Self::Slow),
+            11 => Some(Self::Knockback),
+            12 => Some(Self::Stun),
+            13 => Some(Self::FogEvasion),
+            _ => None,
+        }
+    }
+}
+
+/// Bit flags packed into `ApplyStatusEffect.flags` for status-specific
+/// talents. Each status decodes the bits it cares about; unused bits are
+/// ignored. Definitions are kept here so all senders and the host receiver
+/// agree on the layout.
+pub mod status_flags {
+    // Sleep talents
+    pub const SLEEP_NIGHT_TERRORS: u32 = 1 << 0;
+    pub const SLEEP_COMATOSE: u32 = 1 << 1;
+    pub const SLEEP_NARCOLEPTIC_WAVE: u32 = 1 << 2;
+    pub const SLEEP_DREAMWALKER: u32 = 1 << 3;
+    pub const SLEEP_ETERNAL_SLUMBER: u32 = 1 << 4;
+    // Root / Entangle talents
+    pub const ROOT_THORNY_VINES: u32 = 1 << 0;
+    pub const ROOT_CLINGING_ROOTS: u32 = 1 << 1;
+    pub const ROOT_STRANGLEHOLD: u32 = 1 << 2;
+    // Polymorph talents
+    pub const POLYMORPH_FRAGILE: u32 = 1 << 0;
+    pub const POLYMORPH_EXPLOSIVE: u32 = 1 << 1;
+    pub const POLYMORPH_CONTAGIOUS: u32 = 1 << 2;
+    pub const POLYMORPH_PERMANENT: u32 = 1 << 3;
+    pub const POLYMORPH_DIRE: u32 = 1 << 4;
+    // MindControl talents
+    pub const MC_TRAITORS_MARK: u32 = 1 << 0;
+    pub const MC_DEMORALIZE: u32 = 1 << 1;
+    pub const MC_AMNESIA: u32 = 1 << 2;
+    pub const MC_DOMINATE: u32 = 1 << 3;
+    pub const MC_SLEEPER_AGENT: u32 = 1 << 4;
+    pub const MC_MASS_HYSTERIA: u32 = 1 << 5;
+    // Banishment talents
+    pub const BANISH_PAINFUL_RETURN: u32 = 1 << 0;
+    pub const BANISH_DISPLACEMENT: u32 = 1 << 1;
+    pub const BANISH_DIMENSIONAL_SHUNT: u32 = 1 << 2;
+    pub const BANISH_ONE_WAY: u32 = 1 << 3;
+    // Mark of Death talents
+    pub const MARK_FOCAL_POINT: u32 = 1 << 0;
+    pub const MARK_EXECUTIONER_BRAND: u32 = 1 << 1;
+    pub const MARK_DEATHS_LEDGER: u32 = 1 << 2;
+    // RaiseTheDead talents (carried via RaiseCorpse.flags)
+    pub const RAISE_PLAGUE_BEARER: u32 = 1 << 0;
+    pub const RAISE_PERPETUAL_UNREST: u32 = 1 << 1;
+    pub const RAISE_REVENANT_LORD: u32 = 1 << 2;
+    pub const RAISE_UNDEAD_DETONATION: u32 = 1 << 3;
+    pub const RAISE_EMPOWERED_UNDEAD: u32 = 1 << 4;
 }
 
 /// Result of a multiplayer match.

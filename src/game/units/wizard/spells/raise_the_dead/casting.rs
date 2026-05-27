@@ -126,8 +126,11 @@ pub fn handle_raise_the_dead_casting(
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
-    caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut SpellCircleIndicator>,
+    // Bundled to free a slot for the MP-context tuple — see `mp_ctx` below.
+    cast_ctx: (
+        Query<&SpellCaster>,
+        Query<&mut SpellCircleIndicator>,
+    ),
     corpse_query: Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
     undead_assets: Res<UndeadAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -137,9 +140,20 @@ pub fn handle_raise_the_dead_casting(
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
     ),
+    // Multiplayer context for the guest-side path: when the guest casts
+    // Raise The Dead we must NOT spawn an undead unit locally (the host
+    // owns authoritative unit existence). Instead we look up the target
+    // corpse's NetworkEntityId and ship a `RaiseCorpse` message.
+    mp_ctx: (
+        Option<Res<crate::networking::session::MultiplayerSession>>,
+        Option<ResMut<crate::networking::resources::NetworkConnection>>,
+        Query<&crate::networking::entity_map::NetworkEntityId, With<Corpse>>,
+    ),
 ) {
     let (active_talents, mut talent_progress) = talents_and_progress;
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
+    let (caster_query, mut indicator_query) = cast_ctx;
+    let (mp_session, mut connection, corpse_ids) = mp_ctx;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 
@@ -197,6 +211,11 @@ pub fn handle_raise_the_dead_casting(
         }
     }
 
+    use crate::networking::resources::PeerRole;
+    let is_guest = mp_session
+        .as_deref()
+        .is_some_and(|s| s.role == PeerRole::Guest);
+
     let completed = raise_the_dead_casting_logic(
         &input,
         &time,
@@ -213,6 +232,9 @@ pub fn handle_raise_the_dead_casting(
         &game_config,
         &talent_params,
         talent_progress.as_deref_mut(),
+        is_guest,
+        connection.as_deref_mut(),
+        &corpse_ids,
     );
 
     if completed {
@@ -248,6 +270,9 @@ fn raise_the_dead_casting_logic(
     game_config: &GameConfig,
     talent_params: &RaiseTheDeadTalentParams,
     mut talent_progress: Option<&mut BattleTalentProgress>,
+    is_guest: bool,
+    mut connection: Option<&mut crate::networking::resources::NetworkConnection>,
+    corpse_ids: &Query<&crate::networking::entity_map::NetworkEntityId, With<Corpse>>,
 ) -> bool {
     // Check for release event
     if input.just_released {
@@ -277,7 +302,7 @@ fn raise_the_dead_casting_logic(
             ) {
                 if mana.consume(mana_cost) {
                     if let Some(cursor_pos) = input.cursor_pos {
-                        resurrect_nearest_corpse(
+                        try_raise_or_forward(
                             commands,
                             cursor_pos,
                             corpse_query,
@@ -286,6 +311,9 @@ fn raise_the_dead_casting_logic(
                             primed_spell.empowerment,
                             talent_params,
                             talent_progress.as_deref_mut(),
+                            is_guest,
+                            connection.as_deref_mut(),
+                            corpse_ids,
                         );
                     }
                     casting_state.reset_channel_interval();
@@ -318,7 +346,7 @@ fn raise_the_dead_casting_logic(
                             constants::RESURRECTION_RADIUS,
                             2.0,
                         );
-                        resurrect_nearest_corpse(
+                        try_raise_or_forward(
                             commands,
                             cursor_pos,
                             corpse_query,
@@ -327,6 +355,9 @@ fn raise_the_dead_casting_logic(
                             primed_spell.empowerment,
                             talent_params,
                             talent_progress,
+                            is_guest,
+                            connection.as_deref_mut(),
+                            corpse_ids,
                         );
                     }
                     casting_state.start_channeling();
@@ -456,5 +487,82 @@ fn resurrect_nearest_corpse(
         talent_progress,
     );
 
+    true
+}
+
+/// Multiplayer dispatcher for the raise action. On the host (and SP) it just
+/// calls `resurrect_nearest_corpse` locally; on the guest it looks up the
+/// nearest GHOST-corpse's `NetworkEntityId` and ships a `RaiseCorpse` message
+/// — the host then performs the authoritative raise via
+/// `receive_raise_corpse_messages` and the new undead propagates back to the
+/// guest in the regular unit snapshot. Talent flags are packed into the
+/// message's `flags` u32 so Plague Bearer / Perpetual Unrest / Revenant Lord
+/// / Undead Detonation get applied host-side.
+#[allow(clippy::too_many_arguments)]
+fn try_raise_or_forward(
+    commands: &mut Commands,
+    target_pos: Vec3,
+    corpse_query: &Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
+    undead_assets: &UndeadAssets,
+    materials: &mut Assets<StandardMaterial>,
+    empowerment: f32,
+    talent_params: &RaiseTheDeadTalentParams,
+    talent_progress: Option<&mut BattleTalentProgress>,
+    is_guest: bool,
+    connection: Option<&mut crate::networking::resources::NetworkConnection>,
+    corpse_ids: &Query<&crate::networking::entity_map::NetworkEntityId, With<Corpse>>,
+) -> bool {
+    if !is_guest {
+        return resurrect_nearest_corpse(
+            commands,
+            target_pos,
+            corpse_query,
+            undead_assets,
+            materials,
+            empowerment,
+            talent_params,
+            talent_progress,
+        );
+    }
+
+    let Some(connection) = connection else {
+        return false;
+    };
+    let search_radius = constants::RESURRECTION_RADIUS * empowerment * talent_params.radius_mult;
+    let Some((corpse_entity, _)) = find_nearest_corpse(corpse_query, target_pos, search_radius)
+    else {
+        return false;
+    };
+    let Ok(net_id) = corpse_ids.get(corpse_entity) else {
+        // Corpse exists locally but has no network ID — likely a
+        // late-spawn race; skip this tick and try again on the next.
+        return false;
+    };
+
+    use crate::networking::protocol::status_flags as sf;
+    let mut flags: u32 = 0;
+    if talent_params.plague_bearer {
+        flags |= sf::RAISE_PLAGUE_BEARER;
+    }
+    if talent_params.perpetual_unrest {
+        flags |= sf::RAISE_PERPETUAL_UNREST;
+    }
+    if talent_params.revenant_lord {
+        flags |= sf::RAISE_REVENANT_LORD;
+    }
+    if talent_params.undead_detonation {
+        flags |= sf::RAISE_UNDEAD_DETONATION;
+    }
+    if talent_params.empowered_undead {
+        flags |= sf::RAISE_EMPOWERED_UNDEAD;
+    }
+
+    connection
+        .outgoing_messages
+        .push(crate::networking::protocol::NetworkMessage::RaiseCorpse {
+            target_network_id: net_id.0,
+            flags,
+            empowerment,
+        });
     true
 }

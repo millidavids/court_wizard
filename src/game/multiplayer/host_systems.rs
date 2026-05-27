@@ -271,6 +271,463 @@ pub fn receive_spell_hit_messages(
     }
 }
 
+/// Receives `ApplyStatusEffect` messages from the guest and applies the
+/// corresponding component(s) to the host's authoritative unit. This is the
+/// universal guest→host wire for all non-damage status effects — sleep, root,
+/// polymorph, mind control, banish, mark, haste, battle hymn, berserker rage,
+/// guardian temp-HP, slow, stun, fog evasion, knockback.
+///
+/// HP damage continues to flow via the CRDT pipeline; this system handles
+/// everything else.
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
+pub fn receive_apply_status_effect(
+    mut commands: Commands,
+    mut connection: ResMut<NetworkConnection>,
+    units: Query<(Entity, &NetworkEntityId), With<Health>>,
+    // Read-only access to the target's current rendering + spawn state so the
+    // Polymorph handler can construct a proper `PolymorphedModifier` that
+    // captures what to restore when the spell wears off.
+    polymorph_targets: Query<(
+        &Transform,
+        &crate::game::units::components::Team,
+        &Health,
+        &MeshMaterial3d<StandardMaterial>,
+        &Mesh3d,
+    )>,
+    // MindControl needs the defender's spawn position so the control-wear-off
+    // path can rally the unit back to its origin.
+    mind_control_targets: Query<&crate::game::pathfinding::FlowFieldInfluence>,
+) {
+    if connection.incoming_messages.is_empty() {
+        return;
+    }
+
+    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let mut unhandled = Vec::new();
+
+    for msg in messages {
+        match msg {
+            NetworkMessage::ApplyStatusEffect {
+                target_network_id,
+                kind,
+                duration,
+                magnitude,
+                flags,
+            } => {
+                let Some(kind) =
+                    crate::networking::protocol::StatusEffectKind::from_u8(kind)
+                else {
+                    warn!("[MP] Unknown StatusEffectKind ordinal {}", kind);
+                    continue;
+                };
+                let Some(local_entity) = units
+                    .iter()
+                    .find_map(|(e, id)| (id.0 == target_network_id).then_some(e))
+                else {
+                    continue;
+                };
+                // Polymorph needs to capture the target's current visual state
+                // for the restore-on-expiry path. Look it up here while we still
+                // have read-only query access; everything else gets `None`.
+                let polymorph_capture = if matches!(
+                    kind,
+                    crate::networking::protocol::StatusEffectKind::Polymorph
+                ) {
+                    polymorph_targets
+                        .get(local_entity)
+                        .ok()
+                        .map(|(_, team, hp, mat, mesh)| {
+                            (*team, hp.current, hp.max, mat.0.clone(), mesh.0.clone())
+                        })
+                } else {
+                    None
+                };
+                // MindControl needs the unit's defender spawn position so its
+                // control-wear-off path can rally back. Only defenders have
+                // a spawn position; everyone else gets None and the rally
+                // logic does nothing on wear-off (acceptable for attackers).
+                let mc_spawn_pos = if matches!(
+                    kind,
+                    crate::networking::protocol::StatusEffectKind::MindControl
+                ) {
+                    mind_control_targets.get(local_entity).ok().and_then(|infl| {
+                        if let crate::game::pathfinding::FlowFieldInfluence::Defender { spawn_pos } =
+                            infl
+                        {
+                            Some(*spawn_pos)
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    None
+                };
+                apply_status_to_entity(
+                    &mut commands,
+                    local_entity,
+                    kind,
+                    duration,
+                    magnitude,
+                    flags,
+                    polymorph_capture,
+                    mc_spawn_pos,
+                );
+            }
+            other => unhandled.push(other),
+        }
+    }
+
+    if !unhandled.is_empty() {
+        connection.incoming_messages.extend(unhandled);
+    }
+}
+
+/// Inserts the SP component(s) for a status-effect kind on the target entity.
+/// Centralised here so the message handler and any future direct callers
+/// share the same mapping.
+///
+/// **Coverage note:** Phase 1 wires the *base* effects for the cleanly
+/// constructable status components. Polymorph and MindControl have specific
+/// per-instance state (original material/mesh/team for Polymorph, spawn
+/// position for MindControl) that needs to be captured authoritatively on the
+/// host from the unit being targeted — those branches construct sensible
+/// defaults so the unit at least *enters* the state; talent + visual variants
+/// land in Phase 3.
+#[allow(clippy::too_many_arguments)]
+fn apply_status_to_entity(
+    commands: &mut Commands,
+    entity: Entity,
+    kind: crate::networking::protocol::StatusEffectKind,
+    duration: f32,
+    magnitude: f32,
+    flags: u32,
+    polymorph_capture: Option<(
+        crate::game::units::components::Team,
+        f32, // current HP
+        f32, // max HP
+        Handle<StandardMaterial>,
+        Handle<Mesh>,
+    )>,
+    mc_spawn_pos: Option<Vec2>,
+) {
+    use crate::game::units::components as comp;
+    use crate::game::units::status_effects as sfx;
+    use crate::networking::protocol::StatusEffectKind as K;
+    use crate::networking::protocol::status_flags as sf;
+
+    let Ok(mut ec) = commands.get_entity(entity) else {
+        return;
+    };
+
+    match kind {
+        K::Sleep => {
+            use crate::game::units::wizard::spells::sleep::constants as sleep_constants;
+            let bonus_mult = if magnitude > 0.0 { magnitude } else { 2.0 };
+            ec.insert(sfx::SleepModifier::new(duration, bonus_mult));
+            if flags & sf::SLEEP_NIGHT_TERRORS != 0 {
+                // Use the SP constant, not magnitude — magnitude carries
+                // bonus_damage_multiplier (sleep wake-up damage scaling),
+                // NOT the per-second tick damage value.
+                ec.insert(sfx::NightTerrors::new(sleep_constants::NIGHT_TERRORS_DPS));
+            }
+            if flags & sf::SLEEP_COMATOSE != 0 {
+                ec.insert(sfx::Comatose::new(0.30));
+            }
+            if flags & sf::SLEEP_NARCOLEPTIC_WAVE != 0 {
+                // Use the SP constants, not the previously-hardcoded
+                // (0.5, 80.0) which made the wave 6x faster and 33% wider
+                // on the host vs SP.
+                ec.insert(sfx::NarcolepticWave::new(
+                    sleep_constants::NARCOLEPTIC_SPREAD_DELAY,
+                    sleep_constants::NARCOLEPTIC_SPREAD_RADIUS,
+                ));
+            }
+            if flags & sf::SLEEP_DREAMWALKER != 0 {
+                ec.insert(sfx::Sleepwalking::new(0.5));
+            }
+            // SLEEP_ETERNAL_SLUMBER bit is documented in protocol.rs but
+            // never set by the guest forwarder: Eternal Slumber kills
+            // units by setting HP=0 in the guest's local cast path; the
+            // CRDT health pipeline already propagates the kill to the
+            // host. No status-effect message is needed for it.
+        }
+        K::Root => {
+            ec.insert(sfx::RootedModifier::new(duration));
+            let _ = (flags, magnitude);
+        }
+        K::Polymorph => {
+            // Real Polymorph requires the unit's current material/mesh/team
+            // for the revert path. If the caller threaded the capture
+            // through (`polymorph_capture`), construct the full
+            // `PolymorphedModifier`; otherwise fall back to Sleep so the
+            // unit still can't act on the host.
+            if let Some((team, hp_current, hp_max, material, mesh)) = polymorph_capture {
+                ec.insert(sfx::PolymorphedModifier::new(
+                    duration, hp_current, hp_max, material, mesh, team,
+                ));
+            } else {
+                ec.insert(sfx::SleepModifier::new(duration, 1.0));
+            }
+            let _ = (flags, magnitude);
+        }
+        K::MindControl => {
+            // MindControlled has no `new`; construct with defaults plus the
+            // defender spawn position (if the target was a defender), so
+            // the host's wear-off path correctly rallies the unit back to
+            // its origin instead of leaving it wandering.
+            ec.insert(comp::MindControlled {
+                time_elapsed: 0.0,
+                wear_off_duration: duration,
+                original_spawn_pos: mc_spawn_pos,
+                damage_multiplier: if magnitude > 0.0 { magnitude } else { 1.0 },
+            });
+            let _ = flags;
+        }
+        K::Banish => {
+            ec.insert(sfx::BanishedModifier::new(duration));
+            ec.insert(Visibility::Hidden);
+            let _ = (flags, magnitude);
+        }
+        K::Mark => {
+            let amp = if magnitude > 0.0 { magnitude } else { 0.5 };
+            ec.insert(sfx::MarkedForDeathModifier::new(amp, duration));
+            let _ = flags;
+        }
+        K::Haste => {
+            let speed_bonus = if magnitude > 0.0 { magnitude } else { 0.5 };
+            ec.insert(sfx::HasteModifier::new(speed_bonus, duration));
+            let _ = flags;
+        }
+        K::BattleHymn => {
+            // magnitude = damage_bonus, encode attack_speed in flags low 16
+            // as percent (0..=10000 → 0.0..=1.0).
+            let damage_bonus = if magnitude > 0.0 { magnitude } else { 0.4 };
+            let attack_speed = ((flags & 0xFFFF) as f32) / 10_000.0;
+            ec.insert(sfx::BattleHymnModifier::new(damage_bonus, attack_speed, duration));
+        }
+        K::BerserkerRage => {
+            // magnitude = damage_bonus, vulnerability in flags low 16 as percent.
+            let damage_bonus = if magnitude > 0.0 { magnitude } else { 1.0 };
+            let vulnerability = ((flags & 0xFFFF) as f32) / 10_000.0;
+            ec.insert(sfx::BerserkerRageModifier::new(damage_bonus, vulnerability, duration));
+        }
+        K::GuardianTempHp => {
+            ec.insert(comp::TemporaryHitPoints::new(magnitude, duration));
+            let _ = flags;
+        }
+        K::Slow => {
+            ec.insert(comp::SlowMovementModifier::new(magnitude, duration));
+            let _ = flags;
+        }
+        K::Knockback => {
+            // magnitude = speed, duration = duration;
+            // flags low 16 = (dir_x * 1000) as i16, high 16 = (dir_z * 1000) as i16.
+            let dir_x = ((flags & 0xFFFF) as i16) as f32 / 1000.0;
+            let dir_z = (((flags >> 16) & 0xFFFF) as i16) as f32 / 1000.0;
+            ec.insert(comp::Knockback::new(
+                Vec3::new(dir_x, 0.0, dir_z),
+                magnitude,
+                duration,
+            ));
+        }
+        K::Stun => {
+            ec.insert(sfx::Stunned::new(duration));
+            let _ = (magnitude, flags);
+        }
+        K::FogEvasion => {
+            ec.insert(sfx::FogEvasionModifier::new(magnitude, duration));
+            let _ = flags;
+        }
+    }
+}
+
+/// Receives `RaiseCorpse` messages: convert a specific corpse on the host
+/// into an Undead unit. Uses the shared SP `resurrect_corpse_as_infantry`
+/// helper with the undead asset set, so the resulting unit looks and behaves
+/// identically to one raised by the SP code path.
+///
+/// The new undead unit gets a `NetworkEntityId` next frame via
+/// `assign_network_ids`, and its existence then propagates to the guest via
+/// the regular unit snapshot — no extra message needed.
+pub fn receive_raise_corpse_messages(
+    mut commands: Commands,
+    mut connection: ResMut<NetworkConnection>,
+    corpses: Query<
+        (Entity, &NetworkEntityId, &Transform),
+        With<crate::game::units::components::Corpse>,
+    >,
+    undead_assets: Option<Res<crate::game::units::undead::resources::UndeadAssets>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    if connection.incoming_messages.is_empty() {
+        return;
+    }
+    let Some(undead_assets) = undead_assets else {
+        // Undead assets unavailable (e.g. preloaded by spell plugin not
+        // initialised yet) — drop the message; the guest will retry on
+        // the next cast.
+        return;
+    };
+
+    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let mut unhandled = Vec::new();
+
+    for msg in messages {
+        match msg {
+            NetworkMessage::RaiseCorpse {
+                target_network_id,
+                flags,
+                empowerment,
+            } => {
+                let Some((corpse_entity, _, transform)) = corpses
+                    .iter()
+                    .find(|(_, id, _)| id.0 == target_network_id)
+                else {
+                    continue;
+                };
+                use crate::game::constants::{UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
+                use crate::game::units::components::{Effectiveness, Team};
+                use crate::game::units::infantry::constants::UNDEAD_SPRITE_TINT;
+                use crate::game::units::wizard::spells::raise_the_dead::{
+                    components as raise_components, constants as raise_constants,
+                };
+                use crate::networking::protocol::status_flags as sf;
+
+                // HP multiplier — match SP's `resurrect_nearest_corpse` flow:
+                // stack EMPOWERED_UNDEAD and REVENANT_LORD multipliers, then
+                // multiply by empowerment for the final HP.
+                let mut hp_mult = 1.0_f32;
+                if flags & sf::RAISE_EMPOWERED_UNDEAD != 0 {
+                    hp_mult *= raise_constants::EMPOWERED_UNDEAD_HP_MULT;
+                }
+                if flags & sf::RAISE_REVENANT_LORD != 0 {
+                    hp_mult *= raise_constants::REVENANT_HP_MULT;
+                }
+                let health = UNIT_HEALTH * empowerment.max(0.01) * hp_mult;
+                let speed = UNIT_MOVEMENT_SPEED * 0.5 * empowerment.max(0.01);
+
+                crate::game::units::systems::resurrect_corpse_as_infantry(
+                    &mut commands,
+                    corpse_entity,
+                    transform.translation,
+                    Team::Undead,
+                    health,
+                    speed,
+                    UNDEAD_SPRITE_TINT,
+                    undead_assets.sprite_texture.clone(),
+                    undead_assets.sprite_mesh.clone(),
+                    &mut materials,
+                    Some(undead_assets.death_texture.clone()),
+                );
+
+                // Apply talent marker components matching the SP path's
+                // `apply_talent_components` so all behaviors run on the
+                // host's authoritative new undead. Includes Effectiveness
+                // so damage bonuses from Empowered Undead / Revenant Lord
+                // / empowerment are actually applied (was previously
+                // missing — undead dealt base damage regardless of talent).
+                if let Ok(mut ec) = commands.get_entity(corpse_entity) {
+                    ec.insert(raise_components::RaisedUndead);
+
+                    let mut damage_bonus = if empowerment > 1.0 { 0.25 } else { 0.0 };
+                    if flags & sf::RAISE_EMPOWERED_UNDEAD != 0 {
+                        damage_bonus += raise_constants::EMPOWERED_UNDEAD_DAMAGE_MULT - 1.0;
+                    }
+                    if flags & sf::RAISE_REVENANT_LORD != 0 {
+                        damage_bonus += raise_constants::REVENANT_DAMAGE_MULT - 1.0;
+                    }
+                    if damage_bonus > 0.0 {
+                        let mut effectiveness = Effectiveness::new();
+                        effectiveness.spell_bonus = damage_bonus;
+                        ec.insert(effectiveness);
+                    }
+
+                    if flags & sf::RAISE_PLAGUE_BEARER != 0 {
+                        ec.insert(raise_components::PlagueBearerAura::new(
+                            raise_constants::PLAGUE_BEARER_DPS,
+                            raise_constants::PLAGUE_BEARER_RADIUS,
+                            raise_constants::PLAGUE_BEARER_TICK_INTERVAL,
+                        ));
+                    }
+                    if flags & sf::RAISE_PERPETUAL_UNREST != 0 {
+                        ec.insert(raise_components::PerpetualUnrest {
+                            raise_radius: raise_constants::PERPETUAL_UNREST_RADIUS,
+                        });
+                    }
+                    if flags & sf::RAISE_REVENANT_LORD != 0 {
+                        ec.insert(raise_components::RevenantLord {
+                            raise_radius: raise_constants::REVENANT_RAISE_RADIUS,
+                            raise_interval: raise_constants::REVENANT_RAISE_INTERVAL,
+                            raise_timer: 0.0,
+                        });
+                    }
+                    if flags & sf::RAISE_UNDEAD_DETONATION != 0 {
+                        ec.insert(raise_components::UndeadDetonation {
+                            damage: raise_constants::UNDEAD_DETONATION_DAMAGE,
+                            radius: raise_constants::UNDEAD_DETONATION_RADIUS,
+                        });
+                    }
+                }
+            }
+            other => unhandled.push(other),
+        }
+    }
+
+    if !unhandled.is_empty() {
+        connection.incoming_messages.extend(unhandled);
+    }
+}
+
+/// Receives Dispel-driven messages from the guest: despawn a spell-effect
+/// entity by network ID, or strip SpellShield from a unit.
+pub fn receive_dispel_messages(
+    mut commands: Commands,
+    mut connection: ResMut<NetworkConnection>,
+    spell_effects: Query<
+        (Entity, &NetworkEntityId),
+        With<crate::game::multiplayer::components::NetworkedSpellEffect>,
+    >,
+    units_with_shield: Query<
+        (Entity, &NetworkEntityId),
+        With<crate::game::units::king::components::SpellShield>,
+    >,
+) {
+    if connection.incoming_messages.is_empty() {
+        return;
+    }
+    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let mut unhandled = Vec::new();
+
+    for msg in messages {
+        match msg {
+            NetworkMessage::DispelSpellEffect { target_network_id } => {
+                if let Some(entity) = spell_effects
+                    .iter()
+                    .find_map(|(e, id)| (id.0 == target_network_id).then_some(e))
+                    && let Ok(mut ec) = commands.get_entity(entity)
+                {
+                    ec.try_despawn();
+                }
+            }
+            NetworkMessage::DispelShield { target_network_id } => {
+                if let Some(entity) = units_with_shield
+                    .iter()
+                    .find_map(|(e, id)| (id.0 == target_network_id).then_some(e))
+                    && let Ok(mut ec) = commands.get_entity(entity)
+                {
+                    ec.remove::<crate::game::units::king::components::SpellShield>();
+                }
+            }
+            other => unhandled.push(other),
+        }
+    }
+
+    if !unhandled.is_empty() {
+        connection.incoming_messages.extend(unhandled);
+    }
+}
+
 /// Receives CRDT health updates from the guest and merges into local unit state.
 ///
 /// The guest sends its CRDT counters (guest spell damage/healing) over the

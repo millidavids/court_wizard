@@ -67,7 +67,13 @@ pub(super) fn spawn_plague_cloud(
 /// Moves the plague wind cloud in its drift direction and updates pathfinding.
 pub fn move_plague_wind_cloud(
     time: Res<Time>,
-    mut clouds: Query<(&mut PlagueWindCloud, &mut Transform)>,
+    // Host-only — the guest mirrors cloud position via the snapshot, so the
+    // ghost cloud must NOT independently drift (would diverge from host AND
+    // double-update the pathfinding grid).
+    mut clouds: Query<
+        (&mut PlagueWindCloud, &mut Transform),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     let delta = time.delta_secs();
@@ -111,7 +117,14 @@ fn horizontal_distance(a: Vec3, b: Vec3) -> f32 {
 pub fn apply_plague_wind_damage(
     mut commands: Commands,
     time: Res<Time>,
-    mut clouds: Query<(&mut PlagueWindCloud, &mut UniqueHitTracker)>,
+    // Host-only — ghost cloud on the guest must NOT also apply DPS, or every
+    // tick deals damage on both peers and CRDT max-merge masks the doubling
+    // but talent status effects (Toxic Weakness, Choking Gas) get applied
+    // twice locally.
+    mut clouds: Query<
+        (&mut PlagueWindCloud, &mut UniqueHitTracker),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut units: Query<(
         Entity,
         &Transform,

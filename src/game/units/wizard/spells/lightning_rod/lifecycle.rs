@@ -26,7 +26,12 @@ pub(super) fn update_lightning_rod(
     time: Res<Time>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
-    mut rods: Query<(Entity, &mut LightningRod)>,
+    // Host-authoritative only — the guest's ghost rod must NOT also fire
+    // strikes, or every rod tick would deal damage twice (once on each peer).
+    mut rods: Query<
+        (Entity, &mut LightningRod),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
 ) {
     let delta = time.delta_secs();
 

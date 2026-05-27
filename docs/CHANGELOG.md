@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Fixed
+- **Status spells now actually take effect on the other player's units** — sleep, root, polymorph, mind control, banishment, mark of death, haste, guardian circle, battle hymn, berserker rage, slow, stun, fog evasion, and knockback all silently did nothing when the guest cast them because the effect never made it to the host's authoritative army. Every one of these now lands properly on both sides, including the talent variants
+- **Polymorph turns the enemy into a sheep on both screens** — the transformation only happened on the guest's local view; the host's unit kept fighting. The sheep now correctly appears, can't act, and reverts to the original unit on both sides
+- **Mind-controlled enemies actually fight for you on both screens** — guest-cast mind control left the unit attacking its allies as before. The host now correctly flips the unit's targeting, and the unit rallies back to its origin when the spell wears off
+- **Raise the Dead works for the guest now** — guest casts used to spawn phantom undead that only the guest could see. Both players now see the real raised undead with the correct HP, damage, and all the talent variants (Plague Bearer, Perpetual Unrest, Revenant Lord, Empowered Undead, Undead Detonation)
+- **Dispel actually clears effects on the other player's side** — the bolt was visible but the host's spell effects and king shield kept ticking. Dispel now correctly removes the host's spell entities and shields when the bolt lands, and the expanding nullification ring is visible to both players
+- **Disintegrate beam now ignites trees and bushes on both screens** — only one side saw the foliage catch fire from a disintegrate cast. Both sides now do
+- **Spell talent variants propagate to the other player's side** — Lightning Rod (Chain Reaction, Tesla Coil, Lightning Nexus), Plague Wind (Plague Carrier, Choking Gas, Pandemic, Toxic Weakness, Twin Plumes, Necrotic Rot), Black Hole (Crushing Pressure, Event Horizon, Dimensional Rift, Singularity, Void Siphon), Wall of Fire (Scorched Earth, Spreading Flames, Firestorm, Searing Heat, Twin Walls, Consuming Inferno), Squall (Permafrost, Hailstones, Sleet Storm, Absolute Zero, Blizzard, Ice Age), Arcane Crystal (Resonance Cascade, Auto-Crystal, Crystal Network, Prismatic Explosion), and Fog Cloud (Blinding Mist, Concealing Veil, Disorienting Vapors, Phantom Fog, Choking Fog, Rolling Fog) all had their talent-driven extras silently dropped when the other player cast the spell. They now show up correctly on both sides
+- **Damage on the other player's side no longer double-counts** — several spells were running their gameplay logic on both players' copies of the same effect, sometimes producing nearly double damage and double talent triggers. Black Hole, Lightning Rod, Plague Wind, Arcane Crystal, Squall (including Absolute Zero mana drain), Wall of Fire's Scorched Earth fires, fireball Napalm trails, and Volcanic Eruption mini-explosions now apply their effects exactly once, on the authoritative side
+- **Fog Cloud evasion now applies on the other player's side** — units in the host's fog never gained dodge chance on the guest because of a zero-value bug in how the zone was reconstructed. Both players now get the talent's full effect
+- **King's protective shield drops correctly for both kings** — both kings now independently lose their shield once their own team's army falls below 10%, opening each to direct spell damage in the late game
+- **Dispel ring, Squall storm reticle, Volcanic mini-explosions, Scorched Earth ground fire, and Napalm trail fires now appear on both screens** — these were all local-only visuals before; everyone now sees the same battlefield
+- **Re-casting the same status spell on the same enemy now works in multiplayer** — internal bookkeeping was blocking the second cast from registering on the other player's side after the first effect expired. Sleeping or mind-controlling the same unit twice in a row now works as expected
+- **Telekinesis is hidden in multiplayer** — the spell pulls ingredient drops that don't exist in multiplayer matches anyway. It's no longer listed in the spell book or shown in the action bar; any slot you had it in shows up empty in multiplayer, and your single-player loadout is preserved
+- **Spell shield bubble around the king no longer disappears in the middle of a match for both kings** — earlier fix only worked for the host's king; the guest's king kept the bubble forever. Both kings' shield mechanics are now in sync
+
 ## [v0.8.26] - 2026-05-26
 
 ### Added

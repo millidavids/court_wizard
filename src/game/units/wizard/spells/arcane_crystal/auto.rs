@@ -38,7 +38,11 @@ pub(super) fn auto_cast_remembered_spell(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    mut crystals: Query<(Entity, &mut ArcaneCrystal)>,
+    // Host-only — see hits.rs filter for rationale.
+    mut crystals: Query<
+        (Entity, &mut ArcaneCrystal),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut crystal_beams: Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
     targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
@@ -222,7 +226,10 @@ fn handle_auto_disintegrate(
     assets: &SpellVisualAssets,
     crystal_beams: &mut Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
     targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
-    crystals: &mut Query<(Entity, &mut ArcaneCrystal)>,
+    crystals: &mut Query<
+        (Entity, &mut ArcaneCrystal),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     talent_cfg: &disintegrate_systems::TalentConfig,
 ) {
     if let Some((beam_entities, target_entity)) = auto_beam {
@@ -635,7 +642,10 @@ pub(super) fn spawn_crystal_mini_missile(
 pub(super) fn resonance_cascade_burst(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
-    mut crystals: Query<(&mut ArcaneCrystal, &mut ResonanceCascade)>,
+    mut crystals: Query<
+        (&mut ArcaneCrystal, &mut ResonanceCascade),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     mut health_query: Query<(
         &mut Health,
@@ -741,11 +751,14 @@ pub(super) fn auto_crystal_fire(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    mut crystals: Query<(
-        &ArcaneCrystal,
-        &mut AutoCrystalTimer,
-        Option<&mut ResonanceCascade>,
-    )>,
+    mut crystals: Query<
+        (
+            &ArcaneCrystal,
+            &mut AutoCrystalTimer,
+            Option<&mut ResonanceCascade>,
+        ),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut progress: ResMut<BattleTalentProgress>,
 ) {
@@ -811,7 +824,11 @@ pub(super) fn crystal_network_chain(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    mut crystals: Query<(Entity, &mut ArcaneCrystal), With<CrystalNetwork>>,
+    mut crystals: Query<
+        (Entity, &mut ArcaneCrystal),
+        (With<CrystalNetwork>,
+         Without<crate::game::multiplayer::components::GhostSpellEffect>),
+    >,
     targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut progress: ResMut<BattleTalentProgress>,

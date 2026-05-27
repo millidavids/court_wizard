@@ -82,6 +82,34 @@ pub fn collect_spell_effect_snapshots(
         Query<&MeteorExplosion>,
         Query<&IceExplosion>,
     ),
+    extra_data: (
+        Query<&crate::game::units::wizard::spells::dispel::components::DispelImpact>,
+        Query<&crate::game::units::wizard::spells::squall::components::SquallStorm>,
+    ),
+    // Spells whose talent state is stored as MARKER components on the spell
+    // entity (rather than inside a `talent_params` field). Each Has<>
+    // returns true if the marker is present on the queried entity.
+    talent_markers: (
+        // ArcaneCrystal markers: ResonanceCascade, PrismaticExplosion,
+        // AutoCrystalTimer, CrystalNetwork
+        Query<(
+            Has<crate::game::units::wizard::spells::arcane_crystal::components::ResonanceCascade>,
+            Has<crate::game::units::wizard::spells::arcane_crystal::components::PrismaticExplosion>,
+            Has<crate::game::units::wizard::spells::arcane_crystal::components::AutoCrystalTimer>,
+            Has<crate::game::units::wizard::spells::arcane_crystal::components::CrystalNetwork>,
+        )>,
+        // FogCloud markers: BlindingMistZone, ConcealingVeilZone,
+        // DisorientingVaporsZone, PhantomFogZone, ChokingFogZone,
+        // RollingFogZone
+        Query<(
+            Has<crate::game::units::wizard::spells::fog_cloud::components::BlindingMistZone>,
+            Has<crate::game::units::wizard::spells::fog_cloud::components::ConcealingVeilZone>,
+            Has<crate::game::units::wizard::spells::fog_cloud::components::DisorientingVaporsZone>,
+            Has<crate::game::units::wizard::spells::fog_cloud::components::PhantomFogZone>,
+            Has<crate::game::units::wizard::spells::fog_cloud::components::ChokingFogZone>,
+            Has<crate::game::units::wizard::spells::fog_cloud::components::RollingFogZone>,
+        )>,
+    ),
 ) {
     spell_data.spell_effects.clear();
 
@@ -92,114 +120,206 @@ pub fn collect_spell_effect_snapshots(
         // Use NetworkEntityId if assigned, otherwise use Entity index
         let id = net_id.map_or(entity.index_u32(), |n| n.0);
 
-        let extra = match effect.kind {
+        // `(extra, flags)`: extra carries f32 init params, flags packs
+        // talent booleans for the spells that have them. Spells that don't
+        // ship talent state leave flags at 0.
+        let (extra, flags): ([f32; 4], u32) = match effect.kind {
             SpellEffectKind::SpikeGrowthZone => {
                 if let Ok(z) = zone_data.0.get(entity) {
-                    [z.base_radius, z.duration, 0.0, 0.0]
+                    ([z.base_radius, z.duration, 0.0, 0.0], 0)
                 } else {
                     continue;
                 }
             }
             SpellEffectKind::HealingPlumeZone => {
                 if let Ok(z) = zone_data.1.get(entity) {
-                    [z.radius, z.duration, 0.0, 0.0]
+                    ([z.radius, z.duration, 0.0, 0.0], 0)
                 } else {
                     continue;
                 }
             }
             SpellEffectKind::EntangleGround => {
                 if let Ok(z) = zone_data.2.get(entity) {
-                    [0.0, z.duration, 0.0, 0.0]
+                    ([0.0, z.duration, 0.0, 0.0], 0)
                 } else {
                     continue;
                 }
             }
             SpellEffectKind::FogCloudZone => {
                 if let Ok(z) = zone_data.3.get(entity) {
-                    [z.radius, z.duration, 0.0, 0.0]
+                    // Pack FogCloud talent marker presence into bits 0..5.
+                    let (blind, conceal, disorient, phantom, choking, rolling) =
+                        talent_markers.1.get(entity).unwrap_or_default();
+                    let mut flags: u32 = 0;
+                    if blind     { flags |= 1 << 0; }
+                    if conceal   { flags |= 1 << 1; }
+                    if disorient { flags |= 1 << 2; }
+                    if phantom   { flags |= 1 << 3; }
+                    if choking   { flags |= 1 << 4; }
+                    if rolling   { flags |= 1 << 5; }
+                    (
+                        [z.radius, z.duration, z.evasion_chance, z.evasion_refresh_duration],
+                        flags,
+                    )
                 } else {
                     continue;
                 }
             }
             SpellEffectKind::GreaseZone => {
                 if let Ok(z) = zone_data.4.get(entity) {
-                    [z.radius, z.duration, 0.0, 0.0]
+                    ([z.radius, z.duration, 0.0, 0.0], 0)
                 } else {
                     continue;
                 }
             }
-            SpellEffectKind::GreaseFire => [transform.scale.x, 0.0, 0.0, 0.0],
+            SpellEffectKind::GreaseFire => ([transform.scale.x, 0.0, 0.0, 0.0], 0),
             SpellEffectKind::PlagueWindCloud => {
                 if let Ok(c) = zone_data.5.get(entity) {
-                    [
-                        c.radius,
-                        c.duration,
-                        c.speed,
-                        c.direction.x.atan2(c.direction.z),
-                    ]
+                    // Pack PlagueWind talent booleans into bits 0..5.
+                    let tp = &c.talent_params;
+                    let mut flags: u32 = 0;
+                    if tp.plague_carrier { flags |= 1 << 0; }
+                    if tp.toxic_weakness { flags |= 1 << 1; }
+                    if tp.choking_gas    { flags |= 1 << 2; }
+                    if tp.pandemic       { flags |= 1 << 3; }
+                    if tp.twin_plumes    { flags |= 1 << 4; }
+                    if tp.necrotic_rot   { flags |= 1 << 5; }
+                    (
+                        [
+                            c.radius,
+                            c.duration,
+                            c.speed,
+                            c.direction.x.atan2(c.direction.z),
+                        ],
+                        flags,
+                    )
                 } else {
                     continue;
                 }
             }
             SpellEffectKind::MeteorGroundFire => {
                 if let Ok(f) = zone_data.6.get(entity) {
-                    [f.radius, f.duration, 0.0, 0.0]
+                    ([f.radius, f.duration, 0.0, 0.0], 0)
                 } else {
                     continue;
                 }
             }
             SpellEffectKind::BlackHole => {
                 if let Ok(bh) = object_data.0.get(entity) {
-                    [bh.max_radius, bh.empowerment, 0.0, 0.0]
+                    // Pack BlackHole talent booleans into bits 0..4.
+                    let tp = &bh.talent_params;
+                    let mut flags: u32 = 0;
+                    if tp.event_horizon     { flags |= 1 << 0; }
+                    if tp.crushing_pressure { flags |= 1 << 1; }
+                    if tp.void_siphon       { flags |= 1 << 2; }
+                    if tp.singularity       { flags |= 1 << 3; }
+                    if tp.dimensional_rift  { flags |= 1 << 4; }
+                    ([bh.max_radius, bh.empowerment, 0.0, 0.0], flags)
                 } else {
                     continue;
                 }
             }
             SpellEffectKind::ArcaneCrystal => {
                 if let Ok(ac) = object_data.1.get(entity) {
-                    [ac.range, ac.duration, ac.empowerment, 0.0]
+                    // Pack ArcaneCrystal talent marker presence into bits 0..3.
+                    let (has_res, has_prism, has_auto, has_network) =
+                        talent_markers.0.get(entity).unwrap_or_default();
+                    let mut flags: u32 = 0;
+                    if has_res     { flags |= 1 << 0; }
+                    if has_prism   { flags |= 1 << 1; }
+                    if has_auto    { flags |= 1 << 2; }
+                    if has_network { flags |= 1 << 3; }
+                    ([ac.range, ac.duration, ac.empowerment, 0.0], flags)
                 } else {
                     continue;
                 }
             }
             SpellEffectKind::LightningRod => {
                 if let Ok(lr) = object_data.2.get(entity) {
-                    [lr.duration, lr.empowerment, 0.0, 0.0]
+                    // Pack LightningRod talent booleans into bits 0..5.
+                    let tp = &lr.talent_params;
+                    let mut flags: u32 = 0;
+                    if tp.chain_reaction   { flags |= 1 << 0; }
+                    if tp.magnetic_field   { flags |= 1 << 1; }
+                    if tp.overcharge       { flags |= 1 << 2; }
+                    if tp.storm_spire      { flags |= 1 << 3; }
+                    if tp.tesla_coil       { flags |= 1 << 4; }
+                    if tp.lightning_nexus  { flags |= 1 << 5; }
+                    ([lr.duration, lr.empowerment, 0.0, 0.0], flags)
                 } else {
                     continue;
                 }
             }
             SpellEffectKind::WallOfStone => {
                 if let Ok(w) = wall_data.0.get(entity) {
-                    [w.half_length, w.half_width, w.height, w.duration]
+                    ([w.half_length, w.half_width, w.height, w.duration], 0)
                 } else {
                     continue;
                 }
             }
             SpellEffectKind::WallOfFire => {
                 if let Ok(w) = wall_data.1.get(entity) {
-                    [w.half_width, w.duration, transform.scale.x, 0.0]
+                    // Pack WallOfFire talent booleans into bits 0..5.
+                    let tp = &w.talent_params;
+                    let mut flags: u32 = 0;
+                    if tp.searing_heat       { flags |= 1 << 0; }
+                    if tp.scorched_earth     { flags |= 1 << 1; }
+                    if tp.spreading_flames   { flags |= 1 << 2; }
+                    if tp.firestorm          { flags |= 1 << 3; }
+                    if tp.twin_walls         { flags |= 1 << 4; }
+                    if tp.consuming_inferno  { flags |= 1 << 5; }
+                    ([w.half_width, w.duration, transform.scale.x, 0.0], flags)
                 } else {
                     continue;
                 }
             }
             SpellEffectKind::FireballExplosion => {
                 if let Ok(e) = explosion_data.0.get(entity) {
-                    [e.max_radius, e.empowerment, 0.0, 0.0]
+                    ([e.max_radius, e.empowerment, 0.0, 0.0], 0)
                 } else {
                     continue;
                 }
             }
             SpellEffectKind::MeteorExplosion => {
                 if let Ok(e) = explosion_data.1.get(entity) {
-                    [e.max_radius, 0.0, 0.0, 0.0]
+                    ([e.max_radius, 0.0, 0.0, 0.0], 0)
                 } else {
                     continue;
                 }
             }
             SpellEffectKind::IceExplosion => {
                 if let Ok(e) = explosion_data.2.get(entity) {
-                    [e.max_radius, e.empowerment, 0.0, 0.0]
+                    ([e.max_radius, e.empowerment, 0.0, 0.0], 0)
+                } else {
+                    continue;
+                }
+            }
+            SpellEffectKind::DispelImpact => {
+                if let Ok(d) = extra_data.0.get(entity) {
+                    ([d.duration, d.expand_speed, 0.0, 0.0], 0)
+                } else {
+                    continue;
+                }
+            }
+            SpellEffectKind::SquallStorm => {
+                if let Ok(s) = extra_data.1.get(entity) {
+                    // Pack SquallStorm talent booleans into bits 0..5.
+                    let tp = &s.talent_params;
+                    let mut flags: u32 = 0;
+                    if tp.permafrost     { flags |= 1 << 0; }
+                    if tp.hailstones     { flags |= 1 << 1; }
+                    if tp.sleet_storm    { flags |= 1 << 2; }
+                    if tp.absolute_zero  { flags |= 1 << 3; }
+                    if tp.blizzard       { flags |= 1 << 4; }
+                    if tp.ice_age        { flags |= 1 << 5; }
+                    ([s.radius, 0.0, 0.0, 0.0], flags)
+                } else {
+                    continue;
+                }
+            }
+            SpellEffectKind::ScorchedEarthFire | SpellEffectKind::NapalmTrail => {
+                if let Ok(e) = explosion_data.0.get(entity) {
+                    ([e.max_radius, e.empowerment, e.duration, 0.0], 0)
                 } else {
                     continue;
                 }
@@ -214,6 +334,7 @@ pub fn collect_spell_effect_snapshots(
             z: t.z,
             rotation_y: rot_y,
             extra,
+            flags,
         });
     }
 }
@@ -231,6 +352,10 @@ pub fn collect_spell_projectile_snapshots(
     lightning_rod_arcs: Query<&LightningRodArc>,
     fod_beams: Query<&FingerOfDeathBeam>,
     disintegrate_beams: Query<&DisintegrateBeam>,
+    dispel_projectiles: Query<
+        &Transform,
+        With<crate::game::units::wizard::spells::dispel::components::DispelProjectile>,
+    >,
 ) {
     spell_data.spell_projectiles.clear();
     spell_data.spell_arcs.clear();
@@ -262,6 +387,16 @@ pub fn collect_spell_projectile_snapshots(
     for t in &meteor_projectiles {
         spell_data.spell_projectiles.push(SpellProjectileSnapshot {
             kind: 2,
+            x: t.translation.x,
+            y: t.translation.y,
+            z: t.translation.z,
+            scale: t.scale.x,
+        });
+    }
+
+    for t in &dispel_projectiles {
+        spell_data.spell_projectiles.push(SpellProjectileSnapshot {
+            kind: 3,
             x: t.translation.x,
             y: t.translation.y,
             z: t.translation.z,
@@ -472,6 +607,19 @@ pub fn apply_remote_spell_snapshot(
             &mut materials,
             &mut sphere_materials,
         ) {
+            // Tag every ghost spell-effect so SP gameplay systems on the
+            // guest can filter them out via `Without<GhostSpellEffect>` —
+            // prevents Category-C double-application (BlackHole pull,
+            // ArcaneCrystal mini-spell fire, LightningRod strikes,
+            // PlagueWind DPS all running independently on both peers).
+            //
+            // Also attach the host's `NetworkEntityId` so guest-side dispel
+            // (and any future host-authoritative spell-effect message) can
+            // reference the host's entity by ID.
+            commands.entity(entity).insert((
+                crate::game::multiplayer::components::GhostSpellEffect,
+                NetworkEntityId(effect.net_id),
+            ));
             effect_map.insert(effect.net_id, entity);
         }
     }
@@ -534,6 +682,22 @@ pub fn apply_remote_spell_snapshot(
                 commands.spawn((
                     Mesh3d(assets.cross_plane_sphere.clone()),
                     MeshMaterial3d(assets.meteor_projectile.clone()),
+                    Transform::from_translation(pos)
+                        .with_scale(Vec3::splat(proj.scale.max(0.01))),
+                    GhostSpellProjectile,
+                    OnMultiplayerGameScreen,
+                ));
+            }
+            3 => {
+                // DispelProjectile ghost — uses the existing dispel_spark
+                // material on the same cross-plane sphere mesh. SP-side
+                // visuals (the bolt cluster, trailing particles) are
+                // local-only; the ghost is a single sphere at the
+                // projectile's current XYZ, which is enough for the remote
+                // player to see the bolt fly toward its target.
+                commands.spawn((
+                    Mesh3d(assets.cross_plane_sphere.clone()),
+                    MeshMaterial3d(assets.dispel_spark.clone()),
                     Transform::from_translation(pos)
                         .with_scale(Vec3::splat(proj.scale.max(0.01))),
                     GhostSpellProjectile,

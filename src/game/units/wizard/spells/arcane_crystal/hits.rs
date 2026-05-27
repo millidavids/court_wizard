@@ -38,7 +38,12 @@ pub(super) fn detect_fireball_hits(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    mut crystals: Query<(&mut ArcaneCrystal, Option<&mut ResonanceCascade>)>,
+    // Host-only — guest ghost crystal must NOT fire mini-spells on hits, or
+    // every reaction deals ~2x damage (host fires + guest fires and forwards).
+    mut crystals: Query<
+        (&mut ArcaneCrystal, Option<&mut ResonanceCascade>),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     explosions: Query<(Entity, &FireballExplosion), Without<CrystalSpawn>>,
     targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     mut progress: ResMut<BattleTalentProgress>,
@@ -125,7 +130,12 @@ pub(super) fn detect_beam_hits(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    mut crystals: Query<(&mut ArcaneCrystal, Option<&mut ResonanceCascade>)>,
+    // Host-only — guest ghost crystal must NOT fire mini-spells on hits, or
+    // every reaction deals ~2x damage (host fires + guest fires and forwards).
+    mut crystals: Query<
+        (&mut ArcaneCrystal, Option<&mut ResonanceCascade>),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     disintegrate_beams: Query<&DisintegrateBeam, Without<CrystalSpawn>>,
     fod_beams: Query<(Entity, &FingerOfDeathBeam)>,
     mut crystal_beams: Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
@@ -367,7 +377,12 @@ pub(super) fn detect_meteor_hits(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    mut crystals: Query<(&mut ArcaneCrystal, Option<&mut ResonanceCascade>)>,
+    // Host-only — guest ghost crystal must NOT fire mini-spells on hits, or
+    // every reaction deals ~2x damage (host fires + guest fires and forwards).
+    mut crystals: Query<
+        (&mut ArcaneCrystal, Option<&mut ResonanceCascade>),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     meteors: Query<(Entity, &Transform, &MeteorProjectile)>,
     targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     mut progress: ResMut<BattleTalentProgress>,
@@ -449,7 +464,12 @@ pub(super) fn detect_magic_missile_hits(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    mut crystals: Query<(&mut ArcaneCrystal, Option<&mut ResonanceCascade>)>,
+    // Host-only — guest ghost crystal must NOT fire mini-spells on hits, or
+    // every reaction deals ~2x damage (host fires + guest fires and forwards).
+    mut crystals: Query<
+        (&mut ArcaneCrystal, Option<&mut ResonanceCascade>),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     missiles: Query<(Entity, &Transform, &MagicMissile), Without<CrystalSpawn>>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut progress: ResMut<BattleTalentProgress>,
@@ -526,7 +546,10 @@ pub(super) fn detect_chain_lightning_hits(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    mut crystals: Query<(Entity, &mut ArcaneCrystal, Option<&mut ResonanceCascade>)>,
+    mut crystals: Query<
+        (Entity, &mut ArcaneCrystal, Option<&mut ResonanceCascade>),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     bolts: Query<
         &crate::game::units::wizard::spells::chain_lightning::components::ChainLightningBolt,
     >,

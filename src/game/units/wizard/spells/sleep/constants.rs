@@ -26,12 +26,16 @@ pub(super) const LULLABY_RADIUS_MULT: f32 = 1.4;
 pub(super) const NIGHTMARE_FUEL_BONUS_MULT: f32 = 1.5;
 
 // Tier 2
+// `pub(in crate::game)` so the MP host receiver can reference the same
+// values when reconstructing talent components from guest-forwarded
+// ApplyStatusEffect messages — otherwise the receiver would have to
+// duplicate the constants and silently drift if SP balance changes.
 /// Narcoleptic Wave: sleep spreads after this many seconds.
-pub(super) const NARCOLEPTIC_SPREAD_DELAY: f32 = 3.0;
+pub(in crate::game) const NARCOLEPTIC_SPREAD_DELAY: f32 = 3.0;
 /// Narcoleptic Wave: radius to spread sleep to nearby enemies.
-pub(super) const NARCOLEPTIC_SPREAD_RADIUS: f32 = 60.0;
+pub(in crate::game) const NARCOLEPTIC_SPREAD_RADIUS: f32 = 60.0;
 /// Night Terrors: damage per second while sleeping (not enough to wake with Comatose).
-pub(super) const NIGHT_TERRORS_DPS: f32 = 2.0;
+pub(in crate::game) const NIGHT_TERRORS_DPS: f32 = 2.0;
 /// Night Terrors: tick interval in seconds.
 pub(super) const NIGHT_TERRORS_TICK_INTERVAL: f32 = 0.5;
 /// Drowsy: cast time multiplier (halved).

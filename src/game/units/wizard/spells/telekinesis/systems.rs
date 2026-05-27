@@ -93,8 +93,14 @@ pub(super) fn handle_telekinesis_casting(
     indicator_query: Query<&TelekinesisIndicator>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    active_talents: Option<Res<ActiveTalents>>,
-    mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    // Bundled to stay under Bevy's 16-param limit. `mp_session` is checked
+    // first to bail out in MP — telekinesis pulls IngredientDrop entities
+    // which only exist in SP (no MP drop sync).
+    talent_and_mp: (
+        Option<Res<ActiveTalents>>,
+        Option<ResMut<BattleTalentProgress>>,
+        Option<Res<crate::networking::session::MultiplayerSession>>,
+    ),
     mut enemies_query: Query<
         (
             Entity,
@@ -107,6 +113,7 @@ pub(super) fn handle_telekinesis_casting(
     >,
 ) {
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
+    let (active_talents, mut talent_progress, mp_session) = talent_and_mp;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 
@@ -115,6 +122,14 @@ pub(super) fn handle_telekinesis_casting(
         return;
     };
     if primed_spell.spell != Spell::Telekinesis {
+        return;
+    }
+
+    // No-op in multiplayer — there are no IngredientDrop entities to pull
+    // (drops are SP-only and not synced over the wire). Return before
+    // touching mana or spawning the indicator so the action bar press is
+    // visually obvious as "nothing happened" rather than burning mana.
+    if mp_session.is_some() {
         return;
     }
 

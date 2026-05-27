@@ -650,6 +650,17 @@ impl Spell {
         0
     }
 
+    /// Returns true if this spell is allowed in multiplayer.
+    ///
+    /// `Telekinesis` is disabled in MP because it operates on `IngredientDrop`
+    /// entities which only exist in single-player (the brewing / drop spawn
+    /// pipeline is SP-only and isn't synced over the wire). Hiding it from
+    /// the MP action bar prevents the player from priming a spell that
+    /// silently does nothing.
+    pub const fn is_mp_allowed(&self) -> bool {
+        !matches!(self, Spell::Telekinesis)
+    }
+
     /// Returns true if this spell is allowed for the Shepherd wizard type.
     pub const fn is_shepherd_allowed(&self) -> bool {
         matches!(
