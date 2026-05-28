@@ -21,13 +21,22 @@ impl Plugin for BanishmentPlugin {
                 .run_if(mouse_held_or_wizard_casting)
                 .run_if(is_spell_effects_active),
         );
+        // Gameplay-authoritative: ticks banishment expiry and respawns units.
         app.add_systems(
             Update,
-            (
-                systems::tick_banished_units.run_if(any_exist::<BanishedModifier>()),
-                systems::update_banishment_vfx.run_if(any_exist::<BanishmentVfx>()),
-            )
+            systems::tick_banished_units
+                .run_if(any_exist::<BanishedModifier>())
                 .run_if(is_gameplay_running),
+        );
+
+        // Visual-only: animates the lensing-sphere collapse on each peer.
+        // Runs on both MP peers so the guest sees the host's banishment VFX
+        // once the BanishmentVfx component is replicated (Phase 3).
+        app.add_systems(
+            Update,
+            systems::update_banishment_vfx
+                .run_if(any_exist::<BanishmentVfx>())
+                .run_if(is_spell_effects_active),
         );
     }
 }

@@ -139,9 +139,8 @@ pub(super) fn cleanup_mp_game(
 
     // Restore the spell origin to the single-player default so a subsequent
     // SP run doesn't inherit the guest's mirrored origin.
-    commands.insert_resource(
-        crate::game::units::wizard::spells::utils::LocalSpellOrigin::default(),
-    );
+    commands
+        .insert_resource(crate::game::units::wizard::spells::utils::LocalSpellOrigin::default());
 
     // Remove MP-only resources that are created in init_mp_game.
     commands.remove_resource::<crate::networking::crdt::PeerId>();

@@ -34,13 +34,46 @@ pub(crate) fn process_lobby_messages(
 
         for msg in messages {
             match msg {
+                NetworkMessage::HandshakeVersion { version } => {
+                    let local_version = crate::networking::protocol::PROTOCOL_VERSION;
+                    if version != local_version {
+                        warn!(
+                            "[MP Lobby] Version mismatch via HandshakeVersion: local v{local_version}, peer v{version}"
+                        );
+                        lobby.phase = LobbyPhase::Failed {
+                            reason: format!(
+                                "Multiplayer version mismatch: you are on v{local_version}, opponent is on v{version}. Both players must update to the same game version."
+                            ),
+                        };
+                        return;
+                    }
+                    lobby.peer_protocol_version = Some(version);
+                    info!("[MP Lobby] Received HandshakeVersion (v{version}) — match");
+                }
                 NetworkMessage::PlayerInfo {
                     wizard_types: opponent_wt,
                     spells: _,
                 } => {
+                    // Enforce the "HandshakeVersion-first" invariant. An old
+                    // binary that doesn't know about `HandshakeVersion`
+                    // sends `PlayerInfo` first with no preceding version
+                    // exchange — we treat that as an incompatible peer.
+                    if lobby.peer_protocol_version.is_none() {
+                        let local_version = crate::networking::protocol::PROTOCOL_VERSION;
+                        warn!(
+                            "[MP Lobby] PlayerInfo arrived before HandshakeVersion — peer is on an incompatible older version"
+                        );
+                        lobby.phase = LobbyPhase::Failed {
+                            reason: format!(
+                                "Multiplayer version mismatch: opponent is on an older version that doesn't support the v{local_version} handshake. Both players must update to the same game version."
+                            ),
+                        };
+                        return;
+                    }
                     info!(
-                        "[MP Lobby] Received PlayerInfo ({} wizard types)",
-                        opponent_wt.len()
+                        "[MP Lobby] Received PlayerInfo ({} wizard types, peer protocol v{:?})",
+                        opponent_wt.len(),
+                        lobby.peer_protocol_version
                     );
                     let (my_wt, _) = load_my_unlocked_content();
                     let initial = my_wt

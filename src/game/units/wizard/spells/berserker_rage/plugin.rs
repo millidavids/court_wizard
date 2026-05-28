@@ -63,10 +63,11 @@ impl Plugin for BerserkerRagePlugin {
                         .after(PostCombatSet)
                         .run_if(is_gameplay_running)
                         .run_if(any_exist::<FinalStand>()),
-                    // Final Stand: expand explosion visual then despawn
+                    // Final Stand: expand explosion visual then despawn.
+                    // Visual-only — runs on both MP peers.
                     systems::update_final_stand_vfx
                         .run_if(any_exist::<FinalStandExplosionVfx>())
-                        .run_if(is_gameplay_running),
+                        .run_if(is_spell_effects_active),
                 ),
             );
     }

@@ -9,7 +9,6 @@ use super::components::{
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen};
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
@@ -21,6 +20,7 @@ use crate::game::units::components::{
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::systems::create_default_sprite_material;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     cleanup_spell_caster, handle_spell_release, try_start_cast_with_indicator,
@@ -93,6 +93,7 @@ pub fn handle_fog_cloud_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
     active_toggles: Option<Res<ActiveToggles>>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let scorched_mult =
@@ -132,9 +133,10 @@ pub fn handle_fog_cloud_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Force,
             time.elapsed_secs(),

@@ -14,7 +14,6 @@ use super::components::{
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::constants::{
     DEFENDER_GRID_CENTER_ANGLE, DEFENDER_GRID_GROUND_RANGE, WIZARD_POSITION,
 };
@@ -23,6 +22,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::{MouseLeftReleased, MouseRightPressed};
 use crate::game::units::components::{Corpse, Team, Teleportable};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_to_spell_range,
 };
@@ -176,12 +176,20 @@ pub fn handle_teleport_casting(
         ),
     >,
     target_assist: Res<TargetAssistWorldPos>,
-    (mut connection, sfx, game_config, active_talents, mut talent_progress): (
+    (
+        mut connection,
+        sfx,
+        game_config,
+        active_talents,
+        mut talent_progress,
+        mut pending_cast_events,
+    ): (
         Option<ResMut<NetworkConnection>>,
         Res<SpellSfxAssets>,
         Res<GameConfig>,
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
     ),
     local_origin: Res<LocalSpellOrigin>,
 ) {
@@ -229,6 +237,7 @@ pub fn handle_teleport_casting(
         &units_query,
         &source_query,
         &talent_params,
+        &mut pending_cast_events,
     );
 
     // === Local-only: manage indicator circles ===
@@ -317,9 +326,10 @@ pub fn handle_teleport_casting(
 
     // Cleanup circles on completion or first-phase release
     if cast_result.completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Force,
             time.elapsed_secs(),
@@ -462,6 +472,7 @@ fn teleport_casting_logic(
         ),
     >,
     talent_params: &TeleportTalentParams,
+    pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) -> TeleportCastResult {
     let mut result = TeleportCastResult {
         completed: false,
@@ -534,19 +545,23 @@ fn teleport_casting_logic(
 
                 if let Some(dest_pos) = caster.destination_position {
                     // Origin bubble: fades in large and contracts to a point
-                    vfx::systems::spawn_aura_bubble_contracting(
+                    vfx::systems::spawn_aura_bubble_contracting_synced(
                         commands,
                         visual_assets,
+                        pending,
                         visual_assets.teleport_aura_sphere.clone(),
+                        crate::networking::snapshot::AuraBubbleVariant::Teleport,
                         source_pos,
                         current_radius,
                         1.0,
                     );
                     // Destination bubble: expands out
-                    vfx::systems::spawn_aura_bubble(
+                    vfx::systems::spawn_aura_bubble_synced(
                         commands,
                         visual_assets,
+                        pending,
                         visual_assets.teleport_aura_sphere.clone(),
+                        crate::networking::snapshot::AuraBubbleVariant::Teleport,
                         dest_pos,
                         current_radius,
                         1.5,
@@ -631,18 +646,22 @@ fn teleport_casting_logic(
                     mana.consume(effective_mana_cost);
 
                     if let Some(dest_pos) = caster.destination_position {
-                        vfx::systems::spawn_aura_bubble(
+                        vfx::systems::spawn_aura_bubble_synced(
                             commands,
                             visual_assets,
+                            pending,
                             visual_assets.teleport_aura_sphere.clone(),
+                            crate::networking::snapshot::AuraBubbleVariant::Teleport,
                             source_pos,
                             radius,
                             1.0,
                         );
-                        vfx::systems::spawn_aura_bubble(
+                        vfx::systems::spawn_aura_bubble_synced(
                             commands,
                             visual_assets,
+                            pending,
                             visual_assets.teleport_aura_sphere.clone(),
+                            crate::networking::snapshot::AuraBubbleVariant::Teleport,
                             dest_pos,
                             radius,
                             1.5,

@@ -315,8 +315,7 @@ pub fn receive_apply_status_effect(
                 magnitude,
                 flags,
             } => {
-                let Some(kind) =
-                    crate::networking::protocol::StatusEffectKind::from_u8(kind)
+                let Some(kind) = crate::networking::protocol::StatusEffectKind::from_u8(kind)
                 else {
                     warn!("[MP] Unknown StatusEffectKind ordinal {}", kind);
                     continue;
@@ -351,15 +350,19 @@ pub fn receive_apply_status_effect(
                     kind,
                     crate::networking::protocol::StatusEffectKind::MindControl
                 ) {
-                    mind_control_targets.get(local_entity).ok().and_then(|infl| {
-                        if let crate::game::pathfinding::FlowFieldInfluence::Defender { spawn_pos } =
-                            infl
-                        {
-                            Some(*spawn_pos)
-                        } else {
-                            None
-                        }
-                    })
+                    mind_control_targets
+                        .get(local_entity)
+                        .ok()
+                        .and_then(|infl| {
+                            if let crate::game::pathfinding::FlowFieldInfluence::Defender {
+                                spawn_pos,
+                            } = infl
+                            {
+                                Some(*spawn_pos)
+                            } else {
+                                None
+                            }
+                        })
                 } else {
                     None
                 };
@@ -492,6 +495,14 @@ fn apply_status_to_entity(
         K::Mark => {
             let amp = if magnitude > 0.0 { magnitude } else { 0.5 };
             ec.insert(sfx::MarkedForDeathModifier::new(amp, duration));
+            // ActiveMarkOfDeath drives the floating doom-skull indicator
+            // (`spawn_mark_indicators` / `update_mark_indicators` both query
+            // `With<ActiveMarkOfDeath>`). The SP cast path inserts it via
+            // `apply_mark_of_death`; the MP forwarded path bypasses that
+            // helper, so we add it here so the host renders the indicator.
+            ec.insert(
+                crate::game::units::wizard::spells::mark_of_death::components::ActiveMarkOfDeath,
+            );
             let _ = flags;
         }
         K::Haste => {
@@ -504,13 +515,21 @@ fn apply_status_to_entity(
             // as percent (0..=10000 → 0.0..=1.0).
             let damage_bonus = if magnitude > 0.0 { magnitude } else { 0.4 };
             let attack_speed = ((flags & 0xFFFF) as f32) / 10_000.0;
-            ec.insert(sfx::BattleHymnModifier::new(damage_bonus, attack_speed, duration));
+            ec.insert(sfx::BattleHymnModifier::new(
+                damage_bonus,
+                attack_speed,
+                duration,
+            ));
         }
         K::BerserkerRage => {
             // magnitude = damage_bonus, vulnerability in flags low 16 as percent.
             let damage_bonus = if magnitude > 0.0 { magnitude } else { 1.0 };
             let vulnerability = ((flags & 0xFFFF) as f32) / 10_000.0;
-            ec.insert(sfx::BerserkerRageModifier::new(damage_bonus, vulnerability, duration));
+            ec.insert(sfx::BerserkerRageModifier::new(
+                damage_bonus,
+                vulnerability,
+                duration,
+            ));
         }
         K::GuardianTempHp => {
             ec.insert(comp::TemporaryHitPoints::new(magnitude, duration));
@@ -580,9 +599,8 @@ pub fn receive_raise_corpse_messages(
                 flags,
                 empowerment,
             } => {
-                let Some((corpse_entity, _, transform)) = corpses
-                    .iter()
-                    .find(|(_, id, _)| id.0 == target_network_id)
+                let Some((corpse_entity, _, transform)) =
+                    corpses.iter().find(|(_, id, _)| id.0 == target_network_id)
                 else {
                     continue;
                 };

@@ -45,6 +45,12 @@ pub fn spawn_rock_projectile(
             MeshMaterial3d(rock_assets.materials[idx].clone()),
             Transform::from_translation(pos),
             projectile,
+            // Tag for MP visual sync — host's projectile entity ships to the
+            // guest, which spawns a ghost at the synced position each frame
+            // so the guest sees the full arc.
+            crate::game::multiplayer::components::NetworkedSpellEffect {
+                kind: crate::networking::snapshot::SpellEffectKind::BoulderProjectileEffect,
+            },
             OnGameplayScreen,
         ));
     }
@@ -124,6 +130,13 @@ pub fn animate_rock_projectiles(
                     ObstacleHealth::new(ROCK_HEALTH),
                     Billboard,
                     Teleportable,
+                    // Tag for MP visual sync — the persistent boulder
+                    // obstacle ships to the guest as a separate effect kind
+                    // so the guest can pick the correct sprite via the
+                    // `sprite_index` packed into `extra[0]`.
+                    crate::game::multiplayer::components::NetworkedSpellEffect {
+                        kind: crate::networking::snapshot::SpellEffectKind::BoulderObstacle,
+                    },
                     OnGameplayScreen,
                 ))
                 .id();
@@ -489,6 +502,12 @@ pub(in crate::game) fn spawn_terrain_boulder(
             ObstacleHealth::new(ROCK_HEALTH * scale),
             Billboard,
             Teleportable,
+            // Tag pre-placed terrain boulders too so the guest sees them
+            // via the snapshot pipeline. Without this only dynamically
+            // thrown boulders (brute/ogre) would be visible on the guest.
+            crate::game::multiplayer::components::NetworkedSpellEffect {
+                kind: crate::networking::snapshot::SpellEffectKind::BoulderObstacle,
+            },
             OnGameplayScreen,
         ))
         .id();

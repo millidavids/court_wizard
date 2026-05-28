@@ -179,8 +179,7 @@ impl Plugin for UnitsPlugin {
                     // `RemoteFireEffect` rather than the real `FireDoT`.
                     // Run the VFX emitter when either marker is present.
                     systems::emit_burning_unit_vfx.run_if(
-                        any_with_component::<FireDoT>
-                            .or(any_with_component::<RemoteFireEffect>),
+                        any_with_component::<FireDoT>.or(any_with_component::<RemoteFireEffect>),
                     ),
                 )
                     .run_if(is_spell_effects_active),

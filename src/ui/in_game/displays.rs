@@ -38,6 +38,7 @@ pub(super) fn update_wave_display(
 /// Visible while attackers are marching to staging points (and no attacker
 /// from the current wave has engaged yet). Pulses alpha while visible and
 /// despawns the moment staging ends.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn update_wave_incoming_flash(
     mut commands: Commands,
     time: Res<Time>,

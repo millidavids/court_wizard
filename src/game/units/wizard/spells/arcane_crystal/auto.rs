@@ -826,8 +826,10 @@ pub(super) fn crystal_network_chain(
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<
         (Entity, &mut ArcaneCrystal),
-        (With<CrystalNetwork>,
-         Without<crate::game::multiplayer::components::GhostSpellEffect>),
+        (
+            With<CrystalNetwork>,
+            Without<crate::game::multiplayer::components::GhostSpellEffect>,
+        ),
     >,
     targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,

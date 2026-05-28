@@ -593,6 +593,7 @@ pub fn spawn_wall_dust(
     visual_assets: Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
     time: Res<Time>,
     mut timer: Local<f32>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
     *timer += time.delta_secs();
     if *timer < WALL_DUST_INTERVAL {
@@ -604,13 +605,25 @@ pub fn spawn_wall_dust(
 
     // Spawn dust for rising walls
     for (wall, _rising) in &rising_walls {
-        spawn_dust_along_wall(&mut commands, &visual_assets, wall, t);
+        spawn_dust_along_wall(
+            &mut commands,
+            &visual_assets,
+            wall,
+            t,
+            &mut pending_cast_events,
+        );
     }
 
     // Spawn dust for sinking walls
     for wall in &sinking_walls {
         if wall.sinking {
-            spawn_dust_along_wall(&mut commands, &visual_assets, wall, t);
+            spawn_dust_along_wall(
+                &mut commands,
+                &visual_assets,
+                wall,
+                t,
+                &mut pending_cast_events,
+            );
         }
     }
 }
@@ -621,6 +634,7 @@ fn spawn_dust_along_wall(
     assets: &crate::game::units::wizard::spells::visual_assets::SpellVisualAssets,
     wall: &WallOfStone,
     time_secs: f32,
+    pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) {
     let wall_len = wall.half_length * 2.0;
     let num_points = ((wall_len / 50.0) as usize).max(2);
@@ -630,9 +644,10 @@ fn spawn_dust_along_wall(
         let pos = wall.center - wall.forward * wall.half_length
             + wall.forward * (wall_len * frac.clamp(0.0, 1.0));
 
-        crate::game::units::wizard::spells::vfx::systems::spawn_dust_smoke(
+        crate::game::units::wizard::spells::vfx::systems::spawn_dust_smoke_synced(
             commands,
             assets,
+            pending,
             pos,
             wall.half_width,
             WALL_DUST_PUFFS_PER_POINT,

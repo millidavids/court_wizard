@@ -334,6 +334,7 @@ pub(super) fn handle_keyboard_input(
 
 /// Updates action bar slot text and icons when config changes.
 /// For the gunslinger, highlights the currently selected gun slot.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn update_action_bar_slots(
     config: Res<GameConfig>,
     icon_assets: Res<SpellIconAssets>,

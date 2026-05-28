@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     game::run_conditions::{is_arcanorouter, is_gameplay_active, is_gameplay_running},
-    state::InGameState,
+    state::{InGameState, MultiplayerGameState},
 };
 
 use super::{messages::SliderAdjustMessage, resources::ArcanoRouterState, systems::*};
@@ -37,6 +37,10 @@ impl Plugin for ArcanoRouterPlugin {
             )
             .add_systems(
                 OnEnter(InGameState::ScoreScreen),
+                reset_allocations_on_game_over.run_if(is_arcanorouter),
+            )
+            .add_systems(
+                OnEnter(MultiplayerGameState::ScoreScreen),
                 reset_allocations_on_game_over.run_if(is_arcanorouter),
             );
     }

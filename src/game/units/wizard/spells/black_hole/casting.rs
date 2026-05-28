@@ -4,7 +4,6 @@ use super::components::{BlackHole, BlackHoleSfx, BlackHoleTalentParams};
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -13,6 +12,7 @@ use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     clamp_to_spell_range, cleanup_spell_caster, spawn_circle_indicator, update_indicator_position,
@@ -129,12 +129,16 @@ pub(super) fn handle_black_hole_casting(
     mut meshes: ResMut<Assets<Mesh>>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
-    sfx: Res<SpellSfxAssets>,
-    game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
     target_assist: Res<TargetAssistWorldPos>,
     local_origin: Res<LocalSpellOrigin>,
+    mut audio_ctx: (
+        Res<SpellSfxAssets>,
+        Res<GameConfig>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
+    ),
 ) {
+    let (ref sfx, ref game_config, ref mut pending_cast_events) = audio_ctx;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 
@@ -214,9 +218,10 @@ pub(super) fn handle_black_hole_casting(
     );
 
     if cast_result.completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Arcane,
             time.elapsed_secs(),
@@ -234,8 +239,8 @@ pub(super) fn handle_black_hole_casting(
                     &visual_assets,
                     pos - offset,
                     emp,
-                    &sfx,
-                    &game_config,
+                    sfx,
+                    game_config,
                     talent_params,
                 );
                 spawn_black_hole(
@@ -243,8 +248,8 @@ pub(super) fn handle_black_hole_casting(
                     &visual_assets,
                     pos + offset,
                     emp,
-                    &sfx,
-                    &game_config,
+                    sfx,
+                    game_config,
                     talent_params,
                 );
             } else {
@@ -253,8 +258,8 @@ pub(super) fn handle_black_hole_casting(
                     &visual_assets,
                     pos,
                     primed_spell.empowerment,
-                    &sfx,
-                    &game_config,
+                    sfx,
+                    game_config,
                     talent_params,
                 );
             }
@@ -267,6 +272,7 @@ pub(super) fn handle_black_hole_casting(
 ///
 /// Handles CastingState transitions, mana consumption, and cursor clamping.
 /// Does NOT spawn the black hole or manage mouse_state -- those are the wrapper's job.
+#[allow(clippy::too_many_arguments)]
 fn black_hole_casting_logic(
     input: &WizardInput,
     time: &Time,

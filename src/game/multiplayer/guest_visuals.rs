@@ -106,12 +106,14 @@ pub(super) fn pick_material(
 /// Zone fade systems modify materials directly, so zones get unique material clones.
 /// Some effects (black hole, lightning rod) allocate meshes at spawn since they need
 /// specific sizes; these are rare entities so the cost is negligible.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn spawn_spell_effect(
     commands: &mut Commands,
     effect: &SpellEffectSnapshot,
     assets: &SpellVisualAssets,
     materials: &mut Assets<StandardMaterial>,
     sphere_materials: &mut Assets<FireExplosionSphereMaterial>,
+    boulder_assets: &crate::game::terrain::boulder::resources::BoulderAssets,
 ) -> Option<Entity> {
     let kind = SpellEffectKind::try_from(effect.kind).ok()?;
     let pos = Vec3::new(effect.x, effect.y, effect.z);
@@ -227,12 +229,24 @@ pub(super) fn spawn_spell_effect(
             // on the ghost are mostly for visual consistency / system
             // existence-checks. Default field values are fine — the host
             // ticks the real ones.
-            if flags & (1 << 0) != 0 { ec.insert(BlindingMistZone); }
-            if flags & (1 << 1) != 0 { ec.insert(ConcealingVeilZone); }
-            if flags & (1 << 2) != 0 { ec.insert(DisorientingVaporsZone); }
-            if flags & (1 << 3) != 0 { ec.insert(PhantomFogZone { spawn_timer: 0.0 }); }
-            if flags & (1 << 4) != 0 { ec.insert(ChokingFogZone::new(0.0, 1.0)); }
-            if flags & (1 << 5) != 0 { ec.insert(RollingFogZone { speed: 0.0 }); }
+            if flags & (1 << 0) != 0 {
+                ec.insert(BlindingMistZone);
+            }
+            if flags & (1 << 1) != 0 {
+                ec.insert(ConcealingVeilZone);
+            }
+            if flags & (1 << 2) != 0 {
+                ec.insert(DisorientingVaporsZone);
+            }
+            if flags & (1 << 3) != 0 {
+                ec.insert(PhantomFogZone { spawn_timer: 0.0 });
+            }
+            if flags & (1 << 4) != 0 {
+                ec.insert(ChokingFogZone::new(0.0, 1.0));
+            }
+            if flags & (1 << 5) != 0 {
+                ec.insert(RollingFogZone { speed: 0.0 });
+            }
             Some(ec.id())
         }
 
@@ -301,13 +315,15 @@ pub(super) fn spawn_spell_effect(
             // already baked into the host's authoritative damage values
             // that flow back via the CRDT pipeline, so reproducing them on
             // the ghost would double-count.
-            let mut talent_params = PlagueWindTalentParams::default();
-            talent_params.plague_carrier = flags & (1 << 0) != 0;
-            talent_params.toxic_weakness = flags & (1 << 1) != 0;
-            talent_params.choking_gas    = flags & (1 << 2) != 0;
-            talent_params.pandemic       = flags & (1 << 3) != 0;
-            talent_params.twin_plumes    = flags & (1 << 4) != 0;
-            talent_params.necrotic_rot   = flags & (1 << 5) != 0;
+            let talent_params = PlagueWindTalentParams {
+                plague_carrier: flags & (1 << 0) != 0,
+                toxic_weakness: flags & (1 << 1) != 0,
+                choking_gas: flags & (1 << 2) != 0,
+                pandemic: flags & (1 << 3) != 0,
+                twin_plumes: flags & (1 << 4) != 0,
+                necrotic_rot: flags & (1 << 5) != 0,
+                ..PlagueWindTalentParams::default()
+            };
             let material = materials.add(materials.get(&assets.plague_wind_zone)?.clone());
             Some(
                 commands
@@ -363,12 +379,14 @@ pub(super) fn spawn_spell_effect(
             use crate::game::units::wizard::spells::black_hole::components::BlackHoleTalentParams;
             let max_radius = extra[0];
             let empowerment = extra[1];
-            let mut talent_params = BlackHoleTalentParams::default();
-            talent_params.event_horizon     = flags & (1 << 0) != 0;
-            talent_params.crushing_pressure = flags & (1 << 1) != 0;
-            talent_params.void_siphon       = flags & (1 << 2) != 0;
-            talent_params.singularity       = flags & (1 << 3) != 0;
-            talent_params.dimensional_rift  = flags & (1 << 4) != 0;
+            let talent_params = BlackHoleTalentParams {
+                event_horizon: flags & (1 << 0) != 0,
+                crushing_pressure: flags & (1 << 1) != 0,
+                void_siphon: flags & (1 << 2) != 0,
+                singularity: flags & (1 << 3) != 0,
+                dimensional_rift: flags & (1 << 4) != 0,
+                ..BlackHoleTalentParams::default()
+            };
             // Icosphere scaled by max_radius * growth_factor in update_black_hole_visuals.
             // The ghost still won't run the damage/pull/etc. systems (those
             // are gated `Without<GhostSpellEffect>` for host-authoritative)
@@ -401,11 +419,19 @@ pub(super) fn spawn_spell_effect(
             let mut ec = commands.spawn((
                 Mesh3d(assets.cross_plane_sphere.clone()),
                 MeshMaterial3d(assets.arcane_crystal.clone()),
-                Transform::from_translation(Vec3::new(pos.x, height / 2.0, pos.z))
-                    .with_scale(Vec3::new(0.7 * sphere_radius, 1.5 * sphere_radius, 0.7 * sphere_radius)),
+                Transform::from_translation(Vec3::new(pos.x, height / 2.0, pos.z)).with_scale(
+                    Vec3::new(
+                        0.7 * sphere_radius,
+                        1.5 * sphere_radius,
+                        0.7 * sphere_radius,
+                    ),
+                ),
                 ArcaneCrystal::new(
                     Vec3::new(pos.x, height / 2.0, pos.z),
-                    range, duration, range * 0.15, empowerment,
+                    range,
+                    duration,
+                    range * 0.15,
+                    empowerment,
                 ),
                 OnMultiplayerGameScreen,
             ));
@@ -416,10 +442,18 @@ pub(super) fn spawn_spell_effect(
             // `Without<GhostSpellEffect>` — they only run on the host —
             // so these markers exist on the guest solely for visual/state
             // consistency (e.g. Resonance Cascade absorption counter).
-            if flags & (1 << 0) != 0 { ec.insert(ResonanceCascade { absorptions: 0 }); }
-            if flags & (1 << 1) != 0 { ec.insert(PrismaticExplosion); }
-            if flags & (1 << 2) != 0 { ec.insert(AutoCrystalTimer { timer: 0.0 }); }
-            if flags & (1 << 3) != 0 { ec.insert(CrystalNetwork); }
+            if flags & (1 << 0) != 0 {
+                ec.insert(ResonanceCascade { absorptions: 0 });
+            }
+            if flags & (1 << 1) != 0 {
+                ec.insert(PrismaticExplosion);
+            }
+            if flags & (1 << 2) != 0 {
+                ec.insert(AutoCrystalTimer { timer: 0.0 });
+            }
+            if flags & (1 << 3) != 0 {
+                ec.insert(CrystalNetwork);
+            }
             Some(ec.id())
         }
 
@@ -433,29 +467,40 @@ pub(super) fn spawn_spell_effect(
             // duration/strike-interval/arc-radius/damage multipliers are
             // already baked into the host's authoritative strike damage
             // (which flows back via CRDT), so they stay at default here.
-            let mut talent_params = LightningRodTalentParams::default();
-            talent_params.chain_reaction   = flags & (1 << 0) != 0;
-            talent_params.magnetic_field   = flags & (1 << 1) != 0;
-            talent_params.overcharge       = flags & (1 << 2) != 0;
-            talent_params.storm_spire      = flags & (1 << 3) != 0;
-            talent_params.tesla_coil       = flags & (1 << 4) != 0;
-            talent_params.lightning_nexus  = flags & (1 << 5) != 0;
+            let talent_params = LightningRodTalentParams {
+                chain_reaction: flags & (1 << 0) != 0,
+                magnetic_field: flags & (1 << 1) != 0,
+                overcharge: flags & (1 << 2) != 0,
+                storm_spire: flags & (1 << 3) != 0,
+                tesla_coil: flags & (1 << 4) != 0,
+                lightning_nexus: flags & (1 << 5) != 0,
+                ..LightningRodTalentParams::default()
+            };
             // Lightning rod uses a cylinder mesh; create one at spawn.
             // This is a small allocation but rods are rare (1-2 at most).
             let tower_height = 60.0; // TOWER_HEIGHT
             let tower_radius = 8.0; // TOWER_RADIUS
-            Some(commands.spawn((
-                Mesh3d(assets.unit_cuboid.clone()),
-                MeshMaterial3d(assets.lightning_rod.clone()),
-                Transform::from_translation(Vec3::new(pos.x, tower_height / 2.0, pos.z))
-                    .with_scale(Vec3::new(tower_radius * 2.0, tower_height, tower_radius * 2.0)),
-                LightningRod::new(
-                    Vec3::new(pos.x, 0.0, pos.z),
-                    duration, empowerment,
-                    talent_params,
-                ),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_cuboid.clone()),
+                        MeshMaterial3d(assets.lightning_rod.clone()),
+                        Transform::from_translation(Vec3::new(pos.x, tower_height / 2.0, pos.z))
+                            .with_scale(Vec3::new(
+                                tower_radius * 2.0,
+                                tower_height,
+                                tower_radius * 2.0,
+                            )),
+                        LightningRod::new(
+                            Vec3::new(pos.x, 0.0, pos.z),
+                            duration,
+                            empowerment,
+                            talent_params,
+                        ),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         // ── Walls ──
@@ -509,13 +554,15 @@ pub(super) fn spawn_spell_effect(
             let half_width = extra[0];
             let duration = extra[1];
             let wall_length = extra[2];
-            let mut talent_params = WallOfFireTalentParams::default();
-            talent_params.searing_heat      = flags & (1 << 0) != 0;
-            talent_params.scorched_earth    = flags & (1 << 1) != 0;
-            talent_params.spreading_flames  = flags & (1 << 2) != 0;
-            talent_params.firestorm         = flags & (1 << 3) != 0;
-            talent_params.twin_walls        = flags & (1 << 4) != 0;
-            talent_params.consuming_inferno = flags & (1 << 5) != 0;
+            let talent_params = WallOfFireTalentParams {
+                searing_heat: flags & (1 << 0) != 0,
+                scorched_earth: flags & (1 << 1) != 0,
+                spreading_flames: flags & (1 << 2) != 0,
+                firestorm: flags & (1 << 3) != 0,
+                twin_walls: flags & (1 << 4) != 0,
+                consuming_inferno: flags & (1 << 5) != 0,
+                ..WallOfFireTalentParams::default()
+            };
             let material = materials.add(StandardMaterial {
                 base_color: Color::NONE,
                 alpha_mode: AlphaMode::Blend,
@@ -640,13 +687,15 @@ pub(super) fn spawn_spell_effect(
                 SquallStorm, SquallTalentParams,
             };
             let radius = extra[0];
-            let mut talent_params = SquallTalentParams::default();
-            talent_params.permafrost    = flags & (1 << 0) != 0;
-            talent_params.hailstones    = flags & (1 << 1) != 0;
-            talent_params.sleet_storm   = flags & (1 << 2) != 0;
-            talent_params.absolute_zero = flags & (1 << 3) != 0;
-            talent_params.blizzard      = flags & (1 << 4) != 0;
-            talent_params.ice_age       = flags & (1 << 5) != 0;
+            let talent_params = SquallTalentParams {
+                permafrost: flags & (1 << 0) != 0,
+                hailstones: flags & (1 << 1) != 0,
+                sleet_storm: flags & (1 << 2) != 0,
+                absolute_zero: flags & (1 << 3) != 0,
+                blizzard: flags & (1 << 4) != 0,
+                ice_age: flags & (1 << 5) != 0,
+                ..SquallTalentParams::default()
+            };
             Some(
                 commands
                     .spawn((
@@ -723,6 +772,49 @@ pub(super) fn spawn_spell_effect(
                         // this the smoke VFX is missing for host-cast
                         // napalm trails on the guest's screen.
                         ScorchedEarthFire,
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
+        }
+
+        SpellEffectKind::BoulderProjectileEffect => {
+            // Spawn a ghost mid-air boulder at the host's transform; the
+            // host's per-frame `NetworkedSpellEffect` snapshot keeps it on
+            // the same arc. `extra[0]` carries the sprite index so the
+            // guest picks the matching boulder material.
+            let sprite_index = extra[0] as usize;
+            let idx = sprite_index.min(boulder_assets.materials.len().saturating_sub(1));
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(boulder_assets.mesh.clone()),
+                        MeshMaterial3d(boulder_assets.materials[idx].clone()),
+                        Transform::from_translation(pos),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
+        }
+
+        SpellEffectKind::BoulderObstacle => {
+            // Spawn a ghost grounded boulder at the host's land position.
+            // `extra[0]` = sprite_index, `extra[1]` = radius, `extra[2]` =
+            // height. Billboard so the sprite faces the camera identically
+            // to the SP path. No `Boulder` / `ObstacleHealth` component on
+            // the ghost — those are host-authoritative and would re-trigger
+            // gameplay systems if present (they're gated `is_gameplay_running`
+            // = host-only, so they wouldn't actually fire on the guest, but
+            // leaving them off is cleaner).
+            let sprite_index = extra[0] as usize;
+            let idx = sprite_index.min(boulder_assets.materials.len().saturating_sub(1));
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(boulder_assets.mesh.clone()),
+                        MeshMaterial3d(boulder_assets.materials[idx].clone()),
+                        Transform::from_translation(pos),
+                        crate::game::components::Billboard,
                         OnMultiplayerGameScreen,
                     ))
                     .id(),

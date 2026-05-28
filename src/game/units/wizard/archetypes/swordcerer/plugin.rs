@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::game::run_conditions::{
     any_exist, is_gameplay_running, is_spell_effects_active, is_swordcerer,
 };
-use crate::state::{AppState, InGameState};
+use crate::state::{AppState, InGameState, MultiplayerGameState};
 
 use super::components::*;
 use super::messages::*;
@@ -27,7 +27,15 @@ impl Plugin for SwordcererPlugin {
                 (reset_swordcerer_state, spawn_enter_fray_button).run_if(is_swordcerer),
             )
             .add_systems(
+                OnEnter(AppState::MultiplayerGame),
+                (reset_swordcerer_state, spawn_enter_fray_button).run_if(is_swordcerer),
+            )
+            .add_systems(
                 OnEnter(InGameState::ScoreScreen),
+                reset_swordcerer_state.run_if(is_swordcerer),
+            )
+            .add_systems(
+                OnEnter(MultiplayerGameState::ScoreScreen),
                 reset_swordcerer_state.run_if(is_swordcerer),
             )
             // Block normal spell casting while on field

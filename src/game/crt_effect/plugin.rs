@@ -36,7 +36,7 @@ use super::systems::{
     handle_screen_flash_message, handle_vignette_pulse_message,
 };
 use crate::config::GameConfig;
-use crate::state::AppState;
+use crate::game::run_conditions::is_spell_effects_active;
 
 use super::pipeline::{
     ColorblindCorrectionLabel, ColorblindCorrectionNode, CrtEffectPipeline, HeatDistortionNode,
@@ -110,7 +110,11 @@ impl Plugin for CrtEffectPlugin {
             Update,
             animate_vignette_pulse.run_if(resource_exists::<VignettePulseTimer>),
         );
-        // Screen-warping distortion — skipped when reduce_motion is enabled
+        // Screen-warping distortion — skipped when reduce_motion is enabled.
+        // Uses `is_spell_effects_active` so BOTH MP peers run these (the
+        // guest must see the same heat shimmer / black-hole lensing /
+        // teleport ripple as the host). `is_gameplay_active` would exclude
+        // the guest since it gates on `PeerRole::Host`.
         app.add_systems(
             Update,
             (
@@ -118,7 +122,7 @@ impl Plugin for CrtEffectPlugin {
                 update_heat_distortion_positions,
                 update_teleport_distortion_positions,
             )
-                .run_if(in_state(AppState::InGame))
+                .run_if(is_spell_effects_active)
                 .run_if(|config: Res<GameConfig>| !config.reduce_motion),
         );
         app.add_systems(

@@ -46,24 +46,46 @@ pub enum MpSpawnTask {
     LoadWizardAssets,
     HostWizard,
     GuestWizard,
-    HostInfantry { unit_index: u32 },
-    HostArcher { unit_index: u32 },
-    GuestInfantry { unit_index: u32 },
-    GuestArcher { unit_index: u32 },
+    HostInfantry {
+        unit_index: u32,
+    },
+    HostArcher {
+        unit_index: u32,
+    },
+    GuestInfantry {
+        unit_index: u32,
+    },
+    GuestArcher {
+        unit_index: u32,
+    },
     HostKing,
-    HostKingsGuard { guard_index: u32 },
+    HostKingsGuard {
+        guard_index: u32,
+    },
     GuestKing,
-    GuestKingsGuard { guard_index: u32 },
+    GuestKingsGuard {
+        guard_index: u32,
+    },
     /// A single flora decoration (visual only).
-    Flora { flora: SavedFlora },
+    Flora {
+        flora: SavedFlora,
+    },
     /// A single boulder (pathfinding obstacle).
-    TerrainBoulder { boulder: SavedBoulder },
+    TerrainBoulder {
+        boulder: SavedBoulder,
+    },
     /// A single tree (pathfinding obstacle).
-    TerrainTree { tree: SavedTree },
+    TerrainTree {
+        tree: SavedTree,
+    },
     /// A single pond (slow terrain).
-    TerrainPond { pond: SavedPond },
+    TerrainPond {
+        pond: SavedPond,
+    },
     /// A single bush (slow terrain).
-    TerrainBush { bush: SavedBush },
+    TerrainBush {
+        bush: SavedBush,
+    },
     /// Load the cauldron sprite-sheet asset (must precede `Cauldron`).
     LoadCauldronAssets,
     /// Spawn the cauldron entity so brewing works in multiplayer.
@@ -78,9 +100,7 @@ impl MpSpawnTask {
     fn needs_command_flush(&self) -> bool {
         matches!(
             self,
-            MpSpawnTask::HostWizard
-                | MpSpawnTask::GuestWizard
-                | MpSpawnTask::Cauldron,
+            MpSpawnTask::HostWizard | MpSpawnTask::GuestWizard | MpSpawnTask::Cauldron,
         )
     }
 
@@ -194,13 +214,19 @@ pub fn init_mp_loading(
         });
     }
     for tree in &config.saved_trees {
-        queue.tasks.push(MpSpawnTask::TerrainTree { tree: tree.clone() });
+        queue
+            .tasks
+            .push(MpSpawnTask::TerrainTree { tree: tree.clone() });
     }
     for pond in &config.saved_ponds {
-        queue.tasks.push(MpSpawnTask::TerrainPond { pond: pond.clone() });
+        queue
+            .tasks
+            .push(MpSpawnTask::TerrainPond { pond: pond.clone() });
     }
     for bush in &config.saved_bushes {
-        queue.tasks.push(MpSpawnTask::TerrainBush { bush: bush.clone() });
+        queue
+            .tasks
+            .push(MpSpawnTask::TerrainBush { bush: bush.clone() });
     }
     for flora in &config.saved_flora {
         queue.tasks.push(MpSpawnTask::Flora {
@@ -291,8 +317,7 @@ pub fn process_mp_spawn_queue(
     let (infantry_assets, archer_assets, king_assets, mut king_spawned) = unit_assets;
     let (boulder_assets, tree_assets, pond_assets, bush_assets, flora_assets, shadow_assets) =
         terrain_assets;
-    let (battlefield_assets, mut ground_materials, mut stone_materials, mut game_rng) =
-        battlefield;
+    let (battlefield_assets, mut ground_materials, mut stone_materials, mut game_rng) = battlefield;
 
     // Per-client visual mirror: the battlefield/walls/lava/water are purely
     // visual and rendered locally — units and terrain stay in shared world

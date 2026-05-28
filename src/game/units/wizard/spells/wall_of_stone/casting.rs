@@ -10,13 +10,13 @@ use super::components::{
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_to_spell_range,
 };
@@ -116,11 +116,12 @@ pub fn handle_wall_of_stone_casting(
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     mut connection: Option<ResMut<crate::networking::resources::NetworkConnection>>,
     target_assist: Res<TargetAssistWorldPos>,
-    (sfx, game_config, active_talents, mut talent_progress): (
+    (sfx, game_config, active_talents, mut talent_progress, mut pending_cast_events): (
         Res<SpellSfxAssets>,
         Res<GameConfig>,
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
     ),
     local_origin: Res<LocalSpellOrigin>,
 ) {
@@ -237,9 +238,10 @@ pub fn handle_wall_of_stone_casting(
     }
 
     if cast_result.completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Force,
             time.elapsed_secs(),

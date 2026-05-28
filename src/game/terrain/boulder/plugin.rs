@@ -13,26 +13,34 @@ pub struct BoulderPlugin;
 impl Plugin for BoulderPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<BoulderThrownMessage>()
-            .add_systems(Startup, resources::preload_boulder_assets)
-            .add_systems(
-                Update,
-                (
-                    spawn_rock_projectile.run_if(on_message::<BoulderThrownMessage>),
-                    animate_rock_projectiles.run_if(any_with_component::<BoulderProjectile>),
-                    tick_rock_lifetime.run_if(any_with_component::<Boulder>),
-                    cleanup_sunk_rocks.run_if(any_with_component::<Boulder>),
-                    units_attack_blocking_rocks.run_if(any_with_component::<Boulder>),
-                    apply_spell_damage_to_rocks.run_if(any_with_component::<Boulder>),
-                    destroy_dead_rocks
-                        .after(PostCombatSet)
-                        .after(apply_spell_damage_to_rocks)
-                        .run_if(any_with_component::<Boulder>),
-                    update_rock_damage_tint.run_if(any_with_component::<Boulder>),
-                    cleanup_rock_shadows.run_if(any_with_component::<BoulderShadow>),
-                    sync_teleported_rocks.run_if(any_with_component::<Boulder>),
-                    tick_boulder_heat.run_if(any_with_component::<BoulderHeat>),
-                )
-                    .run_if(is_gameplay_running),
-            );
+            .add_systems(Startup, resources::preload_boulder_assets);
+
+        // All boulder systems are host-only in MP — including
+        // `update_rock_damage_tint`, which reads `ObstacleHealth` (not
+        // synced via any CRDT/snapshot pathway). On the guest the tint
+        // system would always see `health.current == health.max` and
+        // no-op, so it's pointless to register it there. The host's tint
+        // updates are visible to the guest only via the boulder ghost's
+        // material handle if and when that's plumbed in a future change.
+        app.add_systems(
+            Update,
+            (
+                spawn_rock_projectile.run_if(on_message::<BoulderThrownMessage>),
+                animate_rock_projectiles.run_if(any_with_component::<BoulderProjectile>),
+                tick_rock_lifetime.run_if(any_with_component::<Boulder>),
+                cleanup_sunk_rocks.run_if(any_with_component::<Boulder>),
+                units_attack_blocking_rocks.run_if(any_with_component::<Boulder>),
+                apply_spell_damage_to_rocks.run_if(any_with_component::<Boulder>),
+                destroy_dead_rocks
+                    .after(PostCombatSet)
+                    .after(apply_spell_damage_to_rocks)
+                    .run_if(any_with_component::<Boulder>),
+                update_rock_damage_tint.run_if(any_with_component::<Boulder>),
+                cleanup_rock_shadows.run_if(any_with_component::<BoulderShadow>),
+                sync_teleported_rocks.run_if(any_with_component::<Boulder>),
+                tick_boulder_heat.run_if(any_with_component::<BoulderHeat>),
+            )
+                .run_if(is_gameplay_running),
+        );
     }
 }

@@ -152,7 +152,8 @@ pub const SPELL_2_ORIGIN: Vec3 = Vec3::new(
 /// rotates Castle 1's mesh 180° around world origin) lands the mesh at the
 /// SAME world position as `CASTLE_2_POSITION` — keeping the guest's wizard
 /// sprite (in shared world coords) correctly aligned on the castle.
-pub const CASTLE_2_POSITION: Vec3 = Vec3::new(-CASTLE_POSITION.x, CASTLE_POSITION.y, -CASTLE_POSITION.z);
+pub const CASTLE_2_POSITION: Vec3 =
+    Vec3::new(-CASTLE_POSITION.x, CASTLE_POSITION.y, -CASTLE_POSITION.z);
 
 /// Castle 2 rotation in degrees (facing opposite direction).
 pub const CASTLE_2_ROTATION_DEGREES: f32 = CASTLE_ROTATION_DEGREES + 180.0;

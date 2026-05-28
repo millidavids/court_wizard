@@ -25,10 +25,7 @@ impl Plugin for MultiplayerTabPlugin {
         app.init_resource::<MultiplayerLobby>()
             // A rematch routes through the main menu; bounce straight back into
             // the tower so `handle_pending_rematch_on_enter` can pick it up.
-            .add_systems(
-                OnEnter(MenuState::Landing),
-                route_pending_rematch_from_menu,
-            )
+            .add_systems(OnEnter(MenuState::Landing), route_pending_rematch_from_menu)
             .add_systems(
                 OnEnter(MetaGameState::WizardTower),
                 handle_pending_rematch_on_enter,
@@ -60,8 +57,7 @@ impl Plugin for MultiplayerTabPlugin {
                     .run_if(in_state(MetaGameState::WizardTower))
                     .run_if(multiplayer_tab_active)
                     .run_if(
-                        resource_exists::<SelectedWizard>
-                            .and(resource_changed::<SelectedWizard>),
+                        resource_exists::<SelectedWizard>.and(resource_changed::<SelectedWizard>),
                     ),
             );
     }
@@ -82,9 +78,7 @@ fn route_pending_rematch_from_menu(
 fn multiplayer_tab_active(
     tab: Option<Res<crate::ui::wizard_tower::layout::WizardTowerTab>>,
 ) -> bool {
-    tab.is_some_and(|t| {
-        *t == crate::ui::wizard_tower::layout::WizardTowerTab::Multiplayer
-    })
+    tab.is_some_and(|t| *t == crate::ui::wizard_tower::layout::WizardTowerTab::Multiplayer)
 }
 
 /// When returning to WizardTower with a `PendingRematch`, set the Multiplayer

@@ -3,7 +3,6 @@ use super::super::super::components::{
 };
 use super::constants;
 use crate::config::GameConfig;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -11,10 +10,10 @@ use crate::game::units::components::{
     AnthemResilience, BattleHymnModifier, EchoingSong, HasteModifier, Team, TemporaryHitPoints,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
-    cleanup_spell_caster, handle_spell_release,
-    spawn_circle_indicator, update_indicator_position,
+    cleanup_spell_caster, handle_spell_release, spawn_circle_indicator, update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -53,13 +52,14 @@ pub fn handle_battle_hymn_casting(
         ),
         Without<Wizard>,
     >,
-    sfx: Res<SpellSfxAssets>,
-    game_config: Res<GameConfig>,
+    audio_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),
     mut talent_progress: Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
     active_talents: Option<Res<ActiveTalents>>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
+    let (sfx, game_config) = &audio_ctx;
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -89,12 +89,13 @@ pub fn handle_battle_hymn_casting(
     };
 
     // Clamp cursor to spell range
-    let clamped_cursor = crate::game::units::wizard::spells::utils::clamp_cursor_to_spell_range_with_origin(
-        input.cursor_pos,
-        local_origin.0,
-        wizard.spell_range,
-        constants::CIRCLE_RADIUS * primed_spell.empowerment,
-    );
+    let clamped_cursor =
+        crate::game::units::wizard::spells::utils::clamp_cursor_to_spell_range_with_origin(
+            input.cursor_pos,
+            local_origin.0,
+            wizard.spell_range,
+            constants::CIRCLE_RADIUS * primed_spell.empowerment,
+        );
 
     // Handle release -- clean up indicator and SpellCaster
     if handle_spell_release(
@@ -153,19 +154,22 @@ pub fn handle_battle_hymn_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Holy,
             time.elapsed_secs(),
         );
         if chorus_of_valor {
             // Chorus of Valor: no indicator, buff all defenders from wizard position
-            vfx::systems::spawn_aura_bubble(
+            vfx::systems::spawn_aura_bubble_synced(
                 &mut commands,
                 &visual_assets,
+                &mut pending_cast_events,
                 visual_assets.battle_hymn_aura_sphere.clone(),
+                crate::networking::snapshot::AuraBubbleVariant::BattleHymn,
                 local_origin.0,
                 200.0,
                 2.5,
@@ -183,18 +187,20 @@ pub fn handle_battle_hymn_casting(
                 &mut commands,
                 &sfx.battle_hymn_cast,
                 local_origin.0,
-                &game_config,
-                &sfx,
+                game_config,
+                sfx,
             );
         } else if let Ok(caster) = caster_query.get(wizard_entity)
             && let Some(indicator_entity) = caster.indicator_entity
         {
             if let Ok(indicator) = indicator_query.get(indicator_entity) {
                 let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment * radius_mult;
-                vfx::systems::spawn_aura_bubble(
+                vfx::systems::spawn_aura_bubble_synced(
                     &mut commands,
                     &visual_assets,
+                    &mut pending_cast_events,
                     visual_assets.battle_hymn_aura_sphere.clone(),
+                    crate::networking::snapshot::AuraBubbleVariant::BattleHymn,
                     indicator.position,
                     radius,
                     2.5,
@@ -212,8 +218,8 @@ pub fn handle_battle_hymn_casting(
                     &mut commands,
                     &sfx.battle_hymn_cast,
                     indicator.position,
-                    &game_config,
-                    &sfx,
+                    game_config,
+                    sfx,
                 );
             }
             commands.entity(indicator_entity).try_despawn();

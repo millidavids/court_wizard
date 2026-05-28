@@ -10,13 +10,13 @@ use super::super::super::components::{
 use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{Corpse, MindControlled, Team};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     clamp_cursor_to_spell_range_with_origin, cleanup_spell_caster, ground_projected_range,
@@ -104,7 +104,11 @@ pub(super) fn handle_mind_control_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
+    ),
     enemies_query: Query<
         (Entity, &Transform, &Team, &MeshMaterial3d<StandardMaterial>),
         (
@@ -119,14 +123,19 @@ pub(super) fn handle_mind_control_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut highlight: Local<HighlightState>,
-    loaded_assets: (Res<SpellSfxAssets>, Res<SpellVisualAssets>, Res<GameConfig>),
+    mut loaded_assets: (
+        Res<SpellSfxAssets>,
+        Res<SpellVisualAssets>,
+        Res<GameConfig>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
+    ),
     talent_resources: (
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
     ),
 ) {
     let (ref mut materials, ref mut meshes) = assets;
-    let (ref sfx, ref visual_assets, ref game_config) = loaded_assets;
+    let (ref sfx, ref visual_assets, ref game_config, ref mut pending_cast_events) = loaded_assets;
     let (active_talents, mut talent_progress) = talent_resources;
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
@@ -139,7 +148,12 @@ pub(super) fn handle_mind_control_casting(
         return;
     };
     let spell_range = ground_projected_range(wizard.spell_range, local_origin.0.y);
-    let cursor_pos = clamp_cursor_to_spell_range_with_origin(raw_cursor_pos, local_origin.0, wizard.spell_range, 0.0);
+    let cursor_pos = clamp_cursor_to_spell_range_with_origin(
+        raw_cursor_pos,
+        local_origin.0,
+        wizard.spell_range,
+        0.0,
+    );
     if primed_spell.spell != Spell::MindControl {
         return;
     }
@@ -236,9 +250,10 @@ pub(super) fn handle_mind_control_casting(
 
             if casting_state.is_complete(cast_time) {
                 if mana.consume(mana_cost) {
-                    vfx::systems::spawn_school_flare(
+                    vfx::systems::spawn_school_flare_synced(
                         &mut commands,
                         visual_assets,
+                        pending_cast_events,
                         local_origin.0,
                         vfx::systems::SpellSchool::Dark,
                         time.elapsed_secs(),

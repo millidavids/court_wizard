@@ -13,7 +13,6 @@ use super::components::{
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -25,6 +24,7 @@ use crate::game::units::components::{
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input,
 };
@@ -55,15 +55,16 @@ pub fn handle_mark_of_death_casting(
     corrected_cursor: Res<CorrectedCursorPosition>,
     enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     existing_marks: Query<Entity, With<ActiveMarkOfDeath>>,
-    sfx: Res<SpellSfxAssets>,
-    game_config: Res<GameConfig>,
+    audio_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),
     active_talents: Option<Res<ActiveTalents>>,
     mut talent_progress: Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
     target_assist: Res<TargetAssistWorldPos>,
     local_origin: Res<LocalSpellOrigin>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
+    let (sfx, game_config) = &audio_ctx;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
     let cursor_pos = input.cursor_pos;
@@ -90,9 +91,10 @@ pub fn handle_mark_of_death_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Dark,
             time.elapsed_secs(),
@@ -102,8 +104,8 @@ pub fn handle_mark_of_death_casting(
                 &mut commands,
                 &sfx.mark_of_death_cast,
                 pos,
-                &game_config,
-                &sfx,
+                game_config,
+                sfx,
             );
         }
         mouse_state.left_consumed = true;

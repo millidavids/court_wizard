@@ -17,11 +17,11 @@ use super::components::{
     set_default_font,
 };
 use super::concentration::ConcentrationUIPlugin;
-use super::link_button::handle_link_click;
 use super::focus::FocusPlugin;
 use super::game_over::GameOverPlugin;
 use super::gamepad_glyphs::GamepadGlyphsPlugin;
 use super::in_game::plugin::InGamePlugin;
+use super::link_button::handle_link_click;
 use super::loading::LoadingUiPlugin;
 use super::main_menu::MainMenuPlugin;
 use super::notification::NotificationPlugin;

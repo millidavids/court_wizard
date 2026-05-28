@@ -10,7 +10,6 @@ use super::components::{
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
@@ -23,10 +22,11 @@ use crate::game::units::components::{
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     self, SpellCircleIndicator, TargetAssistWorldPos, UniqueHitTracker, apply_target_assist,
-    build_wizard_input, clamp_cursor_to_spell_range_with_origin, cleanup_spell_caster, handle_spell_release,
-    try_start_cast_with_indicator, update_indicator_position, xz_distance,
+    build_wizard_input, clamp_cursor_to_spell_range_with_origin, cleanup_spell_caster,
+    handle_spell_release, try_start_cast_with_indicator, update_indicator_position, xz_distance,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -113,10 +113,12 @@ pub fn handle_spike_growth_casting(
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
         Option<Res<ActiveToggles>>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
     ),
 ) {
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
-    let (active_talents, _talent_progress, active_toggles) = talent_resources;
+    let (active_talents, _talent_progress, active_toggles, mut pending_cast_events) =
+        talent_resources;
     let scorched_mult =
         crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
@@ -138,8 +140,12 @@ pub fn handle_spike_growth_casting(
     let effective_cast_time = primed_spell.cast_time * talent_params.cast_time_mult;
 
     // Clamp cursor to spell range
-    let clamped_cursor =
-        clamp_cursor_to_spell_range_with_origin(input.cursor_pos, local_origin.0, wizard.spell_range, effective_radius);
+    let clamped_cursor = clamp_cursor_to_spell_range_with_origin(
+        input.cursor_pos,
+        local_origin.0,
+        wizard.spell_range,
+        effective_radius,
+    );
 
     // Handle release — clean up indicator
     if handle_spell_release(
@@ -186,9 +192,10 @@ pub fn handle_spike_growth_casting(
 
             if casting_state.is_complete(effective_cast_time) {
                 if mana.consume(effective_mana_cost) {
-                    vfx::systems::spawn_school_flare(
+                    vfx::systems::spawn_school_flare_synced(
                         &mut commands,
                         &visual_assets,
+                        &mut pending_cast_events,
                         local_origin.0,
                         vfx::systems::SpellSchool::Nature,
                         time.elapsed_secs(),

@@ -7,12 +7,12 @@ use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     cleanup_spell_caster, handle_spell_release, try_start_cast_with_indicator,
@@ -24,6 +24,10 @@ use crate::game::units::wizard::talents::resources::ActiveTalents;
 use bevy::prelude::*;
 
 /// Local wizard fireball casting — reads mouse input.
+///
+/// `audio_ctx` bundles `SpellSfxAssets` + `GameConfig` to keep the system
+/// under Bevy's 16-parameter limit after `pending_cast_events` was added for
+/// MP cast-event sync.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_fireball_casting(
     time: Res<Time>,
@@ -41,11 +45,15 @@ pub fn handle_fireball_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     target_assist: Res<TargetAssistWorldPos>,
-    sfx: Res<SpellSfxAssets>,
-    game_config: Res<GameConfig>,
+    audio_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),
     active_talents: Option<Res<ActiveTalents>>,
     local_origin: Res<LocalSpellOrigin>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
+    // Destructure form (matches every other casting handler) — if `audio_ctx`
+    // ever gains a third field the compiler will force this binding to be
+    // updated, preventing silent unwiring.
+    let (sfx, game_config) = &audio_ctx;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 
@@ -69,16 +77,17 @@ pub fn handle_fireball_casting(
         &mut commands,
         &visual_assets,
         &mut meshes,
-        &sfx,
-        &game_config,
+        sfx,
+        game_config,
         &active_talents,
         local_origin.0,
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Fire,
             time.elapsed_secs(),
@@ -253,8 +262,13 @@ fn spawn_fireball_with_talents(
     fireball.chain_ignition = chain_ignition;
     fireball.explosion_duration = explosion_duration;
 
-    let entity =
-        spawn_fireball_visuals(commands, assets, spawn_origin, visual_radius, OnGameplayScreen);
+    let entity = spawn_fireball_visuals(
+        commands,
+        assets,
+        spawn_origin,
+        visual_radius,
+        OnGameplayScreen,
+    );
     commands.entity(entity).insert(fireball);
 }
 
@@ -274,8 +288,7 @@ pub(crate) fn spawn_fireball_entity(
     empowerment: f32,
     visual_radius: f32,
 ) -> Entity {
-    let entity =
-        spawn_fireball_visuals(commands, assets, origin, visual_radius, OnGameplayScreen);
+    let entity = spawn_fireball_visuals(commands, assets, origin, visual_radius, OnGameplayScreen);
     commands.entity(entity).insert(Fireball::new(
         velocity,
         damage,
@@ -309,6 +322,13 @@ pub(crate) fn spawn_fireball_visuals<M: Component + Clone>(
             screen_marker.clone(),
         ))
         .id();
-    vfx::systems::spawn_fire_glow(commands, assets, entity, origin, visual_radius, screen_marker);
+    vfx::systems::spawn_fire_glow(
+        commands,
+        assets,
+        entity,
+        origin,
+        visual_radius,
+        screen_marker,
+    );
     entity
 }

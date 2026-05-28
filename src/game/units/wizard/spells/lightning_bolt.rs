@@ -235,6 +235,7 @@ pub(crate) fn update_lightning_bolts(
 /// Picks `config.fork_count` random interior points on `path` and spawns a
 /// short, half-width jagged branch from each. Forks bias perpendicular to the
 /// local path direction with a slight outward tilt.
+#[allow(clippy::too_many_arguments)]
 fn spawn_forks(
     commands: &mut Commands,
     parent: Entity,

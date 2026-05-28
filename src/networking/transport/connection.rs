@@ -396,13 +396,11 @@ async fn send_unreliable_loop(
             let seq = sequence.fetch_add(1, Ordering::Relaxed);
             let fragments = codec::fragment_datagram(&data, seq, max_size);
             for frag in fragments {
-                if let Err(e) = conn.send_datagram(frag) {
-                    if last_send_error_log.elapsed() > std::time::Duration::from_secs(2) {
-                        warn!(
-                            "Unreliable datagram send failed (max_size={max_size}): {e}"
-                        );
-                        last_send_error_log = std::time::Instant::now();
-                    }
+                if let Err(e) = conn.send_datagram(frag)
+                    && last_send_error_log.elapsed() > std::time::Duration::from_secs(2)
+                {
+                    warn!("Unreliable datagram send failed (max_size={max_size}): {e}");
+                    last_send_error_log = std::time::Instant::now();
                 }
             }
         }

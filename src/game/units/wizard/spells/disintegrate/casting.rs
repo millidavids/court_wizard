@@ -9,7 +9,6 @@ use super::components::{
 };
 use super::constants;
 use crate::config::GameConfig;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::terrain::messages::TerrainDamageMessage;
@@ -18,6 +17,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
 use crate::game::units::wizard::spells::audio::{self, ChannelingSfx, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{UniqueHitTracker, get_cursor_world_position};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -159,7 +159,11 @@ pub fn handle_disintegrate_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<LocalSpellOrigin>),
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<LocalSpellOrigin>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
+    ),
     mut beams: Query<(Entity, &mut DisintegrateBeam), Without<CrystalSpawn>>,
     visual_assets: Res<SpellVisualAssets>,
     glow_query: Query<Entity, With<BeamGlow>>,
@@ -171,7 +175,7 @@ pub fn handle_disintegrate_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let (corrected_cursor, local_origin) = cursor_resources;
+    let (corrected_cursor, local_origin, mut pending_cast_events) = cursor_resources;
     let released = left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
@@ -237,9 +241,10 @@ pub fn handle_disintegrate_casting(
             mut length,
             empowerment,
         } => {
-            vfx::systems::spawn_school_flare(
+            vfx::systems::spawn_school_flare_synced(
                 &mut commands,
                 &visual_assets,
+                &mut pending_cast_events,
                 local_origin.0,
                 vfx::systems::SpellSchool::Arcane,
                 time.elapsed_secs(),

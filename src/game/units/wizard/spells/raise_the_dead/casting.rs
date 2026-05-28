@@ -9,13 +9,13 @@ use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::constants::{UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, Effectiveness, PermanentCorpse, Team};
 use crate::game::units::infantry::constants::UNDEAD_SPRITE_TINT;
 use crate::game::units::undead::resources::UndeadAssets;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     cleanup_spell_caster, spawn_circle_indicator, update_indicator_position,
@@ -125,12 +125,13 @@ pub fn handle_raise_the_dead_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
-    // Bundled to free a slot for the MP-context tuple — see `mp_ctx` below.
-    cast_ctx: (
-        Query<&SpellCaster>,
-        Query<&mut SpellCircleIndicator>,
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
     ),
+    // Bundled to free a slot for the MP-context tuple — see `mp_ctx` below.
+    cast_ctx: (Query<&SpellCaster>, Query<&mut SpellCircleIndicator>),
     corpse_query: Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
     undead_assets: Res<UndeadAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -139,6 +140,7 @@ pub fn handle_raise_the_dead_casting(
     talents_and_progress: (
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
     ),
     // Multiplayer context for the guest-side path: when the guest casts
     // Raise The Dead we must NOT spawn an undead unit locally (the host
@@ -150,7 +152,7 @@ pub fn handle_raise_the_dead_casting(
         Query<&crate::networking::entity_map::NetworkEntityId, With<Corpse>>,
     ),
 ) {
-    let (active_talents, mut talent_progress) = talents_and_progress;
+    let (active_talents, mut talent_progress, mut pending_cast_events) = talents_and_progress;
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let (caster_query, mut indicator_query) = cast_ctx;
     let (mp_session, mut connection, corpse_ids) = mp_ctx;
@@ -235,12 +237,14 @@ pub fn handle_raise_the_dead_casting(
         is_guest,
         connection.as_deref_mut(),
         &corpse_ids,
+        &mut pending_cast_events,
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Dark,
             time.elapsed_secs(),
@@ -273,6 +277,7 @@ fn raise_the_dead_casting_logic(
     is_guest: bool,
     mut connection: Option<&mut crate::networking::resources::NetworkConnection>,
     corpse_ids: &Query<&crate::networking::entity_map::NetworkEntityId, With<Corpse>>,
+    pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) -> bool {
     // Check for release event
     if input.just_released {
@@ -312,6 +317,7 @@ fn raise_the_dead_casting_logic(
                             talent_params,
                             talent_progress.as_deref_mut(),
                             is_guest,
+                            #[allow(clippy::needless_option_as_deref)]
                             connection.as_deref_mut(),
                             corpse_ids,
                         );
@@ -338,10 +344,12 @@ fn raise_the_dead_casting_logic(
                             game_config,
                             sfx,
                         );
-                        vfx::systems::spawn_aura_bubble(
+                        vfx::systems::spawn_aura_bubble_synced(
                             commands,
                             visual_assets,
+                            pending,
                             visual_assets.raise_dead_aura_sphere.clone(),
+                            crate::networking::snapshot::AuraBubbleVariant::RaiseDead,
                             cursor_pos,
                             constants::RESURRECTION_RADIUS,
                             2.0,
@@ -356,6 +364,7 @@ fn raise_the_dead_casting_logic(
                             talent_params,
                             talent_progress,
                             is_guest,
+                            #[allow(clippy::needless_option_as_deref)]
                             connection.as_deref_mut(),
                             corpse_ids,
                         );

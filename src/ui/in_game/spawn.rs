@@ -99,8 +99,7 @@ pub(super) fn keyboard_input(
     if mp_state.is_some() {
         return;
     }
-    let (Some(current_state), Some(mut next_in_game_state)) =
-        (current_state, next_in_game_state)
+    let (Some(current_state), Some(mut next_in_game_state)) = (current_state, next_in_game_state)
     else {
         return;
     };

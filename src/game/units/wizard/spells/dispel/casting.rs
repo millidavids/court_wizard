@@ -4,10 +4,10 @@ use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen};
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -81,6 +81,7 @@ pub fn handle_dispel_casting(
     active_talents: Option<Res<ActiveTalents>>,
     visual_assets: Res<SpellVisualAssets>,
     local_origin: Res<LocalSpellOrigin>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
     if !mouse.just_pressed(MouseButton::Left) {
         return;
@@ -107,9 +108,10 @@ pub fn handle_dispel_casting(
     }
 
     let origin = local_origin.0;
-    vfx::systems::spawn_school_flare(
+    vfx::systems::spawn_school_flare_synced(
         &mut commands,
         &visual_assets,
+        &mut pending_cast_events,
         local_origin.0,
         vfx::systems::SpellSchool::Arcane,
         time.elapsed_secs(),

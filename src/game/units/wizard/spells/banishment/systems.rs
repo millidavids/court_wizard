@@ -13,7 +13,6 @@ use super::components::{
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::constants::BATTLEFIELD_SIZE;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
@@ -23,9 +22,10 @@ use crate::game::units::components::{
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
-    TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_cursor_to_spell_range_with_origin,
-    ground_projected_range,
+    TargetAssistWorldPos, apply_target_assist, build_wizard_input,
+    clamp_cursor_to_spell_range_with_origin, ground_projected_range,
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -85,14 +85,17 @@ fn banish_target(
     health: &Health,
     visual_assets: &SpellVisualAssets,
     time_secs: f32,
+    pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) {
     // Spawn shrinking lensing VFX at target position
-    spawn_banishment_vfx(commands, target_pos, visual_assets);
+    spawn_banishment_vfx(commands, target_pos, visual_assets, pending);
 
-    vfx::systems::spawn_smoke_poof(
+    vfx::systems::spawn_smoke_poof_synced(
         commands,
         visual_assets,
+        pending,
         &visual_assets.banishment_poof,
+        crate::networking::snapshot::PoofVariant::Banishment,
         target_pos,
         8,
         time_secs,
@@ -133,6 +136,7 @@ fn spawn_banishment_vfx(
     commands: &mut Commands,
     position: Vec3,
     visual_assets: &SpellVisualAssets,
+    pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) {
     let start_radius = constants::VFX_START_RADIUS;
     commands.spawn((
@@ -146,15 +150,23 @@ fn spawn_banishment_vfx(
         Transform::from_translation(position).with_scale(Vec3::splat(start_radius)),
         OnGameplayScreen,
     ));
+    vfx::systems::emit_banishment_lens_event(
+        pending,
+        position,
+        start_radius,
+        constants::VFX_LIFETIME,
+    );
 
     // Spawn exploding spark particles (reuses FireSpark component + update system)
-    vfx::systems::spawn_sparks_with_material(
+    vfx::systems::spawn_sparks_with_material_synced(
         commands,
         visual_assets,
+        pending,
+        crate::networking::snapshot::SparkMaterial::Banishment,
+        visual_assets.banishment_spark.clone(),
         position,
         constants::SPARK_COUNT,
         0.0,
-        visual_assets.banishment_spark.clone(),
     );
 }
 
@@ -186,6 +198,7 @@ pub fn handle_banishment_casting(
     visual_assets: Res<SpellVisualAssets>,
     target_assist: Res<TargetAssistWorldPos>,
     local_origin: Res<LocalSpellOrigin>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -200,7 +213,12 @@ pub fn handle_banishment_casting(
     }
 
     let spell_range = ground_projected_range(wizard.spell_range, local_origin.0.y);
-    input.cursor_pos = clamp_cursor_to_spell_range_with_origin(input.cursor_pos, local_origin.0, wizard.spell_range, 0.0);
+    input.cursor_pos = clamp_cursor_to_spell_range_with_origin(
+        input.cursor_pos,
+        local_origin.0,
+        wizard.spell_range,
+        0.0,
+    );
 
     let talent_params = compute_talent_params(active_talents.as_deref());
 
@@ -217,12 +235,14 @@ pub fn handle_banishment_casting(
         &visual_assets,
         time.elapsed_secs(),
         local_origin.0,
+        &mut pending_cast_events,
     );
 
     if banished_count > 0 {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Force,
             time.elapsed_secs(),
@@ -240,7 +260,6 @@ pub fn handle_banishment_casting(
 }
 
 /// Core banishment casting logic. Returns the number of units banished.
-#[allow(clippy::too_many_arguments)]
 #[allow(clippy::too_many_arguments)]
 fn banishment_casting_logic(
     input: &WizardInput,
@@ -262,6 +281,7 @@ fn banishment_casting_logic(
     visual_assets: &SpellVisualAssets,
     time_secs: f32,
     local_origin: Vec3,
+    pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) -> u32 {
     // Check for release event
     if input.just_released {
@@ -299,6 +319,7 @@ fn banishment_casting_logic(
                             visual_assets,
                             time_secs,
                             local_origin,
+                            pending,
                         )
                     } else {
                         cast_single_banishment(
@@ -312,6 +333,7 @@ fn banishment_casting_logic(
                             visual_assets,
                             time_secs,
                             local_origin,
+                            pending,
                         )
                     };
                     casting_state.cancel();
@@ -337,7 +359,6 @@ fn is_in_spell_range(target_pos: Vec3, spell_range: f32, local_origin: Vec3) -> 
 
 /// Standard single-target (or dual-target) banishment.
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
 fn cast_single_banishment(
     commands: &mut Commands,
     enemies_query: &Query<
@@ -356,6 +377,7 @@ fn cast_single_banishment(
     visual_assets: &SpellVisualAssets,
     time_secs: f32,
     local_origin: Vec3,
+    pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) -> u32 {
     let duration = params.duration * empowerment;
     let mut banished_count = 0u32;
@@ -388,6 +410,7 @@ fn cast_single_banishment(
             health,
             visual_assets,
             time_secs,
+            pending,
         );
         banished_count += 1;
     }
@@ -407,6 +430,7 @@ fn cast_single_banishment(
                 health,
                 visual_assets,
                 time_secs,
+                pending,
             );
             banished_count += 1;
         }
@@ -434,6 +458,7 @@ fn cast_mass_banishment(
     visual_assets: &SpellVisualAssets,
     time_secs: f32,
     local_origin: Vec3,
+    pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) -> u32 {
     let duration = constants::MASS_BANISHMENT_DURATION * empowerment;
     let mut banished_count = 0u32;
@@ -463,6 +488,7 @@ fn cast_mass_banishment(
             health,
             visual_assets,
             time_secs,
+            pending,
         );
         banished_count += 1;
     }

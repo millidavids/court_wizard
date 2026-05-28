@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions::{any_exist, is_gameplay_running, is_meteorologist};
-use crate::state::InGameState;
+use crate::state::{InGameState, MultiplayerGameState};
 
 use super::components::*;
 use super::messages::*;
@@ -15,9 +15,18 @@ impl Plugin for MeteorologistPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WeatherState>()
             .add_message::<WeatherChangedMessage>()
-            // Reset state on entering gameplay
+            // Reset state on entering gameplay (SP + MP)
             .add_systems(
                 OnEnter(InGameState::Running),
+                (
+                    reset_weather_state,
+                    spawn_weather_overlays,
+                    spawn_ground_overlay,
+                )
+                    .run_if(is_meteorologist),
+            )
+            .add_systems(
+                OnEnter(MultiplayerGameState::Running),
                 (
                     reset_weather_state,
                     spawn_weather_overlays,
@@ -85,9 +94,13 @@ impl Plugin for MeteorologistPlugin {
                     .run_if(is_gameplay_running)
                     .run_if(is_meteorologist),
             )
-            // Cleanup on exit
+            // Cleanup on exit (SP + MP)
             .add_systems(
                 OnExit(InGameState::Running),
+                cleanup_weather.run_if(is_meteorologist),
+            )
+            .add_systems(
+                OnExit(MultiplayerGameState::Running),
                 cleanup_weather.run_if(is_meteorologist),
             );
     }

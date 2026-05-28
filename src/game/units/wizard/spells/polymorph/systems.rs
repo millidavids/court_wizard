@@ -10,7 +10,6 @@ use super::constants;
 use super::sheep_visual::SheepBounce;
 use crate::config::GameConfig;
 use crate::game::components::Billboard;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -21,8 +20,10 @@ use crate::game::units::components::{
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::systems::create_sprite_material;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
-    TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_cursor_to_spell_range_with_origin,
+    TargetAssistWorldPos, apply_target_assist, build_wizard_input,
+    clamp_cursor_to_spell_range_with_origin,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -109,11 +110,14 @@ fn apply_polymorph_to_target(
     position: Vec3,
     visual_assets: &SpellVisualAssets,
     time_secs: f32,
+    pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) {
-    vfx::systems::spawn_smoke_poof(
+    vfx::systems::spawn_smoke_poof_synced(
         commands,
         visual_assets,
+        pending,
         &visual_assets.polymorph_poof,
+        crate::networking::snapshot::PoofVariant::Polymorph,
         position,
         8,
         time_secs,
@@ -211,6 +215,7 @@ pub fn handle_polymorph_casting(
         Option<ResMut<BattleTalentProgress>>,
     ),
     local_origin: Res<LocalSpellOrigin>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
     let (active_talents, mut talent_progress) = talent_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
@@ -225,7 +230,12 @@ pub fn handle_polymorph_casting(
         return;
     }
 
-    let cursor_pos = clamp_cursor_to_spell_range_with_origin(input.cursor_pos, local_origin.0, wizard.spell_range, 0.0);
+    let cursor_pos = clamp_cursor_to_spell_range_with_origin(
+        input.cursor_pos,
+        local_origin.0,
+        wizard.spell_range,
+        0.0,
+    );
     input.cursor_pos = cursor_pos;
 
     let talent_params = compute_talent_params(active_talents.as_deref());
@@ -241,12 +251,14 @@ pub fn handle_polymorph_casting(
         &targets_query,
         &talent_params,
         &visual_assets,
+        &mut pending_cast_events,
     );
 
     if completed > 0 {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Transmutation,
             time.elapsed_secs(),
@@ -284,6 +296,7 @@ fn polymorph_casting_logic(
     >,
     talent_params: &PolymorphTalentParams,
     visual_assets: &SpellVisualAssets,
+    pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) -> u32 {
     let time_secs = time.elapsed_secs();
     // Check for release event
@@ -343,6 +356,7 @@ fn polymorph_casting_logic(
                                     transform.translation,
                                     visual_assets,
                                     time_secs,
+                                    pending,
                                 );
                                 polymorphed_count += 1;
                             }
@@ -383,6 +397,7 @@ fn polymorph_casting_logic(
                                 target_transform.translation,
                                 visual_assets,
                                 time_secs,
+                                pending,
                             );
                             polymorphed_count += 1;
                         }
@@ -433,6 +448,7 @@ pub fn tick_polymorphed_units(
         (Without<Corpse>, Without<PolymorphedModifier>),
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
     let delta = time.delta_secs();
 
@@ -494,6 +510,7 @@ pub fn tick_polymorphed_units(
                         target_pos,
                         &visual_assets,
                         time.elapsed_secs(),
+                        &mut pending_cast_events,
                     );
 
                     audio::play_sfx(

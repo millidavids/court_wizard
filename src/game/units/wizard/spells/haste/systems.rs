@@ -7,12 +7,12 @@ use super::components::{
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, HasteModifier, SlowMovementModifier, Team};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     clamp_cursor_to_spell_range_with_origin, cleanup_spell_caster, handle_spell_release,
@@ -72,15 +72,20 @@ pub fn handle_haste_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
+    ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut targets_query: Query<(Entity, &Transform, Option<&mut HasteModifier>), Without<Wizard>>,
-    sfx: Res<SpellSfxAssets>,
-    game_config: Res<GameConfig>,
+    audio_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),
     active_talents: Option<Res<ActiveTalents>>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
+    let (sfx, game_config) = &audio_ctx;
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -161,13 +166,15 @@ pub fn handle_haste_casting(
                             &mut commands,
                             &sfx.haste_cast,
                             indicator.position,
-                            &game_config,
-                            &sfx,
+                            game_config,
+                            sfx,
                         );
-                        vfx::systems::spawn_aura_bubble(
+                        vfx::systems::spawn_aura_bubble_synced(
                             &mut commands,
                             &visual_assets,
+                            &mut pending_cast_events,
                             visual_assets.haste_aura_sphere.clone(),
+                            crate::networking::snapshot::AuraBubbleVariant::Haste,
                             indicator.position,
                             radius,
                             2.5,
@@ -217,9 +224,10 @@ pub fn handle_haste_casting(
     }
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Holy,
             time.elapsed_secs(),

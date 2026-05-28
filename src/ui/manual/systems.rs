@@ -8,11 +8,11 @@ use super::components::{
 };
 use super::constants::*;
 use crate::ui::components::{ButtonActive, ButtonColors};
-use crate::ui::link_button::LinkButton;
 use crate::ui::constants::{
     ACTIVE_TAB_BG, ACTIVE_TAB_BORDER, BACK_BUTTON_STYLE, INACTIVE_TAB_BG, TAB_BORDER,
     TAB_FONT_SIZE, TAB_HEIGHT, TAB_PADDING_H, TEXT_BODY,
 };
+use crate::ui::link_button::LinkButton;
 use crate::ui::markdown::{MarkdownBlock, parse_markdown, spawn_markdown};
 use crate::ui::systems::{spawn_button, spawn_page_header};
 

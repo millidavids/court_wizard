@@ -5,7 +5,6 @@ use bevy::prelude::*;
 use super::components::{SquallStorm, SquallStormRing, SquallTalentParams};
 use super::constants::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -13,6 +12,7 @@ use crate::game::units::components::{FrostAccumulation, SlowMovementModifier};
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     RETICLE_Y, SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     clamp_to_spell_range_ground, cleanup_spell_caster, handle_spell_release, make_reticle_mesh,
@@ -128,17 +128,22 @@ pub(super) fn handle_squall_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     existing_storms: Query<Entity, With<SquallStorm>>,
     existing_rings: Query<Entity, With<SquallStormRing>>,
     active_talents: Option<Res<ActiveTalents>>,
-    target_assist: Res<TargetAssistWorldPos>,
-    local_origin: Res<LocalSpellOrigin>,
+    mut cursor_ctx: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
+    ),
 ) {
-    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
-    apply_target_assist(&mut input, &target_assist);
+    let (ref corrected_cursor, ref target_assist, ref local_origin, ref mut pending_cast_events) =
+        cursor_ctx;
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, corrected_cursor);
+    apply_target_assist(&mut input, target_assist);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -171,9 +176,10 @@ pub(super) fn handle_squall_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Force,
             time.elapsed_secs(),

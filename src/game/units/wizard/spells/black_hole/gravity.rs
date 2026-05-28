@@ -225,10 +225,7 @@ pub(super) fn apply_black_hole_damage(
 /// Removes tracking component when units leave the black hole.
 pub(super) fn remove_units_from_black_hole(
     mut commands: Commands,
-    black_holes: Query<
-        &BlackHole,
-        Without<crate::game::multiplayer::components::GhostSpellEffect>,
-    >,
+    black_holes: Query<&BlackHole, Without<crate::game::multiplayer::components::GhostSpellEffect>>,
     units: Query<(Entity, &Transform), With<UnitInBlackHole>>,
 ) {
     for (entity, transform) in units.iter() {
@@ -251,10 +248,7 @@ pub(super) fn remove_units_from_black_hole(
 /// Applies Crushing Pressure slow to units inside the black hole.
 pub(super) fn apply_crushing_pressure(
     mut commands: Commands,
-    black_holes: Query<
-        &BlackHole,
-        Without<crate::game::multiplayer::components::GhostSpellEffect>,
-    >,
+    black_holes: Query<&BlackHole, Without<crate::game::multiplayer::components::GhostSpellEffect>>,
     units: Query<(Entity, &Transform), (With<Team>, Without<Wizard>, Without<Corpse>)>,
 ) {
     // Only run if any black hole has crushing pressure

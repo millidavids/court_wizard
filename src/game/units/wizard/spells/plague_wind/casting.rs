@@ -5,7 +5,6 @@ use super::components::{PlagueWindIndicator, PlagueWindTalentParams};
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -14,6 +13,7 @@ use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     clamp_to_spell_range_ground, spawn_circle_indicator,
@@ -83,15 +83,23 @@ pub fn handle_plague_wind_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
+    ),
     caster_query: Query<&SpellCaster>,
     circle_indicator_query: Query<&SpellCircleIndicator>,
     indicator_query: Query<&PlagueWindIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
-    sfx: Res<SpellSfxAssets>,
-    game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
+    mut audio_ctx: (
+        Res<SpellSfxAssets>,
+        Res<GameConfig>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
+    ),
 ) {
+    let (ref sfx, ref game_config, ref mut pending_cast_events) = audio_ctx;
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -189,17 +197,18 @@ pub fn handle_plague_wind_casting(
         &indicator_query,
         &mut commands,
         &mut obstacle_events,
-        &sfx,
-        &game_config,
+        sfx,
+        game_config,
         talent_params,
         clamped_pos,
         local_origin.0,
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Nature,
             time.elapsed_secs(),

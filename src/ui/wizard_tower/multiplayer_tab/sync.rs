@@ -47,9 +47,7 @@ pub(crate) fn sync_lobby_with_connection(
 
     // Transport-level errors always flip us to Failed (except from the
     // Connect screen, where the user hasn't tried to do anything yet).
-    if connection.state == ConnectionState::Failed
-        && !matches!(&lobby.phase, LobbyPhase::Connect)
-    {
+    if connection.state == ConnectionState::Failed && !matches!(&lobby.phase, LobbyPhase::Connect) {
         let reason = connection
             .error
             .clone()
@@ -96,6 +94,14 @@ pub(crate) fn sync_lobby_with_connection(
             wizard_types.len(),
             spells.len()
         );
+        // Send the version handshake FIRST, then PlayerInfo. The receiver
+        // requires a HandshakeVersion before any other message; the order
+        // here matters even on the reliable channel (FIFO).
+        connection
+            .outgoing_messages
+            .push(NetworkMessage::HandshakeVersion {
+                version: crate::networking::protocol::PROTOCOL_VERSION,
+            });
         connection
             .outgoing_messages
             .push(NetworkMessage::PlayerInfo {

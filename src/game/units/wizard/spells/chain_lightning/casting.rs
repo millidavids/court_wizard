@@ -12,7 +12,6 @@ use super::constants;
 use super::constants::arc_width_at_depth;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -26,6 +25,7 @@ use crate::game::units::wizard::spells::lightning_bolt::{
     LightningBoltConfig, spawn_lightning_bolt,
 };
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input,
 };
@@ -152,9 +152,10 @@ pub fn handle_chain_lightning_casting(
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
-    (mut talent_progress, mut screen_flash): (
+    (mut talent_progress, mut screen_flash, mut pending_cast_events): (
         Option<ResMut<BattleTalentProgress>>,
         MessageWriter<crate::game::crt_effect::ScreenFlashMessage>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
     ),
 ) {
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
@@ -196,9 +197,10 @@ pub fn handle_chain_lightning_casting(
             intensity: 0.02,
         });
 
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Lightning,
             time.elapsed_secs(),

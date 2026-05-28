@@ -8,7 +8,7 @@ use super::components::{
 };
 use super::fire_material::FireParticleMaterial;
 use super::systems;
-use crate::game::run_conditions::{any_exist, is_gameplay_running, is_spell_effects_active};
+use crate::game::run_conditions::{any_exist, is_spell_effects_active};
 
 /// Plugin that runs shared VFX update systems.
 ///
@@ -22,9 +22,12 @@ impl Plugin for VfxPlugin {
             MaterialPlugin::<FireParticleMaterial>::default(),
             MaterialPlugin::<super::fire_material::SmokeParticleMaterial>::default(),
         ));
+        // Shader time uniforms tick on both peers in MP so fire particles and
+        // aura sphere materials animate on the guest. These are pure clock
+        // ticks — no entity mutation, no gameplay side effect.
         app.add_systems(
             Update,
-            (update_fire_particle_time, update_aura_sphere_time).run_if(is_gameplay_running),
+            (update_fire_particle_time, update_aura_sphere_time).run_if(is_spell_effects_active),
         );
         app.add_systems(
             Update,

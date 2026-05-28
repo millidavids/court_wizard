@@ -9,6 +9,26 @@ use serde::{Deserialize, Serialize};
 use crate::config::WizardType;
 use crate::game::units::wizard::components::Spell;
 
+/// Wire-protocol version.
+///
+/// Bumped on any breaking change to `NetworkMessage`, `SpellVisualSnapshot`,
+/// `GameSnapshot`, or any sub-struct on the wire. Peers exchange their
+/// version in a dedicated `HandshakeVersion` message (sent BEFORE any other
+/// message). If it doesn't match, the lobby errors out with a clear
+/// version-mismatch error.
+///
+/// The exchange is done as a SEPARATE message (rather than embedded in
+/// `PlayerInfo`) so peers on a previous binary that don't know about
+/// `HandshakeVersion` decode it as an unknown enum variant → bincode error
+/// → message dropped with a warning. The new binary then never receives a
+/// `HandshakeVersion` from the old peer, detects the mismatch via the
+/// "first message must be HandshakeVersion" invariant, and disconnects.
+///
+/// History:
+/// - 1: initial versioned protocol (adds `HandshakeVersion` variant, adds
+///   `cast_events` to `SpellVisualSnapshot`).
+pub const PROTOCOL_VERSION: u32 = 1;
+
 /// Messages sent over the reliable WebRTC data channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NetworkMessage {
@@ -130,6 +150,21 @@ pub enum NetworkMessage {
     /// Guest tells the host to strip `SpellShield` from a unit (Dispel impact
     /// hitting a shielded king on the host).
     DispelShield { target_network_id: u32 },
+
+    /// Wire-protocol version handshake. Sent FIRST by both peers on
+    /// connection, BEFORE `PlayerInfo`. The receiver compares against its
+    /// own `PROTOCOL_VERSION`; on mismatch, the lobby transitions to
+    /// `Failed` with a clear message.
+    ///
+    /// **Placement matters**: this MUST stay the LAST variant of the enum
+    /// so older binaries (which don't know about it) decode it as an
+    /// unknown variant index → bincode returns `Err` → message dropped
+    /// with a warn. The new binary then never sees a `HandshakeVersion`
+    /// from the old peer and detects the mismatch via the "first message
+    /// must be HandshakeVersion" invariant on the receiver side. Adding
+    /// new variants before this one shifts its discriminant and breaks
+    /// the cross-version detection.
+    HandshakeVersion { version: u32 },
 }
 
 /// Discriminator for `NetworkMessage::ApplyStatusEffect`. Add new variants at
@@ -183,6 +218,12 @@ impl StatusEffectKind {
 /// talents. Each status decodes the bits it cares about; unused bits are
 /// ignored. Definitions are kept here so all senders and the host receiver
 /// agree on the layout.
+///
+/// Many constants in this module are deliberately ahead of their senders —
+/// the bit layouts document the wire protocol for talent variants we plan
+/// to forward but haven't yet wired the cast-side packing for. They are
+/// allowed dead code so the protocol stays self-documenting in one place.
+#[allow(dead_code)]
 pub mod status_flags {
     // Sleep talents
     pub const SLEEP_NIGHT_TERRORS: u32 = 1 << 0;

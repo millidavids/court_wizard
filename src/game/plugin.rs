@@ -4,7 +4,7 @@ use crate::state::{AppState, InGameState};
 
 #[cfg(debug_assertions)]
 use super::components::OnGameplayScreen;
-use super::run_conditions::is_gameplay_running;
+use super::run_conditions::{is_gameplay_running, is_spell_effects_active};
 #[cfg(debug_assertions)]
 use super::units::components::Hitbox;
 
@@ -254,7 +254,12 @@ impl Plugin for GamePlugin {
                     .after(PostCombatSet)
                     .run_if(shared_systems::wizard_has_not_damaged_enemies),
             )
-            // Unit shadows — spawn and sync ground-level shadows under all units
+            // Unit shadows — spawn and sync ground-level shadows under all
+            // units. Runs on both MP peers so ghost units cast shadows. The
+            // queries only need Team/Hitbox/Transform, all of which exist on
+            // ghost units. No gameplay state is mutated. `OnGameplayScreen`
+            // tagging on the shadow child is correct for MP too — both SP
+            // and MP cleanup paths despawn `OnGameplayScreen` entities.
             .add_systems(
                 Update,
                 (
@@ -262,7 +267,7 @@ impl Plugin for GamePlugin {
                     shared_systems::update_unit_shadows,
                 )
                     .chain()
-                    .run_if(is_gameplay_running),
+                    .run_if(is_spell_effects_active),
             )
             // Battle ambience — scales looping sword-clash sound with melee unit count
             // Crowd ambience — muffled crowd loop throughout battle

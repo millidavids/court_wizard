@@ -7,7 +7,6 @@ use rand::Rng;
 use super::components::{MeteorExplosion, MeteorFallStorm, MeteorProjectile};
 use super::constants::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -16,6 +15,7 @@ use crate::game::units::components::Team;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     clamp_to_spell_range_ground, cleanup_spell_caster, try_start_cast_with_indicator,
@@ -154,6 +154,7 @@ pub(super) fn handle_meteor_fall_casting(
     active_talents: Option<Res<ActiveTalents>>,
     target_assist: Res<TargetAssistWorldPos>,
     local_origin: Res<LocalSpellOrigin>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -188,9 +189,10 @@ pub(super) fn handle_meteor_fall_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Fire,
             time.elapsed_secs(),

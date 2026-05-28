@@ -8,7 +8,6 @@ use super::components::*;
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -23,6 +22,7 @@ use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::disintegrate::components::{
     BeamEclipse, BeamGlow, BeamOriginFlare, DisintegrateBeam,
 };
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     clamp_to_spell_range, cleanup_spell_caster, handle_spell_release, spawn_circle_indicator,
@@ -195,6 +195,7 @@ pub(super) fn handle_arcane_crystal_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
     existing_crystals: Query<(Entity, &ArcaneCrystal)>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
@@ -259,9 +260,10 @@ pub(super) fn handle_arcane_crystal_casting(
         arcane_crystal_casting_logic(&input, &time, &mut casting_state, &mut mana, primed_spell);
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Arcane,
             time.elapsed_secs(),

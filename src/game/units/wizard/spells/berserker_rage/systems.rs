@@ -9,7 +9,6 @@ use super::constants;
 use super::messages::ContagiousRageKillMessage;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -18,6 +17,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     clamp_cursor_to_spell_range_with_origin, cleanup_spell_caster, handle_spell_release,
@@ -102,7 +102,11 @@ pub fn handle_berserker_rage_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
+    ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut targets_query: Query<
@@ -114,11 +118,12 @@ pub fn handle_berserker_rage_casting(
         ),
         (Without<Wizard>, Without<Corpse>),
     >,
-    sfx: Res<SpellSfxAssets>,
-    game_config: Res<GameConfig>,
+    audio_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),
     active_talents: Option<Res<ActiveTalents>>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
+    let (sfx, game_config) = &audio_ctx;
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -193,9 +198,10 @@ pub fn handle_berserker_rage_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Transmutation,
             time.elapsed_secs(),
@@ -206,10 +212,12 @@ pub fn handle_berserker_rage_casting(
         {
             if let Ok(indicator) = indicator_query.get(indicator_entity) {
                 let radius = base_radius * primed_spell.empowerment;
-                vfx::systems::spawn_aura_bubble(
+                vfx::systems::spawn_aura_bubble_synced(
                     &mut commands,
                     &visual_assets,
+                    &mut pending_cast_events,
                     visual_assets.berserker_aura_sphere.clone(),
+                    crate::networking::snapshot::AuraBubbleVariant::Berserker,
                     indicator.position,
                     radius,
                     2.5,
@@ -226,8 +234,8 @@ pub fn handle_berserker_rage_casting(
                     &mut commands,
                     &sfx.berserker_rage_cast,
                     indicator.position,
-                    &game_config,
-                    &sfx,
+                    game_config,
+                    sfx,
                 );
                 // Track talent progress
                 if buffed_count > 0
@@ -504,6 +512,7 @@ pub fn final_stand_explosion(
     visual_assets: Res<SpellVisualAssets>,
     mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     time: Res<Time>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
     for (corpse_entity, final_stand, transform, team, health) in &dead_query {
         // Damage = fraction of the dead unit's max HP
@@ -550,6 +559,22 @@ pub fn final_stand_explosion(
             Transform::from_translation(position).with_scale(Vec3::splat(0.1)),
             OnGameplayScreen,
         ));
+
+        // MP: ship the explosion to the guest so the same sphere appears
+        // there. The guest's `update_final_stand_vfx` (gated
+        // `is_spell_effects_active`) animates it once the component exists.
+        vfx::systems::emit_cast_event(
+            &mut pending_cast_events,
+            crate::networking::snapshot::CastEventKind::FinalStandExplosion,
+            0,
+            position,
+            [
+                final_stand.radius,
+                constants::FINAL_STAND_VFX_LIFETIME,
+                0.0,
+                0.0,
+            ],
+        );
 
         // Fire sparks + smoke burst
         let time_secs = time.elapsed_secs();

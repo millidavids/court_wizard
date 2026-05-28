@@ -58,21 +58,20 @@ pub fn forward_spell_hits_to_host(
         With<super::components::GhostEntity>,
     >,
 ) {
-    let excremage =
-        config.wizard_type == crate::config::WizardType::Excremage;
+    let excremage = config.wizard_type == crate::config::WizardType::Excremage;
     for (entity, net_id, pending) in &hits {
         let damage_type = if excremage {
             crate::game::units::damage::DamageType::Poop
         } else {
             pending.damage_type
         };
-        connection
-            .outgoing_messages
-            .push(crate::networking::protocol::NetworkMessage::SpellHitUnit {
+        connection.outgoing_messages.push(
+            crate::networking::protocol::NetworkMessage::SpellHitUnit {
                 target_network_id: net_id.0,
                 damage: pending.damage,
                 damage_type: damage_type.to_u8(),
-            });
+            },
+        );
         commands
             .entity(entity)
             .remove::<crate::game::units::components::PendingDamageEffect>();
@@ -112,106 +111,181 @@ pub fn forward_status_effects_to_host(
             Has<crate::game::units::status_effects::NarcolepticWave>,
             Has<crate::game::units::status_effects::Sleepwalking>,
         ),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::status_effects::SleepModifier>,
-         Without<StatusEffectForwarded<crate::game::units::status_effects::SleepModifier>>),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::status_effects::SleepModifier>,
+            Without<StatusEffectForwarded<crate::game::units::status_effects::SleepModifier>>,
+        ),
     >,
     root: Query<
-        (Entity, &crate::networking::entity_map::NetworkEntityId,
-         &crate::game::units::status_effects::RootedModifier),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::status_effects::RootedModifier>,
-         Without<StatusEffectForwarded<crate::game::units::status_effects::RootedModifier>>),
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::status_effects::RootedModifier,
+        ),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::status_effects::RootedModifier>,
+            Without<StatusEffectForwarded<crate::game::units::status_effects::RootedModifier>>,
+        ),
     >,
     mind: Query<
-        (Entity, &crate::networking::entity_map::NetworkEntityId,
-         &crate::game::units::components::MindControlled),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::components::MindControlled>,
-         Without<StatusEffectForwarded<crate::game::units::components::MindControlled>>),
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::components::MindControlled,
+        ),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::components::MindControlled>,
+            Without<StatusEffectForwarded<crate::game::units::components::MindControlled>>,
+        ),
     >,
     banish: Query<
-        (Entity, &crate::networking::entity_map::NetworkEntityId,
-         &crate::game::units::status_effects::BanishedModifier),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::status_effects::BanishedModifier>,
-         Without<StatusEffectForwarded<crate::game::units::status_effects::BanishedModifier>>),
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::status_effects::BanishedModifier,
+        ),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::status_effects::BanishedModifier>,
+            Without<StatusEffectForwarded<crate::game::units::status_effects::BanishedModifier>>,
+        ),
     >,
     mark: Query<
-        (Entity, &crate::networking::entity_map::NetworkEntityId,
-         &crate::game::units::status_effects::MarkedForDeathModifier),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::status_effects::MarkedForDeathModifier>,
-         Without<StatusEffectForwarded<crate::game::units::status_effects::MarkedForDeathModifier>>),
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::status_effects::MarkedForDeathModifier,
+        ),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::status_effects::MarkedForDeathModifier>,
+            Without<
+                StatusEffectForwarded<crate::game::units::status_effects::MarkedForDeathModifier>,
+            >,
+        ),
     >,
     haste: Query<
-        (Entity, &crate::networking::entity_map::NetworkEntityId,
-         &crate::game::units::status_effects::HasteModifier),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::status_effects::HasteModifier>,
-         Without<StatusEffectForwarded<crate::game::units::status_effects::HasteModifier>>),
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::status_effects::HasteModifier,
+        ),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::status_effects::HasteModifier>,
+            Without<StatusEffectForwarded<crate::game::units::status_effects::HasteModifier>>,
+        ),
     >,
     battle_hymn: Query<
-        (Entity, &crate::networking::entity_map::NetworkEntityId,
-         &crate::game::units::status_effects::BattleHymnModifier),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::status_effects::BattleHymnModifier>,
-         Without<StatusEffectForwarded<crate::game::units::status_effects::BattleHymnModifier>>),
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::status_effects::BattleHymnModifier,
+        ),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::status_effects::BattleHymnModifier>,
+            Without<StatusEffectForwarded<crate::game::units::status_effects::BattleHymnModifier>>,
+        ),
     >,
     berserker: Query<
-        (Entity, &crate::networking::entity_map::NetworkEntityId,
-         &crate::game::units::status_effects::BerserkerRageModifier),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::status_effects::BerserkerRageModifier>,
-         Without<StatusEffectForwarded<crate::game::units::status_effects::BerserkerRageModifier>>),
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::status_effects::BerserkerRageModifier,
+        ),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::status_effects::BerserkerRageModifier>,
+            Without<
+                StatusEffectForwarded<crate::game::units::status_effects::BerserkerRageModifier>,
+            >,
+        ),
     >,
     temp_hp: Query<
-        (Entity, &crate::networking::entity_map::NetworkEntityId,
-         &crate::game::units::components::TemporaryHitPoints),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::components::TemporaryHitPoints>,
-         Without<StatusEffectForwarded<crate::game::units::components::TemporaryHitPoints>>),
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::components::TemporaryHitPoints,
+        ),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::components::TemporaryHitPoints>,
+            Without<StatusEffectForwarded<crate::game::units::components::TemporaryHitPoints>>,
+        ),
     >,
     slow: Query<
-        (Entity, &crate::networking::entity_map::NetworkEntityId,
-         &crate::game::units::components::SlowMovementModifier),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::components::SlowMovementModifier>,
-         Without<StatusEffectForwarded<crate::game::units::components::SlowMovementModifier>>),
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::components::SlowMovementModifier,
+        ),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::components::SlowMovementModifier>,
+            Without<StatusEffectForwarded<crate::game::units::components::SlowMovementModifier>>,
+        ),
     >,
     stun: Query<
-        (Entity, &crate::networking::entity_map::NetworkEntityId,
-         &crate::game::units::status_effects::Stunned),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::status_effects::Stunned>,
-         Without<StatusEffectForwarded<crate::game::units::status_effects::Stunned>>),
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::status_effects::Stunned,
+        ),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::status_effects::Stunned>,
+            Without<StatusEffectForwarded<crate::game::units::status_effects::Stunned>>,
+        ),
     >,
     fog_evasion: Query<
-        (Entity, &crate::networking::entity_map::NetworkEntityId,
-         &crate::game::units::status_effects::FogEvasionModifier),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::status_effects::FogEvasionModifier>,
-         Without<StatusEffectForwarded<crate::game::units::status_effects::FogEvasionModifier>>),
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::status_effects::FogEvasionModifier,
+        ),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::status_effects::FogEvasionModifier>,
+            Without<StatusEffectForwarded<crate::game::units::status_effects::FogEvasionModifier>>,
+        ),
     >,
     polymorphed: Query<
-        (Entity, &crate::networking::entity_map::NetworkEntityId,
-         &crate::game::units::status_effects::PolymorphedModifier),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::status_effects::PolymorphedModifier>,
-         Without<StatusEffectForwarded<crate::game::units::status_effects::PolymorphedModifier>>),
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::status_effects::PolymorphedModifier,
+        ),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::status_effects::PolymorphedModifier>,
+            Without<StatusEffectForwarded<crate::game::units::status_effects::PolymorphedModifier>>,
+        ),
     >,
     knockback: Query<
-        (Entity, &crate::networking::entity_map::NetworkEntityId,
-         &crate::game::units::components::Knockback),
-        (With<super::components::GhostEntity>,
-         Added<crate::game::units::components::Knockback>,
-         Without<StatusEffectForwarded<crate::game::units::components::Knockback>>),
+        (
+            Entity,
+            &crate::networking::entity_map::NetworkEntityId,
+            &crate::game::units::components::Knockback,
+        ),
+        (
+            With<super::components::GhostEntity>,
+            Added<crate::game::units::components::Knockback>,
+            Without<StatusEffectForwarded<crate::game::units::components::Knockback>>,
+        ),
     >,
 ) {
     use crate::networking::protocol::{NetworkMessage, StatusEffectKind};
 
-    let push = |connection: &mut NetworkConnection, net_id: u32, kind: StatusEffectKind,
-                duration: f32, magnitude: f32, flags: u32| {
+    let push = |connection: &mut NetworkConnection,
+                net_id: u32,
+                kind: StatusEffectKind,
+                duration: f32,
+                magnitude: f32,
+                flags: u32| {
         connection
             .outgoing_messages
             .push(NetworkMessage::ApplyStatusEffect {
@@ -226,100 +300,206 @@ pub fn forward_status_effects_to_host(
     for (e, id, m, has_terrors, has_coma, has_wave, has_walk) in &sleep {
         use crate::networking::protocol::status_flags as sf;
         let mut flags: u32 = 0;
-        if has_terrors { flags |= sf::SLEEP_NIGHT_TERRORS; }
-        if has_coma    { flags |= sf::SLEEP_COMATOSE; }
-        if has_wave    { flags |= sf::SLEEP_NARCOLEPTIC_WAVE; }
-        if has_walk    { flags |= sf::SLEEP_DREAMWALKER; }
-        push(&mut connection, id.0, StatusEffectKind::Sleep,
-             m.time_remaining, m.bonus_damage_multiplier, flags);
+        if has_terrors {
+            flags |= sf::SLEEP_NIGHT_TERRORS;
+        }
+        if has_coma {
+            flags |= sf::SLEEP_COMATOSE;
+        }
+        if has_wave {
+            flags |= sf::SLEEP_NARCOLEPTIC_WAVE;
+        }
+        if has_walk {
+            flags |= sf::SLEEP_DREAMWALKER;
+        }
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::Sleep,
+            m.time_remaining,
+            m.bonus_damage_multiplier,
+            flags,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::status_effects::SleepModifier>::default());
+            crate::game::units::status_effects::SleepModifier,
+        >::default());
     }
     for (e, id, m) in &root {
-        push(&mut connection, id.0, StatusEffectKind::Root,
-             m.time_remaining, 0.0, 0);
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::Root,
+            m.time_remaining,
+            0.0,
+            0,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::status_effects::RootedModifier>::default());
+            crate::game::units::status_effects::RootedModifier,
+        >::default());
     }
     for (e, id, m) in &mind {
-        push(&mut connection, id.0, StatusEffectKind::MindControl,
-             m.wear_off_duration, m.damage_multiplier, 0);
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::MindControl,
+            m.wear_off_duration,
+            m.damage_multiplier,
+            0,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::components::MindControlled>::default());
+            crate::game::units::components::MindControlled,
+        >::default());
     }
     for (e, id, m) in &banish {
-        push(&mut connection, id.0, StatusEffectKind::Banish,
-             m.time_remaining, 0.0, 0);
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::Banish,
+            m.time_remaining,
+            0.0,
+            0,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::status_effects::BanishedModifier>::default());
+            crate::game::units::status_effects::BanishedModifier,
+        >::default());
     }
     for (e, id, m) in &mark {
-        push(&mut connection, id.0, StatusEffectKind::Mark,
-             m.time_remaining, m.damage_amplification, 0);
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::Mark,
+            m.time_remaining,
+            m.damage_amplification,
+            0,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::status_effects::MarkedForDeathModifier>::default());
+            crate::game::units::status_effects::MarkedForDeathModifier,
+        >::default());
     }
     for (e, id, m) in &haste {
-        push(&mut connection, id.0, StatusEffectKind::Haste,
-             m.time_remaining, m.modifier, 0);
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::Haste,
+            m.time_remaining,
+            m.modifier,
+            0,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::status_effects::HasteModifier>::default());
+            crate::game::units::status_effects::HasteModifier,
+        >::default());
     }
     for (e, id, m) in &battle_hymn {
         let attack_speed_bits = (m.attack_speed.clamp(0.0, 6.5535) * 10_000.0) as u32;
-        push(&mut connection, id.0, StatusEffectKind::BattleHymn,
-             m.time_remaining, m.damage_bonus, attack_speed_bits & 0xFFFF);
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::BattleHymn,
+            m.time_remaining,
+            m.damage_bonus,
+            attack_speed_bits & 0xFFFF,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::status_effects::BattleHymnModifier>::default());
+            crate::game::units::status_effects::BattleHymnModifier,
+        >::default());
     }
     for (e, id, m) in &berserker {
         let vuln_bits = (m.damage_vulnerability.clamp(0.0, 6.5535) * 10_000.0) as u32;
-        push(&mut connection, id.0, StatusEffectKind::BerserkerRage,
-             m.time_remaining, m.damage_bonus, vuln_bits & 0xFFFF);
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::BerserkerRage,
+            m.time_remaining,
+            m.damage_bonus,
+            vuln_bits & 0xFFFF,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::status_effects::BerserkerRageModifier>::default());
+            crate::game::units::status_effects::BerserkerRageModifier,
+        >::default());
     }
     for (e, id, m) in &temp_hp {
-        push(&mut connection, id.0, StatusEffectKind::GuardianTempHp,
-             m.time_remaining, m.amount, 0);
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::GuardianTempHp,
+            m.time_remaining,
+            m.amount,
+            0,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::components::TemporaryHitPoints>::default());
+            crate::game::units::components::TemporaryHitPoints,
+        >::default());
     }
     for (e, id, m) in &slow {
-        push(&mut connection, id.0, StatusEffectKind::Slow,
-             m.time_remaining, m.modifier, 0);
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::Slow,
+            m.time_remaining,
+            m.modifier,
+            0,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::components::SlowMovementModifier>::default());
+            crate::game::units::components::SlowMovementModifier,
+        >::default());
     }
     for (e, id, m) in &stun {
-        push(&mut connection, id.0, StatusEffectKind::Stun,
-             m.time_remaining, 0.0, 0);
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::Stun,
+            m.time_remaining,
+            0.0,
+            0,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::status_effects::Stunned>::default());
+            crate::game::units::status_effects::Stunned,
+        >::default());
     }
     for (e, id, m) in &fog_evasion {
-        push(&mut connection, id.0, StatusEffectKind::FogEvasion,
-             m.time_remaining, m.evasion_chance, 0);
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::FogEvasion,
+            m.time_remaining,
+            m.evasion_chance,
+            0,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::status_effects::FogEvasionModifier>::default());
+            crate::game::units::status_effects::FogEvasionModifier,
+        >::default());
     }
     for (e, id, m) in &polymorphed {
         // Use Polymorph kind so the host knows it's a polymorph (Phase 1 host
         // receiver applies Sleep as a stand-in for the combat effect; visual
         // sheep-swap lands in Phase 3).
-        push(&mut connection, id.0, StatusEffectKind::Polymorph,
-             m.time_remaining, 0.0, 0);
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::Polymorph,
+            m.time_remaining,
+            0.0,
+            0,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::status_effects::PolymorphedModifier>::default());
+            crate::game::units::status_effects::PolymorphedModifier,
+        >::default());
     }
     for (e, id, m) in &knockback {
         let dir_x_bits = ((m.direction_x * 1000.0) as i16) as u16 as u32;
         let dir_z_bits = ((m.direction_z * 1000.0) as i16) as u16 as u32;
         let flags = dir_x_bits | (dir_z_bits << 16);
-        push(&mut connection, id.0, StatusEffectKind::Knockback,
-             m.duration, m.speed, flags);
+        push(
+            &mut connection,
+            id.0,
+            StatusEffectKind::Knockback,
+            m.duration,
+            m.speed,
+            flags,
+        );
         commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::components::Knockback>::default());
+            crate::game::units::components::Knockback,
+        >::default());
     }
 }
 

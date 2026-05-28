@@ -43,8 +43,7 @@ fn staggered_attack_timing() -> AttackTiming {
     // 0.0 paired with the cycle's `last_time` also being 0.0 (on the very
     // first frame after game start) would silently block that unit for a
     // full cycle. Vanishingly rare with random_range, but easy to exclude.
-    let offset =
-        rng.random_range(f32::EPSILON..crate::game::constants::ATTACK_CYCLE_DURATION);
+    let offset = rng.random_range(f32::EPSILON..crate::game::constants::ATTACK_CYCLE_DURATION);
     let mut timing = AttackTiming::new();
     timing.last_attack_time = Some(offset);
     timing

@@ -14,6 +14,7 @@ use crate::game::constants::*;
 /// Sets up the battlefield and castle when entering the InGame state.
 ///
 /// Spawns the battlefield ground plane, castle wall image, and point light in 3D space.
+#[allow(clippy::too_many_arguments)]
 pub fn setup_battlefield(
     rng: &mut impl Rng,
     commands: &mut Commands,

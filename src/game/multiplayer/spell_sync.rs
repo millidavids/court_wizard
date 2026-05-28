@@ -41,19 +41,50 @@ use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::entity_map::NetworkEntityId;
 use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::{
-    BeamSnapshot, MagicMissileSnapshot, SpellArcSnapshot, SpellEffectKind, SpellEffectSnapshot,
-    SpellProjectileSnapshot, SpellVisualSnapshot, UNRELIABLE_SPELL_SNAPSHOT,
+    AuraBubbleVariant, BeamSnapshot, CastEventKind, CastEventSnapshot, MagicMissileSnapshot,
+    MoteMaterial, PoofVariant, SparkMaterial, SpellArcSnapshot, SpellEffectKind,
+    SpellEffectSnapshot, SpellProjectileSnapshot, SpellSchoolWire, SpellVisualSnapshot,
+    UNRELIABLE_SPELL_SNAPSHOT,
 };
 
 /// Resource holding the latest received remote spell visual snapshot.
 #[derive(Resource, Default)]
 pub struct LatestSpellSnapshot(pub Option<SpellVisualSnapshot>);
 
+/// Outgoing one-shot cast VFX events for this tick.
+///
+/// Casting handlers push to this via the `_synced` VFX wrappers (or
+/// `emit_cast_event` directly); `send_spell_visual_snapshot` drains it into
+/// the outgoing `SpellVisualSnapshot.cast_events` vector once per send tick.
+/// Receiver dispatches via `apply_cast_event`.
+///
+/// The `_synced` wrappers gate the push behind an `mp_active` flag so
+/// single-player runs don't accumulate events that are never drained (the
+/// drain system is `run_if(mp_running)`). Toggling happens via
+/// `mark_pending_events_mp_active` / `_inactive` on MP state transitions.
+#[derive(Resource, Default)]
+pub struct PendingCastEvents {
+    pub events: Vec<CastEventSnapshot>,
+    pub mp_active: bool,
+}
+
+/// Marks `PendingCastEvents` as MP-active so `_synced` wrappers start pushing.
+pub fn mark_pending_events_mp_active(mut pending: ResMut<PendingCastEvents>) {
+    pending.mp_active = true;
+}
+
+/// Marks `PendingCastEvents` as MP-inactive and clears any straggler events.
+pub fn mark_pending_events_mp_inactive(mut pending: ResMut<PendingCastEvents>) {
+    pending.mp_active = false;
+    pending.events.clear();
+}
+
 /// Collects persistent spell effect entities into the spell visual snapshot.
 ///
 /// Queries all entities with `NetworkedSpellEffect` and builds the spell_effects
 /// vector. Uses `NetworkEntityId` if available, otherwise `Entity::index()`.
 #[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments)]
 pub fn collect_spell_effect_snapshots(
     mut spell_data: ResMut<SpellSnapshotData>,
     effects: Query<(
@@ -85,6 +116,12 @@ pub fn collect_spell_effect_snapshots(
     extra_data: (
         Query<&crate::game::units::wizard::spells::dispel::components::DispelImpact>,
         Query<&crate::game::units::wizard::spells::squall::components::SquallStorm>,
+    ),
+    // Brute / Ogre boulder lifecycle queries — `sprite_index` is encoded
+    // into `extra[0]` for the guest's asset picker.
+    boulder_data: (
+        Query<&crate::game::terrain::boulder::components::BoulderProjectile>,
+        Query<&crate::game::terrain::boulder::components::Boulder>,
     ),
     // Spells whose talent state is stored as MARKER components on the spell
     // entity (rather than inside a `talent_params` field). Each Has<>
@@ -151,14 +188,31 @@ pub fn collect_spell_effect_snapshots(
                     let (blind, conceal, disorient, phantom, choking, rolling) =
                         talent_markers.1.get(entity).unwrap_or_default();
                     let mut flags: u32 = 0;
-                    if blind     { flags |= 1 << 0; }
-                    if conceal   { flags |= 1 << 1; }
-                    if disorient { flags |= 1 << 2; }
-                    if phantom   { flags |= 1 << 3; }
-                    if choking   { flags |= 1 << 4; }
-                    if rolling   { flags |= 1 << 5; }
+                    if blind {
+                        flags |= 1 << 0;
+                    }
+                    if conceal {
+                        flags |= 1 << 1;
+                    }
+                    if disorient {
+                        flags |= 1 << 2;
+                    }
+                    if phantom {
+                        flags |= 1 << 3;
+                    }
+                    if choking {
+                        flags |= 1 << 4;
+                    }
+                    if rolling {
+                        flags |= 1 << 5;
+                    }
                     (
-                        [z.radius, z.duration, z.evasion_chance, z.evasion_refresh_duration],
+                        [
+                            z.radius,
+                            z.duration,
+                            z.evasion_chance,
+                            z.evasion_refresh_duration,
+                        ],
                         flags,
                     )
                 } else {
@@ -178,12 +232,24 @@ pub fn collect_spell_effect_snapshots(
                     // Pack PlagueWind talent booleans into bits 0..5.
                     let tp = &c.talent_params;
                     let mut flags: u32 = 0;
-                    if tp.plague_carrier { flags |= 1 << 0; }
-                    if tp.toxic_weakness { flags |= 1 << 1; }
-                    if tp.choking_gas    { flags |= 1 << 2; }
-                    if tp.pandemic       { flags |= 1 << 3; }
-                    if tp.twin_plumes    { flags |= 1 << 4; }
-                    if tp.necrotic_rot   { flags |= 1 << 5; }
+                    if tp.plague_carrier {
+                        flags |= 1 << 0;
+                    }
+                    if tp.toxic_weakness {
+                        flags |= 1 << 1;
+                    }
+                    if tp.choking_gas {
+                        flags |= 1 << 2;
+                    }
+                    if tp.pandemic {
+                        flags |= 1 << 3;
+                    }
+                    if tp.twin_plumes {
+                        flags |= 1 << 4;
+                    }
+                    if tp.necrotic_rot {
+                        flags |= 1 << 5;
+                    }
                     (
                         [
                             c.radius,
@@ -209,11 +275,21 @@ pub fn collect_spell_effect_snapshots(
                     // Pack BlackHole talent booleans into bits 0..4.
                     let tp = &bh.talent_params;
                     let mut flags: u32 = 0;
-                    if tp.event_horizon     { flags |= 1 << 0; }
-                    if tp.crushing_pressure { flags |= 1 << 1; }
-                    if tp.void_siphon       { flags |= 1 << 2; }
-                    if tp.singularity       { flags |= 1 << 3; }
-                    if tp.dimensional_rift  { flags |= 1 << 4; }
+                    if tp.event_horizon {
+                        flags |= 1 << 0;
+                    }
+                    if tp.crushing_pressure {
+                        flags |= 1 << 1;
+                    }
+                    if tp.void_siphon {
+                        flags |= 1 << 2;
+                    }
+                    if tp.singularity {
+                        flags |= 1 << 3;
+                    }
+                    if tp.dimensional_rift {
+                        flags |= 1 << 4;
+                    }
                     ([bh.max_radius, bh.empowerment, 0.0, 0.0], flags)
                 } else {
                     continue;
@@ -225,10 +301,18 @@ pub fn collect_spell_effect_snapshots(
                     let (has_res, has_prism, has_auto, has_network) =
                         talent_markers.0.get(entity).unwrap_or_default();
                     let mut flags: u32 = 0;
-                    if has_res     { flags |= 1 << 0; }
-                    if has_prism   { flags |= 1 << 1; }
-                    if has_auto    { flags |= 1 << 2; }
-                    if has_network { flags |= 1 << 3; }
+                    if has_res {
+                        flags |= 1 << 0;
+                    }
+                    if has_prism {
+                        flags |= 1 << 1;
+                    }
+                    if has_auto {
+                        flags |= 1 << 2;
+                    }
+                    if has_network {
+                        flags |= 1 << 3;
+                    }
                     ([ac.range, ac.duration, ac.empowerment, 0.0], flags)
                 } else {
                     continue;
@@ -239,12 +323,24 @@ pub fn collect_spell_effect_snapshots(
                     // Pack LightningRod talent booleans into bits 0..5.
                     let tp = &lr.talent_params;
                     let mut flags: u32 = 0;
-                    if tp.chain_reaction   { flags |= 1 << 0; }
-                    if tp.magnetic_field   { flags |= 1 << 1; }
-                    if tp.overcharge       { flags |= 1 << 2; }
-                    if tp.storm_spire      { flags |= 1 << 3; }
-                    if tp.tesla_coil       { flags |= 1 << 4; }
-                    if tp.lightning_nexus  { flags |= 1 << 5; }
+                    if tp.chain_reaction {
+                        flags |= 1 << 0;
+                    }
+                    if tp.magnetic_field {
+                        flags |= 1 << 1;
+                    }
+                    if tp.overcharge {
+                        flags |= 1 << 2;
+                    }
+                    if tp.storm_spire {
+                        flags |= 1 << 3;
+                    }
+                    if tp.tesla_coil {
+                        flags |= 1 << 4;
+                    }
+                    if tp.lightning_nexus {
+                        flags |= 1 << 5;
+                    }
                     ([lr.duration, lr.empowerment, 0.0, 0.0], flags)
                 } else {
                     continue;
@@ -262,12 +358,24 @@ pub fn collect_spell_effect_snapshots(
                     // Pack WallOfFire talent booleans into bits 0..5.
                     let tp = &w.talent_params;
                     let mut flags: u32 = 0;
-                    if tp.searing_heat       { flags |= 1 << 0; }
-                    if tp.scorched_earth     { flags |= 1 << 1; }
-                    if tp.spreading_flames   { flags |= 1 << 2; }
-                    if tp.firestorm          { flags |= 1 << 3; }
-                    if tp.twin_walls         { flags |= 1 << 4; }
-                    if tp.consuming_inferno  { flags |= 1 << 5; }
+                    if tp.searing_heat {
+                        flags |= 1 << 0;
+                    }
+                    if tp.scorched_earth {
+                        flags |= 1 << 1;
+                    }
+                    if tp.spreading_flames {
+                        flags |= 1 << 2;
+                    }
+                    if tp.firestorm {
+                        flags |= 1 << 3;
+                    }
+                    if tp.twin_walls {
+                        flags |= 1 << 4;
+                    }
+                    if tp.consuming_inferno {
+                        flags |= 1 << 5;
+                    }
                     ([w.half_width, w.duration, transform.scale.x, 0.0], flags)
                 } else {
                     continue;
@@ -306,12 +414,24 @@ pub fn collect_spell_effect_snapshots(
                     // Pack SquallStorm talent booleans into bits 0..5.
                     let tp = &s.talent_params;
                     let mut flags: u32 = 0;
-                    if tp.permafrost     { flags |= 1 << 0; }
-                    if tp.hailstones     { flags |= 1 << 1; }
-                    if tp.sleet_storm    { flags |= 1 << 2; }
-                    if tp.absolute_zero  { flags |= 1 << 3; }
-                    if tp.blizzard       { flags |= 1 << 4; }
-                    if tp.ice_age        { flags |= 1 << 5; }
+                    if tp.permafrost {
+                        flags |= 1 << 0;
+                    }
+                    if tp.hailstones {
+                        flags |= 1 << 1;
+                    }
+                    if tp.sleet_storm {
+                        flags |= 1 << 2;
+                    }
+                    if tp.absolute_zero {
+                        flags |= 1 << 3;
+                    }
+                    if tp.blizzard {
+                        flags |= 1 << 4;
+                    }
+                    if tp.ice_age {
+                        flags |= 1 << 5;
+                    }
                     ([s.radius, 0.0, 0.0, 0.0], flags)
                 } else {
                     continue;
@@ -320,6 +440,20 @@ pub fn collect_spell_effect_snapshots(
             SpellEffectKind::ScorchedEarthFire | SpellEffectKind::NapalmTrail => {
                 if let Ok(e) = explosion_data.0.get(entity) {
                     ([e.max_radius, e.empowerment, e.duration, 0.0], 0)
+                } else {
+                    continue;
+                }
+            }
+            SpellEffectKind::BoulderProjectileEffect => {
+                if let Ok(p) = boulder_data.0.get(entity) {
+                    ([p.sprite_index as f32, 0.0, 0.0, 0.0], 0)
+                } else {
+                    continue;
+                }
+            }
+            SpellEffectKind::BoulderObstacle => {
+                if let Ok(b) = boulder_data.1.get(entity) {
+                    ([b.sprite_index as f32, b.radius, b.height, 0.0], 0)
                 } else {
                     continue;
                 }
@@ -476,6 +610,7 @@ pub fn collect_spell_projectile_snapshots(
 pub fn send_spell_visual_snapshot(
     mut connection: ResMut<NetworkConnection>,
     mut spell_data: ResMut<SpellSnapshotData>,
+    mut pending_cast_events: ResMut<PendingCastEvents>,
     missiles: Query<&Transform, With<MagicMissile>>,
     beams: Query<&DisintegrateBeam>,
 ) {
@@ -503,6 +638,12 @@ pub fn send_spell_visual_snapshot(
                 length: beam.current_length(),
             })
             .collect(),
+        // Drain one-shot cast events accumulated by casting handlers this
+        // tick. Casting handlers run before `send_spell_visual_snapshot` in
+        // Bevy's default `Update` schedule, so events emitted on cast
+        // completion (e.g. `spawn_school_flare_synced` on fireball release)
+        // ship on the same frame.
+        cast_events: std::mem::take(&mut pending_cast_events.events),
     };
 
     if let Ok(data) = bincode::serialize(&snapshot) {
@@ -571,6 +712,11 @@ pub fn apply_remote_spell_snapshot(
     latest: Res<LatestSpellSnapshot>,
     mut effect_map: ResMut<SpellEffectEntityMap>,
     assets: Option<Res<SpellVisualAssets>>,
+    // `BoulderAssets` is unconditionally inserted at Startup by `BoulderPlugin`
+    // so it's not wrapped in `Option`. If it ever stops being available a
+    // system-validation panic surfaces the issue immediately rather than
+    // silently disabling the whole remote-spell render path.
+    boulder_assets: Res<crate::game::terrain::boulder::resources::BoulderAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut sphere_materials: ResMut<
         Assets<crate::game::units::wizard::spells::visual_assets::FireExplosionSphereMaterial>,
@@ -606,6 +752,7 @@ pub fn apply_remote_spell_snapshot(
             &assets,
             &mut materials,
             &mut sphere_materials,
+            &boulder_assets,
         ) {
             // Tag every ghost spell-effect so SP gameplay systems on the
             // guest can filter them out via `Without<GhostSpellEffect>` —
@@ -659,21 +806,21 @@ pub fn apply_remote_spell_snapshot(
                 // `spawn_fireball_visuals` tags BOTH the parent sphere and
                 // the glow halo sibling with `OnMultiplayerGameScreen`, so
                 // both are cleaned up by `cleanup_mp_game`.
-                let entity = crate::game::units::wizard::spells::fireball::casting::spawn_fireball_visuals(
-                    &mut commands,
-                    &assets,
-                    pos,
-                    proj.scale.max(0.01),
-                    OnMultiplayerGameScreen,
-                );
+                let entity =
+                    crate::game::units::wizard::spells::fireball::casting::spawn_fireball_visuals(
+                        &mut commands,
+                        &assets,
+                        pos,
+                        proj.scale.max(0.01),
+                        OnMultiplayerGameScreen,
+                    );
                 commands.entity(entity).insert(GhostSpellProjectile);
             }
             1 => {
                 commands.spawn((
                     Mesh3d(assets.cross_plane_sphere.clone()),
                     MeshMaterial3d(assets.ice_projectile.clone()),
-                    Transform::from_translation(pos)
-                        .with_scale(Vec3::splat(proj.scale.max(0.01))),
+                    Transform::from_translation(pos).with_scale(Vec3::splat(proj.scale.max(0.01))),
                     GhostSpellProjectile,
                     OnMultiplayerGameScreen,
                 ));
@@ -682,8 +829,7 @@ pub fn apply_remote_spell_snapshot(
                 commands.spawn((
                     Mesh3d(assets.cross_plane_sphere.clone()),
                     MeshMaterial3d(assets.meteor_projectile.clone()),
-                    Transform::from_translation(pos)
-                        .with_scale(Vec3::splat(proj.scale.max(0.01))),
+                    Transform::from_translation(pos).with_scale(Vec3::splat(proj.scale.max(0.01))),
                     GhostSpellProjectile,
                     OnMultiplayerGameScreen,
                 ));
@@ -698,8 +844,7 @@ pub fn apply_remote_spell_snapshot(
                 commands.spawn((
                     Mesh3d(assets.cross_plane_sphere.clone()),
                     MeshMaterial3d(assets.dispel_spark.clone()),
-                    Transform::from_translation(pos)
-                        .with_scale(Vec3::splat(proj.scale.max(0.01))),
+                    Transform::from_translation(pos).with_scale(Vec3::splat(proj.scale.max(0.01))),
                     GhostSpellProjectile,
                     OnMultiplayerGameScreen,
                 ));
@@ -828,6 +973,206 @@ pub fn apply_remote_spell_snapshot(
             GhostBeam,
             OnMultiplayerGameScreen,
         ));
+    }
+}
+
+/// Dispatches the remote peer's one-shot cast VFX events into local spawn
+/// calls. Runs after `apply_remote_spell_snapshot` and reads the same
+/// `LatestSpellSnapshot` resource.
+///
+/// Each event maps to one of the existing `vfx::systems::spawn_*` helpers;
+/// the spawned entities tag `OnGameplayScreen` so MP cleanup
+/// (`cleanup_game` on `OnExit(AppState::MultiplayerGame)`) catches them.
+pub fn apply_remote_cast_events(
+    mut commands: Commands,
+    latest: Res<LatestSpellSnapshot>,
+    assets: Option<Res<SpellVisualAssets>>,
+    mut sphere_materials: ResMut<
+        Assets<crate::game::units::wizard::spells::visual_assets::FireExplosionSphereMaterial>,
+    >,
+    time: Res<Time>,
+) {
+    let Some(snapshot) = &latest.0 else { return };
+    let Some(assets) = assets else { return };
+    if snapshot.cast_events.is_empty() {
+        return;
+    }
+
+    use crate::game::units::wizard::spells::banishment::components::BanishmentVfx;
+    use crate::game::units::wizard::spells::vfx::systems as vfx;
+
+    let now = time.elapsed_secs();
+
+    for event in &snapshot.cast_events {
+        let pos = Vec3::new(event.x, event.y, event.z);
+        let Ok(kind) = CastEventKind::try_from(event.kind) else {
+            continue;
+        };
+        match kind {
+            CastEventKind::SchoolFlare => {
+                let Ok(school_wire) = SpellSchoolWire::try_from(event.subkind) else {
+                    continue;
+                };
+                let school = match school_wire {
+                    SpellSchoolWire::Fire => vfx::SpellSchool::Fire,
+                    SpellSchoolWire::Lightning => vfx::SpellSchool::Lightning,
+                    SpellSchoolWire::Arcane => vfx::SpellSchool::Arcane,
+                    SpellSchoolWire::Nature => vfx::SpellSchool::Nature,
+                    SpellSchoolWire::Holy => vfx::SpellSchool::Holy,
+                    SpellSchoolWire::Dark => vfx::SpellSchool::Dark,
+                    SpellSchoolWire::Force => vfx::SpellSchool::Force,
+                    SpellSchoolWire::Transmutation => vfx::SpellSchool::Transmutation,
+                };
+                vfx::spawn_school_flare(&mut commands, &assets, pos, school, now);
+            }
+            CastEventKind::AuraBubble | CastEventKind::AuraBubbleContract => {
+                let Ok(variant) = AuraBubbleVariant::try_from(event.subkind) else {
+                    continue;
+                };
+                let material = aura_material_handle(&assets, variant);
+                let radius = event.extra[0].max(0.01);
+                let duration = event.extra[1].max(0.01);
+                if kind == CastEventKind::AuraBubbleContract {
+                    vfx::spawn_aura_bubble_contracting(
+                        &mut commands,
+                        &assets,
+                        material,
+                        pos,
+                        radius,
+                        duration,
+                    );
+                } else {
+                    vfx::spawn_aura_bubble(&mut commands, &assets, material, pos, radius, duration);
+                }
+            }
+            CastEventKind::SmokePoof => {
+                let Ok(variant) = PoofVariant::try_from(event.subkind) else {
+                    continue;
+                };
+                let material = match variant {
+                    PoofVariant::Banishment => assets.banishment_poof.clone(),
+                    PoofVariant::Polymorph => assets.polymorph_poof.clone(),
+                };
+                // `extra[0]` carries the caller-supplied count so host /
+                // guest spawn the same number of puffs. Clamp defensively
+                // against corrupt packets.
+                let count = (event.extra[0] as usize).clamp(1, 64);
+                vfx::spawn_smoke_poof(&mut commands, &assets, &material, pos, count, now);
+            }
+            CastEventKind::FloatingMotes => {
+                let Ok(material_kind) = MoteMaterial::try_from(event.subkind) else {
+                    continue;
+                };
+                let material = match material_kind {
+                    MoteMaterial::Healing => assets.healing_mote.clone(),
+                    MoteMaterial::Nature => assets.nature_mote.clone(),
+                    MoteMaterial::Sleep => assets.sleep_mote.clone(),
+                };
+                let radius = event.extra[0].max(0.01);
+                let count = (event.extra[1] as usize).clamp(1, 200);
+                vfx::spawn_floating_motes(
+                    &mut commands,
+                    &assets,
+                    &material,
+                    pos,
+                    radius,
+                    count,
+                    now,
+                );
+            }
+            CastEventKind::Sparks => {
+                let Ok(material_kind) = SparkMaterial::try_from(event.subkind) else {
+                    continue;
+                };
+                let material = match material_kind {
+                    SparkMaterial::Banishment => assets.banishment_spark.clone(),
+                    SparkMaterial::Dispel => assets.dispel_spark.clone(),
+                };
+                // `extra[0]` carries the caller-supplied count.
+                let count = (event.extra[0] as usize).clamp(1, 64);
+                vfx::spawn_sparks_with_material(&mut commands, &assets, pos, count, now, material);
+            }
+            CastEventKind::DustSmoke => {
+                // half_width / count default to the SP wall-of-stone collapse
+                // (8.0 / 14). Distinguish "not provided" (sentinel < 0) from
+                // a legitimately small/zero value the caller passed.
+                let half_width = if event.extra[0] >= 0.0 {
+                    event.extra[0]
+                } else {
+                    8.0
+                };
+                // Clamp count against malformed packets — FloatingMotes
+                // uses the same defensive bound.
+                let count = if event.extra[1] > 0.0 {
+                    (event.extra[1] as usize).clamp(1, 200)
+                } else {
+                    14
+                };
+                vfx::spawn_dust_smoke(&mut commands, &assets, pos, half_width, count, now);
+            }
+            CastEventKind::FinalStandExplosion => {
+                // Berserker Rage's Final Stand detonation — spawn the same
+                // FinalStandExplosionVfx component the host spawns so the
+                // guest's `update_final_stand_vfx` (gated
+                // `is_spell_effects_active`) animates it identically. The
+                // material is cloned per-instance so the time uniform
+                // animates independently from other concurrent explosions.
+                use crate::game::units::wizard::spells::berserker_rage::components::FinalStandExplosionVfx;
+                use crate::game::units::wizard::spells::spell_materials::clone_sphere_material;
+                let max_radius = event.extra[0].max(0.01);
+                let lifetime = event.extra[1].max(0.05);
+                let mat_handle =
+                    clone_sphere_material(&mut sphere_materials, &assets.fireball_explosion_sphere);
+                commands.spawn((
+                    FinalStandExplosionVfx {
+                        time_alive: 0.0,
+                        max_radius,
+                        lifetime,
+                    },
+                    Mesh3d(assets.explosion_sphere.clone()),
+                    MeshMaterial3d(mat_handle),
+                    Transform::from_translation(pos).with_scale(Vec3::splat(0.1)),
+                    crate::game::components::OnGameplayScreen,
+                ));
+            }
+            CastEventKind::BanishmentLens => {
+                // Spawn the BanishmentVfx component so `update_banishment_vfx`
+                // (gated `is_spell_effects_active` after Phase 1) animates
+                // the lensing-sphere collapse on the guest. Uses the shared
+                // `cross_plane_sphere` asset to match the SP path's mesh
+                // shape exactly — `banishment_lens` material is designed
+                // for the cross-plane fans, not a tessellated sphere.
+                let radius = event.extra[0].max(0.01);
+                let duration = event.extra[1].max(0.05);
+                commands.spawn((
+                    BanishmentVfx {
+                        time_alive: 0.0,
+                        lifetime: duration,
+                        start_radius: radius,
+                    },
+                    Mesh3d(assets.cross_plane_sphere.clone()),
+                    MeshMaterial3d(assets.banishment_lens.clone()),
+                    Transform::from_translation(pos).with_scale(Vec3::splat(radius)),
+                    crate::game::components::OnGameplayScreen,
+                ));
+            }
+        }
+    }
+}
+
+/// Maps a wire-protocol `AuraBubbleVariant` to its `SpellVisualAssets` handle.
+fn aura_material_handle(
+    assets: &SpellVisualAssets,
+    variant: AuraBubbleVariant,
+) -> Handle<crate::game::units::wizard::spells::visual_assets::AuraSphereMaterial> {
+    match variant {
+        AuraBubbleVariant::Guardian => assets.guardian_aura_sphere.clone(),
+        AuraBubbleVariant::BattleHymn => assets.battle_hymn_aura_sphere.clone(),
+        AuraBubbleVariant::Haste => assets.haste_aura_sphere.clone(),
+        AuraBubbleVariant::Berserker => assets.berserker_aura_sphere.clone(),
+        AuraBubbleVariant::Sleep => assets.sleep_aura_sphere.clone(),
+        AuraBubbleVariant::RaiseDead => assets.raise_dead_aura_sphere.clone(),
+        AuraBubbleVariant::Teleport => assets.teleport_aura_sphere.clone(),
     }
 }
 

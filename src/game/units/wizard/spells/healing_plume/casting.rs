@@ -10,7 +10,6 @@ use super::components::{
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::crt_effect::CorrectedCursorPosition;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -19,6 +18,7 @@ use crate::game::units::components::{
     TemporaryHitPoints,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     clamp_cursor_to_spell_range_with_origin, cleanup_spell_caster, handle_spell_release,
@@ -81,12 +81,19 @@ pub fn handle_healing_plume_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
+    ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
-    sfx: Res<SpellSfxAssets>,
-    game_config: Res<GameConfig>,
     toggle_resources: (Option<Res<ActiveTalents>>, Option<Res<ActiveToggles>>),
+    mut audio_ctx: (
+        Res<SpellSfxAssets>,
+        Res<GameConfig>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
+    ),
     defenders_query: Query<
         (
             Entity,
@@ -103,6 +110,7 @@ pub fn handle_healing_plume_casting(
     >,
 ) {
     let (active_talents, active_toggles) = toggle_resources;
+    let (ref sfx, ref game_config, ref mut pending_cast_events) = audio_ctx;
     let scorched_mult =
         crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
@@ -121,7 +129,12 @@ pub fn handle_healing_plume_casting(
     let talent_params = compute_talent_params(active_talents.as_deref());
     let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment * talent_params.radius_mult;
 
-    let clamped_cursor = clamp_cursor_to_spell_range_with_origin(input.cursor_pos, local_origin.0, wizard.spell_range, radius);
+    let clamped_cursor = clamp_cursor_to_spell_range_with_origin(
+        input.cursor_pos,
+        local_origin.0,
+        wizard.spell_range,
+        radius,
+    );
 
     // Handle release -- clean up indicator and SpellCaster
     if handle_spell_release(
@@ -168,9 +181,10 @@ pub fn handle_healing_plume_casting(
         healing_plume_casting_logic(&input, &time, &mut casting_state, &mut mana, primed_spell);
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Holy,
             time.elapsed_secs(),
@@ -206,8 +220,8 @@ pub fn handle_healing_plume_casting(
                     &mut commands,
                     &sfx.healing_plume_cast,
                     indicator.position,
-                    &game_config,
-                    &sfx,
+                    game_config,
+                    sfx,
                 );
             }
             commands.entity(indicator_entity).try_despawn();
@@ -281,6 +295,7 @@ pub fn apply_healing_plume_heal(
     mut commands: Commands,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     visual_assets: Res<SpellVisualAssets>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
     use crate::game::units::wizard::archetypes::meteorologist::systems::apply_dry_healing_reduction;
 
@@ -295,10 +310,12 @@ pub fn apply_healing_plume_heal(
         zone.time_since_last_tick += delta;
 
         if (zone.time_alive / mote_interval).floor() != (prev_time / mote_interval).floor() {
-            vfx::systems::spawn_floating_motes(
+            vfx::systems::spawn_floating_motes_synced(
                 &mut commands,
                 &visual_assets,
+                &mut pending_cast_events,
                 &visual_assets.healing_mote,
+                crate::networking::snapshot::MoteMaterial::Healing,
                 zone.origin,
                 zone.radius,
                 mote_count,

@@ -18,7 +18,7 @@ pub(crate) fn handle_join_code_input(
             BorderColor::all(Color::hsla(270.0, 0.35, 0.35, 1.0))
         };
         for mut b in &mut border_query {
-            *b = border.clone();
+            *b = border;
         }
     }
 
@@ -49,8 +49,8 @@ pub(crate) fn handle_join_code_input(
     if !ctrl {
         for &(key, lower, upper) in printable_keys() {
             if keyboard.just_pressed(key) {
-                let shift = keyboard.pressed(KeyCode::ShiftLeft)
-                    || keyboard.pressed(KeyCode::ShiftRight);
+                let shift =
+                    keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight);
                 let ch = if shift { upper } else { lower };
                 lobby.join_code_input.push(ch);
                 changed = true;

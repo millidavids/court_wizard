@@ -26,6 +26,13 @@ pub(crate) struct MultiplayerLobby {
     pub join_code_focused: bool,
     /// Transient feedback line shown in the right panel (e.g. "Code copied!").
     pub status_message: Option<String>,
+    /// Wire-protocol version received from the peer's `HandshakeVersion`.
+    /// `None` until the peer sends one. The lobby refuses to process
+    /// `PlayerInfo` (or any other message that advances the phase) until
+    /// this is set to a matching version. An old-binary peer never sends
+    /// `HandshakeVersion`, so its first `PlayerInfo` arrives with this
+    /// still `None` → fast-fail with a version-mismatch error.
+    pub peer_protocol_version: Option<u32>,
 }
 
 impl MultiplayerLobby {
@@ -37,6 +44,7 @@ impl MultiplayerLobby {
             join_code_input: String::new(),
             join_code_focused: false,
             status_message: None,
+            peer_protocol_version: None,
         }
     }
 }

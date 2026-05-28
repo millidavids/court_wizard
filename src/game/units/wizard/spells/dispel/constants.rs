@@ -106,6 +106,10 @@ pub fn spell_effect_mana_cost(kind: crate::networking::snapshot::SpellEffectKind
         | SpellEffectKind::DispelImpact
         | SpellEffectKind::SquallStorm
         | SpellEffectKind::ScorchedEarthFire
-        | SpellEffectKind::NapalmTrail => 0.0, // Not dispellable (or self-dispel)
+        | SpellEffectKind::NapalmTrail
+        // Boulders are physical projectiles / obstacles, not magic spells,
+        // so Mana Drain doesn't refund mana for them.
+        | SpellEffectKind::BoulderProjectileEffect
+        | SpellEffectKind::BoulderObstacle => 0.0, // Not dispellable (or self-dispel)
     }
 }

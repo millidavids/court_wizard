@@ -51,7 +51,12 @@ pub(super) fn build_connect(
         } else {
             "LAN — same home network only."
         };
-        spawn_button(right, relay_label, MpTabAction::ToggleRelay, &SMALL_BUTTON_STYLE);
+        spawn_button(
+            right,
+            relay_label,
+            MpTabAction::ToggleRelay,
+            &SMALL_BUTTON_STYLE,
+        );
 
         right.spawn((
             Text::new(relay_hint),

@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::game::run_conditions::{
     any_exist, is_gameplay_running, is_spell_effects_active, is_warglock,
 };
-use crate::state::InGameState;
+use crate::state::{InGameState, MultiplayerGameState};
 
 use super::components::*;
 use super::messages::{ReloadMessage, SelectGunMessage};
@@ -16,13 +16,21 @@ impl Plugin for GunslingerPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<SelectGunMessage>()
             .add_message::<ReloadMessage>()
-            // Initialize gun state on entering gameplay
+            // Initialize gun state on entering gameplay (SP + MP)
             .add_systems(
                 OnEnter(InGameState::Running),
                 init_gun_state.run_if(is_warglock),
             )
             .add_systems(
+                OnEnter(MultiplayerGameState::Running),
+                init_gun_state.run_if(is_warglock),
+            )
+            .add_systems(
                 OnEnter(InGameState::ScoreScreen),
+                reset_gun_state.run_if(is_warglock),
+            )
+            .add_systems(
+                OnEnter(MultiplayerGameState::ScoreScreen),
                 reset_gun_state.run_if(is_warglock),
             )
             // Gun selection (from action bar) and reload input

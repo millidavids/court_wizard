@@ -613,10 +613,7 @@ pub fn emit_burning_unit_vfx(
     // ghost units carry `RemoteFireEffect` (mirrored from the host's
     // snapshot). Including both lets the burning VFX play on the guest
     // for opposing units the same way SP shows it.
-    burning_units: Query<
-        (&Transform, &Hitbox),
-        Or<(With<FireDoT>, With<RemoteFireEffect>)>,
-    >,
+    burning_units: Query<(&Transform, &Hitbox), Or<(With<FireDoT>, With<RemoteFireEffect>)>>,
     visual_assets: Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
     time: Res<Time>,
     mut smoke_timer: Local<f32>,
@@ -1708,6 +1705,7 @@ pub fn update_airborne_units(
 }
 
 /// Updates facing direction based on velocity relative to camera, updating UV row.
+#[allow(clippy::type_complexity)]
 pub fn update_facing_direction(
     camera_query: Query<&Transform, With<Camera3d>>,
     time: Res<Time>,

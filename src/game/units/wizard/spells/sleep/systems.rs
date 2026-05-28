@@ -4,7 +4,6 @@ use super::super::super::components::{
 use super::components::SleepTalentParams;
 use super::constants;
 use crate::config::GameConfig;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -13,6 +12,7 @@ use crate::game::units::components::{
     Sleepwalking, TargetingVelocity, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     cleanup_spell_caster, handle_spell_release, try_start_cast_with_indicator,
@@ -97,15 +97,16 @@ pub fn handle_sleep_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     targets_query: Query<(Entity, &Transform, &Health, &Team), Without<Corpse>>,
-    sfx: Res<SpellSfxAssets>,
-    game_config: Res<GameConfig>,
+    sfx_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),
     talent_resources: (
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
     ),
 ) {
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
-    let (active_talents, mut talent_progress) = talent_resources;
+    let (sfx, game_config) = &sfx_ctx;
+    let (active_talents, mut talent_progress, mut pending_cast_events) = talent_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
 
@@ -134,17 +135,19 @@ pub fn handle_sleep_casting(
         &mut commands,
         &visual_assets,
         &mut meshes,
-        &sfx,
-        &game_config,
+        sfx,
+        game_config,
         &talent_params,
         &mut talent_progress,
         local_origin.0,
+        &mut pending_cast_events,
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Dark,
             time.elapsed_secs(),
@@ -174,6 +177,7 @@ fn sleep_casting_logic(
     talent_params: &SleepTalentParams,
     talent_progress: &mut Option<ResMut<BattleTalentProgress>>,
     local_origin: Vec3,
+    pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) -> bool {
     // Check for release event
     if handle_spell_release(input, commands, wizard_entity, casting_state, caster_query) {
@@ -243,10 +247,12 @@ fn sleep_casting_logic(
                             game_config,
                             sfx,
                         );
-                        vfx::systems::spawn_aura_bubble(
+                        vfx::systems::spawn_aura_bubble_synced(
                             commands,
                             assets,
+                            pending,
                             assets.sleep_aura_sphere.clone(),
+                            crate::networking::snapshot::AuraBubbleVariant::Sleep,
                             indicator.position,
                             effective_radius,
                             2.5,

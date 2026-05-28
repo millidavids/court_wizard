@@ -136,9 +136,26 @@ impl Plugin for MultiplayerGamePlugin {
             (
                 spell_sync::receive_spell_visual_snapshot,
                 spell_sync::apply_remote_spell_snapshot,
+                spell_sync::apply_remote_cast_events,
             )
                 .chain()
                 .run_if(mp_running),
+        );
+
+        // Outgoing one-shot cast VFX events. Casting handlers push to this
+        // via `vfx::systems::emit_cast_event` (or the `_synced` wrappers);
+        // `send_spell_visual_snapshot` drains it into the snapshot once per
+        // tick. Initialized for both peers — guest casts ship events too.
+        // `mp_active` is toggled on MP state enter/exit so single-player
+        // calls to `emit_cast_event` no-op (the drain only runs in MP).
+        app.init_resource::<spell_sync::PendingCastEvents>();
+        app.add_systems(
+            OnEnter(AppState::MultiplayerGame),
+            spell_sync::mark_pending_events_mp_active,
+        );
+        app.add_systems(
+            OnExit(AppState::MultiplayerGame),
+            spell_sync::mark_pending_events_mp_inactive,
         );
 
         // ── Guest: Unit Snapshot Rendering + CRDT Send ─────────────────
@@ -151,8 +168,7 @@ impl Plugin for MultiplayerGamePlugin {
         app.add_systems(
             Update,
             (
-                guest_systems::apply_state_snapshot
-                    .in_set(crate::game::units::GuestSnapshotSet),
+                guest_systems::apply_state_snapshot.in_set(crate::game::units::GuestSnapshotSet),
                 guest_systems::send_crdt_snapshot,
             )
                 .chain()
@@ -218,9 +234,9 @@ impl Plugin for MultiplayerGamePlugin {
         // this, a second cast of the same status on the same ghost would be
         // silently dropped (the Without<StatusEffectForwarded<T>> filter
         // would keep the stale marker forever).
-        use guest_systems::cleanup_forwarded_marker as cleanup;
         use crate::game::units::components as comp;
         use crate::game::units::status_effects as sfx;
+        use guest_systems::cleanup_forwarded_marker as cleanup;
         app.add_systems(
             Update,
             (

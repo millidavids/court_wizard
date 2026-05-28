@@ -8,7 +8,6 @@ use super::constants;
 use super::effects::spawn_necrotic_explosion;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::crt_effect::ScreenDesaturateMessage;
 use crate::game::input::MouseButtonState;
@@ -17,6 +16,7 @@ use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spe
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     PendingDefenderHeal, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
 };
@@ -438,13 +438,17 @@ pub fn apply_finger_of_death_damage(
     rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut desaturate: MessageWriter<ScreenDesaturateMessage>,
-    mut vignette_pulse: MessageWriter<crate::game::crt_effect::VignettePulseMessage>,
+    msg_ctx: (
+        MessageWriter<ScreenDesaturateMessage>,
+        MessageWriter<crate::game::crt_effect::VignettePulseMessage>,
+    ),
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     local_origin: Res<LocalSpellOrigin>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
+    let (mut desaturate, mut vignette_pulse) = msg_ctx;
     let mut any_fired = false;
 
     let mut hit_positions: Vec<Vec3> = Vec::new();
@@ -563,9 +567,10 @@ pub fn apply_finger_of_death_damage(
             intensity: 0.15,
         });
 
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Dark,
             time.elapsed_secs(),

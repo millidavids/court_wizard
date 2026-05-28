@@ -10,12 +10,12 @@ use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftHeld;
 use crate::game::units::components::{Corpse, Team};
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -101,10 +101,11 @@ pub fn handle_magic_missile_casting(
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
     peer_id: Option<Res<PeerId>>,
-    (sfx, config, active_talents): (
+    (sfx, config, active_talents, mut pending_cast_events): (
         Res<SpellSfxAssets>,
         Res<GameConfig>,
         Option<Res<ActiveTalents>>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
     ),
     existing_barrage: Query<Entity, With<ArcaneBarrage>>,
     // Hard guard against same-window double-cast. Tracks the `Time::elapsed_secs`
@@ -203,9 +204,10 @@ pub fn handle_magic_missile_casting(
         return;
     }
 
-    vfx::systems::spawn_school_flare(
+    vfx::systems::spawn_school_flare_synced(
         &mut commands,
         &visual_assets,
+        &mut pending_cast_events,
         local_origin.0,
         vfx::systems::SpellSchool::Arcane,
         time.elapsed_secs(),

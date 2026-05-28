@@ -10,7 +10,6 @@ use super::components::{
 use super::constants;
 use super::ignite::spawn_grease_zone;
 use crate::config::GameConfig;
-use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
@@ -18,6 +17,7 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::components::{Corpse, Health, RootedModifier, SlowMovementModifier};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     cleanup_spell_caster, handle_spell_release, try_start_cast_with_indicator,
@@ -109,7 +109,11 @@ pub fn handle_grease_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>, Res<LocalSpellOrigin>),
+    cursor_resources: (
+        Res<CorrectedCursorPosition>,
+        Res<TargetAssistWorldPos>,
+        Res<LocalSpellOrigin>,
+    ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
@@ -119,9 +123,11 @@ pub fn handle_grease_casting(
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
         Option<Res<ActiveToggles>>,
+        ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
     ),
 ) {
-    let (active_talents, _talent_progress, active_toggles) = talent_resources;
+    let (active_talents, _talent_progress, active_toggles, mut pending_cast_events) =
+        talent_resources;
     let scorched_mult =
         crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
@@ -162,9 +168,10 @@ pub fn handle_grease_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(
+        vfx::systems::spawn_school_flare_synced(
             &mut commands,
             &visual_assets,
+            &mut pending_cast_events,
             local_origin.0,
             vfx::systems::SpellSchool::Transmutation,
             time.elapsed_secs(),
