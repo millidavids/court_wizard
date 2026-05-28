@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.8.41] - 2026-05-28
 
 ### Fixed
 - **Status spells now actually take effect on the other player's units** — sleep, root, polymorph, mind control, banishment, mark of death, haste, guardian circle, battle hymn, berserker rage, slow, stun, fog evasion, and knockback all silently did nothing when the guest cast them because the effect never made it to the host's authoritative army. Every one of these now lands properly on both sides, including the talent variants
