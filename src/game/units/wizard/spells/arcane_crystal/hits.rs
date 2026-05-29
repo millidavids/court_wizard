@@ -38,8 +38,9 @@ pub(super) fn detect_fireball_hits(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    // Host-only — guest ghost crystal must NOT fire mini-spells on hits, or
-    // every reaction deals ~2x damage (host fires + guest fires and forwards).
+    // Each peer drives its own real crystal only — the ghost copy of the
+    // remote peer's crystal is excluded so the same absorption never fires
+    // twice across the network.
     mut crystals: Query<
         (&mut ArcaneCrystal, Option<&mut ResonanceCascade>),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
@@ -130,8 +131,9 @@ pub(super) fn detect_beam_hits(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    // Host-only — guest ghost crystal must NOT fire mini-spells on hits, or
-    // every reaction deals ~2x damage (host fires + guest fires and forwards).
+    // Each peer drives its own real crystal only — the ghost copy of the
+    // remote peer's crystal is excluded so the same absorption never fires
+    // twice across the network.
     mut crystals: Query<
         (&mut ArcaneCrystal, Option<&mut ResonanceCascade>),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
@@ -377,8 +379,9 @@ pub(super) fn detect_meteor_hits(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    // Host-only — guest ghost crystal must NOT fire mini-spells on hits, or
-    // every reaction deals ~2x damage (host fires + guest fires and forwards).
+    // Each peer drives its own real crystal only — the ghost copy of the
+    // remote peer's crystal is excluded so the same absorption never fires
+    // twice across the network.
     mut crystals: Query<
         (&mut ArcaneCrystal, Option<&mut ResonanceCascade>),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
@@ -464,8 +467,9 @@ pub(super) fn detect_magic_missile_hits(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    // Host-only — guest ghost crystal must NOT fire mini-spells on hits, or
-    // every reaction deals ~2x damage (host fires + guest fires and forwards).
+    // Each peer drives its own real crystal only — the ghost copy of the
+    // remote peer's crystal is excluded so the same absorption never fires
+    // twice across the network.
     mut crystals: Query<
         (&mut ArcaneCrystal, Option<&mut ResonanceCascade>),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,

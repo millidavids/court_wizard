@@ -139,7 +139,7 @@ impl ArcaneCrystal {
 
 /// Marker for the range indicator circle entity linked to a crystal.
 #[derive(Component)]
-pub(super) struct CrystalRangeIndicator {
+pub(crate) struct CrystalRangeIndicator {
     /// The crystal entity this indicator belongs to.
     pub crystal_entity: Entity,
 }

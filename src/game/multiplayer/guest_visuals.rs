@@ -407,8 +407,8 @@ pub(super) fn spawn_spell_effect(
 
         SpellEffectKind::ArcaneCrystal => {
             use crate::game::units::wizard::spells::arcane_crystal::components::{
-                ArcaneCrystal, AutoCrystalTimer, CrystalNetwork, PrismaticExplosion,
-                ResonanceCascade,
+                ArcaneCrystal, AutoCrystalTimer, CrystalNetwork, CrystalRangeIndicator,
+                PrismaticExplosion, ResonanceCascade,
             };
             let range = extra[0];
             let duration = extra[1];
@@ -435,13 +435,9 @@ pub(super) fn spawn_spell_effect(
                 ),
                 OnMultiplayerGameScreen,
             ));
-            // Re-insert any talent marker components present on the host's
-            // crystal so guest-side talent visuals / state systems attach
-            // correctly. Note: the talent GAMEPLAY systems
-            // (detect_fireball_hits, auto_crystal_fire, etc.) are gated
-            // `Without<GhostSpellEffect>` — they only run on the host —
-            // so these markers exist on the guest solely for visual/state
-            // consistency (e.g. Resonance Cascade absorption counter).
+            // Re-insert any talent marker components present on the original
+            // caster's crystal so the receiving peer's talent visuals / state
+            // systems attach correctly.
             if flags & (1 << 0) != 0 {
                 ec.insert(ResonanceCascade { absorptions: 0 });
             }
@@ -454,7 +450,20 @@ pub(super) fn spawn_spell_effect(
             if flags & (1 << 3) != 0 {
                 ec.insert(CrystalNetwork);
             }
-            Some(ec.id())
+            let crystal_entity = ec.id();
+            // Mirror the pink aura range sphere that the local-cast path
+            // spawns in `arcane_crystal/setup.rs`. Without this, the
+            // receiving peer sees the crystal but not its sphere of
+            // influence — the bubble visual is missing on the ghost side.
+            ec.commands().spawn((
+                Mesh3d(assets.explosion_sphere.clone()),
+                MeshMaterial3d(assets.crystal_aura_sphere.clone()),
+                Transform::from_translation(Vec3::new(pos.x, 0.0, pos.z))
+                    .with_scale(Vec3::splat(range)),
+                CrystalRangeIndicator { crystal_entity },
+                OnMultiplayerGameScreen,
+            ));
+            Some(crystal_entity)
         }
 
         SpellEffectKind::LightningRod => {

@@ -7,7 +7,7 @@ use super::components::{
     ResonanceCascade,
 };
 use super::systems;
-use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
+use crate::game::run_conditions::is_spell_effects_active;
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::run_conditions::{
     mouse_held_or_wizard_casting, mouse_left_not_consumed, spell_input_not_blocked, spell_is_primed,
@@ -44,13 +44,15 @@ impl Plugin for ArcaneCrystalPlugin {
                 .run_if(is_spell_effects_active),
         );
 
-        // Gameplay / hit-detection / talent systems — HOST-ONLY in MP.
-        // These require `ResMut<BattleTalentProgress>` (which only exists
-        // host-side) and mutate authoritative damage / talent progress;
-        // running them on the guest would crash on the missing resource
-        // AND double-apply damage on the ghost crystal. Their crystal
-        // queries are also gated `Without<GhostSpellEffect>` for
-        // defence-in-depth.
+        // Gameplay / hit-detection / talent systems — run on BOTH peers so
+        // each peer drives propagation for the crystal it cast. Every
+        // crystal query is gated `Without<GhostSpellEffect>`, so each peer
+        // only processes its own real crystal and never the snapshot ghost
+        // of the other peer's. `BattleTalentProgress` is initialized on
+        // both host and guest at `MultiplayerGameState::Running`.
+        // Propagated mini-projectiles spawn locally and reach the remote
+        // peer through their normal sync paths (magic missile position
+        // snapshots, `SpellHitUnit` damage forwarding).
         app.add_systems(
             Update,
             (
@@ -65,7 +67,7 @@ impl Plugin for ArcaneCrystalPlugin {
                 systems::auto_cast_remembered_spell.run_if(any_with_component::<ArcaneCrystal>),
                 systems::auto_crystal_fire.run_if(any_with_component::<AutoCrystalTimer>),
             )
-                .run_if(is_gameplay_running),
+                .run_if(is_spell_effects_active),
         );
     }
 }

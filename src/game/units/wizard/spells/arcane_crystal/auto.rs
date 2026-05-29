@@ -38,7 +38,7 @@ pub(super) fn auto_cast_remembered_spell(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    // Host-only — see hits.rs filter for rationale.
+    // Each peer drives its own real crystal only — see hits.rs for rationale.
     mut crystals: Query<
         (Entity, &mut ArcaneCrystal),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,

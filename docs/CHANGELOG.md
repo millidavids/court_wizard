@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 - **Spell web no longer jumps off-screen when you open the Study tab** — on entering the Study tab in the Wizard Tower, the spell web would render way off to the left and only snap into place after you clicked or panned. It now appears in the right position from the moment the tab opens
 - **Spell web no longer jumps to the corner after committing insight** — pressing Commit could make the entire web collapse to the top-left of the panel until you next interacted with it. The view now stays exactly where you left it after committing
 - **Enemy Dispellers no longer count toward your Dispel talent progress** — dispels cast by enemy Dispeller units were being added to your Effects Dispelled total, inflating your progress toward the Dispel talent tiers. Only your own dispels now count
+- **Arcane Crystal's pink sphere of influence now appears on the other player's screen** — when one player placed a crystal, the crystal itself showed up for the other player but the surrounding pink bubble that marks its range was missing. Both players now see the bubble
+- **Arcane Crystal now absorbs and re-fires spells in multiplayer no matter who cast it** — when a crystal was placed by either player, projectiles flying through it (magic missiles, fireballs, meteors, disintegrate beams, chain lightning) silently ignored the crystal instead of being absorbed and split into smaller bursts. The crystal's talent effects (Resonance Cascade, Auto-Crystal turret, Crystal Network chain, etc.) also stayed dormant. Each player's crystals now work the same in multiplayer as they do in single-player
 
 ## [v0.8.43] - 2026-05-28
 
