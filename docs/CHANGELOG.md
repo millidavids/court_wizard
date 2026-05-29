@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.8.53] - 2026-05-29
 
 ### Added
 - **You can now adjust settings during a multiplayer match** — opening the pause menu in a multiplayer game shows a new Settings button alongside Resume and Disconnect. Clicking it opens the same settings screen you'd see in single-player; Back (or Escape) returns to the pause menu. Gameplay keeps running in the background while settings is open
