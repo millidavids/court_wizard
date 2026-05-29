@@ -10,6 +10,7 @@ use crate::game::units::components::{
     AnthemResilience, BattleHymnModifier, EchoingSong, HasteModifier, Team, TemporaryHitPoints,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -183,9 +184,10 @@ pub fn handle_battle_hymn_casting(
                 &mut talent_progress,
                 talents,
             );
-            audio::play_sfx(
+            audio::play_sfx_synced(
                 &mut commands,
-                &sfx.battle_hymn_cast,
+                &mut pending_cast_events,
+                SpellSoundId::BattleHymnCast,
                 local_origin.0,
                 game_config,
                 sfx,
@@ -214,9 +216,10 @@ pub fn handle_battle_hymn_casting(
                     &mut talent_progress,
                     talents,
                 );
-                audio::play_sfx(
+                audio::play_sfx_synced(
                     &mut commands,
-                    &sfx.battle_hymn_cast,
+                    &mut pending_cast_events,
+                    SpellSoundId::BattleHymnCast,
                     indicator.position,
                     game_config,
                     sfx,

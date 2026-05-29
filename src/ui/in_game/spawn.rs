@@ -523,13 +523,16 @@ pub(super) fn spawn_mp_hud(mut commands: Commands, config: Res<GameConfig>) {
                     ..default()
                 })
                 .with_children(|bars| {
-                    // Mana bar
+                    // Mana bar — matches the SP layout (Row flex with a
+                    // current-mana child and a reserved-mana partition for
+                    // Concentration). Without the reserved child, the
+                    // "Concentrating" partition is invisible in MP.
                     bars.spawn((
                         Node {
                             width: MANA_BAR_WIDTH,
                             height: MANA_BAR_HEIGHT,
                             border: UiRect::all(Val::Px(2.0)),
-                            justify_content: JustifyContent::FlexEnd,
+                            flex_direction: FlexDirection::Row,
                             ..default()
                         },
                         BackgroundColor(MANA_BAR_BG_COLOR),
@@ -544,6 +547,26 @@ pub(super) fn spawn_mp_hud(mut commands: Commands, config: Res<GameConfig>) {
                             BackgroundColor(MANA_BAR_FILL_COLOR),
                             ManaBarFill,
                         ));
+                        mana.spawn((
+                            Node {
+                                width: Val::Percent(0.0),
+                                height: Val::Percent(100.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                overflow: Overflow::clip(),
+                                ..default()
+                            },
+                            BackgroundColor(MANA_BAR_RESERVED_COLOR),
+                            ManaBarReservedFill,
+                        ))
+                        .with_children(|reserved| {
+                            reserved.spawn((
+                                Text::new("Concentrating"),
+                                TextFont::from_font_size(8.0),
+                                TextColor(Color::srgba(0.7, 0.6, 1.0, 0.8)),
+                                ManaBarReservedText,
+                            ));
+                        });
                     });
 
                     // Cast bar

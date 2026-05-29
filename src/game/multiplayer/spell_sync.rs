@@ -43,8 +43,8 @@ use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::{
     AuraBubbleVariant, BeamSnapshot, CastEventKind, CastEventSnapshot, MagicMissileSnapshot,
     MoteMaterial, PoofVariant, SparkMaterial, SpellArcSnapshot, SpellEffectKind,
-    SpellEffectSnapshot, SpellProjectileSnapshot, SpellSchoolWire, SpellVisualSnapshot,
-    UNRELIABLE_SPELL_SNAPSHOT,
+    SpellEffectSnapshot, SpellProjectileSnapshot, SpellSchoolWire, SpellSoundId,
+    SpellVisualSnapshot, UNRELIABLE_SPELL_SNAPSHOT,
 };
 
 /// Resource holding the latest received remote spell visual snapshot.
@@ -857,6 +857,10 @@ pub fn apply_remote_spell_snapshot(
 
     for entity in &ghost_arcs {
         if let Ok(mut ec) = commands.get_entity(entity) {
+            // Despawn the segment-quad children spawned by
+            // `update_lightning_bolts` for jagged-bolt ghosts; without this
+            // they orphan and leak.
+            ec.despawn_related::<Children>();
             ec.try_despawn();
         }
     }
@@ -881,20 +885,87 @@ pub fn apply_remote_spell_snapshot(
             continue;
         }
 
+        // Lightning arcs (chain lightning = 0, descending strike = 1, rod
+        // ground arc = 5) need the jagged segmented geometry, not a flat
+        // quad. Spawn a `LightningBolt` parent so `update_lightning_bolts`
+        // (which runs on both peers under `is_spell_effects_active`)
+        // rebuilds the crackling child-segment set every frame on the
+        // receiver, matching the caster's visual.
+        if matches!(arc.kind, 0 | 1 | 5) {
+            use crate::game::units::wizard::spells::lightning_bolt::{
+                LightningBolt, LightningBoltConfig,
+            };
+            let config = match arc.kind {
+                0 => LightningBoltConfig {
+                    width: 3.0,
+                    lifetime: 0.3,
+                    peak_height: 0.0,
+                    jitter_amplitude: 15.0,
+                    segments: 16,
+                    fork_count: 2,
+                    fork_segments: 3,
+                    fork_length: 24.0,
+                    afterimage_duration: 0.2,
+                },
+                1 => LightningBoltConfig {
+                    width: 8.0,
+                    lifetime: 1.5,
+                    peak_height: 0.0,
+                    jitter_amplitude: 18.0,
+                    segments: 24,
+                    fork_count: 2,
+                    fork_segments: 3,
+                    fork_length: 62.0,
+                    afterimage_duration: 1.0,
+                },
+                5 => LightningBoltConfig {
+                    width: 6.0,
+                    lifetime: 0.3,
+                    peak_height: 0.0,
+                    jitter_amplitude: 10.0,
+                    segments: 14,
+                    fork_count: 1,
+                    fork_segments: 3,
+                    fork_length: 36.0,
+                    afterimage_duration: 0.25,
+                },
+                _ => unreachable!(),
+            };
+            commands.spawn((
+                LightningBolt {
+                    start: origin,
+                    end: target,
+                    time_alive: 0.0,
+                    lifetime: config.lifetime,
+                    afterimage_remaining: config.afterimage_duration,
+                    in_afterimage: false,
+                    config,
+                    mesh: assets.unit_rect.clone(),
+                    material,
+                    base_color: Color::WHITE,
+                    material_cloned: false,
+                },
+                Transform::default(),
+                Visibility::Inherited,
+                GhostSpellArc,
+                OnMultiplayerGameScreen,
+            ));
+            continue;
+        }
+
         let direction = diff / length;
         let midpoint = origin + diff * 0.5;
         let rotation = Quat::from_rotation_arc(Vec3::Y, direction);
 
         let width = match arc.kind {
-            0 | 3 | 5 => 6.0,
-            1 => 8.0,
+            3 => 6.0,
             2 | 4 => 20.0,
             6 => 16.0,
             _ => 6.0,
         };
 
         // Beam-type arcs (finger of death=4, disintegrate=6) use cross-plane cylinder mesh.
-        // Other arcs use flat rectangles.
+        // Other arcs (crystal beam=2, crystal arc=3) use flat rectangles.
         let is_beam = arc.kind == 4 || arc.kind == 6;
         let mesh = if is_beam {
             assets.cross_plane_cylinder.clone()
@@ -991,6 +1062,8 @@ pub fn apply_remote_cast_events(
         Assets<crate::game::units::wizard::spells::visual_assets::FireExplosionSphereMaterial>,
     >,
     time: Res<Time>,
+    game_config: Res<crate::config::GameConfig>,
+    sfx_assets: Option<Res<crate::game::units::wizard::spells::audio::SpellSfxAssets>>,
 ) {
     let Some(snapshot) = &latest.0 else { return };
     let Some(assets) = assets else { return };
@@ -1155,6 +1228,25 @@ pub fn apply_remote_cast_events(
                     Transform::from_translation(pos).with_scale(Vec3::splat(radius)),
                     crate::game::components::OnGameplayScreen,
                 ));
+            }
+            CastEventKind::SfxOneShot => {
+                let Some(ref sfx) = sfx_assets else { continue };
+                let Ok(sound_id) = SpellSoundId::try_from(event.subkind) else {
+                    continue;
+                };
+                let volume_scale = if event.extra[0] > 0.0 {
+                    event.extra[0]
+                } else {
+                    1.0
+                };
+                crate::game::units::wizard::spells::audio::play_remote_sfx(
+                    &mut commands,
+                    sound_id,
+                    pos,
+                    volume_scale,
+                    &game_config,
+                    sfx.as_ref(),
+                );
             }
         }
     }

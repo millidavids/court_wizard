@@ -16,6 +16,7 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{Corpse, MindControlled, Team};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -279,9 +280,10 @@ pub(super) fn handle_mind_control_casting(
                                 }
                             }
                             if count > 0 {
-                                audio::play_sfx(
+                                audio::play_sfx_synced(
                                     &mut commands,
-                                    &sfx.mind_control_cast,
+                                    pending_cast_events,
+                                    SpellSoundId::MindControlCast,
                                     pos,
                                     game_config,
                                     sfx,
@@ -296,9 +298,10 @@ pub(super) fn handle_mind_control_casting(
                         if let Ok((_, target_transform, _, _)) =
                             enemies_query.get(highlighted.entity)
                         {
-                            audio::play_sfx(
+                            audio::play_sfx_synced(
                                 &mut commands,
-                                &sfx.mind_control_cast,
+                                pending_cast_events,
+                                SpellSoundId::MindControlCast,
                                 target_transform.translation,
                                 game_config,
                                 sfx,

@@ -12,6 +12,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -81,6 +82,7 @@ pub fn handle_fireball_casting(
         game_config,
         &active_talents,
         local_origin.0,
+        &mut pending_cast_events,
     );
 
     if completed {
@@ -114,6 +116,7 @@ fn fireball_casting_logic(
     game_config: &GameConfig,
     active_talents: &Option<Res<ActiveTalents>>,
     local_origin: Vec3,
+    pending_cast_events: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) -> bool {
     let mut completed = false;
 
@@ -156,7 +159,14 @@ fn fireball_casting_logic(
                         primed_spell,
                         active_talents,
                     );
-                    audio::play_sfx(commands, &sfx.fireball_cast, spawn_origin, game_config, sfx);
+                    audio::play_sfx_synced(
+                        commands,
+                        pending_cast_events,
+                        SpellSoundId::FireballCast,
+                        spawn_origin,
+                        game_config,
+                        sfx,
+                    );
                     completed = true;
                 }
                 cleanup_spell_caster(commands, wizard_entity, caster_query);

@@ -12,6 +12,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, HasteModifier, SlowMovementModifier, Team};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -162,9 +163,10 @@ pub fn handle_haste_casting(
                         && let Ok(indicator) = indicator_query.get(indicator_entity)
                     {
                         let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment;
-                        audio::play_sfx(
+                        audio::play_sfx_synced(
                             &mut commands,
-                            &sfx.haste_cast,
+                            &mut pending_cast_events,
+                            SpellSoundId::HasteCast,
                             indicator.position,
                             game_config,
                             sfx,

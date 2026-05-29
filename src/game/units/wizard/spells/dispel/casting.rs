@@ -7,6 +7,7 @@ use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::vfx;
@@ -116,7 +117,14 @@ pub fn handle_dispel_casting(
         vfx::systems::SpellSchool::Arcane,
         time.elapsed_secs(),
     );
-    audio::play_sfx(&mut commands, &sfx.dispel_cast, origin, &game_config, &sfx);
+    audio::play_sfx_synced(
+        &mut commands,
+        &mut pending_cast_events,
+        SpellSoundId::DispelCast,
+        origin,
+        &game_config,
+        &sfx,
+    );
 
     let cooldown_time = constants::COOLDOWN * talent_params.cooldown_mult;
     commands.entity(wizard_entity).insert(DispelCooldown {

@@ -504,6 +504,9 @@ pub(super) fn mp_escape_key_handler(
         | MultiplayerGameState::CauldronMenu => {
             next_mp_state.set(MultiplayerGameState::Running);
         }
+        MultiplayerGameState::Settings => {
+            next_mp_state.set(MultiplayerGameState::Paused);
+        }
         _ => {}
     }
 }
@@ -559,6 +562,12 @@ pub(super) fn setup_mp_pause_menu(mut commands: Commands) {
             );
             spawn_button(
                 parent,
+                "Settings",
+                MpPauseButtonAction::Settings,
+                &PAUSE_BUTTON_STYLE,
+            );
+            spawn_button(
+                parent,
                 "Disconnect",
                 MpPauseButtonAction::Disconnect,
                 &PAUSE_BUTTON_STYLE,
@@ -598,6 +607,9 @@ pub(super) fn handle_mp_pause_buttons(
             match action {
                 MpPauseButtonAction::Resume => {
                     next_mp_state.set(MultiplayerGameState::Running);
+                }
+                MpPauseButtonAction::Settings => {
+                    next_mp_state.set(MultiplayerGameState::Settings);
                 }
                 MpPauseButtonAction::Disconnect => {
                     if let Some(ref transport) = transport {

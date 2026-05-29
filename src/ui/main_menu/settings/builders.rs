@@ -1535,7 +1535,7 @@ fn spawn_slider_control(
 }
 
 /// Spawns a confirmation popup overlay in the center of the screen.
-pub(super) fn spawn_confirmation_popup(
+pub(crate) fn spawn_confirmation_popup(
     commands: &mut Commands,
     action: SettingsButtonAction,
     message: &str,

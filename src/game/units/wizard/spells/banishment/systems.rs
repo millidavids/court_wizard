@@ -22,6 +22,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -248,9 +249,10 @@ pub fn handle_banishment_casting(
             time.elapsed_secs(),
         );
         progress.increment(Spell::Banishment, banished_count);
-        audio::play_sfx(
+        audio::play_sfx_synced(
             &mut commands,
-            &sfx.banishment_cast,
+            &mut pending_cast_events,
+            SpellSoundId::BanishmentCast,
             local_origin.0,
             &game_config,
             &sfx,

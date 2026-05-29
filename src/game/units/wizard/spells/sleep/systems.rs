@@ -12,6 +12,7 @@ use crate::game::units::components::{
     Sleepwalking, TargetingVelocity, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -240,9 +241,10 @@ fn sleep_casting_logic(
                         && let Some(indicator_entity) = caster.indicator_entity
                         && let Ok(indicator) = indicator_query.get(indicator_entity)
                     {
-                        audio::play_sfx(
+                        audio::play_sfx_synced(
                             commands,
-                            &sfx.sleep_cast,
+                            pending,
+                            SpellSoundId::SleepCast,
                             indicator.position,
                             game_config,
                             sfx,

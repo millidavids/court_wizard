@@ -20,6 +20,7 @@ use crate::game::units::components::{
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::systems::create_sprite_material;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -264,7 +265,14 @@ pub fn handle_polymorph_casting(
             time.elapsed_secs(),
         );
         if let Some(pos) = cursor_pos {
-            audio::play_sfx(&mut commands, &sfx.polymorph_cast, pos, &game_config, &sfx);
+            audio::play_sfx_synced(
+                &mut commands,
+                &mut pending_cast_events,
+                SpellSoundId::PolymorphCast,
+                pos,
+                &game_config,
+                &sfx,
+            );
         }
         mouse_state.left_consumed = true;
         if let Some(ref mut progress) = talent_progress {
@@ -513,9 +521,10 @@ pub fn tick_polymorphed_units(
                         &mut pending_cast_events,
                     );
 
-                    audio::play_sfx(
+                    audio::play_sfx_synced(
                         &mut commands,
-                        &sfx.polymorph_cast,
+                        &mut pending_cast_events,
+                        SpellSoundId::PolymorphCast,
                         transform.translation,
                         &game_config,
                         &sfx,

@@ -21,6 +21,7 @@ use crate::game::units::components::{
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::lightning_bolt::{
     LightningBoltConfig, spawn_lightning_bolt,
 };
@@ -205,9 +206,10 @@ pub fn handle_chain_lightning_casting(
             vfx::systems::SpellSchool::Lightning,
             time.elapsed_secs(),
         );
-        audio::play_sfx(
+        audio::play_sfx_synced(
             &mut commands,
-            &sfx.chain_lightning_cast,
+            &mut pending_cast_events,
+            SpellSoundId::ChainLightningCast,
             local_origin.0,
             &game_config,
             &sfx,

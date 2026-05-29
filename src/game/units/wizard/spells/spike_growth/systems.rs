@@ -22,6 +22,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     self, SpellCircleIndicator, TargetAssistWorldPos, UniqueHitTracker, apply_target_assist,
@@ -204,9 +205,10 @@ pub fn handle_spike_growth_casting(
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            audio::play_sfx(
+                            audio::play_sfx_synced(
                                 &mut commands,
-                                &sfx.spike_growth_cast,
+                                &mut pending_cast_events,
+                                SpellSoundId::SpikeGrowthCast,
                                 indicator.position,
                                 &game_config,
                                 &sfx,

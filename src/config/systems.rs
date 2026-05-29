@@ -526,6 +526,19 @@ pub(super) fn save_on_exit(
     save_data::flush_save_cache();
 }
 
+/// Forces the OS process to terminate immediately after `save_on_exit` has
+/// flushed state to disk. Without this, Bevy's normal `app.run()` shutdown
+/// path can stall for tens of seconds on macOS after a played session —
+/// audio/WGPU/network resources accumulated during gameplay are slow to drop,
+/// and the in-process drop chain never reaches `main()`. Since saves are
+/// already persisted and the process is exiting, skipping the remaining
+/// Drop chain is safe.
+pub(super) fn force_exit_after_save(mut exit_events: MessageReader<AppExit>) {
+    if exit_events.read().count() > 0 {
+        std::process::exit(0);
+    }
+}
+
 /// Builds a temporary ConfigFile from current GameConfig for serialization.
 fn build_config_from_game_config(
     game_config: &GameConfig,

@@ -54,8 +54,11 @@ impl Plugin for ConfigPlugin {
             ),
         );
 
-        // Flush saves on app exit (catches Alt+F4, window close, etc.)
-        app.add_systems(Last, save_on_exit);
+        // Flush saves on app exit (catches Alt+F4, window close, etc.), then
+        // immediately force the OS process to terminate — Bevy's own shutdown
+        // path can stall for tens of seconds on macOS after a gameplay
+        // session, never returning from `app.run()`.
+        app.add_systems(Last, (save_on_exit, force_exit_after_save).chain());
     }
 
     fn name(&self) -> &str {

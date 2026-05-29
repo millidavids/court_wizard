@@ -15,6 +15,7 @@ use crate::game::input::messages::MouseLeftHeld;
 use crate::game::units::components::{Corpse, Team};
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::vfx;
@@ -233,9 +234,10 @@ pub fn handle_magic_missile_casting(
         );
     }
 
-    audio::play_sfx(
+    audio::play_sfx_synced(
         &mut commands,
-        &sfx.magic_missile_cast,
+        &mut pending_cast_events,
+        SpellSoundId::MagicMissileCast,
         spawn_origin,
         &config,
         &sfx,
@@ -249,6 +251,7 @@ pub fn handle_magic_missile_casting(
 }
 
 /// Ticks the Arcane Barrage concentration entity, periodically firing missile volleys.
+#[allow(clippy::too_many_arguments)]
 #[allow(clippy::too_many_arguments)]
 pub fn update_arcane_barrage(
     time: Res<Time>,
@@ -264,6 +267,7 @@ pub fn update_arcane_barrage(
     crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
+    mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
     let Ok(mut barrage) = barrage_query.single_mut() else {
         return;
@@ -308,9 +312,10 @@ pub fn update_arcane_barrage(
         );
     }
 
-    audio::play_sfx(
+    audio::play_sfx_synced(
         &mut commands,
-        &sfx.magic_missile_cast,
+        &mut pending_cast_events,
+        SpellSoundId::MagicMissileCast,
         spawn_origin,
         &config,
         &sfx,

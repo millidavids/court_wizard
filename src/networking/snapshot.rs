@@ -486,6 +486,9 @@ pub enum CastEventKind {
     /// Berserker Rage's Final Stand talent detonates the unit on death.
     /// `extra` = `[max_radius, lifetime, 0, 0]`.
     FinalStandExplosion = 8,
+    /// One-shot spell SFX. `subkind` = `SpellSoundId` ordinal; `x/y/z` = world
+    /// position for distance attenuation; `extra[0]` = volume scale.
+    SfxOneShot = 9,
 }
 
 impl TryFrom<u8> for CastEventKind {
@@ -501,6 +504,86 @@ impl TryFrom<u8> for CastEventKind {
             6 => Ok(Self::DustSmoke),
             7 => Ok(Self::BanishmentLens),
             8 => Ok(Self::FinalStandExplosion),
+            9 => Ok(Self::SfxOneShot),
+            _ => Err(()),
+        }
+    }
+}
+
+/// Identifies a one-shot spell sound effect for cross-client playback.
+/// Carried in `CastEventSnapshot::subkind` when `kind == SfxOneShot`. The
+/// receiver maps each variant back to a handle in `SpellSfxAssets` via the
+/// audio module's `lookup_sfx_handle`. Adding a new variant requires a
+/// matching arm there and a matching `TryFrom<u8>` entry below.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[repr(u8)]
+pub enum SpellSoundId {
+    MagicMissileCast = 0,
+    FireballCast = 1,
+    FireballImpact = 2,
+    ArcaneCrystalCast = 3,
+    BanishmentCast = 4,
+    BattleHymnCast = 5,
+    BerserkerRageCast = 6,
+    ChainLightningCast = 7,
+    HealingPlumeCast = 8,
+    DispelCast = 9,
+    EntangleCast = 10,
+    FingerOfDeathCast = 11,
+    FogCloudCast = 12,
+    GreaseCast = 13,
+    GuardianCircleCast = 14,
+    HasteCast = 15,
+    LightningRodImpact = 16,
+    MarkOfDeathCast = 17,
+    MindControlCast = 18,
+    PlagueWindCast = 19,
+    PolymorphCast = 20,
+    RaiseTheDeadCast = 21,
+    SleepCast = 22,
+    SpikeGrowthCast = 23,
+    SquallImpact = 24,
+    TelekinesisCast = 25,
+    TeleportCast = 26,
+    WallOfStoneCast = 27,
+    BoulderImpact = 28,
+    RayEyeDeath = 29,
+}
+
+impl TryFrom<u8> for SpellSoundId {
+    type Error = ();
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::MagicMissileCast),
+            1 => Ok(Self::FireballCast),
+            2 => Ok(Self::FireballImpact),
+            3 => Ok(Self::ArcaneCrystalCast),
+            4 => Ok(Self::BanishmentCast),
+            5 => Ok(Self::BattleHymnCast),
+            6 => Ok(Self::BerserkerRageCast),
+            7 => Ok(Self::ChainLightningCast),
+            8 => Ok(Self::HealingPlumeCast),
+            9 => Ok(Self::DispelCast),
+            10 => Ok(Self::EntangleCast),
+            11 => Ok(Self::FingerOfDeathCast),
+            12 => Ok(Self::FogCloudCast),
+            13 => Ok(Self::GreaseCast),
+            14 => Ok(Self::GuardianCircleCast),
+            15 => Ok(Self::HasteCast),
+            16 => Ok(Self::LightningRodImpact),
+            17 => Ok(Self::MarkOfDeathCast),
+            18 => Ok(Self::MindControlCast),
+            19 => Ok(Self::PlagueWindCast),
+            20 => Ok(Self::PolymorphCast),
+            21 => Ok(Self::RaiseTheDeadCast),
+            22 => Ok(Self::SleepCast),
+            23 => Ok(Self::SpikeGrowthCast),
+            24 => Ok(Self::SquallImpact),
+            25 => Ok(Self::TelekinesisCast),
+            26 => Ok(Self::TeleportCast),
+            27 => Ok(Self::WallOfStoneCast),
+            28 => Ok(Self::BoulderImpact),
+            29 => Ok(Self::RayEyeDeath),
             _ => Err(()),
         }
     }

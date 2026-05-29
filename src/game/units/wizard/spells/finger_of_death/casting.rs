@@ -16,6 +16,7 @@ use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spe
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     PendingDefenderHeal, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -575,9 +576,10 @@ pub fn apply_finger_of_death_damage(
             vfx::systems::SpellSchool::Dark,
             time.elapsed_secs(),
         );
-        audio::play_sfx(
+        audio::play_sfx_synced(
             &mut commands,
-            &sfx.finger_of_death_cast,
+            &mut pending_cast_events,
+            SpellSoundId::FingerOfDeathCast,
             local_origin.0,
             &game_config,
             &sfx,

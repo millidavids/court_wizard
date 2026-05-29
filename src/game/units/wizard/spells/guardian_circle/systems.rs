@@ -13,6 +13,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -158,9 +159,10 @@ pub fn handle_guardian_circle_casting(
             if let Ok(indicator) = indicator_query.get(indicator_entity) {
                 let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment * radius_mult;
 
-                audio::play_sfx(
+                audio::play_sfx_synced(
                     &mut commands,
-                    &sfx.guardian_circle_cast,
+                    &mut pending_cast_events,
+                    SpellSoundId::GuardianCircleCast,
                     indicator.position,
                     game_config,
                     sfx,

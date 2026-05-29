@@ -17,6 +17,7 @@ use crate::game::units::components::{
     Corpse, Health, RootedModifier, SlowMovementModifier, Team, TemporaryHitPoints,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -217,9 +218,10 @@ pub fn handle_entangle_casting(
                                 * primed_spell.empowerment
                                 * talent_params.duration_mult
                                 * scorched_mult;
-                            audio::play_sfx(
+                            audio::play_sfx_synced(
                                 &mut commands,
-                                &sfx.entangle_cast,
+                                &mut pending_cast_events,
+                                SpellSoundId::EntangleCast,
                                 cast_pos,
                                 &game_config,
                                 &sfx,

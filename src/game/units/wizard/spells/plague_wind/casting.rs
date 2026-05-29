@@ -13,6 +13,7 @@ use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -202,6 +203,7 @@ pub fn handle_plague_wind_casting(
         talent_params,
         clamped_pos,
         local_origin.0,
+        pending_cast_events,
     );
 
     if completed {
@@ -236,6 +238,7 @@ fn plague_wind_casting_logic(
     talent_params: PlagueWindTalentParams,
     cursor_pos: Option<Vec3>,
     local_origin: Vec3,
+    pending_cast_events: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) -> bool {
     let wizard_pos = local_origin;
     let scale = primed_spell.empowerment;
@@ -286,7 +289,14 @@ fn plague_wind_casting_logic(
                     let duration = constants::CLOUD_DURATION * scale * talent_params.duration_mult;
                     let speed = constants::CLOUD_SPEED * talent_params.speed_mult;
 
-                    audio::play_sfx(commands, &sfx.plague_wind_cast, pos, game_config, sfx);
+                    audio::play_sfx_synced(
+                        commands,
+                        pending_cast_events,
+                        SpellSoundId::PlagueWindCast,
+                        pos,
+                        game_config,
+                        sfx,
+                    );
 
                     if talent_params.twin_plumes {
                         // Twin Plumes: spawn 2 clouds at diverging angles

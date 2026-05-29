@@ -18,6 +18,7 @@ use crate::game::units::components::{
     TemporaryHitPoints,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -216,9 +217,10 @@ pub fn handle_healing_plume_casting(
                     );
                 }
 
-                audio::play_sfx(
+                audio::play_sfx_synced(
                     &mut commands,
-                    &sfx.healing_plume_cast,
+                    pending_cast_events,
+                    SpellSoundId::HealingPlumeCast,
                     indicator.position,
                     game_config,
                     sfx,

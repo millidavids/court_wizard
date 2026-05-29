@@ -61,6 +61,7 @@ pub fn is_gameplay_running(
             *s.get(),
             MultiplayerGameState::Running
                 | MultiplayerGameState::Paused
+                | MultiplayerGameState::Settings
                 | MultiplayerGameState::SpellBook
                 | MultiplayerGameState::CauldronMenu
         )
@@ -110,6 +111,7 @@ pub fn is_local_wizard_active(
             *s.get(),
             MultiplayerGameState::Running
                 | MultiplayerGameState::Paused
+                | MultiplayerGameState::Settings
                 | MultiplayerGameState::SpellBook
                 | MultiplayerGameState::CauldronMenu
         )
@@ -142,6 +144,7 @@ pub fn is_spell_effects_active(
             *s.get(),
             MultiplayerGameState::Running
                 | MultiplayerGameState::Paused
+                | MultiplayerGameState::Settings
                 | MultiplayerGameState::SpellBook
                 | MultiplayerGameState::CauldronMenu
         )

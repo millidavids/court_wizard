@@ -187,6 +187,9 @@ pub enum MultiplayerGameState {
     /// Escape menu overlay (gameplay continues in background).
     Paused,
 
+    /// Settings overlay (entered from the pause menu — gameplay continues).
+    Settings,
+
     /// Spell book overlay (gameplay continues in background).
     SpellBook,
 

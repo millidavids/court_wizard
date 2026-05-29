@@ -110,6 +110,7 @@ pub struct OnMpPauseScreen;
 #[derive(Component, Clone)]
 pub enum MpPauseButtonAction {
     Resume,
+    Settings,
     Disconnect,
 }
 

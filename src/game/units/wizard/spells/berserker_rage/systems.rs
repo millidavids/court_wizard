@@ -17,6 +17,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -230,9 +231,10 @@ pub fn handle_berserker_rage_casting(
                     &talent_params,
                     &mut targets_query,
                 );
-                audio::play_sfx(
+                audio::play_sfx_synced(
                     &mut commands,
-                    &sfx.berserker_rage_cast,
+                    &mut pending_cast_events,
+                    SpellSoundId::BerserkerRageCast,
                     indicator.position,
                     game_config,
                     sfx,

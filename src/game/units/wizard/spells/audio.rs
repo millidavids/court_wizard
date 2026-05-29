@@ -3,7 +3,9 @@ use bevy::prelude::*;
 
 use crate::config::{GameConfig, WizardType};
 use crate::game::components::OnGameplayScreen;
+use crate::game::multiplayer::spell_sync::PendingCastEvents;
 use crate::game::units::wizard::spells::utils::local_spell_origin_snapshot;
+use crate::networking::snapshot::{CastEventKind, CastEventSnapshot, SpellSoundId};
 
 /// Maximum distance for sound effect attenuation.
 /// Effects at this distance or beyond are silent.
@@ -233,6 +235,124 @@ pub(crate) fn play_looping_sfx(
             OnGameplayScreen,
         ))
         .id()
+}
+
+/// Maps a `SpellSoundId` to the corresponding handle in `SpellSfxAssets`.
+/// Used by both the local synced wrappers and `apply_remote_cast_events` on
+/// the receiving peer.
+pub(crate) fn lookup_sfx_handle<'a>(
+    id: SpellSoundId,
+    sfx: &'a SpellSfxAssets,
+) -> &'a Handle<AudioSource> {
+    match id {
+        SpellSoundId::MagicMissileCast => &sfx.magic_missile_cast,
+        SpellSoundId::FireballCast => &sfx.fireball_cast,
+        SpellSoundId::FireballImpact => &sfx.fireball_impact,
+        SpellSoundId::ArcaneCrystalCast => &sfx.arcane_crystal_cast,
+        SpellSoundId::BanishmentCast => &sfx.banishment_cast,
+        SpellSoundId::BattleHymnCast => &sfx.battle_hymn_cast,
+        SpellSoundId::BerserkerRageCast => &sfx.berserker_rage_cast,
+        SpellSoundId::ChainLightningCast => &sfx.chain_lightning_cast,
+        SpellSoundId::HealingPlumeCast => &sfx.healing_plume_cast,
+        SpellSoundId::DispelCast => &sfx.dispel_cast,
+        SpellSoundId::EntangleCast => &sfx.entangle_cast,
+        SpellSoundId::FingerOfDeathCast => &sfx.finger_of_death_cast,
+        SpellSoundId::FogCloudCast => &sfx.fog_cloud_cast,
+        SpellSoundId::GreaseCast => &sfx.grease_cast,
+        SpellSoundId::GuardianCircleCast => &sfx.guardian_circle_cast,
+        SpellSoundId::HasteCast => &sfx.haste_cast,
+        SpellSoundId::LightningRodImpact => &sfx.lightning_rod_impact,
+        SpellSoundId::MarkOfDeathCast => &sfx.mark_of_death_cast,
+        SpellSoundId::MindControlCast => &sfx.mind_control_cast,
+        SpellSoundId::PlagueWindCast => &sfx.plague_wind_cast,
+        SpellSoundId::PolymorphCast => &sfx.polymorph_cast,
+        SpellSoundId::RaiseTheDeadCast => &sfx.raise_the_dead_cast,
+        SpellSoundId::SleepCast => &sfx.sleep_cast,
+        SpellSoundId::SpikeGrowthCast => &sfx.spike_growth_cast,
+        SpellSoundId::SquallImpact => &sfx.squall_impact,
+        SpellSoundId::TelekinesisCast => &sfx.telekinesis_cast,
+        SpellSoundId::TeleportCast => &sfx.teleport_cast,
+        SpellSoundId::WallOfStoneCast => &sfx.wall_of_stone_cast,
+        SpellSoundId::BoulderImpact => &sfx.boulder_impact,
+        SpellSoundId::RayEyeDeath => &sfx.ray_eye_death,
+    }
+}
+
+/// Returns the `SfxKind` used for Excremage handle substitution given a
+/// `SpellSoundId`. Names ending in `Impact` map to `Impact`; everything else
+/// is treated as a `Cast` (we have no looping sounds in this enum).
+fn sound_id_kind(id: SpellSoundId) -> SfxKind {
+    match id {
+        SpellSoundId::FireballImpact
+        | SpellSoundId::LightningRodImpact
+        | SpellSoundId::SquallImpact
+        | SpellSoundId::BoulderImpact => SfxKind::Impact,
+        _ => SfxKind::Cast,
+    }
+}
+
+/// Plays a one-shot SFX locally **and** emits a `SfxOneShot` cast event so
+/// the remote peer plays the same sound. Use this in casting handlers in
+/// place of `play_sfx` whenever the sound should be heard cross-client.
+///
+/// Falls back to local-only when `PendingCastEvents` is in single-player
+/// mode (so single-player behaviour is unchanged).
+pub(crate) fn play_sfx_synced(
+    commands: &mut Commands,
+    pending: &mut PendingCastEvents,
+    sound_id: SpellSoundId,
+    effect_pos: Vec3,
+    game_config: &GameConfig,
+    sfx_assets: &SpellSfxAssets,
+) {
+    play_sfx_synced_scaled(commands, pending, sound_id, effect_pos, game_config, sfx_assets, 1.0);
+}
+
+/// Like `play_sfx_synced` but with a volume scale factor.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn play_sfx_synced_scaled(
+    commands: &mut Commands,
+    pending: &mut PendingCastEvents,
+    sound_id: SpellSoundId,
+    effect_pos: Vec3,
+    game_config: &GameConfig,
+    sfx_assets: &SpellSfxAssets,
+    volume_scale: f32,
+) {
+    let handle = lookup_sfx_handle(sound_id, sfx_assets);
+    let kind = sound_id_kind(sound_id);
+    let effective = resolve_excremage_handle(handle, kind, game_config, sfx_assets);
+    play_sfx_scaled(commands, effective, effect_pos, game_config, volume_scale);
+
+    if pending.mp_active {
+        pending.events.push(CastEventSnapshot {
+            kind: CastEventKind::SfxOneShot as u8,
+            subkind: sound_id as u8,
+            x: effect_pos.x,
+            y: effect_pos.y,
+            z: effect_pos.z,
+            extra: [volume_scale, 0.0, 0.0, 0.0],
+        });
+    }
+}
+
+/// Receiver-side helper: plays a `SfxOneShot` event arriving from the remote
+/// peer. Looks up the local handle and routes through `play_sfx_scaled` so
+/// the same distance attenuation runs against the local listener (i.e. the
+/// receiving peer's own wizard). Excremage substitution applies *locally*
+/// because each peer renders sound through their own configured wizard.
+pub(crate) fn play_remote_sfx(
+    commands: &mut Commands,
+    sound_id: SpellSoundId,
+    effect_pos: Vec3,
+    volume_scale: f32,
+    game_config: &GameConfig,
+    sfx_assets: &SpellSfxAssets,
+) {
+    let handle = lookup_sfx_handle(sound_id, sfx_assets);
+    let kind = sound_id_kind(sound_id);
+    let effective = resolve_excremage_handle(handle, kind, game_config, sfx_assets);
+    play_sfx_scaled(commands, effective, effect_pos, game_config, volume_scale);
 }
 
 /// Spawns a looping sound effect with distance-based volume attenuation.

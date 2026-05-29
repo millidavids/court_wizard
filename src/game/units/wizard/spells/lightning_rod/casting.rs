@@ -12,6 +12,7 @@ use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::lightning_bolt::{
     LightningBoltConfig, spawn_lightning_bolt,
 };
@@ -220,6 +221,7 @@ pub(super) fn handle_lightning_rod_casting(
         game_config,
         active_talents.as_deref(),
         local_origin.0,
+        pending_cast_events,
     );
 
     if completed {
@@ -252,6 +254,7 @@ fn lightning_rod_casting_logic(
     game_config: &GameConfig,
     active_talents: Option<&ActiveTalents>,
     local_origin: Vec3,
+    pending_cast_events: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
 ) -> bool {
     let wizard_pos = local_origin;
 
@@ -312,9 +315,10 @@ fn lightning_rod_casting_logic(
                         );
                     }
 
-                    audio::play_impact_sfx(
+                    audio::play_sfx_synced(
                         commands,
-                        &sfx.lightning_rod_impact,
+                        pending_cast_events,
+                        SpellSoundId::LightningRodImpact,
                         spawn_pos,
                         game_config,
                         sfx,
