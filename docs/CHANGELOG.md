@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Added
+- **Steam users can now invite friends directly through the Steam overlay** — pick "Invite Friend on Steam" in the Multiplayer tab and Steam pops up its friends list for you. Your friend gets a normal Steam invite they can accept, and the two of you connect through Steam's relay network without anyone copy-pasting a code. The old code-sharing path is still there for anyone who isn't on Steam, and you can join an invite straight from Steam's friend list right-click menu or from a Steam invite link
+
+### Fixed
+- **Steam lobbies clean up properly when a match ends** — quitting a Steam match (from the score screen, pause menu, or disconnect overlay) now correctly closes the Steam lobby. Previously the lobby could linger and your Steam friend list would still show you as "in game"
+- **Cancelling a Steam invite right after pressing the button no longer leaves a ghost lobby** — clicking "Invite Friend on Steam" and immediately hitting Cancel used to leave the Steam overlay popping up seconds later for a session you'd already abandoned. Double-clicking the button also used to create two lobbies and leak the first
+- **Steam connection problems now show a clear error instead of spinning forever** — if Steam couldn't open the P2P connection from either side, or if joining a lobby failed (full lobby, wrong game version, friend cancelled before you could connect), the screen used to sit on "Waiting…" or "Connecting…" indefinitely. It now flips to a clear failure message
+- **Steam disconnect messages are more specific** — when your friend leaves a Steam lobby, the screen now reads "Your friend left the lobby" (or "disconnected" / "kicked" / "banned") instead of a generic "Connection lost"
+- **Cancelling on the Connect screen no longer clears unrelated Steam status info** — Cancel used to wipe Steam rich-presence info unconditionally; it now only touches it when there's an actual lobby to leave
+- **Steam invites wait for the main menu before launching you into multiplayer** — an invite arriving during the splash or studio screen used to skip straight past menu setup. It now waits until you're at the main menu or wizard tower
+- **Stale "Connection lost" messages from a cancelled code-share session no longer falsely fail a follow-up Steam session** — leftover state from a cancelled code-share session could surface seconds later and break the next Steam session. That stale state is now drained while Steam is active
+
 ## [v0.8.41] - 2026-05-28
 
 ### Fixed

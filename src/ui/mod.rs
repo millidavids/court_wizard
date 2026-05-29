@@ -33,7 +33,7 @@ pub(crate) mod systems;
 pub(crate) mod tutorial;
 mod version;
 mod weather_bar;
-mod wizard_tower;
+pub(crate) mod wizard_tower;
 
 pub(crate) use game_over::accumulate_mode_level_stats;
 pub use plugin::UiPlugin;

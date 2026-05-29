@@ -72,6 +72,14 @@ pub(crate) enum LobbyPhase {
     /// Joining: guest is entering the host's ticket code.
     Joining,
 
+    /// Steam hosting: lobby created, friends overlay opened, waiting for the
+    /// invited friend to accept and connect over SDR.
+    SteamHosting,
+
+    /// Steam joining: lobby joined (via overlay invite, friend-list Join Game,
+    /// or `+connect_lobby` launch param), waiting for SDR connection.
+    SteamJoining,
+
     /// Transport connected, exchanging PlayerInfo with opponent.
     Handshake,
 
@@ -106,6 +114,8 @@ pub(crate) enum MpTabAction {
     HostGame,
     /// Switch to the Joining phase (show text input).
     JoinGame,
+    /// Create a Steam lobby and open the friends invite overlay.
+    SteamInvite,
     /// Toggle the "Use relay" setting.
     ToggleRelay,
     /// Copy the local ticket code to the clipboard.

@@ -8,7 +8,7 @@
 use bevy::prelude::*;
 
 use crate::networking::protocol::NetworkMessage;
-use crate::networking::resources::{ConnectionState, NetworkConnection};
+use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection, PeerRole};
 use crate::networking::session::MultiplayerSession;
 use crate::ui::wizard_tower::wizard_cards::SelectedWizard;
 
@@ -56,6 +56,25 @@ pub(crate) fn sync_lobby_with_connection(
         return;
     }
 
+    // The Steam path can deliver a Failed state while the lobby UI is still
+    // sitting on the Connect screen — specifically, a GameLobbyJoinRequested
+    // sets mode=Steam/role=Guest/state=WaitingForSignaling without touching
+    // `phase`, and `process_join_lobby_result` may flip state to Failed on the
+    // same frame (e.g. friends-only mismatch, lobby already full). Without
+    // this branch the previous Connect-screen guard above would skip the
+    // transition and the player would be stuck on Connect with no error.
+    if connection.state == ConnectionState::Failed
+        && matches!(&lobby.phase, LobbyPhase::Connect)
+        && connection.mode == ConnectionMode::Steam
+    {
+        let reason = connection
+            .error
+            .clone()
+            .unwrap_or_else(|| "Couldn't join the Steam lobby.".to_string());
+        lobby.phase = LobbyPhase::Failed { reason };
+        return;
+    }
+
     // `Disconnected` after the transport had once gone live (Connecting /
     // WaitingForSignaling / Connected) means the link is genuinely gone:
     // peer hung up, transport task died without flagging `Failed`, or the
@@ -76,8 +95,27 @@ pub(crate) fn sync_lobby_with_connection(
         return;
     }
 
-    if matches!(&lobby.phase, LobbyPhase::Hosting | LobbyPhase::Joining)
-        && connection.state == ConnectionState::Connected
+    // The Steam guest path arrives at this system with phase `Connect` (the
+    // overlay click came in while we were idle on the lobby). Once the
+    // GameLobbyJoinRequested handler in the Steam plugin has set mode/role
+    // and started join_lobby, flip the visible phase to SteamJoining so the
+    // UI matches the in-flight transport state.
+    if matches!(lobby.phase, LobbyPhase::Connect)
+        && connection.mode == ConnectionMode::Steam
+        && connection.role == Some(PeerRole::Guest)
+        && matches!(
+            connection.state,
+            ConnectionState::WaitingForSignaling | ConnectionState::Connecting
+        )
+    {
+        lobby.phase = LobbyPhase::SteamJoining;
+        lobby.status_message = None;
+    }
+
+    if matches!(
+        &lobby.phase,
+        LobbyPhase::Hosting | LobbyPhase::Joining | LobbyPhase::SteamHosting | LobbyPhase::SteamJoining
+    ) && connection.state == ConnectionState::Connected
         && session.is_none()
     {
         lobby.phase = LobbyPhase::Handshake;

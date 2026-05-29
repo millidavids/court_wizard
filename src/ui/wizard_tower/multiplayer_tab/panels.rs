@@ -15,6 +15,8 @@ use super::panel_failed::build_failed;
 use super::panel_handshake::build_handshake;
 use super::panel_hosting::build_hosting;
 use super::panel_joining::build_joining;
+use super::panel_steam_hosting::build_steam_hosting;
+use super::panel_steam_joining::build_steam_joining;
 use super::panel_wizard_select::{build_wizard_select_left, build_wizard_select_right};
 use super::state::{LobbyPhase, MultiplayerLobby};
 
@@ -28,6 +30,7 @@ pub(crate) fn build_multiplayer_panels(
     right_entity: Entity,
     lobby: &MultiplayerLobby,
     connection: &NetworkConnection,
+    steam_available: bool,
 ) {
     // The right panel node has no padding of its own (unlike the left panel,
     // which is padded in `layout/setup.rs`). Wrap content in a padded column
@@ -46,13 +49,25 @@ pub(crate) fn build_multiplayer_panels(
 
     match &lobby.phase {
         LobbyPhase::Connect => {
-            build_connect(commands, right_entity, connection, lobby.use_relay);
+            build_connect(
+                commands,
+                right_entity,
+                connection,
+                lobby.use_relay,
+                steam_available,
+            );
         }
         LobbyPhase::Hosting => {
             build_hosting(commands, right_entity, connection);
         }
         LobbyPhase::Joining => {
             build_joining(commands, right_entity, lobby);
+        }
+        LobbyPhase::SteamHosting => {
+            build_steam_hosting(commands, right_entity);
+        }
+        LobbyPhase::SteamJoining => {
+            build_steam_joining(commands, right_entity);
         }
         LobbyPhase::Handshake => {
             build_handshake(commands, right_entity, connection);

@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use crossbeam_channel::unbounded;
 
 use crate::networking::protocol::NetworkMessage;
-use crate::networking::resources::NetworkConnection;
+use crate::networking::resources::{ConnectionMode, NetworkConnection};
 
 use super::connection;
 use super::runtime::{TransportEvent, TransportHandle};
@@ -78,6 +78,18 @@ fn transport_bridge_system(
     mut connection: ResMut<NetworkConnection>,
 ) {
     let Some(handle) = handle else { return };
+
+    // When the active mode is Steam, the Steam transport owns the message
+    // queues — but we still drain `event_rx` (and discard) so that stale
+    // events from a prior iroh session (e.g. a `StateChanged(Disconnected)`
+    // or `Error("Connection lost")` emitted by the tokio teardown AFTER the
+    // user clicked Cancel and immediately started Steam) don't pile up and
+    // then overwrite a clean state when `connection.reset()` later flips
+    // `mode` back to `Online`.
+    if connection.mode == ConnectionMode::Steam {
+        while handle.event_rx.try_recv().is_ok() {}
+        return;
+    }
 
     // Check if there's any work via immutable access (doesn't trigger change detection).
     let has_outgoing =

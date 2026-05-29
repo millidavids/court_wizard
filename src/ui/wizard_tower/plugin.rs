@@ -392,6 +392,7 @@ fn rebuild_multiplayer_on_lobby_change(
     right_panel: Query<Entity, With<super::layout::WizardTowerRightPanel>>,
     lobby: Res<MultiplayerLobby>,
     connection: Res<NetworkConnection>,
+    steam_client: Option<Res<bevy_steamworks::Client>>,
 ) {
     let Ok(left_entity) = left_panel.single() else {
         return;
@@ -409,5 +410,6 @@ fn rebuild_multiplayer_on_lobby_change(
         right_entity,
         &lobby,
         &connection,
+        steam_client.is_some(),
     );
 }

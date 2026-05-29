@@ -282,6 +282,9 @@ pub(super) fn handle_mp_score_buttons(
     mut next_app_state: ResMut<NextState<AppState>>,
     mut status_text: Query<&mut Text, With<RematchStatusText>>,
     transport: Option<Res<TransportHandle>>,
+    steam_client: Option<Res<bevy_steamworks::Client>>,
+    mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
+    mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
     mut commands: Commands,
 ) {
     for event in button_clicked.read() {
@@ -306,6 +309,14 @@ pub(super) fn handle_mp_score_buttons(
                     if let Some(ref transport) = transport {
                         transport.send_command(TransportCommand::Disconnect);
                     }
+                    // Steam teardown BEFORE connection.reset() — once `reset`
+                    // zeroes `mode` to `Online`, downstream cleanup hooks can
+                    // no longer tell this was a Steam session.
+                    crate::steam::multiplayer::shutdown_steam_session(
+                        steam_client.as_deref(),
+                        steam_lobby.as_deref_mut(),
+                        steam_socket.as_deref_mut(),
+                    );
                     connection.reset();
                     commands.remove_resource::<MultiplayerSession>();
                     next_app_state.set(AppState::MainMenu);
@@ -401,12 +412,16 @@ pub(super) fn detect_mp_disconnect(
 /// game transitioned to `MultiplayerGame` — at which point `detect_mp_disconnect`
 /// would finally fire. This system shortcuts that by sending the player
 /// straight back to the wizard tower with the connection torn down.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn detect_mp_loading_disconnect(
     mut commands: Commands,
     mut connection: ResMut<NetworkConnection>,
     session: Option<Res<MultiplayerSession>>,
     transport: Option<Res<TransportHandle>>,
     mut next_app_state: ResMut<NextState<crate::state::AppState>>,
+    steam_client: Option<Res<bevy_steamworks::Client>>,
+    mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
+    mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
     // Despawn any battlefield, units, terrain, or screen-tagged UI that the
     // spawn queue produced before the disconnect hit. Without these the 3D
     // meshes leak into the wizard tower scene after we transition.
@@ -433,6 +448,13 @@ pub(super) fn detect_mp_loading_disconnect(
         if let Some(t) = transport.as_ref() {
             t.send_command(TransportCommand::Disconnect);
         }
+        // Steam teardown must run BEFORE connection.reset() so we can still
+        // see `mode == Steam` and find the SteamLobbyState we need to leave.
+        crate::steam::multiplayer::shutdown_steam_session(
+            steam_client.as_deref(),
+            steam_lobby.as_deref_mut(),
+            steam_socket.as_deref_mut(),
+        );
         // Clean up everything the loading queue had already spawned —
         // `OnExit(MultiplayerLoading)` only tears down the loading screen
         // and queue resources, so without these despawns the partially-built
@@ -550,6 +572,7 @@ pub(super) fn cleanup_mp_pause_menu(
 }
 
 /// Handles MP escape menu button clicks.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn handle_mp_pause_buttons(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&MpPauseButtonAction>,
@@ -558,6 +581,9 @@ pub(super) fn handle_mp_pause_buttons(
     mut next_app_state: ResMut<NextState<AppState>>,
     transport: Option<Res<TransportHandle>>,
     mut commands: Commands,
+    steam_client: Option<Res<bevy_steamworks::Client>>,
+    mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
+    mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -569,6 +595,11 @@ pub(super) fn handle_mp_pause_buttons(
                     if let Some(ref transport) = transport {
                         transport.send_command(TransportCommand::Disconnect);
                     }
+                    crate::steam::multiplayer::shutdown_steam_session(
+                        steam_client.as_deref(),
+                        steam_lobby.as_deref_mut(),
+                        steam_socket.as_deref_mut(),
+                    );
                     connection.reset();
                     commands.remove_resource::<MultiplayerSession>();
                     next_app_state.set(AppState::MainMenu);
@@ -637,16 +668,29 @@ pub(super) fn cleanup_mp_disconnected(
 }
 
 /// Handles the Return to Menu button on the disconnected overlay.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn handle_mp_disconnected_buttons(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&MpDisconnectedButtonAction>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut commands: Commands,
+    mut connection: ResMut<NetworkConnection>,
+    steam_client: Option<Res<bevy_steamworks::Client>>,
+    mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
+    mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
 ) {
     for event in button_clicked.read() {
         if button_query.get(event.button).is_ok() {
+            // Steam teardown BEFORE we lose mode information via reset.
+            crate::steam::multiplayer::shutdown_steam_session(
+                steam_client.as_deref(),
+                steam_lobby.as_deref_mut(),
+                steam_socket.as_deref_mut(),
+            );
+            connection.reset();
             commands.remove_resource::<MultiplayerSession>();
             next_app_state.set(AppState::MainMenu);
+            return;
         }
     }
 }

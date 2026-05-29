@@ -4,15 +4,19 @@ use bevy::prelude::*;
 
 use super::protocol::NetworkMessage;
 
-/// Whether the connection uses internet (STUN) or LAN (no STUN).
+/// Which transport the active connection is using.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ConnectionMode {
-    /// Online mode: uses STUN server for NAT traversal.
+    /// Online mode (iroh): uses relay servers for NAT traversal.
     #[default]
     Online,
 
-    /// LAN mode: no STUN, host candidates only. Works without internet.
+    /// LAN mode (iroh): no relay, host candidates only. Works without internet.
     Lan,
+
+    /// Steam mode: SteamMatchmaking lobby for signalling, SteamNetworkingSockets
+    /// (Steam Datagram Relay) for the P2P data channel.
+    Steam,
 }
 
 /// The current state of the network connection.

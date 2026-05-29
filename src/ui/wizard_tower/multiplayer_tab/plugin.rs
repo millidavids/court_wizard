@@ -3,10 +3,13 @@
 use bevy::prelude::*;
 
 use crate::game::multiplayer::components::PendingRematch;
-use crate::networking::resources::NetworkConnection;
+use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection};
 use crate::networking::transport::TransportCommand;
 use crate::networking::transport::TransportHandle;
 use crate::state::{AppState, MenuState, MetaGameState};
+use crate::steam::multiplayer::{
+    SteamLobbyState, SteamP2pSocket, leave_steam_lobby, tear_down_socket,
+};
 use crate::ui::plugin::ButtonActionSet;
 
 use crate::ui::wizard_tower::wizard_cards::SelectedWizard;
@@ -149,14 +152,16 @@ fn handle_pending_rematch_on_enter(
 /// Starting a multiplayer match also exits WizardTower — but in that case the
 /// live connection must survive into the match, so the teardown is skipped
 /// when the destination is a multiplayer loading/game state.
+#[allow(clippy::too_many_arguments)]
 fn reset_lobby_on_exit(
     mut lobby: ResMut<MultiplayerLobby>,
     mut connection: ResMut<NetworkConnection>,
     transport: Option<Res<TransportHandle>>,
     app_state: Res<State<AppState>>,
+    steam_client: Option<Res<bevy_steamworks::Client>>,
+    mut steam_lobby_state: Option<ResMut<SteamLobbyState>>,
+    mut steam_socket: Option<ResMut<SteamP2pSocket>>,
 ) {
-    use crate::networking::resources::ConnectionState;
-
     if matches!(
         app_state.get(),
         AppState::MultiplayerLoading | AppState::MultiplayerGame
@@ -164,11 +169,34 @@ fn reset_lobby_on_exit(
         return;
     }
 
-    if connection.state != ConnectionState::Disconnected {
-        if let Some(t) = transport {
-            t.send_command(TransportCommand::Disconnect);
-        }
-        connection.reset();
+    // Iroh teardown — only when iroh was actually live. Sending Disconnect
+    // unconditionally would write a no-op into the command channel on every
+    // WizardTower exit (including Steam-mode exits and exits from a tab the
+    // player never touched), which changes the channel's "only written when
+    // there is work to cancel" contract.
+    if connection.mode != ConnectionMode::Steam
+        && connection.state != ConnectionState::Disconnected
+        && let Some(t) = transport
+    {
+        t.send_command(TransportCommand::Disconnect);
     }
+
+    // Steam teardown: leave the lobby + clear rich presence + close the socket.
+    // No-op when Steam isn't initialized.
+    if connection.mode == ConnectionMode::Steam {
+        if let (Some(client), Some(lobby_state)) =
+            (steam_client.as_deref(), steam_lobby_state.as_deref_mut())
+        {
+            leave_steam_lobby(client, lobby_state);
+        }
+        if let Some(socket) = steam_socket.as_deref_mut() {
+            tear_down_socket(socket);
+        }
+    }
+
+    // Always reset — calling unconditionally clears stranded `mode == Steam`
+    // flags from partially-completed flows that left `state` already
+    // `Disconnected`.
+    connection.reset();
     *lobby = MultiplayerLobby::new();
 }

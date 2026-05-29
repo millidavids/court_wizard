@@ -4,12 +4,17 @@
 //! handshake live in `lobby_messages.rs`.
 
 use bevy::prelude::*;
+use bevy_steamworks::Client;
 
 use crate::game::input::messages::MouseClicked;
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection, PeerRole};
 use crate::networking::transport::{TransportCommand, TransportHandle};
 use crate::state::AppState;
+use crate::steam::multiplayer::{
+    SteamLobbyBridge, SteamLobbyState, SteamP2pSocket, leave_steam_lobby, request_steam_invite,
+    tear_down_socket,
+};
 use crate::ui::wizard_tower::layout::RightPanelView;
 
 use super::state::{JoinCodeInputBox, LobbyPhase, MpTabAction, MultiplayerLobby};
@@ -26,6 +31,10 @@ pub(crate) fn handle_mp_tab_actions(
     mut commands: Commands,
     mut right_panel_view: ResMut<RightPanelView>,
     mut next_app_state: ResMut<NextState<AppState>>,
+    steam_client: Option<Res<Client>>,
+    steam_bridge: Option<Res<SteamLobbyBridge>>,
+    mut steam_lobby: Option<ResMut<SteamLobbyState>>,
+    mut steam_socket: Option<ResMut<SteamP2pSocket>>,
 ) {
     let send = |cmd: TransportCommand| {
         if let Some(ref t) = transport {
@@ -66,6 +75,32 @@ pub(crate) fn handle_mp_tab_actions(
                 lobby.phase = LobbyPhase::Joining;
                 lobby.join_code_input.clear();
                 lobby.join_code_focused = false;
+            }
+            MpTabAction::SteamInvite => {
+                if let (Some(client), Some(bridge), Some(lobby_state)) = (
+                    steam_client.as_deref(),
+                    steam_bridge.as_deref(),
+                    steam_lobby.as_deref_mut(),
+                ) {
+                    // Double-click / repeated-event guard: if we already kicked off
+                    // a Steam flow on a previous iteration of this loop (or a prior
+                    // frame), don't start a second create_lobby — that would leak
+                    // the first one and re-open the overlay on a second lobby.
+                    if !matches!(*lobby_state, SteamLobbyState::Idle) {
+                        continue;
+                    }
+                    lobby.status_message = None;
+                    request_steam_invite(client, lobby_state, bridge);
+                    connection.state = ConnectionState::WaitingForSignaling;
+                    connection.role = Some(PeerRole::Host);
+                    connection.mode = ConnectionMode::Steam;
+                    lobby.phase = LobbyPhase::SteamHosting;
+                } else {
+                    lobby.status_message = Some(
+                        "Steam isn't running — use Host Game to share a code instead."
+                            .to_string(),
+                    );
+                }
             }
             MpTabAction::ToggleRelay => {
                 lobby.use_relay = !lobby.use_relay;
@@ -110,6 +145,14 @@ pub(crate) fn handle_mp_tab_actions(
             }
             MpTabAction::Cancel | MpTabAction::Retry | MpTabAction::Disconnect => {
                 send(TransportCommand::Disconnect);
+                if let (Some(client), Some(lobby_state)) =
+                    (steam_client.as_deref(), steam_lobby.as_deref_mut())
+                {
+                    leave_steam_lobby(client, lobby_state);
+                }
+                if let Some(socket) = steam_socket.as_deref_mut() {
+                    tear_down_socket(socket);
+                }
                 connection.reset();
                 lobby.phase = LobbyPhase::Connect;
                 lobby.join_code_input.clear();

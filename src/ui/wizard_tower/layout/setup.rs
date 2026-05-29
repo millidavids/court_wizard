@@ -486,6 +486,7 @@ fn return_to_main_menu(
 pub(crate) struct MultiplayerPanelData<'w> {
     lobby: Res<'w, super::super::multiplayer_tab::MultiplayerLobby>,
     connection: Res<'w, crate::networking::resources::NetworkConnection>,
+    steam_client: Option<Res<'w, bevy_steamworks::Client>>,
 }
 
 /// When the active tab changes, despawn children of both panels and rebuild
@@ -609,6 +610,7 @@ pub(crate) fn rebuild_panels_on_tab_change(
                 right_entity,
                 &multiplayer.lobby,
                 &multiplayer.connection,
+                multiplayer.steam_client.is_some(),
             );
         }
     }

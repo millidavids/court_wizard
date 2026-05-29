@@ -7,6 +7,8 @@ pub(super) mod panel_failed;
 pub(super) mod panel_handshake;
 pub(super) mod panel_hosting;
 pub(super) mod panel_joining;
+pub(super) mod panel_steam_hosting;
+pub(super) mod panel_steam_joining;
 pub(super) mod panel_styles;
 pub(super) mod panel_wizard_select;
 pub(super) mod panels;
