@@ -326,21 +326,38 @@ pub fn king_cohesion_force(
 ///
 /// Guards orbit the King at a fixed radius. Their positions are set directly
 /// rather than using velocity/acceleration, so they stay locked to the King.
+/// We also write the per-frame movement delta into `Velocity` so the shared
+/// `update_walking_animation` and `update_facing_direction` systems (which
+/// query `&Velocity`) match the guard entity and animate it correctly. Without
+/// this they'd skip the guard and it would freeze on its idle frame, always
+/// facing forward.
 pub fn snap_kings_guard_to_king(
+    time: Res<Time>,
     king_query: Query<(&Transform, &Team), (With<King>, Without<Corpse>)>,
-    mut guards: Query<(&KingsGuard, &Team, &mut Transform), (Without<King>, Without<Corpse>)>,
+    mut guards: Query<
+        (&KingsGuard, &Team, &mut Transform, &mut Velocity),
+        (Without<King>, Without<Corpse>),
+    >,
 ) {
+    let delta = time.delta_secs();
+    let inv_delta = if delta > 1e-6 { 1.0 / delta } else { 0.0 };
     // Snap each guard to their team's King
     for (king_transform, king_team) in &king_query {
         let king_pos = king_transform.translation;
 
-        for (guard, guard_team, mut transform) in &mut guards {
+        for (guard, guard_team, mut transform, mut velocity) in &mut guards {
             if guard_team != king_team {
                 continue;
             }
             let angle = guard.0 as f32 * (std::f32::consts::TAU / KINGS_GUARD_COUNT as f32);
-            transform.translation.x = king_pos.x + KINGS_GUARD_ORBIT_RADIUS * angle.cos();
-            transform.translation.z = king_pos.z + KINGS_GUARD_ORBIT_RADIUS * angle.sin();
+            let new_x = king_pos.x + KINGS_GUARD_ORBIT_RADIUS * angle.cos();
+            let new_z = king_pos.z + KINGS_GUARD_ORBIT_RADIUS * angle.sin();
+            let dx = new_x - transform.translation.x;
+            let dz = new_z - transform.translation.z;
+            transform.translation.x = new_x;
+            transform.translation.z = new_z;
+            velocity.x = dx * inv_delta;
+            velocity.z = dz * inv_delta;
         }
     }
 }

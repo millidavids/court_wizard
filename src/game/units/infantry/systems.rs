@@ -517,6 +517,12 @@ pub(in crate::game) fn spawn_single_kings_guard(
             Teleportable,
             Billboard,
             OnGameplayScreen,
+            // `Velocity` is required by `update_walking_animation` and
+            // `update_facing_direction`. The guard's position is driven by
+            // `snap_kings_guard_to_king` rather than the normal movement
+            // pipeline; that system writes the per-frame snap delta into
+            // this `Velocity` so the animation/facing queries see motion.
+            Velocity::default(),
             // King's Guard are all elites
             EliteHealthBonus(crate::game::units::elite::ELITE_HEALTH_BONUS),
             EliteDamageBonus(crate::game::units::elite::ELITE_DAMAGE_BONUS),

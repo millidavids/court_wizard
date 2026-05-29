@@ -857,10 +857,6 @@ pub fn apply_remote_spell_snapshot(
 
     for entity in &ghost_arcs {
         if let Ok(mut ec) = commands.get_entity(entity) {
-            // Despawn the segment-quad children spawned by
-            // `update_lightning_bolts` for jagged-bolt ghosts; without this
-            // they orphan and leak.
-            ec.despawn_related::<Children>();
             ec.try_despawn();
         }
     }
@@ -887,69 +883,44 @@ pub fn apply_remote_spell_snapshot(
 
         // Lightning arcs (chain lightning = 0, descending strike = 1, rod
         // ground arc = 5) need the jagged segmented geometry, not a flat
-        // quad. Spawn a `LightningBolt` parent so `update_lightning_bolts`
-        // (which runs on both peers under `is_spell_effects_active`)
-        // rebuilds the crackling child-segment set every frame on the
-        // receiver, matching the caster's visual.
+        // quad. Spawn the segment quads directly here — we do NOT use a
+        // `LightningBolt` parent on the receiver because that creates a
+        // race with `update_lightning_bolts` (which would queue `ChildOf`
+        // commands referencing parents we despawn the same frame, panicking
+        // on hierarchy flush). Each snapshot frame fully respawns the
+        // ghost segments with fresh random jitter, giving the same
+        // crackling appearance.
         if matches!(arc.kind, 0 | 1 | 5) {
-            use crate::game::units::wizard::spells::lightning_bolt::{
-                LightningBolt, LightningBoltConfig,
-            };
-            let config = match arc.kind {
-                0 => LightningBoltConfig {
-                    width: 3.0,
-                    lifetime: 0.3,
-                    peak_height: 0.0,
-                    jitter_amplitude: 15.0,
-                    segments: 16,
-                    fork_count: 2,
-                    fork_segments: 3,
-                    fork_length: 24.0,
-                    afterimage_duration: 0.2,
-                },
-                1 => LightningBoltConfig {
-                    width: 8.0,
-                    lifetime: 1.5,
-                    peak_height: 0.0,
-                    jitter_amplitude: 18.0,
-                    segments: 24,
-                    fork_count: 2,
-                    fork_segments: 3,
-                    fork_length: 62.0,
-                    afterimage_duration: 1.0,
-                },
-                5 => LightningBoltConfig {
-                    width: 6.0,
-                    lifetime: 0.3,
-                    peak_height: 0.0,
-                    jitter_amplitude: 10.0,
-                    segments: 14,
-                    fork_count: 1,
-                    fork_segments: 3,
-                    fork_length: 36.0,
-                    afterimage_duration: 0.25,
-                },
+            use crate::game::units::wizard::spells::lightning_bolt::generate_jagged_path;
+            let (segments, jitter, width) = match arc.kind {
+                0 => (16u32, 15.0, 3.0),
+                1 => (24u32, 18.0, 8.0),
+                5 => (14u32, 10.0, 6.0),
                 _ => unreachable!(),
             };
-            commands.spawn((
-                LightningBolt {
-                    start: origin,
-                    end: target,
-                    time_alive: 0.0,
-                    lifetime: config.lifetime,
-                    afterimage_remaining: config.afterimage_duration,
-                    in_afterimage: false,
-                    config,
-                    mesh: assets.unit_rect.clone(),
-                    material,
-                    base_color: Color::WHITE,
-                    material_cloned: false,
-                },
-                Transform::default(),
-                Visibility::Inherited,
-                GhostSpellArc,
-                OnMultiplayerGameScreen,
-            ));
+            let mut rng = rand::rng();
+            let path = generate_jagged_path(origin, target, segments, jitter, 0.0, &mut rng);
+            for window in path.windows(2) {
+                let p0 = window[0];
+                let p1 = window[1];
+                let seg = p1 - p0;
+                let seg_len = seg.length();
+                if seg_len < 1e-3 {
+                    continue;
+                }
+                let seg_dir = seg / seg_len;
+                let midpoint = (p0 + p1) * 0.5;
+                let rotation = Quat::from_rotation_arc(Vec3::Y, seg_dir);
+                commands.spawn((
+                    Mesh3d(assets.unit_rect.clone()),
+                    MeshMaterial3d(material.clone()),
+                    Transform::from_translation(midpoint)
+                        .with_rotation(rotation)
+                        .with_scale(Vec3::new(width, seg_len, width)),
+                    GhostSpellArc,
+                    OnMultiplayerGameScreen,
+                ));
+            }
             continue;
         }
 

@@ -308,7 +308,7 @@ pub(crate) fn cleanup_lightning_bolts(
 /// Generates `segments + 1` points between `start` and `end`. Interior points
 /// get optional parabolic Y arch (`peak_height`) plus perpendicular jitter
 /// that tapers to zero at the endpoints so they stay anchored.
-fn generate_jagged_path(
+pub(crate) fn generate_jagged_path(
     start: Vec3,
     end: Vec3,
     segments: u32,

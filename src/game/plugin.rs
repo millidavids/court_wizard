@@ -292,12 +292,18 @@ impl Plugin for GamePlugin {
             // NextState::set re-fires OnEnter on identity transitions, so re-detecting
             // the same victory/defeat each frame would rebuild the score screen and
             // re-accumulate kills every frame.
-            // (MP has its own check_mp_king_death registered in MultiplayerGamePlugin)
+            // MP has its own `check_mp_king_death` registered in MultiplayerGamePlugin.
+            // The `in_state(AppState::InGame)` guard is required: `is_gameplay_running`
+            // returns true for the multiplayer host, which would let this SP system
+            // race with `check_mp_king_death` and overwrite the host's
+            // `GameOutcome::Victory` with `DefeatKingDied` (the SP system sees ANY
+            // dead king without filtering by team), causing both peers to see Defeat.
             .add_systems(
                 Update,
                 win_lose_systems::check_win_lose_conditions
                     .after(PostCombatSet)
-                    .run_if(is_gameplay_running),
+                    .run_if(is_gameplay_running)
+                    .run_if(in_state(AppState::InGame)),
             );
 
         // Debug hitbox visualization — driven by the global DebugUiVisible
