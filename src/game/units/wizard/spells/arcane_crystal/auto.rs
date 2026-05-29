@@ -1,8 +1,8 @@
 //! Auto-cast and talent burst handlers.
 
 use super::setup::{
-    crystal_beam_geometry, find_random_enemies_in_range, find_random_targets_in_range,
-    increment_resonance, scaled_count,
+    crystal_beam_geometry, crystal_target_teams, find_random_enemies_in_range,
+    find_random_targets_in_range, increment_resonance, scaled_count,
 };
 use bevy::prelude::*;
 use rand::Rng;
@@ -52,7 +52,9 @@ pub(super) fn auto_cast_remembered_spell(
         Has<SpellShield>,
     )>,
     active_talents: Option<Res<ActiveTalents>>,
+    peer_id: Option<Res<crate::networking::crdt::PeerId>>,
 ) {
+    let target_teams = crystal_target_teams(peer_id.as_deref());
     let talent_cfg = disintegrate_systems::compute_talent_config(active_talents.as_deref());
     let delta = time.delta_secs();
 
@@ -158,6 +160,7 @@ pub(super) fn auto_cast_remembered_spell(
                         &mut commands,
                         &visual_assets,
                         &enemies,
+                        target_teams,
                     );
                 }
                 RememberedSpell::Fireball => {
@@ -367,13 +370,15 @@ struct CrystalAutocastParams {
     count_mult: f32,
 }
 
-/// Auto-casts mini magic missiles at random enemies (not defenders).
+/// Auto-casts mini magic missiles at random enemies (the caster's hostile
+/// team set, passed in by the system that knows the local `PeerId`).
 fn auto_cast_magic_missiles(
     rng: &mut impl Rng,
     params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     enemies: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    target_teams: TargetTeams,
 ) {
     let targets = find_random_enemies_in_range(
         rng,
@@ -381,6 +386,7 @@ fn auto_cast_magic_missiles(
         params.range,
         scaled_count(MINI_MISSILE_COUNT, params.count_mult),
         enemies,
+        target_teams,
     );
     let mini_radius = magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE;
 
@@ -401,6 +407,7 @@ fn auto_cast_magic_missiles(
             Some(*target_entity),
             mini_radius,
             params.damage_mult,
+            target_teams,
         );
     }
 }
@@ -595,7 +602,9 @@ fn auto_cast_fod_beams(
 
 /// Spawns a crystal mini magic missile with pre-advanced homing.
 ///
-/// Shared helper for both absorption and auto-cast.
+/// Shared helper for both absorption and auto-cast. `target_teams` is the
+/// caster's hostile team set — supplied by the calling system after reading
+/// `PeerId` (guest targets Defenders, host targets Attackers).
 #[allow(clippy::too_many_arguments)]
 pub(super) fn spawn_crystal_mini_missile(
     commands: &mut Commands,
@@ -607,6 +616,7 @@ pub(super) fn spawn_crystal_mini_missile(
     target: Option<Entity>,
     visual_radius: f32,
     damage_mult: f32,
+    target_teams: TargetTeams,
 ) {
     let mut mini_missile =
         crate::game::units::wizard::spells::magic_missile::components::MagicMissile::new(
@@ -614,7 +624,7 @@ pub(super) fn spawn_crystal_mini_missile(
             wobble_offset,
             target,
             DAMAGE_SCALE * damage_mult,
-            TargetTeams::AttackersAndUndead,
+            target_teams,
             crystal_range,
             crystal_position,
         );
@@ -761,8 +771,10 @@ pub(super) fn auto_crystal_fire(
     >,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut progress: ResMut<BattleTalentProgress>,
+    peer_id: Option<Res<crate::networking::crdt::PeerId>>,
 ) {
     let delta = time.delta_secs();
+    let target_teams = crystal_target_teams(peer_id.as_deref());
 
     for (crystal, mut timer, mut resonance) in &mut crystals {
         timer.timer += delta;
@@ -781,6 +793,7 @@ pub(super) fn auto_crystal_fire(
             crystal.range,
             1,
             &enemies,
+            target_teams,
         );
 
         let Some((target_entity, target_pos)) = targets.first() else {
@@ -805,6 +818,7 @@ pub(super) fn auto_crystal_fire(
             Some(*target_entity),
             mini_radius,
             crystal.damage_mult,
+            target_teams,
         );
 
         // Increment resonance cascade counter on each turret shot
@@ -834,11 +848,13 @@ pub(super) fn crystal_network_chain(
     targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut progress: ResMut<BattleTalentProgress>,
+    peer_id: Option<Res<crate::networking::crdt::PeerId>>,
 ) {
     // Early return if no crystal absorbed this frame
     if !crystals.iter().any(|(_, c)| c.just_absorbed) {
         return;
     }
+    let target_teams = crystal_target_teams(peer_id.as_deref());
 
     // Collect crystal positions and remembered spells for chaining
     let crystal_data: Vec<(Entity, Vec3, f32, f32, Option<RememberedSpell>, bool)> = crystals
@@ -895,6 +911,7 @@ pub(super) fn crystal_network_chain(
                             target_crystal.range,
                             count,
                             &enemies,
+                            target_teams,
                         );
                         let mini_radius = magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE;
                         for (te, tp) in &mini_targets {
@@ -912,6 +929,7 @@ pub(super) fn crystal_network_chain(
                                 Some(*te),
                                 mini_radius,
                                 target_crystal.damage_mult,
+                                target_teams,
                             );
                         }
                         progress.increment(Spell::ArcaneCrystal, count as u32);

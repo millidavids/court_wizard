@@ -143,18 +143,37 @@ pub(super) fn find_random_targets_in_range(
     candidates
 }
 
-/// Finds random enemy targets (Attackers/Undead only) within range.
-/// Used for magic missiles which should not target defenders.
+/// Returns the hostile team set for whichever peer is running this code.
+/// In MP the guest's enemies are `Defenders` (the host's units); in SP and
+/// for the host the enemies are `Attackers` (the wave). Caller passes
+/// `peer_id.as_deref()` from an `Option<Res<PeerId>>` system parameter.
+pub(super) fn crystal_target_teams(
+    peer_id: Option<&crate::networking::crdt::PeerId>,
+) -> crate::game::units::wizard::spells::magic_missile::components::TargetTeams {
+    use crate::game::units::wizard::spells::magic_missile::components::TargetTeams;
+    use crate::networking::crdt::PeerId;
+    if peer_id.is_some_and(|p| p.0 == PeerId::GUEST) {
+        TargetTeams::DefendersAndUndead
+    } else {
+        TargetTeams::AttackersAndUndead
+    }
+}
+
+/// Finds random enemy targets within range, restricted to the teams the
+/// caster considers hostile. In MP the guest's enemies are `Defenders` and
+/// the host's enemies are `Attackers`, so the team filter must be supplied
+/// by the calling system after reading `PeerId`.
 pub(super) fn find_random_enemies_in_range(
     rng: &mut impl Rng,
     crystal_pos: Vec3,
     range: f32,
     count: usize,
     units: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    target_teams: crate::game::units::wizard::spells::magic_missile::components::TargetTeams,
 ) -> Vec<(Entity, Vec3)> {
     let mut candidates: Vec<(Entity, Vec3)> = units
         .iter()
-        .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
+        .filter(|(_, _, team)| target_teams.matches(team))
         .filter(|(_, transform, _)| xz_distance(crystal_pos, transform.translation) <= range)
         .map(|(entity, transform, _)| (entity, transform.translation))
         .collect();

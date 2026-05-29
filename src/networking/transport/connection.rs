@@ -2,12 +2,26 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU16, Ordering};
+use std::time::Duration;
 
 use crossbeam_channel::{Receiver, Sender};
 use iroh::endpoint::Connection;
 use iroh::{Endpoint, EndpointAddr, endpoint::presets};
 use tokio::sync::Notify;
 use tracing::warn;
+
+/// Maximum time we will block on `Endpoint::close()` during shutdown.
+/// iroh's close awaits `wait_idle()` which can stall for the full QUIC idle
+/// timeout (tens of seconds) when the relay/STUN infrastructure is
+/// unreachable — that freezes the process at app exit because the tokio
+/// thread won't return and the OS process won't terminate until all
+/// non-daemon threads complete. Capping the wait keeps shutdown snappy.
+const CLOSE_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// Close an iroh endpoint with a bounded timeout. See `CLOSE_TIMEOUT`.
+async fn close_endpoint(ep: &Endpoint) {
+    let _ = tokio::time::timeout(CLOSE_TIMEOUT, ep.close()).await;
+}
 
 use crate::networking::resources::ConnectionState;
 
@@ -124,7 +138,7 @@ async fn handle_host(
                     Ok(conn) => conn,
                     Err(e) => {
                         send_error_and_fail(event_tx, format!("Guest connection failed: {e}"));
-                        let _ = ep.close().await;
+                        close_endpoint(&ep).await;
                         return;
                     }
                 },
@@ -139,7 +153,7 @@ async fn handle_host(
             }
         }
         _ = wait_for_disconnect(command_rx) => {
-            let _ = ep.close().await;
+            close_endpoint(&ep).await;
             send_event(event_tx, TransportEvent::StateChanged(ConnectionState::Disconnected));
             return;
         }
@@ -164,7 +178,7 @@ async fn handle_host(
     )
     .await;
 
-    let _ = ep.close().await;
+    close_endpoint(&ep).await;
 }
 
 /// Guest flow: parse connection code, connect to host, run I/O.
@@ -202,7 +216,7 @@ async fn handle_guest(
         Ok(conn) => conn,
         Err(e) => {
             send_error_and_fail(event_tx, format!("Failed to connect to host: {e}"));
-            let _ = ep.close().await;
+            close_endpoint(&ep).await;
             return;
         }
     };
@@ -226,7 +240,7 @@ async fn handle_guest(
     )
     .await;
 
-    let _ = ep.close().await;
+    close_endpoint(&ep).await;
 }
 
 /// Run the send/recv I/O loops for an established connection.

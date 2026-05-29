@@ -477,7 +477,9 @@ pub(super) fn detect_magic_missile_hits(
     missiles: Query<(Entity, &Transform, &MagicMissile), Without<CrystalSpawn>>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut progress: ResMut<BattleTalentProgress>,
+    peer_id: Option<Res<crate::networking::crdt::PeerId>>,
 ) {
+    let target_teams = super::setup::crystal_target_teams(peer_id.as_deref());
     for (missile_entity, missile_transform, _missile) in &missiles {
         for (mut crystal, mut resonance) in &mut crystals {
             if crystal.permanent {
@@ -496,13 +498,14 @@ pub(super) fn detect_magic_missile_hits(
                 let echo_mult = spell_echo_multiplier(rng, crystal.spell_echo);
                 let count = scaled_count(MINI_MISSILE_COUNT, crystal.count_mult) * echo_mult;
 
-                // Emit mini missiles at random enemy targets (not defenders)
+                // Emit mini missiles at random enemy targets — peer-aware.
                 let targets = find_random_enemies_in_range(
                     rng,
                     crystal.position,
                     crystal.range,
                     count,
                     &enemies,
+                    target_teams,
                 );
 
                 let mini_radius = magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE;
@@ -525,6 +528,7 @@ pub(super) fn detect_magic_missile_hits(
                         Some(*target_entity),
                         mini_radius,
                         crystal.damage_mult,
+                        target_teams,
                     );
                 }
 
