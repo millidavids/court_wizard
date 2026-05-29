@@ -50,6 +50,7 @@ pub fn update_dispel_impacts(
             Has<ExplosiveNullification>,
             Has<SpellReflection>,
             Has<NullZoneOnImpact>,
+            Has<WizardCastDispel>,
         ),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
@@ -97,6 +98,7 @@ pub fn update_dispel_impacts(
         has_explosive,
         has_reflection,
         has_null_zone,
+        has_wizard_cast,
     ) in &mut impacts
     {
         impact.time_alive += time.delta_secs();
@@ -313,8 +315,9 @@ pub fn update_dispel_impacts(
             }
         }
 
-        // Track talent progress
-        if dispelled_count > 0 {
+        // Track talent progress — only wizard-cast dispels count. Enemy
+        // Dispellers spawn impacts without `WizardCastDispel`.
+        if dispelled_count > 0 && has_wizard_cast {
             progress.increment(Spell::Dispel, dispelled_count);
         }
     }

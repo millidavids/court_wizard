@@ -145,6 +145,7 @@ pub fn handle_dispel_casting(
                 kind: crate::networking::snapshot::SpellEffectKind::DispelImpact,
             },
             OnGameplayScreen,
+            WizardCastDispel,
         ));
         insert_talent_markers(&mut impact_entity, &talent_params);
     } else {
@@ -157,6 +158,7 @@ pub fn handle_dispel_casting(
             target_pos,
             constants::SPAWN_HEIGHT_OFFSET,
             &talent_params,
+            true,
         );
     }
 }
@@ -204,10 +206,16 @@ pub(crate) fn spawn_dispel_projectile(
         target_pos,
         height_offset,
         &params,
+        false,
     );
 }
 
 /// Spawns a dispel projectile with talent modifications applied.
+///
+/// `wizard_cast` marks the projectile (and the impact it spawns) as belonging
+/// to the wizard so it counts toward Dispel talent progress. Enemy Dispellers
+/// pass `false`.
+#[allow(clippy::too_many_arguments)]
 fn spawn_dispel_projectile_with_talents(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
@@ -216,6 +224,7 @@ fn spawn_dispel_projectile_with_talents(
     target_pos: Vec3,
     height_offset: f32,
     params: &DispelTalentParams,
+    wizard_cast: bool,
 ) {
     let spawn_pos = origin + Vec3::Y * height_offset;
     // Target is on the ground (y=0)
@@ -245,6 +254,9 @@ fn spawn_dispel_projectile_with_talents(
 
     // Store talent markers on projectile so they transfer to impact
     insert_talent_markers(&mut entity_commands, params);
+    if wizard_cast {
+        entity_commands.insert(WizardCastDispel);
+    }
 }
 
 // ===== Projectile + Impact Systems =====
@@ -265,6 +277,7 @@ pub fn move_dispel_projectiles(
         Has<ExplosiveNullification>,
         Has<SpellReflection>,
         Has<NullZoneOnImpact>,
+        Has<WizardCastDispel>,
     )>,
 ) {
     let delta = time.delta_secs();
@@ -277,6 +290,7 @@ pub fn move_dispel_projectiles(
         has_explosive,
         has_reflection,
         has_null_zone,
+        has_wizard_cast,
     ) in &mut projectiles
     {
         // Move projectile
@@ -314,6 +328,9 @@ pub fn move_dispel_projectiles(
                 ..Default::default()
             };
             insert_talent_markers(&mut impact_entity, &params);
+            if has_wizard_cast {
+                impact_entity.insert(WizardCastDispel);
+            }
 
             commands.entity(entity).try_despawn();
         }

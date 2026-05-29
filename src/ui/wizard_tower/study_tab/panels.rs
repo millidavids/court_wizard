@@ -36,6 +36,13 @@ use super::super::materials::{
 #[derive(Component)]
 pub(crate) struct DebugInsightButton;
 
+/// Inserted by `rebuild_study_ui` via deferred `Commands`. The deferred insert
+/// makes the resource visible on the next frame — after the despawn/spawn
+/// commands have flushed — so the layout systems re-run with the new entities
+/// present. Consumed by `process_pending_graph_layout_refresh`.
+#[derive(Resource, Default)]
+pub(crate) struct PendingGraphLayoutRefresh;
+
 // ===========================================================================
 // Shared helpers
 // ===========================================================================
@@ -204,6 +211,10 @@ pub(crate) fn build_study_panels(
     commands.insert_resource(GraphDragState::default());
     commands.insert_resource(SelectedStudySpell::default());
     commands.insert_resource(SelectedInsightBonus::default());
+    // Persist a layout-refresh marker until the freshly-spawned
+    // `SpellGraphArea` has a non-zero `ComputedNode` size, so the position
+    // systems pick up the real container dimensions on the first valid frame.
+    commands.insert_resource(PendingGraphLayoutRefresh);
 
     spawn_study_panels(
         commands,
@@ -226,6 +237,7 @@ pub(crate) fn cleanup_study_resources(mut commands: Commands) {
     commands.remove_resource::<SelectedInsightBonus>();
     commands.remove_resource::<GraphViewAnimation>();
     commands.remove_resource::<GraphBounds>();
+    commands.remove_resource::<PendingGraphLayoutRefresh>();
 }
 
 /// Handles Commit and Back button actions on the study screen.
@@ -245,7 +257,6 @@ pub(crate) fn handle_study_button_actions(
     mut progress_materials: ResMut<Assets<RadialProgressMaterial>>,
     mut ring_materials: ResMut<Assets<ConcentricRingsMaterial>>,
     mut star_sky_materials: ResMut<Assets<StarSkyMaterial>>,
-    mut graph_view: ResMut<GraphViewState>,
 ) {
     for event in button_clicked.read() {
         let Ok(action) = button_query.get(event.button) else {
@@ -326,9 +337,6 @@ pub(crate) fn handle_study_button_actions(
                 if let Some(sel) = selected.as_mut() {
                     sel.set_changed();
                 }
-                // Trigger resource_changed::<GraphViewState> so the layout
-                // systems re-run for the freshly respawned spell-web nodes.
-                graph_view.set_changed();
             }
             #[cfg(debug_assertions)]
             StudyButtonAction::DebugGrantInsight => {
@@ -346,7 +354,6 @@ pub(crate) fn handle_study_button_actions(
                     false,
                     false,
                 );
-                graph_view.set_changed();
             }
         }
     }
@@ -386,11 +393,19 @@ pub(super) fn rebuild_study_ui(
     commands.remove_resource::<InsightAllocation>();
     commands.insert_resource(InsightAllocation::default());
     commands.insert_resource(SelectedInsightBonus::default());
+    // Deferred — visible next frame, after the despawn/spawn commands flush.
+    // `process_pending_graph_layout_refresh` consumes it and triggers the
+    // position systems to re-run on the freshly spawned entities.
+    commands.insert_resource(PendingGraphLayoutRefresh);
     if !preserve_selection && let Some(sel) = selected {
         sel.0 = None;
     }
     if animate_to_default {
         animate_to_default_view(commands);
+    } else {
+        // Cancel any in-flight animation so it cannot drag the view to a
+        // now-meaningless target after the rebuild.
+        commands.remove_resource::<GraphViewAnimation>();
     }
     spawn_study_panels(
         commands,
@@ -1137,6 +1152,30 @@ pub(crate) fn animate_graph_view(
         view.offset = anim.target_offset;
         view.scale = anim.target_scale;
         commands.remove_resource::<GraphViewAnimation>();
+    }
+}
+
+/// Marks `GraphViewState` as changed after a panel rebuild so the position
+/// systems re-run on freshly spawned nodes. The direct `set_changed()` call
+/// in `handle_study_button_actions` would fire in the same tick as the
+/// deferred spawn commands — before the new entities exist.
+///
+/// The marker persists across frames until the `SpellGraphArea`'s
+/// `ComputedNode` reports a non-zero size — Bevy's UI layout pass may take
+/// one or more frames to lay out a freshly spawned area, and `container_center`
+/// derived from a zero size would place every node off-screen to the left.
+pub(crate) fn process_pending_graph_layout_refresh(
+    mut commands: Commands,
+    mut view: ResMut<GraphViewState>,
+    graph_area: Query<&ComputedNode, With<SpellGraphArea>>,
+) {
+    view.set_changed();
+    let area_ready = graph_area
+        .single()
+        .map(|computed| computed.size().length_squared() > 0.0)
+        .unwrap_or(false);
+    if area_ready {
+        commands.remove_resource::<PendingGraphLayoutRefresh>();
     }
 }
 

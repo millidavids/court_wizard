@@ -96,3 +96,9 @@ pub(crate) struct NullZone {
     pub radius: f32,
     pub origin: Vec3,
 }
+
+/// Marks a `DispelProjectile` or `DispelImpact` as originating from the wizard
+/// rather than from an enemy Dispeller unit. Only wizard-cast dispels count
+/// toward the player's Dispel talent progress.
+#[derive(Component)]
+pub(crate) struct WizardCastDispel;

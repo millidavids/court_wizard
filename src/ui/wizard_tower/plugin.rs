@@ -149,6 +149,17 @@ impl Plugin for WizardTowerPlugin {
                     >)),
                     super::study_tab::animate_graph_view
                         .run_if(resource_exists::<GraphViewAnimation>),
+                    // After a panel rebuild, this marker triggers the
+                    // position systems to re-run on the freshly spawned
+                    // entities (the direct `set_changed()` call in the same
+                    // tick as the deferred spawn commands does not work).
+                    super::study_tab::process_pending_graph_layout_refresh
+                        .run_if(resource_exists::<super::study_tab::PendingGraphLayoutRefresh>)
+                        .before(super::study_tab::update_graph_node_positions)
+                        .before(super::study_tab::update_graph_edge_positions)
+                        .before(super::study_tab::update_insight_node_positions)
+                        .before(super::study_tab::update_insight_edge_positions)
+                        .before(super::study_tab::update_graph_node_label_scale),
                     // Position/layout systems only need to run when the view
                     // actually moves — gate on `resource_changed` so idle
                     // frames don't rewrite dozens of `Node` fields.
