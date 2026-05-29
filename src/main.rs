@@ -97,6 +97,15 @@ fn main() {
             ),
         )
         .run();
+
+    // Force the OS process to terminate immediately after Bevy returns.
+    // Without this, background threads (notably the iroh transport runtime,
+    // which can hold network sockets, and Steam's internal threads) can
+    // block the process from exiting — on macOS this freezes the game and
+    // the launching terminal for tens of seconds. Saves are flushed in
+    // Bevy's `Last` schedule before this point, so it is safe to skip the
+    // remaining Drop chain.
+    std::process::exit(0);
 }
 
 const TARGET_ASPECT: f32 = 16.0 / 9.0;

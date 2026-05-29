@@ -18,6 +18,7 @@ pub(crate) use components::{
     TimeTravelContainer, WizardTowerButtonAction,
 };
 pub(crate) use components::{SelectedStudySpell, StudyAllocAdjustButton, TalentCard};
+pub(crate) use multiplayer_tab::MultiplayerLobby;
 pub(crate) use layout::{
     RightPanelView, WizardTowerLeftPanel, WizardTowerRightPanel, WizardTowerTab, WizardTowerTabRow,
 };

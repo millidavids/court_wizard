@@ -53,6 +53,14 @@ impl Plugin for TransportBridgePlugin {
                     reliable_notify_rt,
                     unreliable_notify_rt,
                 ));
+
+                // Iroh spawns long-lived actor tasks (relay/STUN probes, pkarr
+                // publisher, mDNS) inside our runtime. The default `Runtime`
+                // drop blocks until every task finishes, which on macOS can
+                // stall for tens of seconds at app exit because those network
+                // tasks never see clean shutdown. `shutdown_background` aborts
+                // all tasks and returns immediately so the OS thread exits.
+                rt.shutdown_background();
             })
             .expect("Failed to spawn transport runtime thread");
 

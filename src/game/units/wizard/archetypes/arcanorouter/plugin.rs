@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    game::run_conditions::{is_arcanorouter, is_gameplay_active, is_gameplay_running},
+    game::run_conditions::{is_arcanorouter, is_local_wizard_active},
     state::{InGameState, MultiplayerGameState},
 };
 
@@ -31,8 +31,14 @@ impl Plugin for ArcanoRouterPlugin {
                     apply_bonuses_to_wizard_stats,
                 )
                     .chain()
-                    .run_if(is_gameplay_active)
-                    .run_if(is_gameplay_running)
+                    // Both peers must run this — the input handler in
+                    // `ArcanoRouterDisplayPlugin` writes `SliderAdjustMessage`
+                    // on both host and guest under `is_local_wizard_active`,
+                    // and `ArcanoRouterState` is a local per-peer resource
+                    // (slider values drive local wizard stats only). Gating
+                    // on `is_gameplay_running` left the guest's messages
+                    // unconsumed so the sliders did nothing.
+                    .run_if(is_local_wizard_active)
                     .run_if(is_arcanorouter),
             )
             .add_systems(

@@ -16,6 +16,7 @@ use crate::networking::snapshot::SnapshotTick;
 use crate::networking::transport::{TransportCommand, TransportHandle};
 use crate::state::{AppState, MultiplayerGameState};
 use crate::ui::components::ButtonStyle;
+use crate::ui::wizard_tower::MultiplayerLobby;
 use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_PRIMARY};
 use crate::ui::systems::spawn_button;
 
@@ -286,6 +287,7 @@ pub(super) fn handle_mp_score_buttons(
     mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
     mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
     mut commands: Commands,
+    mut lobby: ResMut<MultiplayerLobby>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -319,6 +321,11 @@ pub(super) fn handle_mp_score_buttons(
                     );
                     connection.reset();
                     commands.remove_resource::<MultiplayerSession>();
+                    // Going MultiplayerGame → MainMenu skips the
+                    // WizardTower-exit hook that normally resets the lobby,
+                    // so any stale phase / peer_protocol_version from this
+                    // session would block reconnecting later. Reset here.
+                    *lobby = MultiplayerLobby::new();
                     next_app_state.set(AppState::MainMenu);
                 }
             }
@@ -584,6 +591,7 @@ pub(super) fn handle_mp_pause_buttons(
     steam_client: Option<Res<bevy_steamworks::Client>>,
     mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
     mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
+    mut lobby: ResMut<MultiplayerLobby>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -602,6 +610,8 @@ pub(super) fn handle_mp_pause_buttons(
                     );
                     connection.reset();
                     commands.remove_resource::<MultiplayerSession>();
+                    // See `handle_mp_score_buttons` for the rationale.
+                    *lobby = MultiplayerLobby::new();
                     next_app_state.set(AppState::MainMenu);
                 }
             }
@@ -678,6 +688,7 @@ pub(super) fn handle_mp_disconnected_buttons(
     steam_client: Option<Res<bevy_steamworks::Client>>,
     mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
     mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
+    mut lobby: ResMut<MultiplayerLobby>,
 ) {
     for event in button_clicked.read() {
         if button_query.get(event.button).is_ok() {
@@ -689,6 +700,8 @@ pub(super) fn handle_mp_disconnected_buttons(
             );
             connection.reset();
             commands.remove_resource::<MultiplayerSession>();
+            // See `handle_mp_score_buttons` for the rationale.
+            *lobby = MultiplayerLobby::new();
             next_app_state.set(AppState::MainMenu);
             return;
         }
