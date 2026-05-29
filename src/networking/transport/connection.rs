@@ -5,10 +5,33 @@ use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;
 
 use crossbeam_channel::{Receiver, Sender};
-use iroh::endpoint::Connection;
+use iroh::endpoint::{Connection, IdleTimeout, QuicTransportConfig};
 use iroh::{Endpoint, EndpointAddr, endpoint::presets};
 use tokio::sync::Notify;
 use tracing::warn;
+
+/// QUIC keep-alive interval. Sent automatically while idle so a peer that
+/// has stopped responding can be detected quickly.
+const KEEP_ALIVE_INTERVAL: Duration = Duration::from_secs(2);
+
+/// QUIC idle timeout. The connection is declared dead after this many seconds
+/// of no traffic. With `KEEP_ALIVE_INTERVAL = 2s`, a live peer never hits this
+/// — but a peer that hard-closes (window close / Alt+F4 / process kill) is
+/// detected within ~5s. Default iroh value is 30s, which leaves the host
+/// stranded in a dead match for far too long.
+const QUIC_IDLE_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Builds the QUIC transport config we apply to every endpoint we create.
+/// Both host and guest use the same values so the negotiated idle timeout
+/// is short on both sides.
+fn build_transport_config() -> QuicTransportConfig {
+    QuicTransportConfig::builder()
+        .keep_alive_interval(KEEP_ALIVE_INTERVAL)
+        .max_idle_timeout(Some(
+            IdleTimeout::try_from(QUIC_IDLE_TIMEOUT).expect("valid idle timeout"),
+        ))
+        .build()
+}
 
 /// Maximum time we will block on `Endpoint::close()` during shutdown.
 /// iroh's close awaits `wait_idle()` which can stall for the full QUIC idle
@@ -95,11 +118,13 @@ async fn handle_host(
     let ep = if use_relay {
         Endpoint::builder(presets::N0)
             .alpns(vec![ALPN.to_vec()])
+            .transport_config(build_transport_config())
             .bind()
             .await
     } else {
         Endpoint::builder(presets::N0DisableRelay)
             .alpns(vec![ALPN.to_vec()])
+            .transport_config(build_transport_config())
             .bind()
             .await
     };
@@ -204,7 +229,11 @@ async fn handle_guest(
         }
     };
 
-    let ep = match Endpoint::builder(presets::N0).bind().await {
+    let ep = match Endpoint::builder(presets::N0)
+        .transport_config(build_transport_config())
+        .bind()
+        .await
+    {
         Ok(ep) => ep,
         Err(e) => {
             send_error_and_fail(event_tx, format!("Failed to create endpoint: {e}"));

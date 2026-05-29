@@ -24,6 +24,7 @@ All notable changes to this project will be documented in this file.
 - **Both players no longer see the defeat screen at the end of the same match** — occasionally a multiplayer match would end with both players seeing the Defeat screen instead of one win + one defeat. The winner now correctly sees Victory and the loser sees Defeat every time
 - **King's Guard now walks and faces the correct direction** — the four elite guards orbiting the King were stuck on their idle frame and always faced forward, no matter which way they were actually moving. They now play their walking animation and turn to face the direction they're travelling
 - **Black Hole now works in multiplayer** — Black Hole had no effect in a multiplayer match: the gravity well didn't pull units, didn't deal damage, and the Crushing Pressure, Event Horizon, Dimensional Rift, and Singularity talents didn't fire either. Both players can now cast Black Hole and its full talent set the same way they would in single-player
+- **The host detects when your friend closes the game** — when the other player hard-quit (window close, Alt+F4, force quit, or a crash), the host could be left in a "live" match for half a minute or more before noticing nobody was there. The host now spots the dead connection within a few seconds and shows the disconnect screen
 
 ## [v0.8.43] - 2026-05-28
 

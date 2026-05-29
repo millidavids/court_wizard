@@ -662,8 +662,6 @@ pub fn receive_spell_visual_snapshot(
     mut connection: ResMut<NetworkConnection>,
     mut latest: ResMut<LatestSpellSnapshot>,
 ) {
-    latest.0 = None;
-
     // Separate spell snapshots from other unreliable data
     let all_data: Vec<Vec<u8>> = connection.incoming_unreliable.drain(..).collect();
     let mut other_data = Vec::new();
@@ -686,7 +684,18 @@ pub fn receive_spell_visual_snapshot(
     // Re-queue non-spell data for other systems (game snapshots)
     connection.incoming_unreliable = other_data;
 
-    // Deserialize the latest spell snapshot
+    // Deserialize the latest spell snapshot if a new one arrived this frame.
+    // We do NOT reset `latest.0` on frames without new data — keeping the
+    // previously-deserialized snapshot lets `apply_remote_spell_snapshot`
+    // re-render ghost arcs every frame with fresh random jitter (matching
+    // the local caster's per-frame `update_lightning_bolts` crackle).
+    // Without persistence the bolts only redraw at the network snapshot
+    // rate and visibly stutter between updates.
+    //
+    // One-shot `cast_events` (school flares, SFX, etc.) must NOT re-fire
+    // each frame, so on stale frames we keep `latest.0` but empty its
+    // `cast_events` list — leaving everything else (effects, projectiles,
+    // arcs, missiles, beams) intact for per-frame re-rendering.
     if let Some(spell_bytes) = latest_spell_data {
         match bincode::deserialize::<SpellVisualSnapshot>(spell_bytes) {
             Ok(snapshot) => {
@@ -699,6 +708,8 @@ pub fn receive_spell_visual_snapshot(
                 );
             }
         }
+    } else if let Some(s) = latest.0.as_mut() {
+        s.cast_events.clear();
     }
 }
 
