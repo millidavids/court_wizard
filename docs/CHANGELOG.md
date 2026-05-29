@@ -2,10 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.8.43] - 2026-05-28
 
 ### Added
 - **Steam users can now invite friends directly through the Steam overlay** — pick "Invite Friend on Steam" in the Multiplayer tab and Steam pops up its friends list for you. Your friend gets a normal Steam invite they can accept, and the two of you connect through Steam's relay network without anyone copy-pasting a code. The old code-sharing path is still there for anyone who isn't on Steam, and you can join an invite straight from Steam's friend list right-click menu or from a Steam invite link
+
+### Changed
+- **Updated left wall and wall floor artwork** — the side walls and the floor strip along the walls have new sprite art
 
 ### Fixed
 - **Steam lobbies clean up properly when a match ends** — quitting a Steam match (from the score screen, pause menu, or disconnect overlay) now correctly closes the Steam lobby. Previously the lobby could linger and your Steam friend list would still show you as "in game"
