@@ -327,11 +327,20 @@ pub(super) fn apply_dimensional_rift(
 
 /// Updates black hole visual scale to match growth animation, adds vibration effect,
 /// billboards the circle to face the wizard, and applies pulsing.
+///
+/// Also ticks `time_alive` and recomputes `current_radius` here so that
+/// growth animates on BOTH peers — `apply_gravitational_forces` (which
+/// previously owned the timer tick) only runs on the host, leaving the
+/// guest's local black hole and ghost black holes frozen at `Vec3::ZERO`
+/// scale and invisible.
 pub(super) fn update_black_hole_visuals(
     time: Res<Time>,
-    mut black_holes: Query<(&BlackHole, &mut Transform)>,
+    mut black_holes: Query<(&mut BlackHole, &mut Transform)>,
 ) {
-    for (black_hole, mut transform) in black_holes.iter_mut() {
+    let delta = time.delta_secs();
+    for (mut black_hole, mut transform) in black_holes.iter_mut() {
+        black_hole.time_alive += delta;
+        black_hole.calculate_current_radius();
         let growth_factor = (black_hole.time_alive / GROWTH_TIME).min(1.0);
 
         // Add vibration using sine waves on different axes

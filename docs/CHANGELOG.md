@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **You can now adjust settings during a multiplayer match** — opening the pause menu in a multiplayer game shows a new Settings button alongside Resume and Disconnect. Clicking it opens the same settings screen you'd see in single-player; Back (or Escape) returns to the pause menu. Gameplay keeps running in the background while settings is open
 
+### Changed
+- **Black Hole no longer warps the screen around it** — the gravitational lensing distortion that bent everything around the sphere is gone. Black Hole now renders as a plain opaque black sphere on both peers, matching the cleaner look we settled on
+
 ### Fixed
 - **Spell web no longer jumps off-screen when you open the Study tab** — on entering the Study tab in the Wizard Tower, the spell web would render way off to the left and only snap into place after you clicked or panned. It now appears in the right position from the moment the tab opens
 - **Spell web no longer jumps to the corner after committing insight** — pressing Commit could make the entire web collapse to the top-left of the panel until you next interacted with it. The view now stays exactly where you left it after committing
@@ -25,6 +28,7 @@ All notable changes to this project will be documented in this file.
 - **King's Guard now walks and faces the correct direction** — the four elite guards orbiting the King were stuck on their idle frame and always faced forward, no matter which way they were actually moving. They now play their walking animation and turn to face the direction they're travelling
 - **Black Hole now works in multiplayer** — Black Hole had no effect in a multiplayer match: the gravity well didn't pull units, didn't deal damage, and the Crushing Pressure, Event Horizon, Dimensional Rift, and Singularity talents didn't fire either. Both players can now cast Black Hole and its full talent set the same way they would in single-player
 - **The host detects when your friend closes the game** — when the other player hard-quit (window close, Alt+F4, force quit, or a crash), the host could be left in a "live" match for half a minute or more before noticing nobody was there. The host now spots the dead connection within a few seconds and shows the disconnect screen
+- **Black Hole's growing sphere now appears on the other player's screen** — the spinning, expanding black core was stuck at zero size on the non-casting player's view, so they only saw the empty space where it should be. The animation now grows and pulses the same way for both players
 
 ## [v0.8.43] - 2026-05-28
 

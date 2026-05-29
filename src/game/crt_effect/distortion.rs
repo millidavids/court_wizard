@@ -8,12 +8,10 @@ use super::systems::ndc_to_uv;
 use crate::game::battlefield::components::LavaPool;
 use crate::game::terrain::bush::components::{BurningBush, Bush};
 use crate::game::terrain::tree::components::{BurningTree, Tree};
-use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 
 pub(super) fn update_lensing_positions(
-    black_holes: Query<&BlackHole>,
     rifts: Query<&crate::game::units::wizard::spells::teleport::components::DimensionalRift>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     mut lensing_query: Query<&mut LensingSettings>,
@@ -43,56 +41,12 @@ pub(super) fn update_lensing_positions(
         return;
     };
 
-    // Slots 0-1: black holes (lensing distortion only; the black core is the opaque sphere mesh)
-    let mut count = 0u32;
-    for black_hole in &black_holes {
-        if count >= 2 {
-            break;
-        }
-
-        // Project black hole center to NDC
-        let Some(ndc) = camera.world_to_ndc(camera_transform, black_hole.position) else {
-            continue;
-        };
-
-        let uv = ndc_to_uv(ndc);
-
-        // Skip if too far off screen
-        if uv.x < -0.3 || uv.x > 1.3 || uv.y < -0.3 || uv.y > 1.3 {
-            continue;
-        }
-
-        // Project a point at the edge of the black hole to get screen-space radius
-        let edge_point = black_hole.position + camera_transform.right() * black_hole.current_radius;
-        let Some(edge_ndc) = camera.world_to_ndc(camera_transform, edge_point) else {
-            continue;
-        };
-        let edge_uv = ndc_to_uv(edge_ndc);
-        let screen_radius = (edge_uv.x - uv.x).abs();
-
-        // Influence radius is larger than visual radius
-        let influence_radius = screen_radius * LENSING_INFLUENCE_MULT;
-
-        // Skip black holes that are too small (still growing)
-        if influence_radius < 0.001 {
-            continue;
-        }
-
-        match count {
-            0 => {
-                settings.lensing_0_x = uv.x;
-                settings.lensing_0_y = uv.y;
-                settings.lensing_0_radius = influence_radius;
-            }
-            1 => {
-                settings.lensing_1_x = uv.x;
-                settings.lensing_1_y = uv.y;
-                settings.lensing_1_radius = influence_radius;
-            }
-            _ => {}
-        }
-        count += 1;
-    }
+    // Slots 0-1: previously reserved for black hole lensing — now disabled.
+    // Black holes render as plain opaque black spheres without any
+    // screen-space distortion, matching the simpler single-player look.
+    // The slots are left zeroed so the shader's branchless `step()` checks
+    // ignore them.
+    let count = 0u32;
 
     // Slots 2-3: Dimensional Rift endpoints (lensing only, no darkening)
     let rift_radius =

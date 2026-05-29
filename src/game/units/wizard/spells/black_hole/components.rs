@@ -125,12 +125,13 @@ impl BlackHole {
         self.time_since_damage = 0.0;
     }
 
-    /// Updates timers.
+    /// Updates host-side gameplay timers (damage cadence + rift pulse).
+    /// `time_alive` and the derived `current_radius` are ticked separately
+    /// by `update_black_hole_visuals` so the growth animation runs on
+    /// both peers in MP (visuals must not depend on host-only systems).
     pub fn update_timers(&mut self, delta: f32) {
-        self.time_alive += delta;
         self.time_since_damage += delta;
         self.time_since_rift_pulse += delta;
-        self.calculate_current_radius();
     }
 
     /// Returns true if the black hole has expired.

@@ -502,10 +502,28 @@ pub fn init_spell_visual_assets(
             ..default()
         }),
 
-        // Arc/Beam materials
-        chain_lightning_arc: materials.add(unlit(Color::srgb(0.7, 0.85, 1.0))),
-        lightning_strike: materials.add(unlit(Color::srgb(0.8, 0.9, 1.0))),
-        lightning_rod_arc: materials.add(unlit(Color::srgb(0.7, 0.85, 1.0))),
+        // Arc/Beam materials — `cull_mode: None` so the flat segment quads
+        // are visible from both sides. In MP the two peers' cameras look at
+        // the battlefield from mirrored corners; with default back-face
+        // culling the lightning is visible to one peer but not the other.
+        chain_lightning_arc: materials.add(StandardMaterial {
+            base_color: Color::srgb(0.7, 0.85, 1.0),
+            unlit: true,
+            cull_mode: None,
+            ..default()
+        }),
+        lightning_strike: materials.add(StandardMaterial {
+            base_color: Color::srgb(0.8, 0.9, 1.0),
+            unlit: true,
+            cull_mode: None,
+            ..default()
+        }),
+        lightning_rod_arc: materials.add(StandardMaterial {
+            base_color: Color::srgb(0.7, 0.85, 1.0),
+            unlit: true,
+            cull_mode: None,
+            ..default()
+        }),
         crystal_beam: materials.add(unlit(Color::srgb(1.0, 0.6, 0.1))),
         crystal_arc: materials.add(unlit(Color::srgba(0.6, 0.4, 1.0, 0.9))),
         finger_of_death_beam: materials.add(StandardMaterial {
