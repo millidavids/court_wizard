@@ -22,7 +22,6 @@ use crate::game::units::components::{
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     self, SpellCircleIndicator, TargetAssistWorldPos, UniqueHitTracker, apply_target_assist,
@@ -33,6 +32,7 @@ use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
+use crate::networking::snapshot::SpellSoundId;
 use bevy::prelude::*;
 
 /// Computes talent parameters from active talent selections.

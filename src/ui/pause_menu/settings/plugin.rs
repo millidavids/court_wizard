@@ -65,5 +65,21 @@ impl Plugin for PauseSettingsPlugin {
                 )
                     .run_if(in_state(PauseMenuState::Settings)),
             );
+
+        // Dev-only: orange "Unlock Everything" button click handler + F2 reveal.
+        #[cfg(debug_assertions)]
+        app.add_systems(
+            Update,
+            crate::ui::main_menu::settings::debug_unlock::unlock_everything_button_action
+                .in_set(ButtonActionSet)
+                .run_if(in_state(PauseMenuState::Settings)),
+        )
+        .add_systems(
+            Update,
+            crate::game::debug_ui::sync_marker_visibility::<
+                crate::ui::main_menu::settings::debug_unlock::UnlockEverythingButton,
+            >
+                .run_if(in_state(PauseMenuState::Settings)),
+        );
     }
 }

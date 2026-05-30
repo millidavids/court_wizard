@@ -5,9 +5,7 @@
 use bevy::prelude::*;
 use bevy_steamworks::Client;
 
-use super::join_requests::{
-    consume_pending_join_in_main_menu, parse_launch_command_at_startup,
-};
+use super::join_requests::{consume_pending_join_in_main_menu, parse_launch_command_at_startup};
 use super::lobby_state::{SteamLobbyBridge, SteamLobbyState};
 use super::lobby_systems::{
     process_create_lobby_result, process_game_lobby_join_requested,
@@ -15,8 +13,8 @@ use super::lobby_systems::{
     process_lobby_chat_updates,
 };
 use super::sockets::{
-    drive_steam_listen_socket, poll_steam_guest_connection_state,
-    steam_transport_bridge_system, SteamP2pSocket,
+    SteamP2pSocket, drive_steam_listen_socket, poll_steam_guest_connection_state,
+    steam_transport_bridge_system,
 };
 
 pub(crate) struct SteamMultiplayerPlugin;
@@ -27,7 +25,10 @@ impl Plugin for SteamMultiplayerPlugin {
             .init_resource::<SteamP2pSocket>()
             // SteamLobbyBridge has to be built lazily inside a Startup system
             // because constructing it requires `Res<Client>`.
-            .add_systems(Startup, (init_steam_lobby_bridge, init_relay_network_access))
+            .add_systems(
+                Startup,
+                (init_steam_lobby_bridge, init_relay_network_access),
+            )
             .add_systems(Startup, parse_launch_command_at_startup)
             .add_systems(
                 Update,

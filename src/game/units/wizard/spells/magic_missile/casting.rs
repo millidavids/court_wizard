@@ -15,13 +15,13 @@ use crate::game::input::messages::MouseLeftHeld;
 use crate::game::units::components::{Corpse, Team};
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::networking::crdt::PeerId;
+use crate::networking::snapshot::SpellSoundId;
 
 /// Talent-modified missile parameters.
 struct MissileParams {

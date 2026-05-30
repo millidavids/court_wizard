@@ -3,10 +3,8 @@
 //! Bevy main thread.
 
 use bevy::prelude::*;
-use bevy_steamworks::{
-    Client, LobbyChatUpdate, LobbyId, LobbyType, SResult, SteamError, SteamId,
-};
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use bevy_steamworks::{Client, LobbyChatUpdate, LobbyId, LobbyType, SResult, SteamError, SteamId};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 
 /// Where we are in the Steam-side lifecycle. Independent of `NetworkConnection.state`
 /// — that one tracks the data-channel; this one tracks the lobby + signalling.
@@ -85,9 +83,11 @@ pub(crate) fn request_steam_invite(
     bridge: &SteamLobbyBridge,
 ) {
     let tx = bridge.create_lobby_tx.clone();
-    client.matchmaking().create_lobby(LobbyType::Private, 2, move |result: SResult<LobbyId>| {
-        let _ = tx.send(result);
-    });
+    client
+        .matchmaking()
+        .create_lobby(LobbyType::Private, 2, move |result: SResult<LobbyId>| {
+            let _ = tx.send(result);
+        });
     *lobby_state = SteamLobbyState::Creating;
 }
 

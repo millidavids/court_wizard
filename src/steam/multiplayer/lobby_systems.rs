@@ -9,15 +9,15 @@
 use std::str::FromStr;
 
 use bevy::prelude::*;
-use bevy_steamworks::{
-    CallbackResult, ChatMemberStateChange, Client, LobbyId, SteamworksEvent,
-};
+use bevy_steamworks::{CallbackResult, ChatMemberStateChange, Client, LobbyId, SteamworksEvent};
 
 use crate::networking::protocol::PROTOCOL_VERSION;
 use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection, PeerRole};
 
 use super::constants::{LOBBY_KEY_PROTOCOL_VERSION, RICH_PRESENCE_CONNECT_KEY};
-use super::lobby_state::{SteamLobbyBridge, SteamLobbyState, format_steam_error, leave_steam_lobby};
+use super::lobby_state::{
+    SteamLobbyBridge, SteamLobbyState, format_steam_error, leave_steam_lobby,
+};
 use super::sockets::{SteamP2pSocket, start_connecting, start_listening, tear_down_socket};
 
 /// Drain `create_lobby` FnOnce results pushed from the Steam dispatcher
@@ -30,9 +30,11 @@ pub(super) fn process_create_lobby_result(
     mut lobby_state: Option<ResMut<SteamLobbyState>>,
     mut connection: ResMut<NetworkConnection>,
 ) {
-    let (Some(client), Some(bridge), Some(lobby_state)) =
-        (client.as_deref(), bridge.as_deref(), lobby_state.as_deref_mut())
-    else {
+    let (Some(client), Some(bridge), Some(lobby_state)) = (
+        client.as_deref(),
+        bridge.as_deref(),
+        lobby_state.as_deref_mut(),
+    ) else {
         return;
     };
 
@@ -219,8 +221,7 @@ pub(super) fn process_lobby_chat_updates(
                 // Idempotent: if we already transitioned, ignore stale events.
                 SteamLobbyState::Joined { .. } | SteamLobbyState::Idle => {}
                 // Guest path uses join_lobby result, not LobbyChatUpdate.
-                SteamLobbyState::Creating
-                | SteamLobbyState::AwaitingJoin { .. } => {}
+                SteamLobbyState::Creating | SteamLobbyState::AwaitingJoin { .. } => {}
             },
             ChatMemberStateChange::Left
             | ChatMemberStateChange::Disconnected

@@ -172,9 +172,8 @@ pub(super) fn start_connecting(
         Err(_) => {
             warn!("[Steam MP] connect_p2p failed (InvalidHandle)");
             socket.expected_peer = None;
-            connection.error = Some(
-                "Steam couldn't open a P2P connection to your friend. Try again.".to_string(),
-            );
+            connection.error =
+                Some("Steam couldn't open a P2P connection to your friend. Try again.".to_string());
             connection.state = ConnectionState::Failed;
         }
     }

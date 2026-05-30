@@ -482,6 +482,10 @@ fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
                     ));
                 });
             });
+
+        // Dev-only orange "Unlock Everything" button, hidden until F2.
+        #[cfg(debug_assertions)]
+        super::debug_unlock::spawn_unlock_everything_button(section);
     });
 }
 

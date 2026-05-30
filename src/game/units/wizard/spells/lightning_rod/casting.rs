@@ -12,7 +12,6 @@ use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::lightning_bolt::{
     LightningBoltConfig, spawn_lightning_bolt,
 };
@@ -26,6 +25,7 @@ use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::networking::snapshot::SpellSoundId;
 use bevy::prelude::*;
 
 /// Compute talent parameters from active talent selections.

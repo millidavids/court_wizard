@@ -97,8 +97,7 @@ pub(crate) fn handle_mp_tab_actions(
                     lobby.phase = LobbyPhase::SteamHosting;
                 } else {
                     lobby.status_message = Some(
-                        "Steam isn't running — use Host Game to share a code instead."
-                            .to_string(),
+                        "Steam isn't running — use Host Game to share a code instead.".to_string(),
                     );
                 }
             }

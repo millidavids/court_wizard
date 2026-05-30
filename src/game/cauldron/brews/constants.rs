@@ -219,3 +219,10 @@ pub(super) const COMBOS: &[ComboBonus] = &[
         description: "Deep mana meets spirit binding",
     },
 ];
+
+/// Dev-only: every hidden combo's display name. Lets the "Unlock Everything"
+/// debug button populate all combos without hardcoding the names here.
+#[cfg(debug_assertions)]
+pub(crate) fn all_combo_names() -> impl Iterator<Item = &'static str> {
+    COMBOS.iter().map(|c| c.name)
+}

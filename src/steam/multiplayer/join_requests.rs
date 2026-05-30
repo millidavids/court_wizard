@@ -21,10 +21,7 @@ pub(crate) struct PendingSteamJoin {
 /// Inspect Steam's command-line invite parameter at boot. If it's
 /// `+connect_lobby <u64>`, stash the lobby id for the main-menu consumer to
 /// pick up once we're past Splash / Studio screens.
-pub(super) fn parse_launch_command_at_startup(
-    mut commands: Commands,
-    client: Option<Res<Client>>,
-) {
+pub(super) fn parse_launch_command_at_startup(mut commands: Commands, client: Option<Res<Client>>) {
     let Some(client) = client else {
         return;
     };
@@ -66,10 +63,7 @@ pub(super) fn consume_pending_join_in_main_menu(
     // route into MetaGame, otherwise we skip MainMenu's entry-system setup
     // (audio init, leaderboard pre-fetch, save sync). MultiplayerLoading /
     // MultiplayerGame / Loading / InGame must NEVER be interrupted mid-match.
-    if !matches!(
-        app_state.get(),
-        AppState::MainMenu | AppState::MetaGame
-    ) {
+    if !matches!(app_state.get(), AppState::MainMenu | AppState::MetaGame) {
         return;
     }
     let (Some(client), Some(bridge), Some(lobby_state_mut)) = (

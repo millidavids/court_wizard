@@ -305,7 +305,15 @@ pub(crate) fn play_sfx_synced(
     game_config: &GameConfig,
     sfx_assets: &SpellSfxAssets,
 ) {
-    play_sfx_synced_scaled(commands, pending, sound_id, effect_pos, game_config, sfx_assets, 1.0);
+    play_sfx_synced_scaled(
+        commands,
+        pending,
+        sound_id,
+        effect_pos,
+        game_config,
+        sfx_assets,
+        1.0,
+    );
 }
 
 /// Like `play_sfx_synced` but with a volume scale factor.

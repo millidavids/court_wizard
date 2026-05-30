@@ -114,7 +114,10 @@ pub(crate) fn sync_lobby_with_connection(
 
     if matches!(
         &lobby.phase,
-        LobbyPhase::Hosting | LobbyPhase::Joining | LobbyPhase::SteamHosting | LobbyPhase::SteamJoining
+        LobbyPhase::Hosting
+            | LobbyPhase::Joining
+            | LobbyPhase::SteamHosting
+            | LobbyPhase::SteamJoining
     ) && connection.state == ConnectionState::Connected
         && session.is_none()
     {

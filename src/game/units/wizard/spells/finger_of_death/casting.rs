@@ -16,7 +16,6 @@ use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spe
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     PendingDefenderHeal, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -25,6 +24,7 @@ use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use crate::networking::snapshot::SpellSoundId;
 use bevy::prelude::*;
 
 /// Computes talent-modified parameters for Finger of Death.

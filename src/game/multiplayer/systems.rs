@@ -16,9 +16,9 @@ use crate::networking::snapshot::SnapshotTick;
 use crate::networking::transport::{TransportCommand, TransportHandle};
 use crate::state::{AppState, MultiplayerGameState};
 use crate::ui::components::ButtonStyle;
-use crate::ui::wizard_tower::MultiplayerLobby;
 use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_PRIMARY};
 use crate::ui::systems::spawn_button;
+use crate::ui::wizard_tower::MultiplayerLobby;
 
 use super::components::{
     MpDisconnectedButtonAction, MpPauseButtonAction, MpRematchState, MpScoreButtonAction,

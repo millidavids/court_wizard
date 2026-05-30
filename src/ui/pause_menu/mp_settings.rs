@@ -15,10 +15,11 @@ use crate::ui::main_menu::settings::components::{
 };
 use crate::ui::main_menu::settings::systems::{
     capture_key_input, handle_confirmation_popup, handle_settings_tab_click,
-    key_binding_button_action, key_capture_inactive, option_button_action, rebuild_settings_content,
-    resolution_button_action, setup_pause_menu, slider_button_action, slider_interaction,
-    spawn_confirmation_popup, update_key_binding_text, update_resolution_selection,
-    update_resolution_visibility, update_selected_options, update_slider_text, update_sliders,
+    key_binding_button_action, key_capture_inactive, option_button_action,
+    rebuild_settings_content, resolution_button_action, setup_pause_menu, slider_button_action,
+    slider_interaction, spawn_confirmation_popup, update_key_binding_text,
+    update_resolution_selection, update_resolution_visibility, update_selected_options,
+    update_slider_text, update_sliders,
 };
 use crate::ui::plugin::ButtonActionSet;
 use crate::ui::systems::handle_scroll;
@@ -67,6 +68,22 @@ impl Plugin for MpPauseSettingsPlugin {
                 )
                     .run_if(in_state(MultiplayerGameState::Settings)),
             );
+
+        // Dev-only: orange "Unlock Everything" button click handler + F2 reveal.
+        #[cfg(debug_assertions)]
+        app.add_systems(
+            Update,
+            crate::ui::main_menu::settings::debug_unlock::unlock_everything_button_action
+                .in_set(ButtonActionSet)
+                .run_if(in_state(MultiplayerGameState::Settings)),
+        )
+        .add_systems(
+            Update,
+            crate::game::debug_ui::sync_marker_visibility::<
+                crate::ui::main_menu::settings::debug_unlock::UnlockEverythingButton,
+            >
+                .run_if(in_state(MultiplayerGameState::Settings)),
+        );
     }
 }
 

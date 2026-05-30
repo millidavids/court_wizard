@@ -7,12 +7,12 @@ use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::networking::snapshot::SpellSoundId;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
+use crate::networking::snapshot::SpellSoundId;
 use bevy::prelude::*;
 
 // ===== Talent Params =====
