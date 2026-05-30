@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.8.57] - 2026-05-30
 
 ### Changed
 - **Wall of Dirt now lasts the whole level** — The dirt wall used to crumble after a short time, which made it almost useless. It now stays standing for the rest of the level and only clears when you start a new one.
