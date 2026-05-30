@@ -161,17 +161,18 @@ fn build_menu(
         })
         .with_children(|content| {
             // === Left panel: detail/preview ===
-            spawn_detail_panel(content, is_brewing, selection, &unlocked_combos, config);
+            spawn_detail_panel(
+                content,
+                is_brewing,
+                selection,
+                &unlocked_combos,
+                config,
+                stone_used,
+            );
 
             // === Right panel: categorized ingredient grid ===
             if !is_brewing {
-                spawn_ingredient_list(
-                    content,
-                    selection,
-                    &unlocked_ingredients,
-                    config,
-                    stone_used,
-                );
+                spawn_ingredient_list(content, selection, &unlocked_ingredients);
             }
         });
     });
@@ -184,6 +185,7 @@ fn spawn_detail_panel(
     selection: &IngredientSelection,
     unlocked_combos: &[String],
     config: &GameConfig,
+    stone_used: &PhilosophersStoneUsed,
 ) {
     parent
         .spawn((
@@ -199,6 +201,13 @@ fn spawn_detail_panel(
             CauldronDetailPanel,
         ))
         .with_children(|left| {
+            // Philosopher's Stone selector at the top (Alchemist only, once per battle)
+            spawn_philosophers_stone_selector(
+                left,
+                selection.has_stone(),
+                !is_brewing && config.wizard_type == WizardType::Alchemist && !stone_used.0,
+            );
+
             // Detail panel with border
             left.spawn((
                 Node {
@@ -386,8 +395,6 @@ fn spawn_ingredient_list(
     parent: &mut ChildSpawnerCommands,
     selection: &IngredientSelection,
     unlocked_ingredients: &[String],
-    config: &GameConfig,
-    stone_used: &PhilosophersStoneUsed,
 ) {
     parent
         .spawn((
@@ -409,66 +416,6 @@ fn spawn_ingredient_list(
         ))
         .with_children(|list| {
             let at_limit = selection.at_limit();
-
-            // Philosopher's Stone button (Alchemist only, once per battle)
-            if config.wizard_type == WizardType::Alchemist && !stone_used.0 {
-                list.spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(LIST_ITEM_GAP),
-                    flex_grow: 0.0,
-                    flex_shrink: 0.0,
-                    ..default()
-                })
-                .with_children(|column| {
-                    column.spawn((
-                        Text::new("Special"),
-                        TextFont::from_font_size(CATEGORY_FONT_SIZE),
-                        TextColor(STONE_BUTTON_STYLE.text_color),
-                        TextLayout::new_with_justify(Justify::Center),
-                        Node {
-                            width: Val::Percent(100.0),
-                            margin: UiRect::bottom(Val::Px(4.0)),
-                            ..default()
-                        },
-                    ));
-
-                    let stone_style = if selection.has_stone() {
-                        &STONE_SELECTED_STYLE
-                    } else {
-                        &STONE_BUTTON_STYLE
-                    };
-
-                    column
-                        .spawn(Node {
-                            flex_direction: FlexDirection::Column,
-                            align_items: AlignItems::Center,
-                            row_gap: Val::Px(4.0),
-                            ..default()
-                        })
-                        .with_children(|card| {
-                            spawn_button(
-                                card,
-                                "Philosopher's Stone",
-                                (
-                                    CauldronMenuButtonAction::TogglePhilosophersStone,
-                                    crate::ui::focus::CrossRowHorizontalNav,
-                                ),
-                                stone_style,
-                            );
-
-                            card.spawn((
-                                Text::new("Removes dilution (once per battle)"),
-                                TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
-                                TextColor(stone_style.text_color),
-                                TextLayout::new_with_justify(Justify::Center),
-                                Node {
-                                    max_width: Val::Px(BUTTON_WIDTH),
-                                    ..default()
-                                },
-                            ));
-                        });
-                });
-            }
 
             for category in IngredientCategory::all() {
                 // Collect unlocked ingredients in this category
@@ -570,6 +517,59 @@ fn spawn_ingredient_card(
                 Text::new(ingredient.functional_description()),
                 TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
                 TextColor(text_color),
+                TextLayout::new_with_justify(Justify::Center),
+                Node {
+                    max_width: Val::Px(BUTTON_WIDTH),
+                    ..default()
+                },
+            ));
+        });
+}
+
+/// Spawns the Philosopher's Stone selector for the Alchemist — a gold toggle
+/// button plus its description. Lives at the top of the left detail panel.
+/// Spawns nothing when `show` is false (non-Alchemist, already used this battle,
+/// or while brewing).
+pub(super) fn spawn_philosophers_stone_selector(
+    parent: &mut ChildSpawnerCommands,
+    has_stone: bool,
+    show: bool,
+) {
+    if !show {
+        return;
+    }
+
+    let stone_style = if has_stone {
+        &STONE_SELECTED_STYLE
+    } else {
+        &STONE_BUTTON_STYLE
+    };
+
+    parent
+        .spawn((
+            Node {
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(4.0),
+                ..default()
+            },
+            StoneSelectorPanel,
+        ))
+        .with_children(|card| {
+            spawn_button(
+                card,
+                "Philosopher's Stone",
+                (
+                    CauldronMenuButtonAction::TogglePhilosophersStone,
+                    crate::ui::focus::CrossRowHorizontalNav,
+                ),
+                stone_style,
+            );
+
+            card.spawn((
+                Text::new("Removes dilution (once per battle)"),
+                TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                TextColor(stone_style.text_color),
                 TextLayout::new_with_justify(Justify::Center),
                 Node {
                     max_width: Val::Px(BUTTON_WIDTH),

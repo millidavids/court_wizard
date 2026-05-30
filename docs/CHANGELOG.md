@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Changed
+- **Wall of Dirt now lasts the whole level** — The dirt wall used to crumble after a short time, which made it almost useless. It now stays standing for the rest of the level and only clears when you start a new one.
+
+### Fixed
+- **The brewing menu no longer lets you over-fill a brew** — Once you've picked the most ingredients a brew can hold, the remaining ingredient buttons now grey out instead of letting you click them with no effect. Remove one and the rest light back up.
+- **Brewing ingredients no longer run off the edge of the screen** — Fixed a layout problem that could push part of the ingredient list past the side of the screen in the brewing menu.
+
 ## [v0.8.53] - 2026-05-29
 
 ### Added

@@ -95,9 +95,6 @@ pub(super) const COLLAPSING_WALL_DAMAGE: f32 = 30.0;
 /// Collapsing Wall: explosion radius.
 pub(super) const COLLAPSING_WALL_RADIUS: f32 = 80.0;
 
-/// Default wall duration (temporary unless Terraformer talent is active).
-pub(super) const DEFAULT_WALL_DURATION: f32 = 30.0;
-
 /// Maze Architect: mana cost multiplier.
 pub(super) const MAZE_ARCHITECT_MANA_MULT: f32 = 0.5;
 /// Maze Architect: minimum wall count for bonus HP.

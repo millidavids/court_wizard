@@ -322,12 +322,11 @@ fn wall_of_stone_casting_logic(
                 let wall_height = WALL_HEIGHT * scale;
                 let wall_health = WALL_HEALTH * talent_params.health_mult;
 
-                // Walls are temporary by default; Terraformer makes them permanent
-                let (permanent, duration) = if talent_params.terraformer {
-                    (true, f32::MAX)
-                } else {
-                    (false, DEFAULT_WALL_DURATION)
-                };
+                // Walls now last the entire level (swept when the level ends).
+                // Terraformer additionally makes them permanent — saved and rebuilt
+                // on the next level. Both are still dispellable.
+                let permanent = talent_params.terraformer;
+                let duration = f32::MAX;
 
                 // Quick Foundations: split into two walls end-to-end
                 let segment_length = clamped_length / wall_count as f32;

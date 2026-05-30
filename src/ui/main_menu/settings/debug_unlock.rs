@@ -37,17 +37,18 @@ const ORANGE_DEBUG_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     text_shadow: true,
 };
 
-/// Spawn the hidden orange button into the Gameplay tab column. Absolutely
-/// positioned so it has zero layout impact whether shown or hidden (a flex child
-/// with `Visibility::Hidden` would still reserve its row). Mirrors the study-tab
-/// `DebugInsightButton` block.
+/// Spawn the hidden orange button as the last, right-aligned row of the Gameplay
+/// tab, below "Clear Progress". It lives in normal flow (not absolutely positioned)
+/// so it never overlaps the Clear Progress control and can't be scrolled off-screen.
+/// While hidden (`Visibility::Hidden`) the row still reserves its height, leaving a
+/// small empty gap at the very bottom of the tab — harmless, and dev-builds only.
 pub(crate) fn spawn_unlock_everything_button(section: &mut ChildSpawnerCommands) {
     section
         .spawn((
             Node {
-                position_type: PositionType::Absolute,
-                bottom: Val::Px(8.0),
-                right: Val::Px(12.0),
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                justify_content: JustifyContent::FlexEnd,
                 ..default()
             },
             Visibility::Hidden,
@@ -57,8 +58,10 @@ pub(crate) fn spawn_unlock_everything_button(section: &mut ChildSpawnerCommands)
             spawn_button(
                 wrapper,
                 "Unlock Everything",
-                // `NoGamepadFocus` overrides the `Focusable` that `spawn_button`
-                // always adds, keeping the hidden button out of gamepad traversal.
+                // `NoGamepadFocus` coexists with the `Focusable` that `spawn_button`
+                // always adds; gamepad navigation filters `Without<NoGamepadFocus>`,
+                // so the button stays out of gamepad traversal while remaining
+                // mouse-clickable.
                 (UnlockEverythingAction, NoGamepadFocus),
                 &ORANGE_DEBUG_BUTTON_STYLE,
             );

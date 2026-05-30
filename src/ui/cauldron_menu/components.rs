@@ -21,6 +21,12 @@ pub(super) struct OnCauldronMenuScreen;
 #[derive(Component)]
 pub(super) struct CauldronDetailPanel;
 
+/// Marker for the persistent Philosopher's Stone selector wrapper. It is built
+/// once and must SURVIVE the detail-panel rebuild — otherwise toggling the Stone
+/// would despawn the gamepad's focused entity and bounce focus into the grid.
+#[derive(Component)]
+pub(super) struct StoneSelectorPanel;
+
 /// Resource tracking which ingredients the player has selected.
 #[derive(Resource, Default)]
 pub(super) struct IngredientSelection {

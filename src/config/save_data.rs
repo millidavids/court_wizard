@@ -250,9 +250,14 @@ pub(crate) fn unlock_everything_for_testing() {
         if cost > 0 {
             player.spell_research_progress.insert(name.clone(), cost);
         }
+        // Unlock all talent tiers without lowering a player's higher banked
+        // progress: keep the max of existing progress and the top-tier threshold.
+        let top_tier = tier_thresholds(*spell)[2];
         player
             .spell_talent_progress
-            .insert(name, tier_thresholds(*spell)[2]);
+            .entry(name)
+            .and_modify(|v| *v = (*v).max(top_tier))
+            .or_insert(top_tier);
     }
 
     // Ingredients (PhilosophersStone is intentionally excluded from Ingredient::all()

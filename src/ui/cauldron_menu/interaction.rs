@@ -14,12 +14,11 @@ use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::cauldron::messages::{CancelBrewMessage, StartBrewMessage};
 use crate::game::input::messages::MouseClicked;
 use crate::state::InGameState;
+use crate::ui::components::{ButtonActive, ButtonColors};
 use crate::ui::systems::spawn_button;
 
 /// Spawns the cauldron menu UI when entering the CauldronMenu state.
-#[allow(clippy::too_many_arguments)]
 pub(super) fn button_action(
-    mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&CauldronMenuButtonAction>,
     cauldron_query: Query<&CauldronState, With<Cauldron>>,
@@ -36,54 +35,14 @@ pub(super) fn button_action(
         if let Ok(action) = button_query.get(event.button) {
             match action {
                 CauldronMenuButtonAction::ToggleIngredient(ingredient) => {
-                    let was_selected = selection.selected.contains(ingredient);
+                    // `toggle` enforces the 3-ingredient cap (a 4th click is a
+                    // no-op). `sync_toggle_button_states` restyles every button —
+                    // including disabling the unselected ones at the limit — so we
+                    // only mutate the selection here.
                     selection.toggle(*ingredient);
-
-                    // Toggle ButtonActive + colors on the clicked button in-place
-                    if was_selected {
-                        commands
-                            .entity(event.button)
-                            .remove::<crate::ui::components::ButtonActive>();
-                        commands
-                            .entity(event.button)
-                            .insert(crate::ui::components::ButtonColors {
-                                background: INGREDIENT_BUTTON_STYLE.background,
-                                border: INGREDIENT_BUTTON_STYLE.border,
-                            });
-                    } else {
-                        commands.entity(event.button).insert((
-                            crate::ui::components::ButtonActive,
-                            crate::ui::components::ButtonColors {
-                                background: INGREDIENT_SELECTED_STYLE.background,
-                                border: INGREDIENT_SELECTED_STYLE.border,
-                            },
-                        ));
-                    }
-                    // Detail panel will be rebuilt by update_detail_panel_on_selection_change
                 }
                 CauldronMenuButtonAction::TogglePhilosophersStone => {
-                    let was_selected = selection.philosophers_stone;
                     selection.toggle_stone();
-
-                    if was_selected {
-                        commands
-                            .entity(event.button)
-                            .remove::<crate::ui::components::ButtonActive>();
-                        commands
-                            .entity(event.button)
-                            .insert(crate::ui::components::ButtonColors {
-                                background: INGREDIENT_BUTTON_STYLE.background,
-                                border: INGREDIENT_BUTTON_STYLE.border,
-                            });
-                    } else {
-                        commands.entity(event.button).insert((
-                            crate::ui::components::ButtonActive,
-                            crate::ui::components::ButtonColors {
-                                background: INGREDIENT_SELECTED_STYLE.background,
-                                border: INGREDIENT_SELECTED_STYLE.border,
-                            },
-                        ));
-                    }
                 }
                 CauldronMenuButtonAction::StartBrew => {
                     if !is_brewing && !selection.is_empty() {
@@ -113,6 +72,8 @@ pub(super) fn update_detail_panel_on_selection_change(
     config: Res<GameConfig>,
     cauldron_query: Query<&CauldronState, With<Cauldron>>,
     detail_panel: Query<Entity, With<CauldronDetailPanel>>,
+    children_query: Query<&Children>,
+    stone_query: Query<(), With<StoneSelectorPanel>>,
 ) {
     if !selection.is_changed() {
         return;
@@ -127,8 +88,17 @@ pub(super) fn update_detail_panel_on_selection_change(
         return; // Don't update detail panel during brewing
     }
 
-    // Despawn existing panel children and rebuild
-    commands.entity(panel_entity).despawn_related::<Children>();
+    // Rebuild the preview content, but PRESERVE the persistent Stone selector
+    // (the panel child marked `StoneSelectorPanel`). Despawning it would drop the
+    // gamepad's focused entity when toggling the Stone and bounce focus into the
+    // grid, so despawn every child EXCEPT the Stone selector.
+    if let Ok(children) = children_query.get(panel_entity) {
+        for child in children.iter() {
+            if !stone_query.contains(child) {
+                commands.entity(child).try_despawn();
+            }
+        }
+    }
 
     let unlocked_combos = load_unified_save()
         .map(|s| s.player.unlocked_content.combos)
@@ -289,11 +259,70 @@ pub(super) fn update_detail_panel_on_selection_change(
             spawn_button(
                 left,
                 "Brew",
-                CauldronMenuButtonAction::StartBrew,
+                (
+                    CauldronMenuButtonAction::StartBrew,
+                    crate::ui::focus::CrossRowHorizontalNav,
+                ),
                 &BREW_BUTTON_STYLE,
             );
         }
     });
+}
+
+/// Keeps every ingredient + Philosopher's Stone toggle button's look in sync with
+/// the current selection. Selected buttons show the active style; once the
+/// 3-ingredient limit is reached, every unselected ingredient switches to the
+/// disabled style (and back when one is removed). Runs in place — no despawn — so
+/// a gamepad's focused button is never lost. This is the single source of truth
+/// for toggle-button appearance, so `button_action` only mutates the selection.
+pub(super) fn sync_toggle_button_states(
+    selection: Res<IngredientSelection>,
+    mut commands: Commands,
+    mut buttons: Query<(
+        Entity,
+        &CauldronMenuButtonAction,
+        &mut ButtonColors,
+        Has<ButtonActive>,
+    )>,
+) {
+    let at_limit = selection.at_limit();
+    for (entity, action, mut colors, has_active) in &mut buttons {
+        let (active, style) = match action {
+            CauldronMenuButtonAction::ToggleIngredient(ingredient) => {
+                let is_selected = selection.is_selected(ingredient);
+                let style = if is_selected {
+                    &INGREDIENT_SELECTED_STYLE
+                } else if at_limit {
+                    &INGREDIENT_DISABLED_STYLE
+                } else {
+                    &INGREDIENT_BUTTON_STYLE
+                };
+                (is_selected, style)
+            }
+            CauldronMenuButtonAction::TogglePhilosophersStone => {
+                let has_stone = selection.has_stone();
+                let style = if has_stone {
+                    &STONE_SELECTED_STYLE
+                } else {
+                    &STONE_BUTTON_STYLE
+                };
+                (has_stone, style)
+            }
+            _ => continue,
+        };
+
+        // Only write when the color actually differs, to avoid spurious
+        // `Changed<ButtonColors>` churn through the button render systems.
+        if colors.background != style.background || colors.border != style.border {
+            colors.background = style.background;
+            colors.border = style.border;
+        }
+        if active && !has_active {
+            commands.entity(entity).insert(ButtonActive);
+        } else if !active && has_active {
+            commands.entity(entity).remove::<ButtonActive>();
+        }
+    }
 }
 
 /// Despawns cauldron menu UI when exiting the CauldronMenu state.

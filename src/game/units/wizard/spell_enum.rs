@@ -291,7 +291,7 @@ impl Spell {
             Spell::RaiseTheDead => "Resurrects corpses near the cursor.",
             Spell::Teleport => "Teleports all units near the cursor to a chosen destination.",
             Spell::WallOfStone => {
-                "Drag to raise an impassable dirt wall that blocks all movement and projectiles for 20 seconds."
+                "Drag to raise an impassable dirt wall that blocks all movement and projectiles for the rest of the level."
             }
             Spell::BlackHole => {
                 "Creates a gravitational sphere that pulls units inward in a spiral. Lasts 10 seconds, growing in size and strength over time."
