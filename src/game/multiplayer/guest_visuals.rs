@@ -363,15 +363,16 @@ pub(super) fn spawn_spell_effect(
         SpellEffectKind::MeteorGroundFire => {
             let radius = extra[0];
             let duration = extra[1];
-            let material = materials.add(materials.get(&assets.meteor_ground_fire)?.clone());
+            // No mesh — single-player spawns the burning patch mesh-less and
+            // renders it through the shared fire-particle system. The flat
+            // orange disc was a ghost-only placeholder that sat on top of the
+            // particles (the user's "old orange circle").
             Some(
                 commands
                     .spawn((
-                        Mesh3d(assets.unit_circle.clone()),
-                        MeshMaterial3d(material),
                         Transform::from_translation(Vec3::new(pos.x, 0.5, pos.z))
-                            .with_rotation(flat_rotation)
                             .with_scale(Vec3::splat(radius)),
+                        Visibility::default(),
                         MeteorGroundFire::new(
                             Vec3::new(pos.x, 0.0, pos.z),
                             radius,
