@@ -524,7 +524,12 @@ pub(super) fn spawn_ground_fire_particles(
 pub(super) fn apply_ground_fire_damage(
     mut commands: Commands,
     time: Res<Time>,
-    mut fires: Query<&mut MeteorGroundFire>,
+    // Host-authoritative — the ghost ground fire on the guest must not tick its
+    // own lifetime/damage; reconciliation drives its lifecycle.
+    mut fires: Query<
+        &mut MeteorGroundFire,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut units: Query<(
         Entity,
         &Transform,
@@ -581,7 +586,12 @@ pub(super) fn fade_ground_fire(mut fires: Query<(&MeteorGroundFire, &mut Transfo
 /// Cleans up expired ground fire zones and resets pathfinding costs.
 pub(super) fn cleanup_ground_fire(
     mut commands: Commands,
-    fires: Query<(Entity, &MeteorGroundFire)>,
+    // Host-authoritative — the ghost ground fire never wrote terrain cost on the
+    // guest, so it must not reset it on expiry (would clobber other obstacles).
+    fires: Query<
+        (Entity, &MeteorGroundFire),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut pathfinding: ResMut<PathfindingGrid>,
 ) {
     for (entity, fire) in &fires {

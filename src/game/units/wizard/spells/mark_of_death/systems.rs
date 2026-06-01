@@ -16,6 +16,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::components::GhostEntity;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, Health, MarkedForDeathModifier, TargetingVelocity, Team, TemporaryHitPoints,
@@ -55,7 +56,11 @@ pub fn handle_mark_of_death_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
-    existing_marks: Query<Entity, With<ActiveMarkOfDeath>>,
+    // Only the caster's OWN marks carry `MarkedForDeathModifier`. In multiplayer
+    // the guest's ghost units also carry a BARE `ActiveMarkOfDeath` mirrored from
+    // the host's marks — filtering on the modifier keeps a guest recast from
+    // stripping (and flickering) the host's synced marks.
+    existing_marks: Query<Entity, (With<ActiveMarkOfDeath>, With<MarkedForDeathModifier>)>,
     audio_ctx: (
         Res<SpellSfxAssets>,
         Res<GameConfig>,
@@ -131,7 +136,7 @@ fn mark_of_death_casting_logic(
     primed_spell: &PrimedSpell,
     commands: &mut Commands,
     enemies_query: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
-    existing_marks: &Query<Entity, With<ActiveMarkOfDeath>>,
+    existing_marks: &Query<Entity, (With<ActiveMarkOfDeath>, With<MarkedForDeathModifier>)>,
     active_talents: Option<&ActiveTalents>,
     talent_progress: &mut Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
@@ -282,7 +287,8 @@ fn mark_of_death_casting_logic(
 /// Doom talent: increase damage amplification over time for doom-marked targets.
 pub fn tick_doom_marks(
     time: Res<Time>,
-    mut marks: Query<(&mut MarkedForDeathModifier, &MarkTalentFlags)>,
+    // Host-authoritative — never tick doom amplification on the guest's ghosts.
+    mut marks: Query<(&mut MarkedForDeathModifier, &MarkTalentFlags), Without<GhostEntity>>,
 ) {
     let dt = time.delta_secs();
     for (mut mark, flags) in &mut marks {
@@ -311,6 +317,9 @@ pub fn executioner_brand_check(
             With<MarkedForDeathModifier>,
             Without<ExecutionerTriggered>,
             Without<Corpse>,
+            // Host-authoritative — never deal Executioner burst on the guest's
+            // ghost units (the host applies it and the damage syncs back).
+            Without<GhostEntity>,
         ),
     >,
 ) {
@@ -341,7 +350,10 @@ pub fn executioner_brand_check(
 #[allow(clippy::too_many_arguments)]
 pub fn handle_marked_corpses(
     mut commands: Commands,
-    dead_marked: Query<(Entity, &Health, &MarkTalentFlags, &Transform), With<Corpse>>,
+    dead_marked: Query<
+        (Entity, &Health, &MarkTalentFlags, &Transform),
+        (With<Corpse>, Without<GhostEntity>),
+    >,
     alive_enemies: Query<
         (Entity, &Transform, &Team),
         (Without<Corpse>, Without<MarkedForDeathModifier>),
@@ -512,7 +524,11 @@ pub fn update_deaths_ledger_bursts(
 pub fn focal_point_retarget(
     marked_targets: Query<
         (Entity, &Transform, &MarkTalentFlags),
-        (With<MarkedForDeathModifier>, Without<Corpse>),
+        (
+            With<MarkedForDeathModifier>,
+            Without<Corpse>,
+            Without<GhostEntity>,
+        ),
     >,
     mut defenders: Query<
         (&Transform, &mut TargetingVelocity, &Team),

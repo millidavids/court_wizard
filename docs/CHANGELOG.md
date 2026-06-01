@@ -15,8 +15,8 @@ All notable changes to this project will be documented in this file.
 - **Entangle's vines now appear on your opponent's screen** — when one player cast Entangle, the other player saw nothing where the vines should be. The vine rings now show up for both players.
 - **Finger of Death and Wall of Fire now show their full effects on your opponent's screen** — Finger of Death's beam was missing its glow, and Wall of Fire didn't kick up its burst of sparks, on the non-casting player's view. Both now render their complete effects for both players.
 - **You now hear your opponent's beam spells** — channeled spells like the Disintegrate beam were silent for the other player. They now play their sound for both players, at the right volume for where the beam actually is.
-- **Mark of Death now works correctly in multiplayer** — it lands on the enemy army instead of your own troops, and the floating death-mark now appears on both players' screens no matter who cast it (you used to only see marks you cast yourself, not ones your opponent cast).
-- **Poisoned enemies now show their green tint on the other player's screen** — when a unit is poisoned, the sickly green coloring now appears for both players, not just the one who applied the poison.
+- **Mark of Death now works correctly in multiplayer** — it lands on the enemy army instead of your own troops, and the floating death-mark now appears on both players' screens no matter who cast it (you used to only see marks you cast yourself, not ones your opponent cast). The mark no longer blinks out when the other player recasts, and its bonus talent effects apply correctly instead of risking double damage.
+- **Poisoned enemies now show their green tint on the other player's screen** — when a unit is poisoned, the sickly green coloring now appears for both players, not just the one who applied the poison. The tint is stronger now too, so it's easier to tell which units are poisoned — especially the light-colored ones.
 
 ## [v0.8.57] - 2026-05-30
 

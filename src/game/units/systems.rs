@@ -13,9 +13,9 @@ use super::components::{
     FlockingVelocity, FrostAccumulation, FrozenSolidModifier, Health, Hitbox, InMelee,
     MindControlled, OriginalMaterial, PendingDamageEffect, Petrified, PoisonedModifier,
     PolymorphedModifier, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect,
-    RemotePoisonEffect, RootedModifier,
-    Shocked, SickenedModifier, SlowMovementModifier, SmellyModifier, Stunned, TargetingVelocity,
-    Team, TemporaryHitPoints, TimedModifier, apply_damage_to_unit,
+    RemotePoisonEffect, RootedModifier, Shocked, SickenedModifier, SlowMovementModifier,
+    SmellyModifier, Stunned, TargetingVelocity, Team, TemporaryHitPoints, TimedModifier,
+    apply_damage_to_unit,
 };
 use super::constants::{
     BERSERKER_RAGE_EFFECT_COLOR, BERSERKER_RAGE_EFFECT_INTENSITY, ELECTRIC_ARC_COLOR,

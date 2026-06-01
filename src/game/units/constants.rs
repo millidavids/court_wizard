@@ -102,8 +102,9 @@ pub const EXCREMAGE_BROWN_DARK: Color = Color::srgb(0.35, 0.2, 0.08);
 
 /// Color overlay for poison effect (sickly green).
 pub const POISON_EFFECT_COLOR: Color = Color::srgb(0.2, 0.8, 0.1);
-/// Blend strength for poison tint (constant, no pulsing).
-pub const POISON_EFFECT_INTENSITY: f32 = 0.35;
+/// Blend strength for poison tint (constant, no pulsing). Kept high so the
+/// sickly green reads clearly even on the light/white-colored units.
+pub const POISON_EFFECT_INTENSITY: f32 = 0.6;
 /// Color overlay for smelly/poop effect (muddy brown-green).
 pub const SMELLY_EFFECT_COLOR: Color = EXCREMAGE_BROWN;
 /// Blend strength for smelly tint (constant, no pulsing).

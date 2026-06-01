@@ -795,8 +795,10 @@ pub fn apply_state_snapshot(
                 // Mark of Death: insert the BARE `ActiveMarkOfDeath` marker so
                 // `spawn_mark_indicators` renders the floating indicator. We do
                 // NOT add `MarkedForDeathModifier`/`MarkTalentFlags`, so the
-                // doom/executioner/blight gameplay systems (which require those)
-                // never run on the ghost — only the visual does.
+                // doom/executioner/blight gameplay systems never MATCH the ghost:
+                // their `any_exist::<ActiveMarkOfDeath>` run-condition still wakes
+                // them, but their queries require those absent components, so they
+                // iterate nothing. Only the visual indicator renders.
                 if remote_mark && !has_remote_mark {
                     commands.entity(entity).insert(ActiveMarkOfDeath);
                 } else if !remote_mark && has_remote_mark {
