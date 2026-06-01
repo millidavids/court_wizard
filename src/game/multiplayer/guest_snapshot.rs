@@ -10,11 +10,12 @@ use crate::game::units::archer::ArcherAssets;
 use crate::game::units::components::OriginalMaterial;
 use crate::game::units::components::{
     Corpse, FireDoT, FrostAccumulation, Health, RemoteElectricEffect, RemoteFireEffect,
-    RemoteFrostEffect, Shocked,
+    RemoteFrostEffect, RemotePoisonEffect, Shocked,
 };
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::king::components::{King, SpellShield};
 use crate::game::units::king::resources::KingAssets;
+use crate::game::units::wizard::spells::mark_of_death::components::ActiveMarkOfDeath;
 use crate::networking::crdt::CrdtHealth;
 use crate::networking::entity_map::{NetworkEntityId, NetworkEntityMap};
 use crate::networking::resources::NetworkConnection;
@@ -568,6 +569,8 @@ pub fn apply_state_snapshot(
             Has<SpellShield>,
             Has<Corpse>,
             Has<crate::game::units::components::CombatAnimation>,
+            Has<RemotePoisonEffect>,
+            Has<ActiveMarkOfDeath>,
         ),
         With<GhostEntity>,
     >,
@@ -654,6 +657,8 @@ pub fn apply_state_snapshot(
         let remote_electric = unit.flags & UnitFlags::ELECTRIC_EFFECT != 0;
         let remote_spell_shield = unit.flags & UnitFlags::SPELL_SHIELD != 0;
         let remote_combat = unit.flags & UnitFlags::COMBAT_ANIMATION != 0;
+        let remote_poison = unit.flags & UnitFlags::POISON_EFFECT != 0;
+        let remote_mark = unit.flags & UnitFlags::MARK_EFFECT != 0;
 
         if let Some(&local_entity) = entity_map.remote_to_local.get(&unit.id) {
             if let Ok((
@@ -668,6 +673,8 @@ pub fn apply_state_snapshot(
                 has_spell_shield,
                 has_corpse,
                 has_combat,
+                has_remote_poison,
+                has_remote_mark,
             )) = ghost_query.get_mut(local_entity)
             {
                 // Use the host's AUTHORITATIVE velocity from the snapshot.
@@ -779,6 +786,21 @@ pub fn apply_state_snapshot(
                     commands.entity(entity).insert(RemoteElectricEffect);
                 } else if !remote_electric && has_remote_electric {
                     commands.entity(entity).remove::<RemoteElectricEffect>();
+                }
+                if remote_poison && !has_remote_poison {
+                    commands.entity(entity).insert(RemotePoisonEffect);
+                } else if !remote_poison && has_remote_poison {
+                    commands.entity(entity).remove::<RemotePoisonEffect>();
+                }
+                // Mark of Death: insert the BARE `ActiveMarkOfDeath` marker so
+                // `spawn_mark_indicators` renders the floating indicator. We do
+                // NOT add `MarkedForDeathModifier`/`MarkTalentFlags`, so the
+                // doom/executioner/blight gameplay systems (which require those)
+                // never run on the ghost — only the visual does.
+                if remote_mark && !has_remote_mark {
+                    commands.entity(entity).insert(ActiveMarkOfDeath);
+                } else if !remote_mark && has_remote_mark {
+                    commands.entity(entity).remove::<ActiveMarkOfDeath>();
                 }
 
                 // Sync spell shield component from host. No visual swap
@@ -994,6 +1016,12 @@ pub fn apply_state_snapshot(
             }
             if remote_electric {
                 commands.entity(entity).insert(RemoteElectricEffect);
+            }
+            if remote_poison {
+                commands.entity(entity).insert(RemotePoisonEffect);
+            }
+            if remote_mark {
+                commands.entity(entity).insert(ActiveMarkOfDeath);
             }
             if remote_combat && !is_corpse && !is_king {
                 let (combat_tex, walking_tex) = if is_archer {

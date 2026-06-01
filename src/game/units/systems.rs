@@ -12,7 +12,8 @@ use super::components::{
     Airborne, BanishedModifier, Corpse, Effectiveness, FALL_DAMAGE_SCALE, FearModifier, FireDoT,
     FlockingVelocity, FrostAccumulation, FrozenSolidModifier, Health, Hitbox, InMelee,
     MindControlled, OriginalMaterial, PendingDamageEffect, Petrified, PoisonedModifier,
-    PolymorphedModifier, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, RootedModifier,
+    PolymorphedModifier, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect,
+    RemotePoisonEffect, RootedModifier,
     Shocked, SickenedModifier, SlowMovementModifier, SmellyModifier, Stunned, TargetingVelocity,
     Team, TemporaryHitPoints, TimedModifier, apply_damage_to_unit,
 };
@@ -951,6 +952,7 @@ pub fn update_persistent_effect_visuals(
             Option<&OriginalMaterial>,
             (
                 Has<PoisonedModifier>,
+                Has<RemotePoisonEffect>,
                 Has<SickenedModifier>,
                 Has<SmellyModifier>,
                 Has<BerserkerRageModifier>,
@@ -974,6 +976,7 @@ pub fn update_persistent_effect_visuals(
                 With<MassHysteriaTarget>,
                 With<OriginalMaterial>,
                 With<PoisonedModifier>,
+                With<RemotePoisonEffect>,
                 With<SickenedModifier>,
                 With<SmellyModifier>,
                 With<BerserkerRageModifier>,
@@ -1018,6 +1021,7 @@ pub fn update_persistent_effect_visuals(
         original_mat,
         (
             has_poisoned,
+            has_remote_poison,
             has_sickened,
             has_smelly,
             has_rage,
@@ -1030,6 +1034,9 @@ pub fn update_persistent_effect_visuals(
         ),
     ) in &query
     {
+        // Ghost units carry `RemotePoisonEffect` (mirrored from the host's
+        // `PoisonedModifier`) instead of the DoT component itself.
+        let has_poisoned = has_poisoned || has_remote_poison;
         let has_fire = fire.is_some() || remote_fire;
         let has_frost = frost.is_some() || remote_frost;
         let has_electric = electric.is_some() || remote_electric;

@@ -413,6 +413,13 @@ pub struct RemoteFrostEffect;
 #[derive(Component)]
 pub struct RemoteElectricEffect;
 
+/// Visual-only poison marker, mirrored from the host's `PoisonedModifier` via
+/// `UnitFlags::POISON_EFFECT`. Drives the green tint in
+/// `update_persistent_effect_visuals` without inserting a damage-ticking
+/// `PoisonedModifier` (which would double-count poison DoT on the guest).
+#[derive(Component)]
+pub struct RemotePoisonEffect;
+
 /// Marker component inserted by `apply_spell_damage` to defer persistent effect stacking.
 ///
 /// A central system (`process_pending_damage_effects`) reads these each frame and

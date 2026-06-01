@@ -62,7 +62,13 @@ pub fn send_state_snapshots(
         Has<FrostAccumulation>,
         Has<Shocked>,
         Has<SpellShield>,
-        Has<crate::game::units::components::CombatAnimation>,
+        // Grouped into a nested tuple to stay within Bevy's query-data arity
+        // limit (the flat tuple was already at the maximum).
+        (
+            Has<crate::game::units::components::CombatAnimation>,
+            Has<crate::game::units::wizard::spells::mark_of_death::components::ActiveMarkOfDeath>,
+            Has<crate::game::units::status_effects::PoisonedModifier>,
+        ),
     )>,
     arrows: Query<&Transform, With<Arrow>>,
 ) {
@@ -89,7 +95,7 @@ pub fn send_state_snapshots(
         has_frost,
         has_electric,
         has_spell_shield,
-        has_combat_animation,
+        (has_combat_animation, has_mark, has_poison),
     ) in &units
     {
         snapshot.units.push(build_unit_snapshot(
@@ -108,6 +114,8 @@ pub fn send_state_snapshots(
             has_electric,
             has_spell_shield,
             has_combat_animation,
+            has_mark,
+            has_poison,
         ));
     }
 

@@ -90,6 +90,14 @@ impl UnitFlags {
     /// ghost. Without this the ghost stays on the idle frame even though
     /// the host's unit is actively swinging in melee.
     pub const COMBAT_ANIMATION: u16 = 1 << 8;
+    /// Host's unit currently carries Mark of Death — set so the guest renders
+    /// the floating mark indicator on its ghost unit. Without this, marks the
+    /// HOST casts never reach the guest (the guest only knows about marks it
+    /// cast itself and applied locally).
+    pub const MARK_EFFECT: u16 = 1 << 9;
+    /// Host's unit is poisoned (Plague Wind etc.) — set so the guest renders
+    /// the green poison tint on its ghost unit.
+    pub const POISON_EFFECT: u16 = 1 << 10;
 }
 
 /// Encodes a `Team` component into a u8.
@@ -132,6 +140,8 @@ pub fn build_unit_snapshot(
     has_electric: bool,
     has_spell_shield: bool,
     has_combat_animation: bool,
+    has_mark: bool,
+    has_poison: bool,
 ) -> UnitSnapshot {
     let mut flags = 0u16;
     if is_corpse {
@@ -160,6 +170,12 @@ pub fn build_unit_snapshot(
     }
     if has_combat_animation {
         flags |= UnitFlags::COMBAT_ANIMATION;
+    }
+    if has_mark {
+        flags |= UnitFlags::MARK_EFFECT;
+    }
+    if has_poison {
+        flags |= UnitFlags::POISON_EFFECT;
     }
 
     let (max_hp, damage, healing) = if let Some(crdt) = crdt_health {
