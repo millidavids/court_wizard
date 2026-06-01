@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.8.66] - 2026-06-01
 
 ### Changed
 - **Magic Missile glows brighter** — Magic Missile now gives off a stronger glow in both single-player and multiplayer.
