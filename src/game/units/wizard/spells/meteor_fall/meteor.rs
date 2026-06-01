@@ -382,22 +382,44 @@ pub(super) fn process_extinction_event(
 
 /// Updates explosion visuals and applies one-time impact damage.
 /// Also tracks talent progress.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn update_meteor_explosions(
+/// Visual-only: grows + fades every `MeteorExplosion`, **including the ghost
+/// copies on the opposing client** so the explosion is visible there. Damage and
+/// despawn live in `apply_meteor_explosion_damage` (gated host-only). Chained
+/// before it so `time_alive` is current for the despawn check.
+pub(super) fn animate_meteor_explosions(
     time: Res<Time>,
-    mut commands: Commands,
     mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
-    // Host-only — Volcanic Eruption ships a ghost MeteorExplosion to the
-    // guest now; without this filter, the guest's ghost would also fire
-    // its damage_applied one-shot block locally, double-applying damage +
-    // talent progress + terrain-damage messages.
+    mut explosions: Query<(
+        &mut MeteorExplosion,
+        &mut Transform,
+        Option<&MeshMaterial3d<FireExplosionSphereMaterial>>,
+    )>,
+) {
+    for (mut explosion, mut transform, material_handle) in explosions.iter_mut() {
+        explosion.time_alive += time.delta_secs();
+
+        // Update visual scale (growth animation)
+        let current_radius = explosion.current_radius(EXPLOSION_GROWTH_TIME);
+        transform.scale = Vec3::splat(current_radius);
+
+        // Fade out over the last portion of lifetime
+        if let Some(handle) = material_handle
+            && let Some(mat) = sphere_materials.get_mut(handle)
+        {
+            mat.opacity = explosion_fade_opacity(explosion.time_alive / EXPLOSION_LIFETIME);
+        }
+    }
+}
+
+/// Host-only: applies the explosion's one-shot AoE damage + terrain damage +
+/// talent progress, then despawns it after its lifetime. Ghost copies on the
+/// guest are excluded — they're animated by `animate_meteor_explosions` and
+/// despawned by snapshot reconciliation (the host's snapshot drives their life).
+#[allow(clippy::too_many_arguments)]
+pub(super) fn apply_meteor_explosion_damage(
+    mut commands: Commands,
     mut explosions: Query<
-        (
-            Entity,
-            &mut MeteorExplosion,
-            &mut Transform,
-            Option<&MeshMaterial3d<FireExplosionSphereMaterial>>,
-        ),
+        (Entity, &mut MeteorExplosion),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
     mut units: Query<
@@ -413,20 +435,7 @@ pub(super) fn update_meteor_explosions(
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,
 ) {
-    for (explosion_entity, mut explosion, mut transform, material_handle) in explosions.iter_mut() {
-        explosion.time_alive += time.delta_secs();
-
-        // Update visual scale (growth animation)
-        let current_radius = explosion.current_radius(EXPLOSION_GROWTH_TIME);
-        transform.scale = Vec3::splat(current_radius);
-
-        // Fade out over the last portion of lifetime
-        if let Some(handle) = material_handle
-            && let Some(mat) = sphere_materials.get_mut(handle)
-        {
-            mat.opacity = explosion_fade_opacity(explosion.time_alive / EXPLOSION_LIFETIME);
-        }
-
+    for (explosion_entity, mut explosion) in explosions.iter_mut() {
         // Apply damage once when explosion spawns
         if !explosion.damage_applied {
             explosion.damage_applied = true;

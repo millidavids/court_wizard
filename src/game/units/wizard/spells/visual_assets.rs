@@ -492,7 +492,14 @@ pub fn init_spell_visual_assets(
             emissive: bevy::color::LinearRgba::new(3.0, 1.2, 0.1, 1.0),
             ..default()
         }),
-        magic_missile: materials.add(unlit(Color::srgb(1.0, 0.4, 0.8))),
+        // Emissive body so the missile glows (bloom) in BOTH single-player and as
+        // a multiplayer ghost (the ghost reuses this shared material).
+        magic_missile: materials.add(StandardMaterial {
+            base_color: Color::srgb(1.0, 0.4, 0.8),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(2.2, 0.7, 1.8, 1.0),
+            ..default()
+        }),
         bullet_tracer: materials.add(unlit(Color::srgb(0.75, 0.75, 0.75))),
         hit_flash_material: materials.add(StandardMaterial {
             base_color: Color::srgba(1.0, 1.0, 1.0, 0.8),
@@ -781,9 +788,9 @@ pub fn init_spell_visual_assets(
 
         // Magic missile VFX
         missile_glow: materials.add(StandardMaterial {
-            base_color: Color::srgba(0.8, 0.3, 1.0, 0.2),
+            base_color: Color::srgba(0.8, 0.3, 1.0, 0.25),
             unlit: true,
-            emissive: bevy::color::LinearRgba::new(2.0, 0.8, 3.0, 1.0),
+            emissive: bevy::color::LinearRgba::new(3.0, 1.2, 4.5, 1.0),
             alpha_mode: AlphaMode::Blend,
             cull_mode: None,
             ..default()

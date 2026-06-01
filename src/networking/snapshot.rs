@@ -227,6 +227,9 @@ pub struct BeamSnapshot {
     pub dz: f32,
     /// Beam length.
     pub length: f32,
+    /// Beam core width (`DisintegrateBeam::beam_width()`) so the ghost renders at
+    /// the caster's real thickness instead of a hardcoded value.
+    pub width: f32,
 }
 
 /// Monotonically increasing tick counter for snapshot ordering.
@@ -548,6 +551,8 @@ pub enum SpellSoundId {
     WallOfStoneCast = 27,
     BoulderImpact = 28,
     RayEyeDeath = 29,
+    /// Looping disintegrate beam channel sound (played one-shot on the remote peer).
+    DisintegrateChannel = 30,
 }
 
 impl TryFrom<u8> for SpellSoundId {
@@ -584,6 +589,7 @@ impl TryFrom<u8> for SpellSoundId {
             27 => Ok(Self::WallOfStoneCast),
             28 => Ok(Self::BoulderImpact),
             29 => Ok(Self::RayEyeDeath),
+            30 => Ok(Self::DisintegrateChannel),
             _ => Err(()),
         }
     }

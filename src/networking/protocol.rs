@@ -27,7 +27,9 @@ use crate::game::units::wizard::components::Spell;
 /// History:
 /// - 1: initial versioned protocol (adds `HandshakeVersion` variant, adds
 ///   `cast_events` to `SpellVisualSnapshot`).
-pub const PROTOCOL_VERSION: u32 = 1;
+/// - 2: adds `width` to `BeamSnapshot` and the `DisintegrateChannel`
+///   `SpellSoundId` ordinal (multiplayer spell-visual overhaul).
+pub const PROTOCOL_VERSION: u32 = 2;
 
 /// Messages sent over the reliable WebRTC data channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -15,6 +15,8 @@ use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, Team};
 use crate::game::units::wizard::components::{CastingState, SpellCaster, Wizard, WizardInput};
+use crate::networking::resources::PeerRole;
+use crate::networking::session::MultiplayerSession;
 
 /// World-space position the **local** player's spells originate from. Single-
 /// player and the multiplayer host use `SPELL_ORIGIN`; the multiplayer guest
@@ -26,6 +28,18 @@ pub struct LocalSpellOrigin(pub Vec3);
 impl Default for LocalSpellOrigin {
     fn default() -> Self {
         Self(SPELL_ORIGIN)
+    }
+}
+
+/// The team the **local** player commands: `Defenders` in single-player and as
+/// the multiplayer host, `Attackers` as the guest. Enemy-targeting spells should
+/// filter with `unit_team.is_enemy(&local_player_team(session.as_deref()))`
+/// instead of hardcoding `Team::Attackers` (which only resolves correctly for the
+/// host, making the guest target its own army).
+pub fn local_player_team(session: Option<&MultiplayerSession>) -> Team {
+    match session.map(|s| s.role) {
+        Some(PeerRole::Guest) => Team::Attackers,
+        _ => Team::Defenders,
     }
 }
 

@@ -415,20 +415,25 @@ pub fn update_explosions(
     time: Res<Time>,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
-    // Host-only — ghost ScorchedEarth / NapalmTrail explosions spawned on
-    // the guest must NOT advance their own time / spawn VFX from the
-    // ghost; the host's authoritative entity drives the visual snapshot,
-    // and apply_explosion_damage is gated similarly below.
-    mut explosions: Query<
-        (&mut FireballExplosion, &mut Transform),
-        Without<crate::game::multiplayer::components::GhostSpellEffect>,
-    >,
+    // Visual-only (scale growth + sparks/smoke). Runs on ghost explosions too so
+    // the opposing client sees them grow + fade. Damage lives in
+    // `apply_explosion_damage` (gated host-only) and despawn in
+    // `cleanup_finished_explosions` (gated host-only; ghosts despawn via snapshot
+    // reconciliation), so animating ghosts here is safe.
+    mut explosions: Query<(
+        &mut FireballExplosion,
+        &mut Transform,
+        // Ghost explosions on the guest have no host-only `apply_explosion_damage`
+        // to reset `time_since_last_tick`, so we reset it ourselves below —
+        // otherwise the continuous-surface-VFX block fires every frame on ghosts.
+        Has<crate::game::multiplayer::components::GhostSpellEffect>,
+    )>,
 ) {
     use rand::Rng;
     let time_secs = time.elapsed_secs();
     let rng = &mut game_rng.0;
 
-    for (mut explosion, mut transform) in &mut explosions {
+    for (mut explosion, mut transform, is_ghost) in &mut explosions {
         explosion.time_alive += time.delta_secs();
         explosion.time_since_last_tick += time.delta_secs();
 
@@ -486,6 +491,12 @@ pub fn update_explosions(
                 visual_assets.fire_smoke.clone(),
                 5,
             );
+            // Ghosts have no host-only damage system to reset this timer; do it
+            // here so the block fires once per interval (matching SP cadence)
+            // instead of every frame on the guest.
+            if is_ghost {
+                explosion.time_since_last_tick = 0.0;
+            }
         }
     }
 }
@@ -574,7 +585,13 @@ pub fn apply_explosion_damage(
 /// Cleans up explosions that have finished animating.
 pub fn cleanup_finished_explosions(
     mut commands: Commands,
-    explosions: Query<(Entity, &FireballExplosion)>,
+    // Ghost explosions on the guest are despawned by snapshot reconciliation, not
+    // by their own (now-ticking) timer — exclude them so they don't self-despawn
+    // early and leave a stale entry in `SpellEffectEntityMap`.
+    explosions: Query<
+        (Entity, &FireballExplosion),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
 ) {
     for (entity, explosion) in &explosions {
         if explosion.time_alive >= explosion.duration {

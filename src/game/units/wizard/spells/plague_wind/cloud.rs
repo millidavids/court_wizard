@@ -399,7 +399,13 @@ pub fn emit_plague_cloud_particles(
 /// Cleans up expired plague wind clouds and notifies pathfinding.
 pub fn cleanup_plague_wind_cloud(
     mut commands: Commands,
-    clouds: Query<(Entity, &PlagueWindCloud)>,
+    // Ghost clouds are reconciliation-driven and host-authoritative; never run
+    // the lifetime cleanup (which fires `ObstacleChanged` into the pathfinding
+    // grid) on them. Matches the same exclusion on `move_plague_wind_cloud`.
+    clouds: Query<
+        (Entity, &PlagueWindCloud),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (entity, cloud) in &clouds {

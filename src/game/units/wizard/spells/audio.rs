@@ -275,6 +275,7 @@ pub(crate) fn lookup_sfx_handle<'a>(
         SpellSoundId::WallOfStoneCast => &sfx.wall_of_stone_cast,
         SpellSoundId::BoulderImpact => &sfx.boulder_impact,
         SpellSoundId::RayEyeDeath => &sfx.ray_eye_death,
+        SpellSoundId::DisintegrateChannel => &sfx.disintegrate_channel,
     }
 }
 
@@ -287,6 +288,7 @@ fn sound_id_kind(id: SpellSoundId) -> SfxKind {
         | SpellSoundId::LightningRodImpact
         | SpellSoundId::SquallImpact
         | SpellSoundId::BoulderImpact => SfxKind::Impact,
+        SpellSoundId::DisintegrateChannel => SfxKind::Channel,
         _ => SfxKind::Cast,
     }
 }
@@ -340,6 +342,27 @@ pub(crate) fn play_sfx_synced_scaled(
             y: effect_pos.y,
             z: effect_pos.z,
             extra: [volume_scale, 0.0, 0.0, 0.0],
+        });
+    }
+}
+
+/// Emits a `SfxOneShot` cast event so the remote peer plays `sound_id`, WITHOUT
+/// playing it locally. Use when the local sound is handled separately (e.g. a
+/// looping channel sound played via `play_looping_sfx`) but the opponent should
+/// still hear it fire.
+pub(crate) fn emit_sfx_event(
+    pending: &mut PendingCastEvents,
+    sound_id: SpellSoundId,
+    effect_pos: Vec3,
+) {
+    if pending.mp_active {
+        pending.events.push(CastEventSnapshot {
+            kind: CastEventKind::SfxOneShot as u8,
+            subkind: sound_id as u8,
+            x: effect_pos.x,
+            y: effect_pos.y,
+            z: effect_pos.z,
+            extra: [1.0, 0.0, 0.0, 0.0],
         });
     }
 }

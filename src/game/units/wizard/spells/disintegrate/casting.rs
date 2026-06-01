@@ -322,6 +322,16 @@ pub fn handle_disintegrate_casting(
                 );
             }
             audio::play_looping_sfx(&mut commands, &sfx.disintegrate_channel, &game_config, &sfx);
+            // The channel loop is local-only; emit a synced one-shot so the
+            // opponent hears the beam fire (it was silent on the other client).
+            // Project to ground level — with the Annihilation talent `origin`
+            // sits at sky height (y≈2000), which would attenuate the remote
+            // sound to a near-silent whisper against the listener's wizard.
+            audio::emit_sfx_event(
+                &mut pending_cast_events,
+                crate::networking::snapshot::SpellSoundId::DisintegrateChannel,
+                Vec3::new(origin.x, 0.0, origin.z),
+            );
         }
         BeamAction::DespawnAll => {
             // Spawn searing finale detonations before despawning

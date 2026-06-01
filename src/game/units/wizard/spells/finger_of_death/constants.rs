@@ -42,7 +42,7 @@ pub(super) const SHIMMER_FREQ_B: f32 = 29.0;
 pub(super) const SHIMMER_AMPLITUDE: f32 = 0.05;
 
 // Origin flare
-pub(super) const FLARE_RADIUS: f32 = 28.0;
+pub(crate) const FLARE_RADIUS: f32 = 28.0;
 pub(super) const FLARE_PULSE_FREQUENCY: f32 = 12.0;
 pub(super) const FLARE_PULSE_AMPLITUDE: f32 = 0.3;
 

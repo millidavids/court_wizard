@@ -51,7 +51,7 @@ pub(super) const BEAM_PULSE_AMPLITUDE: f32 = 0.15;
 
 // ── Outer glow layer ─────────────────────────────────────────────────
 /// Glow cylinder is this many times wider than the core beam.
-pub(super) const GLOW_WIDTH_MULTIPLIER: f32 = 2.5;
+pub(crate) const GLOW_WIDTH_MULTIPLIER: f32 = 2.5;
 /// Oscillations per second for glow pulsing.
 pub(super) const GLOW_PULSE_FREQUENCY: f32 = 8.0;
 /// Fraction of glow width variation.
@@ -65,7 +65,7 @@ pub(super) const SHIMMER_AMPLITUDE: f32 = 0.05;
 
 // ── Origin flare ─────────────────────────────────────────────────────
 /// Base radius of the flare triangle at beam origin.
-pub(super) const FLARE_RADIUS: f32 = 32.0;
+pub(crate) const FLARE_RADIUS: f32 = 32.0;
 /// Oscillations per second for flare pulsing.
 pub(super) const FLARE_PULSE_FREQUENCY: f32 = 15.0;
 /// Fraction of flare size variation.

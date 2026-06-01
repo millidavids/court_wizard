@@ -56,7 +56,11 @@ pub fn handle_mark_of_death_casting(
     corrected_cursor: Res<CorrectedCursorPosition>,
     enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     existing_marks: Query<Entity, With<ActiveMarkOfDeath>>,
-    audio_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),
+    audio_ctx: (
+        Res<SpellSfxAssets>,
+        Res<GameConfig>,
+        Option<Res<crate::networking::session::MultiplayerSession>>,
+    ),
     active_talents: Option<Res<ActiveTalents>>,
     mut talent_progress: Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
@@ -65,7 +69,7 @@ pub fn handle_mark_of_death_casting(
     local_origin: Res<LocalSpellOrigin>,
     mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
-    let (sfx, game_config) = &audio_ctx;
+    let (sfx, game_config, session) = &audio_ctx;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
     let cursor_pos = input.cursor_pos;
@@ -78,6 +82,8 @@ pub fn handle_mark_of_death_casting(
         return;
     }
 
+    let caster_team =
+        crate::game::units::wizard::spells::utils::local_player_team(session.as_deref());
     let completed = mark_of_death_casting_logic(
         &input,
         &time,
@@ -89,6 +95,7 @@ pub fn handle_mark_of_death_casting(
         &existing_marks,
         active_talents.as_deref(),
         &mut talent_progress,
+        caster_team,
     );
 
     if completed {
@@ -129,6 +136,7 @@ fn mark_of_death_casting_logic(
     talent_progress: &mut Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
+    caster_team: Team,
 ) -> bool {
     // Check for release event
     if input.just_released {
@@ -207,7 +215,7 @@ fn mark_of_death_casting_logic(
                         if mass_marking {
                             // Mass Marking: mark all enemies in radius
                             for (entity, transform, team) in enemies_query.iter() {
-                                if *team != Team::Attackers && *team != Team::Undead {
+                                if !caster_team.is_enemy(team) {
                                     continue;
                                 }
                                 let dist = crate::game::units::wizard::spells::utils::xz_distance(
@@ -227,9 +235,7 @@ fn mark_of_death_casting_logic(
                             // Single target: find nearest enemy to cursor
                             if let Some((target_entity, _)) = enemies_query
                                 .iter()
-                                .filter(|(_, _, team)| {
-                                    **team == Team::Attackers || **team == Team::Undead
-                                })
+                                .filter(|(_, _, team)| caster_team.is_enemy(*team))
                                 .filter_map(|(entity, transform, _)| {
                                     let dist =
                                         crate::game::units::wizard::spells::utils::xz_distance(
@@ -343,7 +349,10 @@ pub fn handle_marked_corpses(
     mut wizard: Query<&mut Mana, With<Wizard>>,
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
+    let caster_team =
+        crate::game::units::wizard::spells::utils::local_player_team(session.as_deref());
     for (entity, health, flags, transform) in &dead_marked {
         // Swift Hex: refund mana on death
         if flags.swift_hex_refund > 0.0
@@ -356,7 +365,7 @@ pub fn handle_marked_corpses(
         if flags.spreading_blight {
             let nearest = alive_enemies
                 .iter()
-                .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
+                .filter(|(_, _, team)| caster_team.is_enemy(*team))
                 .min_by(|a, b| {
                     let dist_a = a.1.translation.distance_squared(transform.translation);
                     let dist_b = b.1.translation.distance_squared(transform.translation);
@@ -509,6 +518,7 @@ pub fn focal_point_retarget(
         (&Transform, &mut TargetingVelocity, &Team),
         (Without<Corpse>, Without<Wizard>),
     >,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
     // Find the focal point target (if any)
     let focal_target = marked_targets
@@ -521,9 +531,14 @@ pub fn focal_point_retarget(
 
     let target_pos = target_transform.translation;
 
-    // Override defender targeting velocity toward the focal point target
+    // Direct the LOCAL player's own army (Defenders for SP/host, Attackers for
+    // the guest) toward the focal-point target.
+    let caster_team =
+        crate::game::units::wizard::spells::utils::local_player_team(session.as_deref());
+
+    // Override own-army targeting velocity toward the focal point target
     for (defender_transform, mut targeting, team) in &mut defenders {
-        if *team != Team::Defenders {
+        if *team != caster_team {
             continue;
         }
         let direction = (target_pos - defender_transform.translation).normalize_or_zero();

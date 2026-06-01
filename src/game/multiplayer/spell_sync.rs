@@ -485,7 +485,6 @@ pub fn collect_spell_projectile_snapshots(
     lightning_strikes: Query<(&LightningStrike, &LightningBolt)>,
     lightning_rod_arcs: Query<&LightningRodArc>,
     fod_beams: Query<&FingerOfDeathBeam>,
-    disintegrate_beams: Query<&DisintegrateBeam>,
     dispel_projectiles: Query<
         &Transform,
         With<crate::game::units::wizard::spells::dispel::components::DispelProjectile>,
@@ -562,9 +561,11 @@ pub fn collect_spell_projectile_snapshots(
         });
     }
 
-    // Crystal beams (kind=2) and crystal arcs (kind=3) are now represented as
-    // DisintegrateBeam and ChainLightningArc entities respectively, captured
-    // by the existing disintegrate_beams and chain_arcs queries above.
+    // Crystal beams are now DisintegrateBeam entities and crystal arcs are
+    // ChainLightningArc entities. ChainLightningArc ships above as kind=0; every
+    // DisintegrateBeam (real disintegrate + crystal beam) ships via the dedicated
+    // `BeamSnapshot` path in `send_spell_visual_snapshot` (carrying width), so no
+    // duplicate kind=6 arc is emitted here.
 
     for beam in &fod_beams {
         let end = beam.origin + beam.direction * beam.length;
@@ -588,19 +589,6 @@ pub fn collect_spell_projectile_snapshots(
             tx: arc.end.x,
             ty: arc.end.y,
             tz: arc.end.z,
-        });
-    }
-
-    for beam in &disintegrate_beams {
-        let end = beam.origin + beam.direction * beam.current_length();
-        spell_data.spell_arcs.push(SpellArcSnapshot {
-            kind: 6,
-            ox: beam.origin.x,
-            oy: beam.origin.y,
-            oz: beam.origin.z,
-            tx: end.x,
-            ty: end.y,
-            tz: end.z,
         });
     }
 }
@@ -636,6 +624,7 @@ pub fn send_spell_visual_snapshot(
                 dy: beam.direction.y,
                 dz: beam.direction.z,
                 length: beam.current_length(),
+                width: beam.beam_width(),
             })
             .collect(),
         // Drain one-shot cast events accumulated by casting handlers this
@@ -733,6 +722,9 @@ pub fn apply_remote_spell_snapshot(
         Assets<crate::game::units::wizard::spells::visual_assets::FireExplosionSphereMaterial>,
     >,
     mut effect_transforms: Query<&mut Transform>,
+    mut plague_clouds: Query<
+        &mut crate::game::units::wizard::spells::plague_wind::components::PlagueWindCloud,
+    >,
     ghost_projectiles: Query<Entity, With<GhostSpellProjectile>>,
     ghost_arcs: Query<Entity, With<GhostSpellArc>>,
     ghost_missiles: Query<Entity, With<GhostMagicMissile>>,
@@ -749,10 +741,21 @@ pub fn apply_remote_spell_snapshot(
         seen_effect_ids.insert(effect.net_id);
 
         if let Some(&local_entity) = effect_map.remote_to_local.get(&effect.net_id) {
-            if effect.kind == SpellEffectKind::GreaseFire as u8
-                && let Ok(mut transform) = effect_transforms.get_mut(local_entity)
-            {
-                transform.scale = Vec3::splat(effect.extra[0].max(0.01));
+            if effect.kind == SpellEffectKind::GreaseFire as u8 {
+                if let Ok(mut transform) = effect_transforms.get_mut(local_entity) {
+                    transform.scale = Vec3::splat(effect.extra[0].max(0.01));
+                }
+            } else if effect.kind == SpellEffectKind::PlagueWindCloud as u8 {
+                // Plague clouds MOVE with the wind — sync the host's live position
+                // into the ghost each frame so it drifts instead of sitting static.
+                if let Ok(mut transform) = effect_transforms.get_mut(local_entity) {
+                    transform.translation.x = effect.x;
+                    transform.translation.z = effect.z;
+                }
+                if let Ok(mut cloud) = plague_clouds.get_mut(local_entity) {
+                    cloud.origin.x = effect.x;
+                    cloud.origin.z = effect.z;
+                }
             }
             continue;
         }
@@ -880,7 +883,8 @@ pub fn apply_remote_spell_snapshot(
             3 => assets.crystal_arc.clone(),
             4 => assets.finger_of_death_beam.clone(),
             5 => assets.lightning_rod_arc.clone(),
-            6 => assets.disintegrate_beam.clone(),
+            // (Disintegrate ships via the dedicated `BeamSnapshot` path now —
+            // the old kind=6 arc is no longer emitted.)
             _ => continue,
         };
 
@@ -941,14 +945,16 @@ pub fn apply_remote_spell_snapshot(
 
         let width = match arc.kind {
             3 => 6.0,
-            2 | 4 => 20.0,
-            6 => 16.0,
+            // Finger of Death uses its SP `BEAM_WIDTH` so the ghost core + glow
+            // are the same girth the caster sees (crystal beams stay at 20).
+            4 => crate::game::units::wizard::spells::finger_of_death::constants::BEAM_WIDTH,
+            2 => 20.0,
             _ => 6.0,
         };
 
-        // Beam-type arcs (finger of death=4, disintegrate=6) use cross-plane cylinder mesh.
-        // Other arcs (crystal beam=2, crystal arc=3) use flat rectangles.
-        let is_beam = arc.kind == 4 || arc.kind == 6;
+        // Beam-type arcs (finger of death=4) use the cross-plane cylinder mesh.
+        // (Disintegrate now ships via the dedicated `BeamSnapshot` path, not an arc.)
+        let is_beam = arc.kind == 4;
         let mesh = if is_beam {
             assets.cross_plane_cylinder.clone()
         } else {
@@ -960,7 +966,7 @@ pub fn apply_remote_spell_snapshot(
             Vec3::new(width, length, 1.0)
         };
 
-        let mut ec = commands.spawn((
+        commands.spawn((
             Mesh3d(mesh),
             MeshMaterial3d(material),
             Transform::from_translation(midpoint)
@@ -970,16 +976,31 @@ pub fn apply_remote_spell_snapshot(
             OnMultiplayerGameScreen,
         ));
 
-        // Disintegrate-kind ghost beams also get the real `DisintegrateBeam`
-        // component so the host's burning-tree / burning-bush ignition
-        // systems — which run on both peers — can see the remote caster's
-        // beam locally on the guest and ignite the guest's trees/bushes.
-        // Damage and timers still tick host-side only; the guest's copy is
-        // purely a query-target for the ignition logic, so we hand it the
-        // minimum geometry (`origin`, `direction`, `length`) and let
-        // `new()` fill the talent-related fields with safe defaults.
-        if arc.kind == 6 {
-            ec.insert(DisintegrateBeam::new(origin, direction, length, 1.0));
+        // Finger of Death: add the glow halo + origin flare siblings so the
+        // ghost matches the SP `spawn_beam` visuals (the SP per-frame glow/
+        // flare systems don't run on the ghost — it has no `FingerOfDeathBeam`
+        // component). Tagged `GhostSpellArc` so the per-frame arc clear above
+        // despawns them too — no accumulation. The glow reuses the core's
+        // cylinder mesh so it stays aligned with the beam.
+        if arc.kind == 4 {
+            use crate::game::units::wizard::spells::finger_of_death::constants as fod;
+            let glow_width = width * fod::GLOW_WIDTH_MULTIPLIER;
+            commands.spawn((
+                Mesh3d(assets.cross_plane_cylinder.clone()),
+                MeshMaterial3d(assets.finger_of_death_glow.clone()),
+                Transform::from_translation(midpoint)
+                    .with_rotation(rotation)
+                    .with_scale(Vec3::new(glow_width, length, glow_width)),
+                GhostSpellArc,
+                OnMultiplayerGameScreen,
+            ));
+            commands.spawn((
+                Mesh3d(assets.cross_plane_sphere.clone()),
+                MeshMaterial3d(assets.finger_of_death_flare.clone()),
+                Transform::from_translation(origin).with_scale(Vec3::splat(fod::FLARE_RADIUS)),
+                GhostSpellArc,
+                OnMultiplayerGameScreen,
+            ));
         }
     }
 
@@ -1017,12 +1038,48 @@ pub fn apply_remote_spell_snapshot(
         let midpoint = origin + direction * (length / 2.0);
         let rotation = Quat::from_rotation_arc(Vec3::Y, direction);
 
+        // Core beam — `disintegrate_cone` mesh to match SP `spawn_beam_core`
+        // (placed at the midpoint, same as SP).
+        //
+        // We deliberately do NOT attach a real `DisintegrateBeam` component to
+        // the ghost. Every SP disintegrate system queries `DisintegrateBeam`
+        // with no ghost filter: `update_beam_visuals` would recompute the
+        // transform from a fresh `time_alive = 0` component (`current_length()`
+        // returns 0) and collapse the beam to a tiny stub at the origin, and
+        // `cleanup_beams_on_cancel` would despawn it every frame the LOCAL
+        // wizard is resting (the guest's normal state). The ghost is purely
+        // snapshot-driven instead; tree/bush ignition is host-authoritative.
+        let core_width = beam.width * 0.7;
         commands.spawn((
-            Mesh3d(assets.cross_plane_cylinder.clone()),
+            Mesh3d(assets.disintegrate_cone.clone()),
             MeshMaterial3d(assets.disintegrate_beam.clone()),
             Transform::from_translation(midpoint)
                 .with_rotation(rotation)
-                .with_scale(Vec3::new(30.0, length, 30.0)),
+                // Match SP `update_beam_visuals`: core width is `beam_width() * 0.7`.
+                .with_scale(Vec3::new(core_width, length, core_width)),
+            GhostBeam,
+            OnMultiplayerGameScreen,
+        ));
+
+        // Glow halo + origin flare siblings (match SP `spawn_beam_visuals`).
+        // Tagged `GhostBeam` so the per-frame beam clear above despawns them
+        // too. The ground eclipse is skipped — it needs the local wizard's
+        // spell-range geometry, which the ghost has no access to.
+        use crate::game::units::wizard::spells::disintegrate::constants as disint;
+        let glow_width = beam.width * disint::GLOW_WIDTH_MULTIPLIER * 0.7;
+        commands.spawn((
+            Mesh3d(assets.disintegrate_cone.clone()),
+            MeshMaterial3d(assets.disintegrate_glow.clone()),
+            Transform::from_translation(midpoint)
+                .with_rotation(rotation)
+                .with_scale(Vec3::new(glow_width, length, glow_width)),
+            GhostBeam,
+            OnMultiplayerGameScreen,
+        ));
+        commands.spawn((
+            Mesh3d(assets.explosion_sphere.clone()),
+            MeshMaterial3d(assets.disintegrate_flare.clone()),
+            Transform::from_translation(origin).with_scale(Vec3::splat(disint::FLARE_RADIUS)),
             GhostBeam,
             OnMultiplayerGameScreen,
         ));

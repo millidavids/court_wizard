@@ -81,20 +81,24 @@ pub(crate) fn apply_entangle(
         circle_pos,
         radius,
         root_duration,
+        OnGameplayScreen,
     );
 
     hit_count
 }
 
-/// Spawns random flat vine rings within the entangle circle.
-fn spawn_vine_toruses(
+/// Spawns random flat vine rings within the entangle circle. Generic over the
+/// cleanup marker so the multiplayer ghost can reuse it with
+/// `OnMultiplayerGameScreen`.
+pub(crate) fn spawn_vine_toruses<M: Component + Clone>(
     rng: &mut impl rand::Rng,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    materials: &mut Assets<StandardMaterial>,
     center: Vec3,
     radius: f32,
     duration: f32,
+    screen_marker: M,
 ) {
     for _ in 0..constants::VINE_COUNT {
         // Random position within circle (uniform distribution via rejection-free polar)
@@ -141,7 +145,7 @@ fn spawn_vine_toruses(
                 duration,
                 time_remaining: duration,
             },
-            OnGameplayScreen,
+            screen_marker.clone(),
         ));
     }
 }

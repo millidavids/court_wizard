@@ -175,6 +175,18 @@ pub(super) fn spawn_spell_effect(
 
         SpellEffectKind::EntangleGround => {
             let duration = extra[1];
+            // Spawn the visible vine rings (same as single-player) so the entangle
+            // zone isn't invisible on the opposing client. RNG here is cosmetic.
+            crate::game::units::wizard::spells::entangle::vines::spawn_vine_toruses(
+                &mut rand::rng(),
+                commands,
+                assets,
+                materials,
+                Vec3::new(pos.x, 0.0, pos.z),
+                120.0,
+                duration,
+                OnMultiplayerGameScreen,
+            );
             Some(
                 commands
                     .spawn((
@@ -324,15 +336,14 @@ pub(super) fn spawn_spell_effect(
                 necrotic_rot: flags & (1 << 5) != 0,
                 ..PlagueWindTalentParams::default()
             };
-            let material = materials.add(materials.get(&assets.plague_wind_zone)?.clone());
+            // No mesh — the cloud's visual is the shared green `plague_smoke`
+            // particle system (`emit_plague_cloud_particles` runs on every
+            // PlagueWindCloud, including this ghost), matching single-player. The
+            // old flat green disc was a placeholder.
             Some(
                 commands
                     .spawn((
-                        Mesh3d(assets.unit_circle.clone()),
-                        MeshMaterial3d(material),
-                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                            .with_rotation(flat_rotation)
-                            .with_scale(Vec3::splat(radius)),
+                        Transform::from_translation(Vec3::new(pos.x, 0.0, pos.z)),
                         PlagueWindCloud::new(
                             Vec3::new(pos.x, 0.0, pos.z),
                             radius,
@@ -580,28 +591,47 @@ pub(super) fn spawn_spell_effect(
             });
             let rotation = Quat::from_rotation_y(effect.rotation_y);
             let wall_height = 10.0;
-            Some(
-                commands
-                    .spawn((
-                        Mesh3d(assets.unit_cuboid.clone()),
-                        MeshMaterial3d(material),
-                        Transform::from_translation(Vec3::new(pos.x, wall_height / 2.0, pos.z))
-                            .with_rotation(rotation)
-                            .with_scale(Vec3::new(wall_length, wall_height, 60.0)),
-                        WallOfFireEffect::new(
-                            Vec3::ZERO,
-                            Vec3::ZERO,
-                            half_width,
-                            0.0,
-                            crate::game::units::DamageType::Fire,
-                            1.0,
-                            duration,
-                            talent_params,
-                        ),
-                        OnMultiplayerGameScreen,
-                    ))
-                    .id(),
-            )
+            let wall_entity = commands
+                .spawn((
+                    Mesh3d(assets.unit_cuboid.clone()),
+                    MeshMaterial3d(material),
+                    Transform::from_translation(Vec3::new(pos.x, wall_height / 2.0, pos.z))
+                        .with_rotation(rotation)
+                        .with_scale(Vec3::new(wall_length, wall_height, 60.0)),
+                    WallOfFireEffect::new(
+                        Vec3::ZERO,
+                        Vec3::ZERO,
+                        half_width,
+                        0.0,
+                        crate::game::units::DamageType::Fire,
+                        1.0,
+                        duration,
+                        talent_params,
+                    ),
+                    OnMultiplayerGameScreen,
+                ))
+                .id();
+
+            // Ignition spark burst along the wall so the opposing client sees
+            // fire kick up (matches the SP `spawn_wall_vfx` spark portion). The
+            // mesh's length runs along local X, so the wall axis is `rot * X`.
+            // (SP's looping crackle SFX is host-local and not replicated here.)
+            let wall_axis = rotation * Vec3::X;
+            let start = Vec3::new(pos.x, 3.0, pos.z) - wall_axis * (wall_length * 0.5);
+            let spark_points = 4;
+            let t_secs = start.x * 0.01;
+            for j in 0..spark_points {
+                let frac = (j as f32 + 0.5) / spark_points as f32;
+                let spark_pos = start + wall_axis * (wall_length * frac);
+                crate::game::units::wizard::spells::vfx::systems::spawn_fire_sparks(
+                    commands,
+                    assets,
+                    spark_pos,
+                    crate::game::units::wizard::spells::vfx::constants::SPARK_COUNT / 2,
+                    t_secs + j as f32,
+                );
+            }
+            Some(wall_entity)
         }
 
         // ── Explosions (sphere meshes, scale-driven animation) ──

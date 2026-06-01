@@ -34,8 +34,11 @@ impl Plugin for MeteorFallPlugin {
                     check_meteor_collisions.run_if(any_exist::<MeteorProjectile>()),
                 )
                     .chain(),
-                // Explosion updates
-                update_meteor_explosions.run_if(any_exist::<MeteorExplosion>()),
+                // Explosion: animate (runs on ghost copies too) then host-only
+                // damage + despawn.
+                (animate_meteor_explosions, apply_meteor_explosion_damage)
+                    .chain()
+                    .run_if(any_exist::<MeteorExplosion>()),
                 // Ground fire systems (chained for correct ordering)
                 (
                     spawn_ground_fire_particles,
