@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.8.67] - 2026-06-01
 
 ### Changed
 - **The Wizard Tower now opens to Endless** — The Wizard Tower hub opens on the Endless tab, and Endless is now first in the row of tabs at the top. It's the simplest way to play, so it makes a friendlier starting point — every other mode is still right there next to it.
