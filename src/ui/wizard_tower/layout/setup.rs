@@ -38,8 +38,8 @@ pub(super) fn get_unlocked_spells() -> Vec<Spell> {
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub(crate) enum WizardTowerTab {
     #[default]
-    Roguelite,
     Endless,
+    Roguelite,
     Study,
     Multiplayer,
 }
@@ -47,8 +47,8 @@ pub(crate) enum WizardTowerTab {
 impl WizardTowerTab {
     pub fn all() -> &'static [WizardTowerTab] {
         &[
-            WizardTowerTab::Roguelite,
             WizardTowerTab::Endless,
+            WizardTowerTab::Roguelite,
             WizardTowerTab::Study,
             WizardTowerTab::Multiplayer,
         ]
@@ -112,7 +112,7 @@ pub(crate) struct DisabledTab;
 ///
 /// ```text
 /// +---------------------------------------------------------------+
-/// | [Roguelite] [Endless] [Study] [Multiplayer*]       [<- Back]  |
+/// | [Endless] [Roguelite] [Study] [Multiplayer*]       [<- Back]  |
 /// +--------------------+------------------------------------------+
 /// |                    |                                            |
 /// |   Left Panel       |       Right Panel                         |

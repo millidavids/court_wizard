@@ -473,7 +473,7 @@ static KBM_MENUS_STEPS: &[TutorialStep] = &[
         target: HighlightTarget::TabRow,
         text: "",
         text_kbm: Some(
-            "Click the tabs at the top to switch between Roguelite, Endless, and Study.",
+            "Click the tabs at the top to switch between Endless, Roguelite, and Study.",
         ),
         anchor: PanelAnchor::Center,
     },
