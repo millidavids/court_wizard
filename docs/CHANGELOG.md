@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **The disintegration beam's sparks and smoke now show up for the other player** — the burst of sparks and the smoke where the beam scorches the ground were missing on the other player's screen. They now appear for both players.
 - **Chain Lightning's Magnetic Pull now pulls on every cast for the second player** — as the joining player, the upgrade that yanks struck enemies toward the lightning often didn't pull them at all. It now pulls every time you cast, just like it does for the host.
+- **Spell and battle sounds now stop when the multiplayer results screen appears** — a lingering beam, weather, or battle-ambience sound could keep playing over the scoreboard. They now cut out the moment the match ends, the same as in single-player.
 
 ## [v0.8.72] - 2026-06-02
 

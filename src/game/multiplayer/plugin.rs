@@ -345,7 +345,13 @@ impl Plugin for MultiplayerGamePlugin {
         // ── Score Screen ──────────────────────────────────────────────
         app.add_systems(
             OnEnter(MultiplayerGameState::ScoreScreen),
-            setup_mp_score_screen,
+            (
+                setup_mp_score_screen,
+                // Mirror single-player (which stops SFX on InGameState::ScoreScreen):
+                // silence lingering spell / looping / ambience sounds the instant
+                // the match ends so they don't drone under the scoreboard.
+                crate::game::shared_systems::stop_all_sfx,
+            ),
         );
         app.add_systems(
             OnExit(MultiplayerGameState::ScoreScreen),
