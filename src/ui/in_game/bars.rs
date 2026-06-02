@@ -16,6 +16,8 @@ use crate::game::units::components::{Corpse, Health, Team};
 use crate::game::units::king::components::King;
 use crate::game::units::wizard::archetypes::gunslinger::GunState;
 use crate::game::units::wizard::components::{CastingState, LocalWizard, Mana, PrimedSpell};
+use crate::game::units::wizard::spells::utils::local_player_team;
+use crate::networking::session::MultiplayerSession;
 
 /// Blocks spell input when the mouse is interacting with a UI button so
 /// clicking a HUD button doesn't simultaneously fire a spell. With a
@@ -743,22 +745,26 @@ pub(super) fn update_boss_health_bar(
     }
 }
 
-/// Updates the king health bar fill based on the local wizard's team's king health.
+/// Updates the king health bar fill based on the local player's team's king health.
 pub(super) fn update_king_health_bar(
-    wizard_query: Query<&Team, With<LocalWizard>>,
     king_query: Query<(&Health, &Team), (With<King>, Without<Corpse>)>,
     mut fill_query: Query<&mut Node, With<KingHealthBarFill>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
-    let Ok(wizard_team) = wizard_query.single() else {
-        return;
-    };
     let Ok(mut fill_node) = fill_query.single_mut() else {
         return;
     };
 
-    // Find the king matching the local wizard's team
+    // The team this player commands: Defenders in single-player and as the
+    // multiplayer host, Attackers as the guest. The multiplayer wizard has no
+    // `Team` component (only the single-player wizard does), so the old
+    // `Query<&Team, With<LocalWizard>>` never matched in MP and the bar stayed
+    // empty. Derive the team from the peer role instead.
+    let local_team = local_player_team(session.as_deref());
+
+    // Find the king matching the local player's team
     for (health, team) in &king_query {
-        if team == wizard_team {
+        if *team == local_team {
             let hp_percent = (health.current / health.max * 100.0).clamp(0.0, 100.0);
             fill_node.height = Val::Percent(hp_percent);
             return;

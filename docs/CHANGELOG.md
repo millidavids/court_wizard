@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - **Entangle now actually holds enemies for the joining player** — casting Entangle as the second player showed the vines but the enemies kept walking around. The roots now pin them in place like they should.
 - **Raised undead now look and fight right in multiplayer** — units brought back with Raise the Dead now show the proper undead look on both screens (instead of looking like living soldiers or staying as corpses), are on the undead side, and attack both armies. Their lingering plague and explosion effects now harm every nearby living unit, not just one side.
 - **Shooting an Arcane Crystal with a Fireball no longer melts the game** — hitting a crystal with a fireball could spray out thousands of fireballs and grind everything to a crawl. The crystal now sends out the right small handful instead.
+- **The King's health bar now works in multiplayer** — the bar that tracks your King's health sat empty during multiplayer matches. It now fills and drains correctly, with each player seeing their own King's health.
 
 ## [v0.8.67] - 2026-06-01
 
