@@ -95,6 +95,30 @@ pub(crate) fn compute_talent_params(
     params
 }
 
+/// Swaps an entity's mesh + material to the sheep sprite. Shared by the SP cast
+/// path, the multiplayer host status-receiver, and the multiplayer guest ghost
+/// renderer so all three render an identical sheep. Callers add the gameplay bits
+/// (`PolymorphedModifier`, `Health`, removing `AttackTiming`) and `SheepBounce`/
+/// `Billboard` as appropriate — this helper is the pure visual swap.
+pub(crate) fn apply_sheep_visual(
+    entity_cmds: &mut EntityCommands,
+    materials: &mut Assets<StandardMaterial>,
+    visual_assets: &SpellVisualAssets,
+    color: Color,
+) {
+    let sheep_material = create_sprite_material(
+        materials,
+        visual_assets.sheep_icon.clone(),
+        color,
+        Vec2::ONE,
+        Vec2::ZERO,
+    );
+    entity_cmds.insert((
+        MeshMaterial3d(sheep_material),
+        Mesh3d(visual_assets.sheep_mesh.clone()),
+    ));
+}
+
 /// Applies the polymorph effect to a single target entity.
 #[allow(clippy::too_many_arguments)]
 fn apply_polymorph_to_target(
@@ -131,14 +155,6 @@ fn apply_polymorph_to_target(
         (talent_params.sheep_hp, constants::SHEEP_COLOR)
     };
 
-    let sheep_material = create_sprite_material(
-        materials,
-        visual_assets.sheep_icon.clone(),
-        color,
-        Vec2::ONE,
-        Vec2::ZERO,
-    );
-
     let mut entity_cmds = commands.entity(target_entity);
     entity_cmds.insert((
         PolymorphedModifier::new(
@@ -149,8 +165,6 @@ fn apply_polymorph_to_target(
             target_mesh.0.clone(),
             target_team,
         ),
-        MeshMaterial3d(sheep_material),
-        Mesh3d(visual_assets.sheep_mesh.clone()),
         Health::new(sheep_hp),
         SheepBounce {
             base_y: position.y,
@@ -159,6 +173,7 @@ fn apply_polymorph_to_target(
         Billboard,
     ));
     entity_cmds.remove::<AttackTiming>();
+    apply_sheep_visual(&mut entity_cmds, materials, visual_assets, color);
 
     // Insert talent-specific behavioral components
     if talent_params.explosive {

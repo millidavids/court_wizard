@@ -12,6 +12,7 @@ use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::game_mode::components::ActiveToggles;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::components::{GhostEntity, GhostSpellEffect};
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::components::{
     Corpse, Health, RootedModifier, SlowMovementModifier, Team, TemporaryHitPoints,
@@ -313,10 +314,13 @@ pub fn tick_entangle_ground_effect(
 pub fn overgrowth_root_new_units(
     time: Res<Time>,
     mut commands: Commands,
-    mut effects: Query<&mut EntangleGroundEffect>,
+    // Gameplay is host-authoritative: skip the guest's mirror of a remote zone
+    // (`GhostSpellEffect`) and never root ghost units (`GhostEntity`). The guest
+    // forwards its own cast-time roots; re-rooting must not double-apply.
+    mut effects: Query<&mut EntangleGroundEffect, Without<GhostSpellEffect>>,
     targets: Query<
         (Entity, &Transform, &Team, Option<&RootedModifier>),
-        (Without<Wizard>, Without<Corpse>),
+        (Without<Wizard>, Without<Corpse>, Without<GhostEntity>),
     >,
     mut defender_hit_msg: MessageWriter<EntangleHitDefenderMessage>,
 ) {
@@ -385,12 +389,18 @@ pub fn cleanup_entangle_ground_effect(
 pub fn thorny_vines_tick(
     time: Res<Time>,
     mut commands: Commands,
-    mut rooted_units: Query<(
-        Entity,
-        &mut ThornyVines,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-    )>,
+    // `Without<GhostEntity>`: thorny vines mutate `Health` directly (not via the
+    // CRDT/`PendingDamageEffect` forward path), so ticking it on a guest ghost
+    // would corrupt host-authoritative HP. Host-authoritative only.
+    mut rooted_units: Query<
+        (
+            Entity,
+            &mut ThornyVines,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
+        Without<GhostEntity>,
+    >,
 ) {
     let delta = time.delta_secs();
     for (entity, mut thorny, mut health, mut temp_hp) in &mut rooted_units {
@@ -421,7 +431,8 @@ pub fn handle_entangle_root_expire(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        Without<RootedModifier>,
+        // Host-authoritative: don't apply Clinging Roots / Stranglehold to ghosts.
+        (Without<RootedModifier>, Without<GhostEntity>),
     >,
 ) {
     for (entity, entangle, mut health, mut temp_hp) in &mut rooted_units {

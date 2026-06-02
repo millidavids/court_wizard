@@ -98,6 +98,11 @@ impl UnitFlags {
     /// Host's unit is poisoned (Plague Wind etc.) — set so the guest renders
     /// the green poison tint on its ghost unit.
     pub const POISON_EFFECT: u16 = 1 << 10;
+    /// Host's unit is currently polymorphed (a sheep) — set so the guest swaps
+    /// its ghost to the sheep sprite. Without this a host-cast polymorph never
+    /// renders on the guest (the unit snapshot otherwise carries no "is a sheep"
+    /// state and the guest only swaps materials at spawn / corpse transitions).
+    pub const POLYMORPH: u16 = 1 << 11;
 }
 
 /// Encodes a `Team` component into a u8.
@@ -142,6 +147,7 @@ pub fn build_unit_snapshot(
     has_combat_animation: bool,
     has_mark: bool,
     has_poison: bool,
+    has_polymorph: bool,
 ) -> UnitSnapshot {
     let mut flags = 0u16;
     if is_corpse {
@@ -176,6 +182,9 @@ pub fn build_unit_snapshot(
     }
     if has_poison {
         flags |= UnitFlags::POISON_EFFECT;
+    }
+    if has_polymorph {
+        flags |= UnitFlags::POLYMORPH;
     }
 
     let (max_hp, damage, healing) = if let Some(crdt) = crdt_health {

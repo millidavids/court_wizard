@@ -420,6 +420,14 @@ pub struct RemoteElectricEffect;
 #[derive(Component)]
 pub struct RemotePoisonEffect;
 
+/// Visual-only polymorph marker, mirrored from the host's `PolymorphedModifier`
+/// via `UnitFlags::POLYMORPH`. Tracks that a guest ghost is currently rendered as
+/// a sheep so the snapshot loop swaps the mesh/material to the sheep sprite on the
+/// off→on edge and restores the original sprite on the on→off edge. No gameplay
+/// component is created on the guest — the sheep state is host-authoritative.
+#[derive(Component)]
+pub struct RemotePolymorphEffect;
+
 /// Marker component inserted by `apply_spell_damage` to defer persistent effect stacking.
 ///
 /// A central system (`process_pending_damage_effects`) reads these each frame and

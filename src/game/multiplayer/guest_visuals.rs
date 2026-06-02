@@ -6,6 +6,7 @@ use crate::game::resources::GameOutcome;
 use crate::game::units::archer::ArcherAssets;
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::king::resources::KingAssets;
+use crate::game::units::undead::resources::UndeadAssets;
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::entangle::components::EntangleGroundEffect;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
@@ -46,6 +47,7 @@ pub(super) fn pick_material(
     infantry_assets: &InfantryAssets,
     archer_assets: &ArcherAssets,
     king_assets: &KingAssets,
+    undead_assets: &UndeadAssets,
     materials: &mut Assets<StandardMaterial>,
     team: crate::game::units::components::Team,
     is_corpse: bool,
@@ -53,7 +55,7 @@ pub(super) fn pick_material(
     is_archer: bool,
     is_guard: bool,
 ) -> Handle<StandardMaterial> {
-    use crate::game::units::components::CORPSE_MATERIAL_VARIANTS;
+    use crate::game::units::components::{CORPSE_MATERIAL_VARIANTS, Team};
     use crate::game::units::systems::{corpse_material_for_team, create_default_sprite_material};
 
     if is_corpse {
@@ -77,6 +79,17 @@ pub(super) fn pick_material(
                 idx,
             )
         }
+    } else if team == Team::Undead {
+        // Raised undead always use the dedicated undead walking sprite (purple
+        // tint), regardless of the unit type they were raised from. Checked before
+        // the type branches so a resurrected archer / king's-guard still reads as
+        // undead. Without this the guest rendered raised units as living infantry.
+        use crate::game::units::infantry::constants::UNDEAD_SPRITE_TINT;
+        create_default_sprite_material(
+            materials,
+            undead_assets.sprite_texture.clone(),
+            UNDEAD_SPRITE_TINT,
+        )
     } else if is_king {
         use crate::game::units::king::constants::KING_SPRITE_TINT;
         create_default_sprite_material(

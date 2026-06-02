@@ -29,7 +29,9 @@ use crate::game::units::wizard::components::Spell;
 ///   `cast_events` to `SpellVisualSnapshot`).
 /// - 2: adds `width` to `BeamSnapshot` and the `DisintegrateChannel`
 ///   `SpellSoundId` ordinal (multiplayer spell-visual overhaul).
-pub const PROTOCOL_VERSION: u32 = 2;
+/// - 3: adds `UnitFlags::POLYMORPH` (1 << 11) to the unit snapshot so the guest
+///   renders host-cast sheep. No new wire field — repurposes a free flag bit.
+pub const PROTOCOL_VERSION: u32 = 3;
 
 /// Messages sent over the reliable WebRTC data channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]

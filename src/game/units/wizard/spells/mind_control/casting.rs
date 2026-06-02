@@ -20,7 +20,7 @@ use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
     clamp_cursor_to_spell_range_with_origin, cleanup_spell_caster, ground_projected_range,
-    spawn_circle_indicator, update_indicator_position,
+    local_player_team, spawn_circle_indicator, update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -133,11 +133,12 @@ pub(super) fn handle_mind_control_casting(
     talent_resources: (
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
+        Option<Res<crate::networking::session::MultiplayerSession>>,
     ),
 ) {
     let (ref mut materials, ref mut meshes) = assets;
     let (ref sfx, ref visual_assets, ref game_config, ref mut pending_cast_events) = loaded_assets;
-    let (active_talents, mut talent_progress) = talent_resources;
+    let (active_talents, mut talent_progress, session) = talent_resources;
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
     apply_target_assist(&mut input, &target_assist);
@@ -160,6 +161,10 @@ pub(super) fn handle_mind_control_casting(
     }
 
     let talent_params = compute_talent_params(active_talents.as_deref());
+    // The team THIS player commands (Defenders in SP / as host; Attackers as the
+    // guest). Enemy = anything this team is hostile to. Hardcoding Attackers/Undead
+    // made the guest unable to mind-control the host's defenders.
+    let local_team = local_player_team(session.as_deref());
     let controlled_count = existing_controlled.iter().count() as u32;
 
     // Determine max controlled based on talents
@@ -238,8 +243,13 @@ pub(super) fn handle_mind_control_casting(
                 }
             } else {
                 // Find nearest enemy to cursor each frame and update highlight
-                let nearest =
-                    find_nearest_enemy(&enemies_query, cursor_pos, spell_range, local_origin.0);
+                let nearest = find_nearest_enemy(
+                    &enemies_query,
+                    cursor_pos,
+                    spell_range,
+                    local_origin.0,
+                    local_team,
+                );
                 update_highlight(
                     &mut commands,
                     materials,
@@ -264,7 +274,7 @@ pub(super) fn handle_mind_control_casting(
                         if let Some(pos) = cursor_pos {
                             let mut count = 0u32;
                             for (entity, transform, team, _) in &enemies_query {
-                                if !matches!(*team, Team::Attackers | Team::Undead) {
+                                if !local_team.is_enemy(team) {
                                     continue;
                                 }
                                 if crate::game::units::wizard::spells::utils::xz_distance(
@@ -376,12 +386,13 @@ fn find_nearest_enemy(
     cursor_pos: Option<Vec3>,
     spell_range: f32,
     local_origin: Vec3,
+    local_team: Team,
 ) -> Option<Entity> {
     let wizard_pos = local_origin;
     cursor_pos.and_then(|pos| {
         enemies_query
             .iter()
-            .filter(|(_, _, team, _)| **team == Team::Attackers || **team == Team::Undead)
+            .filter(|(_, _, team, _)| local_team.is_enemy(team))
             .filter(|(_, transform, _, _)| {
                 let dx = transform.translation.x - wizard_pos.x;
                 let dz = transform.translation.z - wizard_pos.z;

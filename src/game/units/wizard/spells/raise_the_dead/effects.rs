@@ -74,8 +74,9 @@ pub fn tick_plague_bearer_aura(
         aura.tick_accumulator = 0.0;
 
         for (entity, target_transform, team, mut health, temp_hp, poison) in &mut targets {
-            // Only damage living enemies (attackers)
-            if *team != Team::Attackers {
+            // Magic is indiscriminate — the plague harms every living unit, not
+            // just attackers. Undead ignore their own kind.
+            if !Team::Undead.is_enemy(team) {
                 continue;
             }
 
@@ -199,9 +200,9 @@ pub fn handle_undead_detonation(
             &sfx,
         );
 
-        // Apply detonation damage
+        // Apply detonation damage — indiscriminate (everyone but other undead).
         for (target_transform, team, mut health, temp_hp) in &mut targets {
-            if *team != Team::Attackers {
+            if !Team::Undead.is_enemy(team) {
                 continue;
             }
 

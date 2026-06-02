@@ -10,11 +10,12 @@ use crate::game::units::archer::ArcherAssets;
 use crate::game::units::components::OriginalMaterial;
 use crate::game::units::components::{
     Corpse, FireDoT, FrostAccumulation, Health, RemoteElectricEffect, RemoteFireEffect,
-    RemoteFrostEffect, RemotePoisonEffect, Shocked,
+    RemoteFrostEffect, RemotePoisonEffect, RemotePolymorphEffect, Shocked,
 };
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::king::components::{King, SpellShield};
 use crate::game::units::king::resources::KingAssets;
+use crate::game::units::undead::resources::UndeadAssets;
 use crate::game::units::wizard::spells::mark_of_death::components::ActiveMarkOfDeath;
 use crate::networking::crdt::CrdtHealth;
 use crate::networking::entity_map::{NetworkEntityId, NetworkEntityMap};
@@ -25,6 +26,8 @@ use crate::networking::snapshot::{
 };
 
 use super::components::{GhostArrow, GhostEntity, OnMultiplayerGameScreen};
+use crate::game::units::wizard::spells::polymorph::constants::SHEEP_COLOR;
+use crate::game::units::wizard::spells::polymorph::systems::apply_sheep_visual;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Guest-side forwarder: when a spell on the guest applies damage to a
@@ -126,7 +129,12 @@ pub fn forward_status_effects_to_host(
         ),
         (
             With<super::components::GhostEntity>,
-            Added<crate::game::units::status_effects::RootedModifier>,
+            // Poll (not `Added<>`): a `Commands`-queued insert from the entangle
+            // cast isn't visible to `Added` until after the command flush, so
+            // `Added` could miss the root entirely (this caused guest entangle's
+            // "vines but no root"). The `StatusEffectForwarded` marker is queued
+            // the same frame we forward and flushes before the next poll, so this
+            // stays single-shot. Mirrors `forward_spell_hits_to_host`.
             Without<StatusEffectForwarded<crate::game::units::status_effects::RootedModifier>>,
         ),
     >,
@@ -138,7 +146,8 @@ pub fn forward_status_effects_to_host(
         ),
         (
             With<super::components::GhostEntity>,
-            Added<crate::game::units::components::MindControlled>,
+            // Poll (not `Added<>`) — see the `root` arm; keeps guest-cast mind
+            // control reliable even when the insert lands via deferred commands.
             Without<StatusEffectForwarded<crate::game::units::components::MindControlled>>,
         ),
     >,
@@ -262,7 +271,8 @@ pub fn forward_status_effects_to_host(
         ),
         (
             With<super::components::GhostEntity>,
-            Added<crate::game::units::status_effects::PolymorphedModifier>,
+            // Poll (not `Added<>`) — see the `root` arm; keeps guest-cast
+            // polymorph reliable even when the insert lands via deferred commands.
             Without<StatusEffectForwarded<crate::game::units::status_effects::PolymorphedModifier>>,
         ),
     >,
@@ -553,6 +563,7 @@ pub fn apply_state_snapshot(
     infantry_assets: Res<InfantryAssets>,
     archer_assets: Res<ArcherAssets>,
     king_assets: Res<KingAssets>,
+    undead_assets: Res<UndeadAssets>,
     spell_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
@@ -571,6 +582,7 @@ pub fn apply_state_snapshot(
             Has<crate::game::units::components::CombatAnimation>,
             Has<RemotePoisonEffect>,
             Has<ActiveMarkOfDeath>,
+            Has<RemotePolymorphEffect>,
         ),
         With<GhostEntity>,
     >,
@@ -659,6 +671,7 @@ pub fn apply_state_snapshot(
         let remote_combat = unit.flags & UnitFlags::COMBAT_ANIMATION != 0;
         let remote_poison = unit.flags & UnitFlags::POISON_EFFECT != 0;
         let remote_mark = unit.flags & UnitFlags::MARK_EFFECT != 0;
+        let remote_polymorph = unit.flags & UnitFlags::POLYMORPH != 0;
 
         if let Some(&local_entity) = entity_map.remote_to_local.get(&unit.id) {
             if let Ok((
@@ -675,6 +688,7 @@ pub fn apply_state_snapshot(
                 has_combat,
                 has_remote_poison,
                 has_remote_mark,
+                has_remote_polymorph,
             )) = ghost_query.get_mut(local_entity)
             {
                 // Use the host's AUTHORITATIVE velocity from the snapshot.
@@ -754,9 +768,30 @@ pub fn apply_state_snapshot(
                             &infantry_assets,
                             &archer_assets,
                             &king_assets,
+                            &undead_assets,
                             &mut materials,
                             team,
                             is_corpse,
+                            is_king,
+                            is_archer,
+                            is_guard,
+                        );
+                        ec.insert(MeshMaterial3d(new_handle));
+                    } else if !is_corpse {
+                        // Corpse → alive: Raise the Dead resurrected this corpse
+                        // into an undead unit. Swap the corpse material to the alive
+                        // sprite so it stops rendering as a laid-flat corpse. Uses
+                        // the CURRENT snapshot team (now `Undead`), so `pick_material`
+                        // returns the dedicated undead sprite. The sprite mesh is
+                        // unchanged (sprite units share one quad for both states).
+                        let new_handle = pick_material(
+                            &infantry_assets,
+                            &archer_assets,
+                            &king_assets,
+                            &undead_assets,
+                            &mut materials,
+                            team,
+                            false,
                             is_king,
                             is_archer,
                             is_guard,
@@ -803,6 +838,43 @@ pub fn apply_state_snapshot(
                     commands.entity(entity).insert(ActiveMarkOfDeath);
                 } else if !remote_mark && has_remote_mark {
                     commands.entity(entity).remove::<ActiveMarkOfDeath>();
+                }
+
+                // Polymorph: render the ghost as a sheep while the host's unit is
+                // polymorphed (host-authoritative). Swap on the off→on edge,
+                // restore the unit's normal sprite on the on→off edge. We also
+                // strip any local `PolymorphedModifier` the guest's own cast left
+                // on the ghost so the unit isn't excluded from `Without<
+                // PolymorphedModifier>` spell-target queries forever after revert.
+                if remote_polymorph && !has_remote_polymorph {
+                    let mut ec = commands.entity(entity);
+                    apply_sheep_visual(&mut ec, &mut materials, &spell_assets, SHEEP_COLOR);
+                    ec.insert(RemotePolymorphEffect);
+                } else if !remote_polymorph && has_remote_polymorph {
+                    let restored_material = pick_material(
+                        &infantry_assets,
+                        &archer_assets,
+                        &king_assets,
+                        &undead_assets,
+                        &mut materials,
+                        team,
+                        is_corpse,
+                        is_king,
+                        is_archer,
+                        is_guard,
+                    );
+                    let restored_mesh = if is_king {
+                        king_assets.sprite_mesh.clone()
+                    } else if is_archer {
+                        archer_assets.sprite_mesh.clone()
+                    } else {
+                        infantry_assets.sprite_mesh.clone()
+                    };
+                    let mut ec = commands.entity(entity);
+                    ec.insert(MeshMaterial3d(restored_material));
+                    ec.insert(Mesh3d(restored_mesh));
+                    ec.remove::<RemotePolymorphEffect>();
+                    ec.remove::<crate::game::units::status_effects::PolymorphedModifier>();
                 }
 
                 // Sync spell shield component from host. No visual swap
@@ -937,6 +1009,7 @@ pub fn apply_state_snapshot(
                 &infantry_assets,
                 &archer_assets,
                 &king_assets,
+                &undead_assets,
                 &mut materials,
                 team,
                 is_corpse,
@@ -1024,6 +1097,11 @@ pub fn apply_state_snapshot(
             }
             if remote_mark {
                 commands.entity(entity).insert(ActiveMarkOfDeath);
+            }
+            if remote_polymorph {
+                let mut ec = commands.entity(entity);
+                apply_sheep_visual(&mut ec, &mut materials, &spell_assets, SHEEP_COLOR);
+                ec.insert(RemotePolymorphEffect);
             }
             if remote_combat && !is_corpse && !is_king {
                 let (combat_tex, walking_tex) = if is_archer {

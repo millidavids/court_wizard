@@ -15,8 +15,8 @@ use crate::game::pathfinding::{FlowFieldInfluence, StagingAttacker};
 use crate::game::units::components::Knockback;
 use crate::game::units::components::{
     AnimationOverride, AttackTiming, BanishedModifier, Corpse, FacingDirection, Health, Hitbox,
-    KingsGuard, MindControlled, RetaliationTarget, TargetingVelocity, Team, TemporaryHitPoints,
-    apply_damage_to_unit,
+    KingsGuard, MindControlled, MovementSpeed, RetaliationTarget, TargetingVelocity, Team,
+    TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::king::components::King;
 use crate::game::units::wizard::components::Wizard;
@@ -825,6 +825,42 @@ pub fn update_mind_controlled_targeting(
             targeting.velocity = dir;
         } else {
             targeting.velocity = Vec3::ZERO;
+        }
+    }
+}
+
+/// Mind-controlled units charge their nearest former ally so they close to melee
+/// range (where `mind_controlled_combat` lands hits) instead of drifting with the
+/// herd toward the enemy base. Runs AFTER `MovementCalculationSet` to override the
+/// blended steering — the weighted blend keys off flow-field distance, so without
+/// this override an MC'd attacker just keeps marching at the castle and never
+/// engages its former allies. Mirrors the Pig Form / Dire Sheep velocity overrides.
+pub fn mind_controlled_pursue_allies(
+    controlled: Query<(Entity, &Transform, &Team, &MovementSpeed), With<MindControlled>>,
+    allies: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<MindControlled>)>,
+    mut velocity_query: Query<&mut Velocity>,
+) {
+    for (entity, transform, team, speed) in &controlled {
+        let pos = transform.translation;
+
+        // Nearest same-team unit = the former ally we now turn on.
+        let mut nearest: Option<(f32, Vec3)> = None;
+        for (other, other_transform, other_team) in &allies {
+            if other == entity || other_team != team {
+                continue;
+            }
+            let dist = pos.distance(other_transform.translation);
+            if nearest.as_ref().is_none_or(|(best, _)| dist < *best) {
+                nearest = Some((dist, other_transform.translation));
+            }
+        }
+
+        if let Some((_, target_pos)) = nearest
+            && let Ok(mut velocity) = velocity_query.get_mut(entity)
+        {
+            let dir = (target_pos - pos).normalize_or_zero();
+            velocity.x = dir.x * speed.0;
+            velocity.z = dir.z * speed.0;
         }
     }
 }

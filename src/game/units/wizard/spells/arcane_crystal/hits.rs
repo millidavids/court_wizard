@@ -50,6 +50,15 @@ pub(super) fn detect_fireball_hits(
     mut progress: ResMut<BattleTalentProgress>,
 ) {
     for (explosion_entity, explosion) in &explosions {
+        // Visual-only explosions (the decorative sub-bubbles from
+        // `spawn_explosion_bubbles`, undead-detonation VFX, etc.) carry
+        // `damage_per_tick == 0.0` and are spawned WITHOUT `CrystalSpawn`. Each
+        // is a fresh entity id, so without this guard every bubble triggers a
+        // full absorption every frame → a geometric fireball cascade that lags
+        // the game. Mirror `apply_explosion_damage`, which skips them too.
+        if explosion.damage_per_tick <= 0.0 {
+            continue;
+        }
         for (mut crystal, mut resonance) in &mut crystals {
             if crystal.permanent {
                 continue;

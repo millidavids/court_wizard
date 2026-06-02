@@ -68,6 +68,7 @@ pub fn send_state_snapshots(
             Has<crate::game::units::components::CombatAnimation>,
             Has<crate::game::units::wizard::spells::mark_of_death::components::ActiveMarkOfDeath>,
             Has<crate::game::units::status_effects::PoisonedModifier>,
+            Has<crate::game::units::status_effects::PolymorphedModifier>,
         ),
     )>,
     arrows: Query<&Transform, With<Arrow>>,
@@ -95,7 +96,7 @@ pub fn send_state_snapshots(
         has_frost,
         has_electric,
         has_spell_shield,
-        (has_combat_animation, has_mark, has_poison),
+        (has_combat_animation, has_mark, has_poison, has_polymorph),
     ) in &units
     {
         snapshot.units.push(build_unit_snapshot(
@@ -116,6 +117,7 @@ pub fn send_state_snapshots(
             has_combat_animation,
             has_mark,
             has_poison,
+            has_polymorph,
         ));
     }
 
@@ -306,6 +308,10 @@ pub fn receive_apply_status_effect(
     // MindControl needs the defender's spawn position so the control-wear-off
     // path can rally the unit back to its origin.
     mind_control_targets: Query<&crate::game::pathfinding::FlowFieldInfluence>,
+    // Polymorph needs to swap the unit's mesh/material to the sheep sprite on the
+    // host (so it stops attacking and the snapshot flag renders a sheep on the guest).
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
 ) {
     if connection.incoming_messages.is_empty() {
         return;
@@ -341,12 +347,18 @@ pub fn receive_apply_status_effect(
                     kind,
                     crate::networking::protocol::StatusEffectKind::Polymorph
                 ) {
-                    polymorph_targets
-                        .get(local_entity)
-                        .ok()
-                        .map(|(_, team, hp, mat, mesh)| {
-                            (*team, hp.current, hp.max, mat.0.clone(), mesh.0.clone())
-                        })
+                    polymorph_targets.get(local_entity).ok().map(
+                        |(transform, team, hp, mat, mesh)| {
+                            (
+                                *team,
+                                hp.current,
+                                hp.max,
+                                mat.0.clone(),
+                                mesh.0.clone(),
+                                transform.translation.y,
+                            )
+                        },
+                    )
                 } else {
                     None
                 };
@@ -383,6 +395,8 @@ pub fn receive_apply_status_effect(
                     flags,
                     polymorph_capture,
                     mc_spawn_pos,
+                    &mut materials,
+                    &visual_assets,
                 );
             }
             other => unhandled.push(other),
@@ -419,11 +433,19 @@ fn apply_status_to_entity(
         f32, // max HP
         Handle<StandardMaterial>,
         Handle<Mesh>,
+        f32, // unit Y (sheep bounce baseline)
     )>,
     mc_spawn_pos: Option<Vec2>,
+    materials: &mut Assets<StandardMaterial>,
+    visual_assets: &crate::game::units::wizard::spells::visual_assets::SpellVisualAssets,
 ) {
     use crate::game::units::components as comp;
     use crate::game::units::status_effects as sfx;
+    use crate::game::units::wizard::spells::polymorph::{
+        constants::{SHEEP_COLOR, SHEEP_HP},
+        sheep_visual::SheepBounce,
+        systems::apply_sheep_visual,
+    };
     use crate::networking::protocol::StatusEffectKind as K;
     use crate::networking::protocol::status_flags as sf;
 
@@ -468,15 +490,25 @@ fn apply_status_to_entity(
             let _ = (flags, magnitude);
         }
         K::Polymorph => {
-            // Real Polymorph requires the unit's current material/mesh/team
-            // for the revert path. If the caller threaded the capture
-            // through (`polymorph_capture`), construct the full
-            // `PolymorphedModifier`; otherwise fall back to Sleep so the
-            // unit still can't act on the host.
-            if let Some((team, hp_current, hp_max, material, mesh)) = polymorph_capture {
+            // Full sheep transform on the host. Combat is NOT gated on
+            // `PolymorphedModifier` — a unit stops attacking because its
+            // `AttackTiming` is removed and it's rendered as a sheep, exactly like
+            // the SP cast path. Inserting only the modifier (the old behaviour)
+            // left the unit fighting → "guest's polymorph does nothing".
+            // `tick_polymorphed_units` (host-only) reverts using the captured
+            // original mesh/material/health/team, and the POLYMORPH snapshot flag
+            // makes the guest render the sheep.
+            if let Some((team, hp_current, hp_max, material, mesh, base_y)) = polymorph_capture {
                 ec.insert(sfx::PolymorphedModifier::new(
                     duration, hp_current, hp_max, material, mesh, team,
                 ));
+                ec.insert(comp::Health::new(SHEEP_HP));
+                ec.insert(SheepBounce {
+                    base_y,
+                    elapsed: 0.0,
+                });
+                ec.remove::<comp::AttackTiming>();
+                apply_sheep_visual(&mut ec, materials, visual_assets, SHEEP_COLOR);
             } else {
                 ec.insert(sfx::SleepModifier::new(duration, 1.0));
             }

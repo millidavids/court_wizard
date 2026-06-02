@@ -7,6 +7,7 @@ use super::components::{
 use super::systems;
 use crate::game::plugin::{PostCombatSet, VelocitySystemSet};
 use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
+use crate::game::units::MovementCalculationSet;
 use crate::game::units::components::{MindControlled, RetaliationTarget};
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::run_conditions::*;
@@ -39,6 +40,10 @@ impl Plugin for MindControlPlugin {
                 crate::game::units::boss::hags::systems::update_mind_control_wear_off,
                 crate::game::units::boss::hags::systems::mind_controlled_combat
                     .after(PostCombatSet),
+                // Override the blended steering so MC'd units charge their former
+                // allies instead of marching with the herd toward the enemy base.
+                crate::game::units::boss::hags::systems::mind_controlled_pursue_allies
+                    .after(MovementCalculationSet),
             )
                 .run_if(is_gameplay_running)
                 .run_if(any_with_component::<MindControlled>),
