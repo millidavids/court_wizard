@@ -12,6 +12,10 @@ pub const KING_MOVEMENT_SPEED: f32 = 115.0;
 // Spell shield (multiplayer only)
 /// Fraction of non-King defenders that must be alive for the shield to remain active.
 pub const SPELL_SHIELD_THRESHOLD: f32 = 0.10;
+/// Multiplayer anti-stall: the King's spell shield is force-removed after this
+/// many seconds of match time, regardless of the kill threshold, so a player
+/// can't keep-away/maze indefinitely while the shield never falls.
+pub const MP_SPELL_SHIELD_MAX_DURATION_SECS: f32 = 90.0;
 // Note: the dedicated shield visual (radius + color) was retired — the king's
 // aura sphere now serves as the constant visual on both peers. See
 // `spawn_king_aura_visual`.

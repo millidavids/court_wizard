@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - **Annihilation beam now costs far less mana** — because the annihilation beam is locked in place and can't be swept around like the normal beam, it now costs much less mana to keep firing instead of more. Works in both single-player and multiplayer.
 - **Arcane Barrage fires twice as fast** — once it's active, the auto-firing missile barrage now sends out its volleys twice as often. Works in both single-player and multiplayer.
+- **You can no longer teleport your own King in multiplayer** — teleporting the King out of reach was being used to play keep-away and drag matches out forever. The King now stays put; everything else still teleports normally. (Single-player is unchanged.)
+- **The King's spell shield now wears off after 90 seconds in multiplayer** — previously the shield only dropped once you'd lost most of your army, so a player could hide behind walls and stalling tactics to keep it up forever. It now falls after 90 seconds no matter what, and a banner tells both players whenever a King's shield comes down — so matches can't be stalled out.
 
 ### Fixed
 - **The disintegration beam's sparks and smoke now show up for the other player** — the burst of sparks and the smoke where the beam scorches the ground were missing on the other player's screen. They now appear for both players.

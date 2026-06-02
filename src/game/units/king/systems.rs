@@ -478,6 +478,29 @@ pub fn update_king_spell_shield(
     }
 }
 
+/// Multiplayer anti-stall: force-removes the King's spell shield once the match
+/// has run `MP_SPELL_SHIELD_MAX_DURATION_SECS` seconds, regardless of how many
+/// units are still alive. Without this, a player could maze / play keep-away to
+/// keep enough units alive that the kill-threshold drop (`update_king_spell_shield`)
+/// never fires, stalling the match forever.
+///
+/// **Host only** (registered under `is_gameplay_running`): shield state is
+/// host-authoritative and propagates to the guest via the snapshot `SPELL_SHIELD`
+/// bit. Reuses the host-side `KillStats.elapsed_time` match clock (reset at match
+/// start), so no extra timer is needed. Removes the shield from every still-shielded
+/// king, so both MP kings lose their shields together at the timeout.
+pub fn expire_king_spell_shield_on_timeout(
+    mut commands: Commands,
+    kill_stats: Res<crate::game::resources::KillStats>,
+    kings: Query<Entity, (With<King>, With<SpellShield>, Without<Corpse>)>,
+) {
+    if kill_stats.elapsed_time >= MP_SPELL_SHIELD_MAX_DURATION_SECS {
+        for king_entity in &kings {
+            commands.entity(king_entity).remove::<SpellShield>();
+        }
+    }
+}
+
 /// Spawns small particles from all commanders that travel outward to the aura edge.
 pub fn spawn_commander_aura_particles(
     mut commands: Commands,

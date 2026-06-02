@@ -8,6 +8,7 @@ use crate::game::run_conditions::{
 use crate::state::{AppState, InGameState};
 use crate::ui::plugin::ButtonActionSet;
 
+use super::components::{RetreatFlash, ShieldFellFlash};
 use super::systems;
 
 /// Plugin that manages in-game UI and input handling.
@@ -47,7 +48,7 @@ impl Plugin for InGamePlugin {
                     systems::update_past_victory_display,
                     systems::update_level_clock,
                     systems::spawn_retreat_flash,
-                    systems::update_retreat_flash,
+                    systems::update_timed_flash::<RetreatFlash>,
                 )
                     .run_if(is_gameplay_running),
             )
@@ -67,6 +68,17 @@ impl Plugin for InGamePlugin {
             .add_systems(
                 Update,
                 (systems::update_cast_bar, systems::update_overlay_text)
+                    .run_if(is_spell_effects_active),
+            )
+            // "King's shield has fallen!" banner: is_spell_effects_active so it
+            // shows for BOTH host and guest in MP. No-op in SP (SP kings never
+            // carry SpellShield, so the RemovedComponents watcher never fires).
+            .add_systems(
+                Update,
+                (
+                    systems::spawn_shield_fell_flash,
+                    systems::update_timed_flash::<ShieldFellFlash>,
+                )
                     .run_if(is_spell_effects_active),
             )
             // Mana/king/ammo bars: use is_local_wizard_active so guest can see their bars too

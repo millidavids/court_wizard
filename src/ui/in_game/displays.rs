@@ -11,6 +11,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::resources::WaveState;
 use crate::game::units::components::{Corpse, Team};
+use crate::game::units::king::components::{King, SpellShield};
 use crate::state::{InGameState, MultiplayerGameState};
 
 /// Blocks spell input when the mouse is interacting with a UI button so
@@ -120,22 +121,56 @@ pub(super) fn spawn_retreat_flash(
     }
 }
 
-/// Fades and despawns the retreat flash.
-pub(super) fn update_retreat_flash(
+/// Fades and despawns any timed flash banner (`RetreatFlash`, `ShieldFellFlash`)
+/// once its `timer` runs out: full opacity until the last second, then a linear
+/// fade. Registered once per marker as `update_timed_flash::<M>`.
+pub(super) fn update_timed_flash<
+    M: Component<Mutability = bevy::ecs::component::Mutable> + FlashTimer,
+>(
     mut commands: Commands,
     time: Res<Time>,
-    mut flash_query: Query<(Entity, &mut RetreatFlash, &mut TextColor)>,
+    mut flash_query: Query<(Entity, &mut M, &mut TextColor)>,
 ) {
     for (entity, mut flash, mut text_color) in &mut flash_query {
-        flash.timer -= time.delta_secs();
-        if flash.timer <= 0.0 {
+        let timer = flash.timer_mut();
+        *timer -= time.delta_secs();
+        let remaining = *timer;
+        if remaining <= 0.0 {
             commands.entity(entity).try_despawn();
         } else {
-            let opacity = (flash.timer / 1.0).min(1.0);
+            let opacity = remaining.min(1.0);
             let mut c = text_color.0.to_srgba();
             c.alpha = opacity;
             text_color.0 = c.into();
         }
+    }
+}
+
+/// Spawns the "King's shield has fallen!" banner whenever a King loses its
+/// `SpellShield` (multiplayer: the 90s timeout, the kill-threshold drop, or a
+/// Dispel). Runs on BOTH peers — the host sees its own King's removal; the guest
+/// sees the snapshot-driven removal on the ghost King. The `Without<Corpse>`
+/// filter skips the on-death shield removal so a dying King doesn't flash it.
+pub(super) fn spawn_shield_fell_flash(
+    mut commands: Commands,
+    mut removed: RemovedComponents<SpellShield>,
+    living_kings: Query<(), (With<King>, Without<Corpse>)>,
+    existing_flash: Query<Entity, With<ShieldFellFlash>>,
+) {
+    // Both kings' shields drop together at the 90s timeout, so collapse all of
+    // this frame's removals into a single banner.
+    if removed.read().any(|e| living_kings.get(e).is_ok()) {
+        for old in &existing_flash {
+            commands.entity(old).try_despawn();
+        }
+        spawn_flash_banner_with_marker(
+            &mut commands,
+            "The King's shield has fallen!",
+            SHIELD_FELL_FLASH_COLOR,
+            ShieldFellFlash {
+                timer: SHIELD_FELL_FLASH_DURATION,
+            },
+        );
     }
 }
 

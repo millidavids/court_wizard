@@ -423,7 +423,9 @@ pub(super) fn spawn_mp_king(
             } else {
                 FlowFieldInfluence::Attacker
             },
-            Teleportable,
+            // NOTE: the King is intentionally NOT `Teleportable` in multiplayer —
+            // teleporting your own King out of reach was an exploit to stall the
+            // match forever. (Single-player `spawn_king` keeps it teleportable.)
             crate::game::units::components::FlockingModifier::new(1.0, 0.0, 0.0),
             Billboard,
             OnMultiplayerGameScreen,

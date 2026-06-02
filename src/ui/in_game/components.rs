@@ -107,6 +107,31 @@ pub(super) struct RetreatFlash {
     pub timer: f32,
 }
 
+/// Marker component for the "King's shield has fallen" flash banner
+/// (multiplayer; timer-based fade). Same one-shot fade behavior as `RetreatFlash`.
+#[derive(Component)]
+pub(super) struct ShieldFellFlash {
+    pub timer: f32,
+}
+
+/// Implemented by the timed flash banners so the single generic
+/// `update_timed_flash` system can fade + despawn any of them.
+pub(super) trait FlashTimer {
+    fn timer_mut(&mut self) -> &mut f32;
+}
+
+impl FlashTimer for RetreatFlash {
+    fn timer_mut(&mut self) -> &mut f32 {
+        &mut self.timer
+    }
+}
+
+impl FlashTimer for ShieldFellFlash {
+    fn timer_mut(&mut self) -> &mut f32 {
+        &mut self.timer
+    }
+}
+
 /// Marker component for the buff tracker container row.
 #[derive(Component)]
 pub(super) struct BuffTrackerContainer;

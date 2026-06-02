@@ -44,6 +44,10 @@ impl Plugin for KingPlugin {
                     systems::update_king_spell_shield
                         .run_if(any_with_component::<SpellShield>)
                         .run_if(is_gameplay_running),
+                    // MP anti-stall: drop the shield at 90s regardless of kills.
+                    systems::expire_king_spell_shield_on_timeout
+                        .run_if(any_with_component::<SpellShield>)
+                        .run_if(is_gameplay_running),
                     // Despawn the king's aura sphere when the king dies.
                     // The king entity itself becomes a Corpse rather than
                     // being despawned, so child cleanup does not fire

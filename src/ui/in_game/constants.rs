@@ -113,6 +113,13 @@ pub(super) const RETREAT_FLASH_DURATION: f32 = 3.0;
 /// Color for the retreat flash text (gold/yellow).
 pub(super) const RETREAT_FLASH_COLOR: Color = Color::srgb(1.0, 0.85, 0.2);
 
+/// Duration the "King's shield has fallen" flash is displayed (seconds, multiplayer).
+pub(super) const SHIELD_FELL_FLASH_DURATION: f32 = 3.0;
+
+/// Color for the "King's shield has fallen" flash text — icy blue, distinct
+/// from the wave (red) and retreat (gold) banners.
+pub(super) const SHIELD_FELL_FLASH_COLOR: Color = Color::srgb(0.45, 0.8, 1.0);
+
 // ===== Buff Tracker Constants =====
 
 /// Size of each buff tracker box.
