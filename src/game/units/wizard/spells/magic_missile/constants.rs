@@ -99,6 +99,10 @@ pub const COOLDOWN: f32 = 1.0;
 /// Display name for the Arcane Barrage talent / concentration spell.
 pub const ARCANE_BARRAGE_NAME: &str = "Arcane Barrage";
 
+/// Base seconds between Arcane Barrage volleys. The Swift Salvo talent scales
+/// this down via `cooldown_mult` (×0.75 → ~1.875s).
+pub const ARCANE_BARRAGE_INTERVAL: f32 = 2.5;
+
 /// Power for inverse distance weighting in cursor targeting.
 /// Higher values = stronger preference for targets near cursor.
 /// 2.0 = inverse square, 1.0 = linear inverse

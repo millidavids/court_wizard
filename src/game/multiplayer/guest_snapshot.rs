@@ -284,17 +284,17 @@ pub fn forward_status_effects_to_host(
             Without<StatusEffectForwarded<crate::game::units::status_effects::PolymorphedModifier>>,
         ),
     >,
+    // Polled (not `Added<>`): chain-lightning / telekinesis / meteor insert
+    // Knockback via deferred Commands, which `Added<>` can miss (same reason the
+    // root/mind/polymorph arms poll). The loop below removes the component after
+    // forwarding instead of tagging `StatusEffectForwarded` — see there for why.
     knockback: Query<
         (
             Entity,
             &crate::networking::entity_map::NetworkEntityId,
             &crate::game::units::components::Knockback,
         ),
-        (
-            With<super::components::GhostEntity>,
-            Added<crate::game::units::components::Knockback>,
-            Without<StatusEffectForwarded<crate::game::units::components::Knockback>>,
-        ),
+        With<super::components::GhostEntity>,
     >,
 ) {
     use crate::networking::protocol::{NetworkMessage, StatusEffectKind};
@@ -532,9 +532,12 @@ pub fn forward_status_effects_to_host(
             m.speed,
             flags,
         );
-        commands.entity(e).insert(StatusEffectForwarded::<
-            crate::game::units::components::Knockback,
-        >::default());
+        // Drop the ghost's local Knockback instead of tagging it forwarded: it
+        // has no guest-side visual role and is never ticked on the guest, so
+        // removing it lets the next cast re-insert and re-forward a fresh pull.
+        commands
+            .entity(e)
+            .remove::<crate::game::units::components::Knockback>();
     }
 }
 

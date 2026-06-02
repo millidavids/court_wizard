@@ -172,8 +172,8 @@ pub fn handle_magic_missile_casting(
             commands.entity(entity).try_despawn();
         }
 
-        // 5s base interval; Swift Salvo reduces it
-        let interval = 5.0 * params.cooldown_mult;
+        // Base interval; Swift Salvo reduces it via cooldown_mult.
+        let interval = constants::ARCANE_BARRAGE_INTERVAL * params.cooldown_mult;
 
         commands.spawn((
             ArcaneBarrage {

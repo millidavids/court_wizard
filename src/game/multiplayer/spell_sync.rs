@@ -1291,6 +1291,98 @@ pub fn apply_remote_cast_events(
     }
 }
 
+/// Regenerates disintegrate beam-tip impact particles + smoke for the opposing
+/// client's ghost beam, locally from the latest beam snapshot.
+///
+/// Runs on BOTH peers (spell sync is symmetric — each renders the other's
+/// spells). The ghost beam spawned in `apply_remote_spell_snapshot` carries no
+/// `DisintegrateBeam` component, so the single-player spawners
+/// (`spawn_impact_particles` / `spawn_beam_smoke`, which query `DisintegrateBeam`)
+/// never run for it and the beam-tip VFX was missing on the opposing client. We
+/// reproduce it from the snapshot geometry; the spawned `DisintegrateParticle` /
+/// `BeamSmoke` entities are then animated and despawned by the disintegrate
+/// plugin's existing `update_impact_particles` / `update_beam_smoke` (which
+/// already run on both peers via `is_spell_effects_active`). Throttled with
+/// `Local` timers to match the SP cadence.
+///
+/// `annihilation = true` is passed unconditionally so the helpers' `tip.y > 50`
+/// guard suppresses VFX during an annihilation beam's brief sky-descent growth.
+/// That guard is a no-op for normal/crystal beams (their tip sits at ground
+/// level), and the annihilation flag is not carried in `BeamSnapshot`.
+pub fn spawn_ghost_beam_impact_vfx(
+    mut commands: Commands,
+    latest: Res<LatestSpellSnapshot>,
+    assets: Option<Res<SpellVisualAssets>>,
+    time: Res<Time>,
+    mut particle_timer: Local<f32>,
+    mut smoke_timer: Local<f32>,
+) {
+    use crate::game::units::wizard::spells::disintegrate::beam::{
+        emit_beam_smoke, emit_impact_particles,
+    };
+    use crate::game::units::wizard::spells::disintegrate::constants as disint;
+
+    let Some(snapshot) = &latest.0 else {
+        return;
+    };
+    let Some(assets) = assets else {
+        return;
+    };
+
+    // Bail before ticking the timers when the remote peer has no active beam,
+    // so they freeze between beams — matching the SP spawners, which only run
+    // (and tick) while a `DisintegrateBeam` exists.
+    if snapshot.beams.is_empty() {
+        return;
+    }
+
+    // Throttle to the SP cadence with accumulator timers (wrap on fire).
+    *particle_timer += time.delta_secs();
+    *smoke_timer += time.delta_secs();
+    let emit_particles = *particle_timer >= disint::PARTICLE_SPAWN_INTERVAL;
+    let emit_smoke = *smoke_timer >= disint::SMOKE_SPAWN_INTERVAL;
+    if emit_particles {
+        *particle_timer -= disint::PARTICLE_SPAWN_INTERVAL;
+    }
+    if emit_smoke {
+        *smoke_timer -= disint::SMOKE_SPAWN_INTERVAL;
+    }
+    if !emit_particles && !emit_smoke {
+        return;
+    }
+
+    let elapsed = time.elapsed_secs();
+    for beam in &snapshot.beams {
+        let origin = Vec3::new(beam.ox, beam.oy, beam.oz);
+        let direction = Vec3::new(beam.dx, beam.dy, beam.dz);
+        let length = beam.length;
+
+        // `true` forces the helpers' `tip.y > 50` sky-growth guard (see fn doc).
+        if emit_particles {
+            emit_impact_particles(
+                &mut commands,
+                &assets,
+                elapsed,
+                origin,
+                direction,
+                length,
+                true,
+            );
+        }
+        if emit_smoke {
+            emit_beam_smoke(
+                &mut commands,
+                &assets,
+                elapsed,
+                origin,
+                direction,
+                length,
+                true,
+            );
+        }
+    }
+}
+
 /// Maps a wire-protocol `AuraBubbleVariant` to its `SpellVisualAssets` handle.
 fn aura_material_handle(
     assets: &SpellVisualAssets,

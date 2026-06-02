@@ -153,6 +153,9 @@ impl Plugin for MultiplayerGamePlugin {
                 spell_sync::receive_spell_visual_snapshot,
                 spell_sync::apply_remote_spell_snapshot,
                 spell_sync::apply_remote_cast_events,
+                // Regenerate disintegrate beam-tip VFX for the opposing client's
+                // ghost beam (runs on both peers; the ghost has no DisintegrateBeam).
+                spell_sync::spawn_ghost_beam_impact_vfx,
             )
                 .chain()
                 .run_if(mp_running),
@@ -269,7 +272,10 @@ impl Plugin for MultiplayerGamePlugin {
                 cleanup::<comp::SlowMovementModifier>,
                 cleanup::<sfx::Stunned>,
                 cleanup::<sfx::FogEvasionModifier>,
-                cleanup::<comp::Knockback>,
+                // No Knockback cleanup: the knockback arm of
+                // `forward_status_effects_to_host` removes the ghost's Knockback
+                // immediately after forwarding instead of tagging it, so no
+                // `StatusEffectForwarded<Knockback>` marker is ever created.
             )
                 .run_if(mp_running.and(is_multiplayer_guest)),
         );

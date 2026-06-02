@@ -73,7 +73,8 @@ pub(super) const FLARE_PULSE_AMPLITUDE: f32 = 0.3;
 
 // ── Impact particles ─────────────────────────────────────────────────
 /// Time between particle batch spawns (seconds).
-pub(super) const PARTICLE_SPAWN_INTERVAL: f32 = 0.04;
+/// `pub(crate)` so the MP guest VFX path can throttle at the same cadence.
+pub(crate) const PARTICLE_SPAWN_INTERVAL: f32 = 0.04;
 /// Number of particles per spawn batch.
 pub(super) const PARTICLE_COUNT_PER_SPAWN: usize = 5;
 /// How long each particle lives (seconds).
@@ -85,7 +86,8 @@ pub(super) const PARTICLE_SPEED: f32 = 150.0;
 
 // ── Smoke wisps ──────────────────────────────────────────────────────
 /// Time between smoke wisp batch spawns (seconds).
-pub(super) const SMOKE_SPAWN_INTERVAL: f32 = 0.08;
+/// `pub(crate)` so the MP guest VFX path can throttle at the same cadence.
+pub(crate) const SMOKE_SPAWN_INTERVAL: f32 = 0.08;
 /// Number of smoke wisps per spawn batch per beam.
 pub(super) const SMOKE_COUNT_PER_SPAWN: usize = 2;
 /// How long each smoke wisp lives (seconds).
@@ -144,8 +146,10 @@ pub(super) const SWEEPING_DAMAGE_MULT: f32 = 2.0;
 pub(super) const ANNIHILATION_WIDTH_MULT: f32 = 3.0;
 /// Damage multiplier for Annihilation Beam.
 pub(super) const ANNIHILATION_DAMAGE_MULT: f32 = 2.0;
-/// Mana cost multiplier for Annihilation Beam.
-pub(super) const ANNIHILATION_MANA_MULT: f32 = 2.0;
+/// Mana cost multiplier for Annihilation Beam. Discounted (< 1.0) because the
+/// annihilation beam is position-locked and can't be swept, so it trades
+/// flexibility for cheaper sustained channeling.
+pub(super) const ANNIHILATION_MANA_MULT: f32 = 0.5;
 /// Height from which the Annihilation Beam descends.
 pub(super) const ANNIHILATION_SKY_HEIGHT: f32 = 2000.0;
 /// Lateral spread between forked sky beams (units from center to outer beam).

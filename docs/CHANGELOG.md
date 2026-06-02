@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Changed
+- **Annihilation beam now costs far less mana** — because the annihilation beam is locked in place and can't be swept around like the normal beam, it now costs much less mana to keep firing instead of more. Works in both single-player and multiplayer.
+- **Arcane Barrage fires twice as fast** — once it's active, the auto-firing missile barrage now sends out its volleys twice as often. Works in both single-player and multiplayer.
+
+### Fixed
+- **The disintegration beam's sparks and smoke now show up for the other player** — the burst of sparks and the smoke where the beam scorches the ground were missing on the other player's screen. They now appear for both players.
+- **Chain Lightning's Magnetic Pull now pulls on every cast for the second player** — as the joining player, the upgrade that yanks struck enemies toward the lightning often didn't pull them at all. It now pulls every time you cast, just like it does for the host.
+
 ## [v0.8.72] - 2026-06-02
 
 ### Added
