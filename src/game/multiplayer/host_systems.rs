@@ -72,6 +72,7 @@ pub fn send_state_snapshots(
         ),
     )>,
     arrows: Query<&Transform, With<Arrow>>,
+    kill_stats: Res<crate::game::resources::KillStats>,
 ) {
     tick.0 = tick.0.wrapping_add(1);
 
@@ -79,6 +80,9 @@ pub fn send_state_snapshots(
         tick: tick.0,
         units: Vec::with_capacity(units.iter().len()),
         arrows: Vec::with_capacity(arrows.iter().len()),
+        // Ship the host's authoritative match clock so the guest's HUD clock
+        // matches exactly instead of free-running on its own timer.
+        host_elapsed_secs: kill_stats.elapsed_time,
     };
 
     for (

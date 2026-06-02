@@ -614,6 +614,7 @@ pub fn apply_state_snapshot(
         With<GhostEntity>,
     >,
     ghost_arrows: Query<Entity, With<GhostArrow>>,
+    mut kill_stats: ResMut<crate::game::resources::KillStats>,
 ) {
     // Filter for game snapshots only (type prefix 0x00), re-queue others
     let raw_data: Vec<Vec<u8>> = connection.incoming_unreliable.drain(..).collect();
@@ -652,6 +653,11 @@ pub fn apply_state_snapshot(
         );
         return;
     };
+
+    // Mirror the host's authoritative match clock so the guest's HUD clock
+    // matches the host exactly. This system runs only on the guest, so it never
+    // touches the host's own KillStats.
+    kill_stats.elapsed_time = snapshot.host_elapsed_secs;
 
     // Track which IDs are present in this snapshot
     let mut seen_ids = HashSet::with_capacity(snapshot.units.len());

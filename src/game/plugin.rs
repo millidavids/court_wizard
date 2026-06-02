@@ -184,6 +184,9 @@ impl Plugin for GamePlugin {
                 Update,
                 (
                     shared_systems::tick_attack_cycle,
+                    // Host-authoritative match clock. In MP the guest does NOT tick
+                    // its own — it mirrors the host's value from the game snapshot
+                    // (`apply_state_snapshot`), so both peers show the exact same time.
                     shared_systems::tick_elapsed_time,
                 )
                     .run_if(is_gameplay_running),

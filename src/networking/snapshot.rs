@@ -24,6 +24,10 @@ pub struct GameSnapshot {
     pub units: Vec<UnitSnapshot>,
     /// State of every in-flight arrow projectile.
     pub arrows: Vec<ArrowSnapshot>,
+    /// Host's authoritative match-elapsed seconds (`KillStats.elapsed_time`), so
+    /// the guest's HUD clock mirrors the host exactly instead of free-running on
+    /// its own local timer. Appended last (positional bincode; same-version MP).
+    pub host_elapsed_secs: f32,
 }
 
 /// Per-unit state with CRDT health data (~37 bytes).

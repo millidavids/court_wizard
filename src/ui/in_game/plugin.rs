@@ -46,11 +46,17 @@ impl Plugin for InGamePlugin {
                     systems::gamepad_hud_shortcuts,
                     systems::update_level_display,
                     systems::update_past_victory_display,
-                    systems::update_level_clock,
                     systems::spawn_retreat_flash,
                     systems::update_timed_flash::<RetreatFlash>,
                 )
                     .run_if(is_gameplay_running),
+            )
+            // The level/match clock updates on BOTH peers in MP (and in SP) via
+            // is_spell_effects_active, so the guest's HUD clock advances too — not
+            // just the host. SP behavior is unchanged (same states as is_gameplay_running).
+            .add_systems(
+                Update,
+                systems::update_level_clock.run_if(is_spell_effects_active),
             )
             // Wave HUD: SP-only — the wave timer doesn't tick in MP
             // (MP spawns all attackers up-front, no staging waves) and the

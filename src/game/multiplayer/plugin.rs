@@ -23,7 +23,8 @@ use super::systems::{
     detect_mp_disconnect, detect_mp_loading_disconnect, handle_mp_disconnected_buttons,
     handle_mp_pause_buttons, handle_mp_score_buttons, handle_mp_score_messages, in_mp_disconnected,
     in_mp_paused, in_mp_running, in_mp_score_screen, init_mp_game, mp_escape_key_handler,
-    setup_mp_disconnected, setup_mp_pause_menu, setup_mp_score_screen, update_mp_stat_values,
+    mp_score_escape_handler, setup_mp_disconnected, setup_mp_pause_menu, setup_mp_score_screen,
+    update_mp_stat_values,
 };
 
 /// Plugin that manages multiplayer gameplay.
@@ -355,6 +356,9 @@ impl Plugin for MultiplayerGamePlugin {
             (
                 handle_mp_score_buttons.in_set(ButtonActionSet),
                 handle_mp_score_messages,
+                // Escape on the score screen disconnects to the main menu (same as
+                // the Disconnect button). Keyboard handler — not in ButtonActionSet.
+                mp_score_escape_handler,
                 // Reactively refresh stat values when MatchStats changes (e.g.
                 // the host's enemy column fills in from the guest's report).
                 update_mp_stat_values.run_if(

@@ -416,6 +416,45 @@ pub(super) fn cleanup_mp_score_screen(
     commands.remove_resource::<super::score_stats::MatchStats>();
 }
 
+/// Tears down the active multiplayer session and returns to the main menu.
+///
+/// Shared by the score-screen, pause-menu, and disconnected-overlay disconnect
+/// paths plus the score-screen Escape handler. `transport` is `Option`: the
+/// disconnected-overlay path passes `None` (the peer is already gone, so there's
+/// nothing to signal); every other path passes the live handle so the peer is
+/// told to disconnect. Steam teardown happens BEFORE `connection.reset()` — once
+/// `reset` zeroes `mode` to `Online`, downstream cleanup hooks can no longer tell
+/// this was a Steam session.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn do_mp_disconnect(
+    connection: &mut NetworkConnection,
+    transport: Option<&TransportHandle>,
+    steam_client: Option<&bevy_steamworks::Client>,
+    steam_lobby: Option<&mut crate::steam::multiplayer::SteamLobbyState>,
+    steam_socket: Option<&mut crate::steam::multiplayer::SteamP2pSocket>,
+    lobby: &mut MultiplayerLobby,
+    commands: &mut Commands,
+    next_app_state: &mut NextState<AppState>,
+) {
+    if let Some(transport) = transport {
+        transport.send_command(TransportCommand::Disconnect);
+    }
+    crate::steam::multiplayer::shutdown_steam_session(steam_client, steam_lobby, steam_socket);
+    connection.reset();
+    commands.remove_resource::<MultiplayerSession>();
+    // Disconnecting cancels any rematch. Clear PendingRematch defensively so a
+    // confirm-rematch-on-the-same-frame-as-leave race can't carry it into the
+    // main menu and then try to rematch on the session we just tore down.
+    // (PendingRematch is only set on the normal both-ready path, which never
+    // calls this helper, so this never affects a legitimate rematch.)
+    commands.remove_resource::<PendingRematch>();
+    // Going MultiplayerGame → MainMenu skips the WizardTower-exit hook that
+    // normally resets the lobby, so any stale phase / peer_protocol_version from
+    // this session would block reconnecting later. Reset here.
+    *lobby = MultiplayerLobby::new();
+    next_app_state.set(AppState::MainMenu);
+}
+
 /// Handles score screen button clicks.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_mp_score_buttons(
@@ -451,29 +490,51 @@ pub(super) fn handle_mp_score_buttons(
                     }
                 }
                 MpScoreButtonAction::Disconnect => {
-                    if let Some(ref transport) = transport {
-                        transport.send_command(TransportCommand::Disconnect);
-                    }
-                    // Steam teardown BEFORE connection.reset() — once `reset`
-                    // zeroes `mode` to `Online`, downstream cleanup hooks can
-                    // no longer tell this was a Steam session.
-                    crate::steam::multiplayer::shutdown_steam_session(
+                    do_mp_disconnect(
+                        &mut connection,
+                        transport.as_deref(),
                         steam_client.as_deref(),
                         steam_lobby.as_deref_mut(),
                         steam_socket.as_deref_mut(),
+                        &mut lobby,
+                        &mut commands,
+                        &mut next_app_state,
                     );
-                    connection.reset();
-                    commands.remove_resource::<MultiplayerSession>();
-                    // Going MultiplayerGame → MainMenu skips the
-                    // WizardTower-exit hook that normally resets the lobby,
-                    // so any stale phase / peer_protocol_version from this
-                    // session would block reconnecting later. Reset here.
-                    *lobby = MultiplayerLobby::new();
-                    next_app_state.set(AppState::MainMenu);
                 }
             }
         }
     }
+}
+
+/// Escape on the multiplayer score screen disconnects and returns to the main
+/// menu — the same teardown as the score screen's Disconnect button. Registered
+/// under `in_mp_score_screen`, so it only fires on the score screen (and NOT in
+/// `ButtonActionSet`: this reads the keyboard, not button clicks).
+#[allow(clippy::too_many_arguments)]
+pub(super) fn mp_score_escape_handler(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut connection: ResMut<NetworkConnection>,
+    mut next_app_state: ResMut<NextState<AppState>>,
+    transport: Option<Res<TransportHandle>>,
+    steam_client: Option<Res<bevy_steamworks::Client>>,
+    mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
+    mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
+    mut commands: Commands,
+    mut lobby: ResMut<MultiplayerLobby>,
+) {
+    if !keyboard.just_pressed(KeyCode::Escape) {
+        return;
+    }
+    do_mp_disconnect(
+        &mut connection,
+        transport.as_deref(),
+        steam_client.as_deref(),
+        steam_lobby.as_deref_mut(),
+        steam_socket.as_deref_mut(),
+        &mut lobby,
+        &mut commands,
+        &mut next_app_state,
+    );
 }
 
 /// Processes incoming network messages during the score screen.
@@ -768,19 +829,16 @@ pub(super) fn handle_mp_pause_buttons(
                     next_mp_state.set(MultiplayerGameState::Settings);
                 }
                 MpPauseButtonAction::Disconnect => {
-                    if let Some(ref transport) = transport {
-                        transport.send_command(TransportCommand::Disconnect);
-                    }
-                    crate::steam::multiplayer::shutdown_steam_session(
+                    do_mp_disconnect(
+                        &mut connection,
+                        transport.as_deref(),
                         steam_client.as_deref(),
                         steam_lobby.as_deref_mut(),
                         steam_socket.as_deref_mut(),
+                        &mut lobby,
+                        &mut commands,
+                        &mut next_app_state,
                     );
-                    connection.reset();
-                    commands.remove_resource::<MultiplayerSession>();
-                    // See `handle_mp_score_buttons` for the rationale.
-                    *lobby = MultiplayerLobby::new();
-                    next_app_state.set(AppState::MainMenu);
                 }
             }
         }
@@ -860,17 +918,18 @@ pub(super) fn handle_mp_disconnected_buttons(
 ) {
     for event in button_clicked.read() {
         if button_query.get(event.button).is_ok() {
-            // Steam teardown BEFORE we lose mode information via reset.
-            crate::steam::multiplayer::shutdown_steam_session(
+            // `None` transport: the overlay only appears when the peer is already
+            // gone, so there's nothing to signal — just tear down locally.
+            do_mp_disconnect(
+                &mut connection,
+                None,
                 steam_client.as_deref(),
                 steam_lobby.as_deref_mut(),
                 steam_socket.as_deref_mut(),
+                &mut lobby,
+                &mut commands,
+                &mut next_app_state,
             );
-            connection.reset();
-            commands.remove_resource::<MultiplayerSession>();
-            // See `handle_mp_score_buttons` for the rationale.
-            *lobby = MultiplayerLobby::new();
-            next_app_state.set(AppState::MainMenu);
             return;
         }
     }

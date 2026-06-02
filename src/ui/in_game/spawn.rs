@@ -509,6 +509,25 @@ pub(super) fn spawn_mp_hud(mut commands: Commands, config: Res<GameConfig>) {
                             &BUTTON_STYLE,
                         );
                     });
+
+                    // Match clock (top-right) — reuses the single-player Level
+                    // Clock: same `LevelClockDisplay` marker, `update_level_clock`
+                    // updater, M:SS format, and `show_level_clock` setting. The
+                    // row's `JustifyContent::SpaceBetween` pushes this opposite the
+                    // button group, so the clock is the row's only right-side child
+                    // and needs no wrapper (mirrors the SP `spawn_hud` clock node).
+                    let clock_visibility = if config.show_level_clock {
+                        Visibility::Inherited
+                    } else {
+                        Visibility::Hidden
+                    };
+                    row.spawn((
+                        Text::new("0:00"),
+                        TextFont::from_font_size(LEVEL_CLOCK_FONT_SIZE),
+                        TextColor(LEVEL_CLOCK_COLOR),
+                        clock_visibility,
+                        LevelClockDisplay,
+                    ));
                 });
 
             // King health bar (middle, between top row and bottom bars)
