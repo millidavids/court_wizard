@@ -22,7 +22,13 @@ pub(crate) struct SheepBounce {
 /// sheep never sinks below its resting Y.
 pub(crate) fn bounce_sheep_units(
     time: Res<Time>,
-    mut q: Query<(&mut Transform, &mut SheepBounce)>,
+    // `Without<GhostEntity>`: this drives Transform.y directly; ghost transforms
+    // are host-authoritative (overwritten by the snapshot). Host-gated today, so
+    // this is defensive against a guest ghost that carries SheepBounce.
+    mut q: Query<
+        (&mut Transform, &mut SheepBounce),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
 ) {
     let delta = time.delta_secs();
     for (mut transform, mut bounce) in &mut q {

@@ -268,6 +268,14 @@ pub fn forward_status_effects_to_host(
             Entity,
             &crate::networking::entity_map::NetworkEntityId,
             &crate::game::units::status_effects::PolymorphedModifier,
+            // Talent markers the guest applied locally — packed into the flags so
+            // the host re-creates them (otherwise guest-cast Explosive/Contagious/
+            // Pig/Permanent/Dire sheep behave as a vanilla sheep on the host).
+            Has<crate::game::units::wizard::spells::polymorph::components::ExplosiveSheep>,
+            Option<&crate::game::units::wizard::spells::polymorph::components::ContagiousBaas>,
+            Has<crate::game::units::wizard::spells::polymorph::components::PigForm>,
+            Has<crate::game::units::wizard::spells::polymorph::components::PermanentLivestock>,
+            Has<crate::game::units::wizard::spells::polymorph::components::DireSheep>,
         ),
         (
             With<super::components::GhostEntity>,
@@ -480,17 +488,33 @@ pub fn forward_status_effects_to_host(
             crate::game::units::status_effects::FogEvasionModifier,
         >::default());
     }
-    for (e, id, m) in &polymorphed {
-        // Use Polymorph kind so the host knows it's a polymorph (Phase 1 host
-        // receiver applies Sleep as a stand-in for the combat effect; visual
-        // sheep-swap lands in Phase 3).
+    for (e, id, m, explosive, contagious, pig, permanent, dire) in &polymorphed {
+        use crate::networking::protocol::status_flags as sf;
+        let mut flags: u32 = 0;
+        if explosive {
+            flags |= sf::POLYMORPH_EXPLOSIVE;
+        }
+        if contagious.is_some() {
+            flags |= sf::POLYMORPH_CONTAGIOUS;
+        }
+        if pig {
+            flags |= sf::POLYMORPH_PIG;
+        }
+        if permanent {
+            flags |= sf::POLYMORPH_PERMANENT;
+        }
+        if dire {
+            flags |= sf::POLYMORPH_DIRE;
+        }
+        // Empowerment (used by the Contagious spread) rides in `magnitude`.
+        let empowerment = contagious.map_or(1.0, |c| c.empowerment);
         push(
             &mut connection,
             id.0,
             StatusEffectKind::Polymorph,
             m.time_remaining,
-            0.0,
-            0,
+            empowerment,
+            flags,
         );
         commands.entity(e).insert(StatusEffectForwarded::<
             crate::game::units::status_effects::PolymorphedModifier,
@@ -797,6 +821,10 @@ pub fn apply_state_snapshot(
                             is_guard,
                         );
                         ec.insert(MeshMaterial3d(new_handle));
+                        // Raising a unit mid-death-animation would otherwise leave
+                        // DyingAnimation ticking death-sheet UVs over the new alive
+                        // sprite, flickering it. Clear it on the corpse→alive edge.
+                        ec.remove::<crate::game::units::components::DyingAnimation>();
                     }
                     // Clear stale tint state in both cases — if a tint was
                     // active on the alive sprite, the SP corpse finalizer
@@ -851,30 +879,46 @@ pub fn apply_state_snapshot(
                     apply_sheep_visual(&mut ec, &mut materials, &spell_assets, SHEEP_COLOR);
                     ec.insert(RemotePolymorphEffect);
                 } else if !remote_polymorph && has_remote_polymorph {
-                    let restored_material = pick_material(
-                        &infantry_assets,
-                        &archer_assets,
-                        &king_assets,
-                        &undead_assets,
-                        &mut materials,
-                        team,
-                        is_corpse,
-                        is_king,
-                        is_archer,
-                        is_guard,
-                    );
-                    let restored_mesh = if is_king {
-                        king_assets.sprite_mesh.clone()
-                    } else if is_archer {
-                        archer_assets.sprite_mesh.clone()
+                    // Only restore the alive sprite if the unit is still alive. If
+                    // it died AS a sheep (is_corpse), the corpse-transition branch
+                    // above owns the material — swapping to a SHARED corpse handle
+                    // here would let DyingAnimation's `get_mut` corrupt the corpse
+                    // appearance of every other entity sharing that handle variant.
+                    let restored = if is_corpse {
+                        None
                     } else {
-                        infantry_assets.sprite_mesh.clone()
+                        let material = pick_material(
+                            &infantry_assets,
+                            &archer_assets,
+                            &king_assets,
+                            &undead_assets,
+                            &mut materials,
+                            team,
+                            false,
+                            is_king,
+                            is_archer,
+                            is_guard,
+                        );
+                        let mesh = if is_king {
+                            king_assets.sprite_mesh.clone()
+                        } else if is_archer {
+                            archer_assets.sprite_mesh.clone()
+                        } else {
+                            infantry_assets.sprite_mesh.clone()
+                        };
+                        Some((material, mesh))
                     };
                     let mut ec = commands.entity(entity);
-                    ec.insert(MeshMaterial3d(restored_material));
-                    ec.insert(Mesh3d(restored_mesh));
+                    if let Some((material, mesh)) = restored {
+                        ec.insert(MeshMaterial3d(material));
+                        ec.insert(Mesh3d(mesh));
+                    }
                     ec.remove::<RemotePolymorphEffect>();
                     ec.remove::<crate::game::units::status_effects::PolymorphedModifier>();
+                    // Also clear the sheep bounce so a reverted ghost doesn't keep
+                    // floating (bounce_sheep_units is host-gated, but a guest-cast
+                    // ghost can carry SheepBounce from its own local application).
+                    ec.remove::<crate::game::units::wizard::spells::polymorph::sheep_visual::SheepBounce>();
                 }
 
                 // Sync spell shield component from host. No visual swap

@@ -235,6 +235,42 @@ impl AttackTiming {
     pub fn record_attack(&mut self, current_time: f32) {
         self.last_attack_time = Some(current_time);
     }
+
+    /// Like [`can_attack`](Self::can_attack), but for a unit with an attack-speed
+    /// buff. Instead of firing once when the cycle sweeps its slot, the unit may
+    /// fire every `cycle_duration / (1 + attack_speed_bonus)` of cycle time since
+    /// its last swing (e.g. +30% → every 2.0/1.3 ≈ 1.54s instead of 2.0s).
+    ///
+    /// A `bonus <= 0.0` falls back to the slot-based `can_attack` (and avoids any
+    /// divide-by-zero: the `1.0 + bonus` divisor is only used when `bonus > 0`).
+    ///
+    /// Attack speed must NOT be implemented by widening `can_attack`'s lookback
+    /// window: that pushes the window's lower bound behind the attack time
+    /// recorded last frame, so the slot stays inside the window every frame and
+    /// the unit re-fires ~60×/sec — the instakill `can_attack` warns about. That
+    /// is what made attack-speed buffs (Battle Hymn, Haste, Frenzy, …) one-shot.
+    pub fn can_attack_with_speed_bonus(
+        &self,
+        current_time: f32,
+        last_time: f32,
+        cycle_duration: f32,
+        attack_speed_bonus: f32,
+    ) -> bool {
+        if attack_speed_bonus <= 0.0 {
+            return self.can_attack(current_time, last_time);
+        }
+        match self.last_attack_time {
+            None => true,
+            Some(last) => {
+                let elapsed = if current_time >= last {
+                    current_time - last
+                } else {
+                    cycle_duration - last + current_time
+                };
+                elapsed >= cycle_duration / (1.0 + attack_speed_bonus)
+            }
+        }
+    }
 }
 
 /// Hitbox component for all units.

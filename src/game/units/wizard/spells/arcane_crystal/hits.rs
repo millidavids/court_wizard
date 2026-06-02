@@ -56,7 +56,9 @@ pub(super) fn detect_fireball_hits(
         // is a fresh entity id, so without this guard every bubble triggers a
         // full absorption every frame → a geometric fireball cascade that lags
         // the game. Mirror `apply_explosion_damage`, which skips them too.
-        if explosion.damage_per_tick <= 0.0 {
+        // Skip visual-only explosions; also treat a NaN damage value as
+        // visual-only (NaN <= 0.0 is false, so test it explicitly).
+        if explosion.damage_per_tick.is_nan() || explosion.damage_per_tick <= 0.0 {
             continue;
         }
         for (mut crystal, mut resonance) in &mut crystals {

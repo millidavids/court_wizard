@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - **Raised undead now look and fight right in multiplayer** — units brought back with Raise the Dead now show the proper undead look on both screens (instead of looking like living soldiers or staying as corpses), are on the undead side, and attack both armies. Their lingering plague and explosion effects now harm every nearby living unit, not just one side.
 - **Shooting an Arcane Crystal with a Fireball no longer melts the game** — hitting a crystal with a fireball could spray out thousands of fireballs and grind everything to a crawl. The crystal now sends out the right small handful instead.
 - **The King's health bar now works in multiplayer** — the bar that tracks your King's health sat empty during multiplayer matches. It now fills and drains correctly, with each player seeing their own King's health.
+- **Battle Hymn and other speed buffs no longer make units one-shot the enemy** — a unit under an attack-speed boost (Battle Hymn, Haste, and similar) was swinging many times per second and instantly deleting whatever it hit. Speed buffs now raise attack rate by the intended amount.
 
 ## [v0.8.67] - 2026-06-01
 

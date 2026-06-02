@@ -245,6 +245,7 @@ pub mod status_flags {
     pub const POLYMORPH_CONTAGIOUS: u32 = 1 << 2;
     pub const POLYMORPH_PERMANENT: u32 = 1 << 3;
     pub const POLYMORPH_DIRE: u32 = 1 << 4;
+    pub const POLYMORPH_PIG: u32 = 1 << 5;
     // MindControl talents
     pub const MC_TRAITORS_MARK: u32 = 1 << 0;
     pub const MC_DEMORALIZE: u32 = 1 << 1;

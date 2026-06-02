@@ -14,9 +14,10 @@ use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, StagingAttacker};
 use crate::game::units::components::Knockback;
 use crate::game::units::components::{
-    AnimationOverride, AttackTiming, BanishedModifier, Corpse, FacingDirection, Health, Hitbox,
-    KingsGuard, MindControlled, MovementSpeed, RetaliationTarget, TargetingVelocity, Team,
-    TemporaryHitPoints, apply_damage_to_unit,
+    AnimationOverride, AttackTiming, BanishedModifier, Corpse, FacingDirection,
+    FrozenSolidModifier, Health, Hitbox, KingsGuard, MindControlled, MovementSpeed, Petrified,
+    RetaliationTarget, RootedModifier, Stunned, TargetingVelocity, Team, TemporaryHitPoints,
+    apply_damage_to_unit,
 };
 use crate::game::units::king::components::King;
 use crate::game::units::wizard::components::Wizard;
@@ -34,6 +35,17 @@ type MindControlTargetFilter = (
     Without<MindControlled>,
     Without<Wizard>,
     Without<BanishedModifier>,
+);
+/// Filter for `mind_controlled_pursue_allies`: controlled units that aren't ghosts
+/// and aren't crowd-controlled (rooted/stunned/frozen/banished/petrified).
+type MindControlPursuitFilter = (
+    With<MindControlled>,
+    Without<crate::game::multiplayer::components::GhostEntity>,
+    Without<RootedModifier>,
+    Without<Stunned>,
+    Without<FrozenSolidModifier>,
+    Without<BanishedModifier>,
+    Without<Petrified>,
 );
 
 /// Builds a `WalkingAnimation` configured for the hag sprite sheet (4×4 frames).
@@ -835,32 +847,22 @@ pub fn update_mind_controlled_targeting(
 /// blended steering — the weighted blend keys off flow-field distance, so without
 /// this override an MC'd attacker just keeps marching at the castle and never
 /// engages its former allies. Mirrors the Pig Form / Dire Sheep velocity overrides.
+///
+/// Reuses the direction `update_mind_controlled_targeting` already computed into
+/// `TargetingVelocity` (a unit-length XZ vector toward the nearest same-team ally,
+/// or zero if none) rather than re-scanning every unit — so the two systems can't
+/// pick different targets and oscillate. Crowd-controlled units are excluded so a
+/// rooted / stunned / frozen / banished / petrified MC unit doesn't slide.
 pub fn mind_controlled_pursue_allies(
-    controlled: Query<(Entity, &Transform, &Team, &MovementSpeed), With<MindControlled>>,
-    allies: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<MindControlled>)>,
+    controlled: Query<(Entity, &TargetingVelocity, &MovementSpeed), MindControlPursuitFilter>,
     mut velocity_query: Query<&mut Velocity>,
 ) {
-    for (entity, transform, team, speed) in &controlled {
-        let pos = transform.translation;
-
-        // Nearest same-team unit = the former ally we now turn on.
-        let mut nearest: Option<(f32, Vec3)> = None;
-        for (other, other_transform, other_team) in &allies {
-            if other == entity || other_team != team {
-                continue;
-            }
-            let dist = pos.distance(other_transform.translation);
-            if nearest.as_ref().is_none_or(|(best, _)| dist < *best) {
-                nearest = Some((dist, other_transform.translation));
-            }
-        }
-
-        if let Some((_, target_pos)) = nearest
-            && let Ok(mut velocity) = velocity_query.get_mut(entity)
-        {
-            let dir = (target_pos - pos).normalize_or_zero();
-            velocity.x = dir.x * speed.0;
-            velocity.z = dir.z * speed.0;
+    for (entity, targeting, speed) in &controlled {
+        if let Ok(mut velocity) = velocity_query.get_mut(entity) {
+            // `targeting.velocity` is unit-length (or zero when no ally remains,
+            // which correctly halts the unit).
+            velocity.x = targeting.velocity.x * speed.0;
+            velocity.z = targeting.velocity.z * speed.0;
         }
     }
 }

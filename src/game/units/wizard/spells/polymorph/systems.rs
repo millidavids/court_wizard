@@ -41,8 +41,10 @@ fn strip_polymorph_components(commands: &mut Commands, entity: Entity) {
         .remove::<PigForm>()
         .remove::<PermanentLivestock>()
         .remove::<DireSheep>()
-        .remove::<SheepBounce>()
-        .remove::<Billboard>();
+        .remove::<SheepBounce>();
+    // NOTE: do NOT remove Billboard — every unit spawns billboarded, so the
+    // sheep-state insert is a no-op and stripping it here left reverted units
+    // facing a fixed direction (a flat sliver) for the rest of the match.
 }
 
 /// Computes talent parameters from active talent selections.
@@ -449,16 +451,22 @@ pub fn tick_polymorphed_units(
     visual_assets: Res<SpellVisualAssets>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    mut polymorphed: Query<(
-        Entity,
-        &mut Transform,
-        &mut PolymorphedModifier,
-        &mut Health,
-        Option<&ContagiousBaas>,
-        Option<&SheepBounce>,
-        Has<PermanentLivestock>,
-        Has<DireSheep>,
-    )>,
+    // `Without<GhostEntity>`: this mutates Health / re-inserts AttackTiming /
+    // restores meshes — all host-authoritative. Host-gated by is_gameplay_running
+    // today, so this guard is defensive against ghost entities.
+    mut polymorphed: Query<
+        (
+            Entity,
+            &mut Transform,
+            &mut PolymorphedModifier,
+            &mut Health,
+            Option<&ContagiousBaas>,
+            Option<&SheepBounce>,
+            Has<PermanentLivestock>,
+            Has<DireSheep>,
+        ),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
     targets_query: Query<
         (
             Entity,

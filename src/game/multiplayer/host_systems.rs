@@ -298,13 +298,21 @@ pub fn receive_apply_status_effect(
     // Read-only access to the target's current rendering + spawn state so the
     // Polymorph handler can construct a proper `PolymorphedModifier` that
     // captures what to restore when the spell wears off.
-    polymorph_targets: Query<(
-        &Transform,
-        &crate::game::units::components::Team,
-        &Health,
-        &MeshMaterial3d<StandardMaterial>,
-        &Mesh3d,
-    )>,
+    // `Without<PolymorphedModifier>`: if a unit is ALREADY a sheep when a second
+    // polymorph message arrives (host-cast + guest-cast overlap, or a duplicated
+    // message), capturing its current mesh/material would store the SHEEP as the
+    // "original" to restore — leaving it a sheep permanently. Excluding already-
+    // polymorphed units makes the capture None, so the receiver no-ops on them.
+    polymorph_targets: Query<
+        (
+            &Transform,
+            &crate::game::units::components::Team,
+            &Health,
+            &MeshMaterial3d<StandardMaterial>,
+            &Mesh3d,
+        ),
+        Without<crate::game::units::status_effects::PolymorphedModifier>,
+    >,
     // MindControl needs the defender's spawn position so the control-wear-off
     // path can rally the unit back to its origin.
     mind_control_targets: Query<&crate::game::pathfinding::FlowFieldInfluence>,
@@ -442,7 +450,8 @@ fn apply_status_to_entity(
     use crate::game::units::components as comp;
     use crate::game::units::status_effects as sfx;
     use crate::game::units::wizard::spells::polymorph::{
-        constants::{SHEEP_COLOR, SHEEP_HP},
+        components as poly_comp,
+        constants::{self as poly_const, SHEEP_COLOR, SHEEP_HP},
         sheep_visual::SheepBounce,
         systems::apply_sheep_visual,
     };
@@ -499,20 +508,68 @@ fn apply_status_to_entity(
             // original mesh/material/health/team, and the POLYMORPH snapshot flag
             // makes the guest render the sheep.
             if let Some((team, hp_current, hp_max, material, mesh, base_y)) = polymorph_capture {
+                let explosive = flags & sf::POLYMORPH_EXPLOSIVE != 0;
+                let contagious = flags & sf::POLYMORPH_CONTAGIOUS != 0;
+                let permanent = flags & sf::POLYMORPH_PERMANENT != 0;
+                let dire = flags & sf::POLYMORPH_DIRE != 0;
+                let pig = flags & sf::POLYMORPH_PIG != 0;
+                // Contagious spread empowerment rides in magnitude.
+                let empowerment = if magnitude > 0.0 { magnitude } else { 1.0 };
+                // Fragile HP isn't forwarded (no marker component to read on the
+                // guest), so a fragile sheep is base-HP on the host.
+                let (sheep_hp, color) = if dire {
+                    (poly_const::DIRE_SHEEP_HP, poly_const::DIRE_SHEEP_COLOR)
+                } else if pig {
+                    (SHEEP_HP, poly_const::PIG_COLOR)
+                } else {
+                    (SHEEP_HP, SHEEP_COLOR)
+                };
                 ec.insert(sfx::PolymorphedModifier::new(
                     duration, hp_current, hp_max, material, mesh, team,
                 ));
-                ec.insert(comp::Health::new(SHEEP_HP));
+                ec.insert(comp::Health::new(sheep_hp));
                 ec.insert(SheepBounce {
                     base_y,
                     elapsed: 0.0,
                 });
-                ec.remove::<comp::AttackTiming>();
-                apply_sheep_visual(&mut ec, materials, visual_assets, SHEEP_COLOR);
+                apply_sheep_visual(&mut ec, materials, visual_assets, color);
+                if explosive {
+                    ec.insert(poly_comp::ExplosiveSheep);
+                }
+                if permanent {
+                    ec.insert(poly_comp::PermanentLivestock);
+                }
+                if pig {
+                    ec.insert(poly_comp::PigForm);
+                }
+                if contagious {
+                    let talent_params = poly_comp::PolymorphTalentParams {
+                        explosive,
+                        contagious: true,
+                        pig_form: pig,
+                        permanent,
+                        dire,
+                        ..Default::default()
+                    };
+                    ec.insert(poly_comp::ContagiousBaas {
+                        empowerment,
+                        talent_params,
+                    });
+                }
+                if dire {
+                    // Dire Sheep is a friendly combatant: keep AttackTiming so it can
+                    // headbutt, and put it on the Defenders' side (matches SP cast).
+                    ec.insert((
+                        poly_comp::DireSheep::new(),
+                        comp::Team::Defenders,
+                        comp::AttackTiming::new(),
+                    ));
+                } else {
+                    ec.remove::<comp::AttackTiming>();
+                }
             } else {
                 ec.insert(sfx::SleepModifier::new(duration, 1.0));
             }
-            let _ = (flags, magnitude);
         }
         K::MindControl => {
             // MindControlled has no `new`; construct with defaults plus the

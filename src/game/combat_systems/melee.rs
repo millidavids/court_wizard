@@ -263,14 +263,14 @@ pub fn combat(
                     attack_speed_bonus += cauldron_speed - 1.0;
                 }
             }
-            let effective_last_time = if attack_speed_bonus > 0.0 {
-                // Shrink the window between last_time and current_time to simulate faster attacks
-                current_time - (current_time - last_time) * (1.0 + attack_speed_bonus)
-            } else {
-                last_time
-            };
-
-            if attack_timing.can_attack(current_time, effective_last_time) {
+            // Attack speed is a per-unit cooldown, not a widened can_attack
+            // window (which re-fired every frame — see can_attack_with_speed_bonus).
+            if attack_timing.can_attack_with_speed_bonus(
+                current_time,
+                last_time,
+                attack_cycle.cycle_duration,
+                attack_speed_bonus,
+            ) {
                 // Disorienting Vapors: if attacker is in a disorienting fog zone,
                 // 20% chance to redirect the attack to a same-team ally
                 let mut actual_target = *target_entity;
