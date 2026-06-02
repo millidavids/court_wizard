@@ -23,6 +23,7 @@ pub(in crate::game) mod ranged_bolt;
 mod sets;
 pub(crate) mod shielder;
 mod spawning;
+pub(crate) mod spell_stats;
 pub(crate) mod status_effects;
 pub(in crate::game) mod systems;
 pub(in crate::game) mod teleporter;

@@ -12,6 +12,7 @@ pub(in crate::game) mod guest_visuals;
 pub(in crate::game) mod host_systems;
 pub(crate) mod loading;
 mod plugin;
+pub(in crate::game) mod score_stats;
 pub(crate) mod spawning;
 pub(in crate::game) mod spell_sync;
 mod systems;

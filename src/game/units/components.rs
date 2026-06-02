@@ -606,6 +606,17 @@ pub fn apply_spell_damage(
         damage_type,
         damage: modified_damage,
     });
+    // One-frame marker for the multiplayer score screen's per-wizard spell-damage
+    // tally. Only `apply_spell_damage` inserts this, so on each peer it captures
+    // exactly the local wizard's output. `accumulate_wizard_spell_stats` sums and
+    // removes it every frame (a pure cleanup pass in single-player). `entry` +
+    // `and_modify` accumulates multiple hits on the same unit within one frame
+    // (e.g. overlapping Meteor/Squall explosions) instead of overwriting.
+    commands
+        .entity(entity)
+        .entry::<super::spell_stats::SpellDamageTally>()
+        .and_modify(move |mut tally| tally.0 += modified_damage)
+        .or_insert(super::spell_stats::SpellDamageTally(modified_damage));
 }
 
 // Animation components moved to animation.rs (Phase 9)

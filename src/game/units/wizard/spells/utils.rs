@@ -150,6 +150,36 @@ pub(crate) struct PendingDefenderHeal {
     pub origin: Vec3,
 }
 
+/// Applies wizard spell healing to a unit and records it for the multiplayer
+/// score screen's per-wizard heal tally. Returns the HP actually restored
+/// (after `healing_reduction` and clamping to `health.max`).
+///
+/// Call this from wizard heal spells instead of `health.heal(amount)`. Non-spell
+/// heal sources (healer units, cauldron regen, melee lifesteal) keep calling
+/// `health.heal` directly so they are excluded from the wizard's stat. Like the
+/// damage tally, this only fires on the peer running the spell, so it captures
+/// exactly the local wizard's healing output.
+pub(crate) fn apply_spell_heal(
+    commands: &mut Commands,
+    entity: Entity,
+    health: &mut Health,
+    amount: f32,
+) -> f32 {
+    let before = health.current;
+    health.heal(amount);
+    let actual = health.current - before;
+    if actual > 0.0 {
+        // `entry` + `and_modify` accumulates multiple same-frame heals on one
+        // unit instead of overwriting; the score-screen consumer clears it each frame.
+        commands
+            .entity(entity)
+            .entry::<crate::game::units::spell_stats::SpellHealTally>()
+            .and_modify(move |mut tally| tally.0 += actual)
+            .or_insert(crate::game::units::spell_stats::SpellHealTally(actual));
+    }
+    actual
+}
+
 /// Applies a pending defender heal to the nearest injured defender, then removes the resource.
 ///
 /// Finds the closest defender (by world-space distance to `origin`) that is alive but not
@@ -179,7 +209,7 @@ pub(crate) fn apply_pending_defender_heal(
     if let Some((entity, _)) = best
         && let Ok((_, _, mut health, _)) = defenders.get_mut(entity)
     {
-        health.heal(heal.amount);
+        apply_spell_heal(&mut commands, entity, &mut health, heal.amount);
     }
 
     commands.remove_resource::<PendingDefenderHeal>();

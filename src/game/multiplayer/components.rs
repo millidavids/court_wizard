@@ -94,6 +94,21 @@ pub enum MpScoreButtonAction {
 #[derive(Component)]
 pub struct RematchStatusText;
 
+/// Marks a stat value `Text` node on the multiplayer score screen so
+/// `update_mp_stat_values` can refresh it from `MatchStats` (the numbers may
+/// arrive a frame or two after the screen spawns).
+#[derive(Component, Clone, Copy)]
+pub(super) enum MpStatValueText {
+    YourKills,
+    YourDeaths,
+    YourDamage,
+    YourHealing,
+    EnemyKills,
+    EnemyDeaths,
+    EnemyDamage,
+    EnemyHealing,
+}
+
 /// Marker resource inserted when both players agree to rematch.
 ///
 /// Signals that the transition back to `MainMenu` → `Multiplayer` should

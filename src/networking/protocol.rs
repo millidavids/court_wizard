@@ -31,7 +31,10 @@ use crate::game::units::wizard::components::Spell;
 ///   `SpellSoundId` ordinal (multiplayer spell-visual overhaul).
 /// - 3: adds `UnitFlags::POLYMORPH` (1 << 11) to the unit snapshot so the guest
 ///   renders host-cast sheep. No new wire field — repurposes a free flag bit.
-pub const PROTOCOL_VERSION: u32 = 3;
+/// - 4: `GameOver` now carries a `HostMatchSummary` (side kills/deaths + host
+///   wizard spell stats) and a new `WizardStatsReport` variant carries the guest
+///   wizard's spell stats, for the multiplayer post-match scoreboard.
+pub const PROTOCOL_VERSION: u32 = 4;
 
 /// Messages sent over the reliable WebRTC data channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,8 +67,13 @@ pub enum NetworkMessage {
     /// Player has finished loading.
     GameLoaded,
 
-    /// Host notifies guest that the game is over.
-    GameOver(GameOverResult),
+    /// Host notifies guest that the game is over, carrying the host's
+    /// authoritative match summary (side kills/deaths + host wizard spell stats)
+    /// so both peers can render the post-match scoreboard.
+    GameOver {
+        result: GameOverResult,
+        summary: HostMatchSummary,
+    },
 
     /// Player is ready for a rematch (sent from score screen).
     RematchReady,
@@ -154,6 +162,14 @@ pub enum NetworkMessage {
     /// Guest tells the host to strip `SpellShield` from a unit (Dispel impact
     /// hitting a shielded king on the host).
     DispelShield { target_network_id: u32 },
+
+    /// Guest → host, sent once after the guest reaches the score screen: the
+    /// guest wizard's total spell damage and healing this match, so the host can
+    /// fill in the enemy column of its scoreboard.
+    WizardStatsReport {
+        spell_damage: f32,
+        spell_healing: f32,
+    },
 
     /// Wire-protocol version handshake. Sent FIRST by both peers on
     /// connection, BEFORE `PlayerInfo`. The receiver compares against its
@@ -278,4 +294,19 @@ pub enum GameOverResult {
 
     /// The guest won the match.
     GuestWins,
+}
+
+/// Host's authoritative end-of-match summary, sent inside `GameOver`. Field
+/// names are side-neutral; each receiver maps them to its own perspective by
+/// role (host commands Defenders, guest commands Attackers).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct HostMatchSummary {
+    /// Defenders that died = host deaths = guest kills.
+    pub defenders_killed: u32,
+    /// Attackers + undead that died = host kills = guest deaths.
+    pub attackers_and_undead_killed: u32,
+    /// Host wizard's total spell damage this match.
+    pub host_spell_damage: f32,
+    /// Host wizard's total spell healing this match.
+    pub host_spell_healing: f32,
 }

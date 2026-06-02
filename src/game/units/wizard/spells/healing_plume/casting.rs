@@ -344,9 +344,12 @@ pub fn apply_healing_plume_heal(
 
                     heal_amount = apply_dry_healing_reduction(heal_amount, is_dry);
 
-                    let hp_before = health.current;
-                    health.heal(heal_amount);
-                    let actual_healed = health.current - hp_before;
+                    let actual_healed = crate::game::units::wizard::spells::utils::apply_spell_heal(
+                        &mut commands,
+                        entity,
+                        &mut health,
+                        heal_amount,
+                    );
 
                     // Track talent progress (health restored)
                     if actual_healed > 0.0

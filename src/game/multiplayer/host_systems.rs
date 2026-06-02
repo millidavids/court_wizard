@@ -143,9 +143,12 @@ pub fn send_state_snapshots(
 /// - Defender King dies → guest wins
 /// - Attacker King dies → host wins
 pub fn check_mp_king_death(
+    mut commands: Commands,
     mut connection: ResMut<NetworkConnection>,
     mut game_outcome: ResMut<GameOutcome>,
     mut next_state: ResMut<NextState<MultiplayerGameState>>,
+    kill_stats: Res<crate::game::resources::KillStats>,
+    local_stats: Res<crate::game::multiplayer::score_stats::LocalWizardStats>,
     dead_kings: Query<&Team, (With<King>, With<Corpse>)>,
 ) {
     if let Some(team) = dead_kings.iter().next() {
@@ -159,9 +162,32 @@ pub fn check_mp_king_death(
             GameOverResult::GuestWins => GameOutcome::DefeatKingDied,
         };
 
+        // Build the host's authoritative side-level summary for both peers.
+        let defenders_killed = kill_stats.defenders_killed;
+        let attackers_and_undead_killed = kill_stats.attackers_killed + kill_stats.undead_killed;
+        let summary = crate::networking::protocol::HostMatchSummary {
+            defenders_killed,
+            attackers_and_undead_killed,
+            host_spell_damage: local_stats.spell_damage,
+            host_spell_healing: local_stats.spell_healing,
+        };
+
+        // Host commands the Defenders. Insert the host's scoreboard with its own
+        // side filled in now; the enemy (guest) wizard's spell damage/healing
+        // arrive via `WizardStatsReport` and fill in reactively on the score screen.
+        commands.insert_resource(crate::game::multiplayer::score_stats::MatchStats::assemble(
+            true, // host commands the Defenders
+            defenders_killed,
+            attackers_and_undead_killed,
+            local_stats.spell_damage,
+            local_stats.spell_healing,
+            0.0, // enemy (guest) spell stats arrive via WizardStatsReport
+            0.0,
+        ));
+
         connection
             .outgoing_messages
-            .push(NetworkMessage::GameOver(result));
+            .push(NetworkMessage::GameOver { result, summary });
         next_state.set(MultiplayerGameState::ScoreScreen);
     }
 }

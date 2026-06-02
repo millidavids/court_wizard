@@ -22,8 +22,8 @@ use crate::ui::wizard_tower::MultiplayerLobby;
 
 use super::components::{
     MpDisconnectedButtonAction, MpPauseButtonAction, MpRematchState, MpScoreButtonAction,
-    OnMpDisconnectedScreen, OnMpPauseScreen, OnMpScoreScreen, OnMultiplayerGameScreen,
-    PendingRematch, RematchStatusText,
+    MpStatValueText, OnMpDisconnectedScreen, OnMpPauseScreen, OnMpScoreScreen,
+    OnMultiplayerGameScreen, PendingRematch, RematchStatusText,
 };
 
 /// Safe run condition for `MultiplayerGameState` sub-states.
@@ -100,6 +100,8 @@ pub(super) fn init_mp_game(
     commands.init_resource::<crate::networking::snapshot::SpellSnapshotData>();
     commands.init_resource::<super::components::SpellEffectEntityMap>();
     commands.init_resource::<super::spell_sync::LatestSpellSnapshot>();
+    // Per-match wizard spell-stat accumulator for the score screen.
+    commands.init_resource::<super::score_stats::LocalWizardStats>();
 
     // SpellVisualAssets is initialized globally at startup, no MP-specific asset init needed.
 }
@@ -151,6 +153,7 @@ pub(super) fn cleanup_mp_game(
     commands.remove_resource::<super::components::SpellEffectEntityMap>();
     commands.remove_resource::<crate::networking::snapshot::SpellSnapshotData>();
     commands.remove_resource::<super::spell_sync::LatestSpellSnapshot>();
+    commands.remove_resource::<super::score_stats::LocalWizardStats>();
 
     // Tear down the pathfinding grid that MP loading populated with this
     // match's terrain (boulders, ponds, etc.). Without removal, the grid
@@ -185,14 +188,130 @@ const SCORE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
 
 // ── Score Screen Systems ──────────────────────────────────────────────
 
-/// Spawns the multiplayer score screen UI.
-pub(super) fn setup_mp_score_screen(mut commands: Commands, game_outcome: Res<GameOutcome>) {
+/// The four scoreboard rows, as `(label, your-side marker, enemy-side marker)`.
+const STAT_ROWS: [(&str, MpStatValueText, MpStatValueText); 4] = [
+    (
+        "Kills",
+        MpStatValueText::YourKills,
+        MpStatValueText::EnemyKills,
+    ),
+    (
+        "Deaths",
+        MpStatValueText::YourDeaths,
+        MpStatValueText::EnemyDeaths,
+    ),
+    (
+        "Damage",
+        MpStatValueText::YourDamage,
+        MpStatValueText::EnemyDamage,
+    ),
+    (
+        "Healed",
+        MpStatValueText::YourHealing,
+        MpStatValueText::EnemyHealing,
+    ),
+];
+
+/// Formats a single `MatchStats` field for display. Returns "0" when stats
+/// aren't available yet (e.g. the host's enemy column before the guest's
+/// `WizardStatsReport` arrives). Damage/healing are shown as whole numbers.
+fn stat_value_text(
+    stats: Option<&super::score_stats::MatchStats>,
+    which: MpStatValueText,
+) -> String {
+    let Some(s) = stats else {
+        return "0".to_string();
+    };
+    match which {
+        MpStatValueText::YourKills => s.your_kills.to_string(),
+        MpStatValueText::YourDeaths => s.your_deaths.to_string(),
+        MpStatValueText::YourDamage => (s.your_damage.round() as u32).to_string(),
+        MpStatValueText::YourHealing => (s.your_healing.round() as u32).to_string(),
+        MpStatValueText::EnemyKills => s.enemy_kills.to_string(),
+        MpStatValueText::EnemyDeaths => s.enemy_deaths.to_string(),
+        MpStatValueText::EnemyDamage => (s.enemy_damage.round() as u32).to_string(),
+        MpStatValueText::EnemyHealing => (s.enemy_healing.round() as u32).to_string(),
+    }
+}
+
+/// Spawns one label+value stat row; the value `Text` is tagged with `marker`
+/// so `update_mp_stat_values` can refresh it reactively.
+fn spawn_stat_row(
+    parent: &mut ChildSpawnerCommands,
+    label: &str,
+    marker: MpStatValueText,
+    stats: Option<&super::score_stats::MatchStats>,
+) {
+    parent
+        .spawn(Node {
+            width: Val::Px(200.0),
+            flex_direction: FlexDirection::Row,
+            justify_content: JustifyContent::SpaceBetween,
+            column_gap: Val::Px(24.0),
+            ..default()
+        })
+        .with_children(|row| {
+            row.spawn((
+                Text::new(label),
+                TextFont::from_font_size(20.0),
+                TextColor(SCORE_TEXT_COLOR),
+            ));
+            row.spawn((
+                marker,
+                Text::new(stat_value_text(stats, marker)),
+                TextFont::from_font_size(20.0),
+                TextColor(SCORE_TITLE_COLOR),
+            ));
+        });
+}
+
+/// Spawns one stat column (header + the four rows). `is_enemy` selects the
+/// enemy-side markers so the value nodes update from the correct `MatchStats`
+/// fields.
+fn spawn_stat_column(
+    parent: &mut ChildSpawnerCommands,
+    header: &str,
+    is_enemy: bool,
+    stats: Option<&super::score_stats::MatchStats>,
+) {
+    parent
+        .spawn(Node {
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            row_gap: Val::Px(10.0),
+            ..default()
+        })
+        .with_children(|col| {
+            col.spawn((
+                Text::new(header),
+                TextFont::from_font_size(26.0),
+                TextColor(SCORE_TITLE_COLOR),
+                Node {
+                    margin: UiRect::bottom(Val::Px(6.0)),
+                    ..default()
+                },
+            ));
+            for (label, your_marker, enemy_marker) in STAT_ROWS {
+                let marker = if is_enemy { enemy_marker } else { your_marker };
+                spawn_stat_row(col, label, marker, stats);
+            }
+        });
+}
+
+/// Spawns the multiplayer score screen UI: a title over three columns —
+/// enemy stats, your stats, and the Rematch/Disconnect buttons.
+pub(super) fn setup_mp_score_screen(
+    mut commands: Commands,
+    game_outcome: Res<GameOutcome>,
+    match_stats: Option<Res<super::score_stats::MatchStats>>,
+) {
     commands.init_resource::<MpRematchState>();
 
     let title_text = match *game_outcome {
         GameOutcome::Victory => "VICTORY",
         _ => "DEFEAT",
     };
+    let stats = match_stats.as_deref();
 
     commands
         .spawn((
@@ -202,7 +321,7 @@ pub(super) fn setup_mp_score_screen(mut commands: Commands, game_outcome: Res<Ga
                 flex_direction: FlexDirection::Column,
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
-                row_gap: Val::Px(20.0),
+                row_gap: Val::Px(24.0),
                 ..default()
             },
             BackgroundColor(SCORE_BG_COLOR),
@@ -226,38 +345,61 @@ pub(super) fn setup_mp_score_screen(mut commands: Commands, game_outcome: Res<Ga
                 ));
             }
 
-            // Buttons
+            // Three columns: enemy stats | your stats | buttons
             parent
                 .spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    row_gap: Val::Px(15.0),
-                    margin: UiRect::top(Val::Px(20.0)),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::FlexStart,
+                    justify_content: JustifyContent::Center,
+                    column_gap: Val::Px(60.0),
+                    margin: UiRect::top(Val::Px(16.0)),
                     ..default()
                 })
-                .with_children(|buttons| {
-                    spawn_button(
-                        buttons,
-                        "Rematch",
-                        MpScoreButtonAction::Rematch,
-                        &SCORE_BUTTON_STYLE,
-                    );
-                    spawn_button(
-                        buttons,
-                        "Disconnect",
-                        MpScoreButtonAction::Disconnect,
-                        &SCORE_BUTTON_STYLE,
-                    );
-                });
+                .with_children(|columns| {
+                    spawn_stat_column(columns, "ENEMY", true, stats);
+                    spawn_stat_column(columns, "YOU", false, stats);
 
-            // Status text
-            parent.spawn((
-                RematchStatusText,
-                Text::new(""),
-                TextFont::from_font_size(18.0),
-                TextColor(SCORE_TEXT_COLOR),
-            ));
+                    // Right column: buttons + rematch status text
+                    columns
+                        .spawn(Node {
+                            flex_direction: FlexDirection::Column,
+                            align_items: AlignItems::Center,
+                            row_gap: Val::Px(15.0),
+                            ..default()
+                        })
+                        .with_children(|buttons| {
+                            spawn_button(
+                                buttons,
+                                "Rematch",
+                                MpScoreButtonAction::Rematch,
+                                &SCORE_BUTTON_STYLE,
+                            );
+                            spawn_button(
+                                buttons,
+                                "Disconnect",
+                                MpScoreButtonAction::Disconnect,
+                                &SCORE_BUTTON_STYLE,
+                            );
+                            buttons.spawn((
+                                RematchStatusText,
+                                Text::new(""),
+                                TextFont::from_font_size(18.0),
+                                TextColor(SCORE_TEXT_COLOR),
+                            ));
+                        });
+                });
         });
+}
+
+/// Refreshes the score-screen stat value nodes whenever `MatchStats` changes —
+/// notably when the guest's `WizardStatsReport` fills in the host's enemy column.
+pub(super) fn update_mp_stat_values(
+    match_stats: Res<super::score_stats::MatchStats>,
+    mut values: Query<(&MpStatValueText, &mut Text)>,
+) {
+    for (marker, mut text) in &mut values {
+        **text = stat_value_text(Some(&match_stats), *marker);
+    }
 }
 
 /// Cleans up score screen entities and resources.
@@ -271,6 +413,7 @@ pub(super) fn cleanup_mp_score_screen(
         }
     }
     commands.remove_resource::<MpRematchState>();
+    commands.remove_resource::<super::score_stats::MatchStats>();
 }
 
 /// Handles score screen button clicks.
@@ -339,6 +482,7 @@ pub(super) fn handle_mp_score_messages(
     mut rematch_state: ResMut<MpRematchState>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut status_text: Query<&mut Text, With<RematchStatusText>>,
+    mut match_stats: Option<ResMut<super::score_stats::MatchStats>>,
     mut commands: Commands,
 ) {
     if connection.incoming_messages.is_empty() {
@@ -366,8 +510,20 @@ pub(super) fn handle_mp_score_messages(
                     next_app_state.set(AppState::MainMenu);
                 }
             }
-            NetworkMessage::GameOver(_) => {
-                // Already handled, ignore
+            NetworkMessage::GameOver { .. } => {
+                // Already handled at the game-over transition; ignore here.
+            }
+            NetworkMessage::WizardStatsReport {
+                spell_damage,
+                spell_healing,
+            } => {
+                // Host receives the guest wizard's spell stats and fills in the
+                // enemy column of its scoreboard (reactively updated by
+                // `update_mp_stat_values`).
+                if let Some(stats) = match_stats.as_mut() {
+                    stats.enemy_damage = spell_damage;
+                    stats.enemy_healing = spell_healing;
+                }
             }
             other => unhandled.push(other),
         }

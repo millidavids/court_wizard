@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Added
+- **Multiplayer matches now end with a side-by-side scoreboard** — the victory/defeat screen now compares both players across four stats: enemies your side defeated, your own units lost, total healing from your spells, and total damage from your spells. Your column sits in the center, your opponent's on the left, with the Rematch and Disconnect buttons on the right.
+
 ## [v0.8.71] - 2026-06-01
 
 ### Fixed

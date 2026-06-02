@@ -23,7 +23,7 @@ use super::systems::{
     detect_mp_disconnect, detect_mp_loading_disconnect, handle_mp_disconnected_buttons,
     handle_mp_pause_buttons, handle_mp_score_buttons, handle_mp_score_messages, in_mp_disconnected,
     in_mp_paused, in_mp_running, in_mp_score_screen, init_mp_game, mp_escape_key_handler,
-    setup_mp_disconnected, setup_mp_pause_menu, setup_mp_score_screen,
+    setup_mp_disconnected, setup_mp_pause_menu, setup_mp_score_screen, update_mp_stat_values,
 };
 
 /// Plugin that manages multiplayer gameplay.
@@ -92,6 +92,18 @@ impl Plugin for MultiplayerGamePlugin {
         );
         app.add_systems(Update, crdt_sync::receive_wall_placement.run_if(mp_running));
 
+        // ── Wizard Spell-Stat Tally (both MP peers) ──────────────────
+        // Sums the per-frame spell damage/heal tally markers into the local
+        // wizard's `LocalWizardStats` and clears them. Runs on both peers in
+        // multiplayer (each accumulates its own wizard's output). Deliberately
+        // NOT registered for single-player: there the tally markers are emitted
+        // but never consumed (they stay inert on the unit and clear on despawn),
+        // so single-player pays no per-frame cost.
+        app.add_systems(
+            Update,
+            super::score_stats::accumulate_wizard_spell_stats.run_if(in_mp_running),
+        );
+
         // ── Host: MP King Death Check ────────────────────────────────
         // Replaces SP's check_win_lose_conditions during multiplayer.
         // Runs after PostCombatSet so corpses have been created.
@@ -101,6 +113,10 @@ impl Plugin for MultiplayerGamePlugin {
             Update,
             host_systems::check_mp_king_death
                 .after(PostCombatSet)
+                // Run after the tally accumulator so the killing blow's spell
+                // damage/healing is folded into LocalWizardStats before the
+                // host snapshots it into the game-over summary.
+                .after(super::score_stats::accumulate_wizard_spell_stats)
                 .run_if(mp_host.clone()),
         );
 
@@ -279,7 +295,11 @@ impl Plugin for MultiplayerGamePlugin {
         // ── Guest: Game Over Message ──────────────────────────────────
         app.add_systems(
             Update,
-            guest_systems::handle_game_over_message.run_if(mp_running.and(is_multiplayer_guest)),
+            guest_systems::handle_game_over_message
+                // Run after the tally accumulator so the guest's own final spell
+                // stats are folded in before it builds MatchStats / sends its report.
+                .after(super::score_stats::accumulate_wizard_spell_stats)
+                .run_if(mp_running.and(is_multiplayer_guest)),
         );
 
         // ── Escape Key (Running → Paused toggle) ──────────────────────
@@ -329,6 +349,12 @@ impl Plugin for MultiplayerGamePlugin {
             (
                 handle_mp_score_buttons.in_set(ButtonActionSet),
                 handle_mp_score_messages,
+                // Reactively refresh stat values when MatchStats changes (e.g.
+                // the host's enemy column fills in from the guest's report).
+                update_mp_stat_values.run_if(
+                    resource_exists::<super::score_stats::MatchStats>
+                        .and(resource_changed::<super::score_stats::MatchStats>),
+                ),
             )
                 .run_if(in_mp_score_screen),
         );
