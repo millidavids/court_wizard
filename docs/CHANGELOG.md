@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.8.71] - 2026-06-01
 
 ### Fixed
 - **Mind Control now works for the joining player** — as the second player you couldn't take over any of the host's units at all. You can now mind-control them just like the host can.
