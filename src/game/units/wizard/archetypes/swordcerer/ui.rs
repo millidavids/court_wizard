@@ -15,7 +15,7 @@ use crate::game::units::components::{
     WalkingAnimation,
 };
 use crate::game::units::systems::create_default_sprite_material;
-use crate::game::units::wizard::components::Wizard;
+use crate::game::units::wizard::components::{LocalWizard, Wizard};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use bevy::prelude::*;
@@ -242,7 +242,10 @@ pub(super) fn handle_location_click(
     mut mouse_pressed: MessageReader<crate::game::input::messages::MouseLeftPressed>,
     mut state: ResMut<SwordcererState>,
     mut commands: Commands,
-    mut wizard_query: Query<&mut Visibility, With<Wizard>>,
+    // Filter to the LOCAL wizard: MP spawns two `Wizard` entities (host + guest)
+    // on every peer, so a bare `With<Wizard>` single query errors and the click
+    // silently no-ops.
+    mut wizard_query: Query<&mut Visibility, (With<Wizard>, With<LocalWizard>)>,
     swordcerer_assets: Res<SwordcererAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     sfx: Res<SpellSfxAssets>,

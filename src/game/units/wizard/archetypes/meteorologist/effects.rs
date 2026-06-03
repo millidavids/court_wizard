@@ -82,6 +82,7 @@ pub fn storm_lightning(
             .insert(crate::game::units::components::PendingDamageEffect {
                 damage_type: crate::game::units::damage::DamageType::Electric,
                 damage,
+                source_team: None,
             });
     }
 

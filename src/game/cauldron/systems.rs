@@ -30,6 +30,10 @@ pub fn spawn_cauldron(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     cauldron_assets: &CauldronAssets,
+    // World position for the cauldron. Single-player and the multiplayer HOST use
+    // `CAULDRON_POSITION`; the multiplayer GUEST uses `CAULDRON_2_POSITION` so the
+    // cauldron sits beside the guest's own (mirrored) wizard.
+    position: Vec3,
 ) {
     // Create a quad mesh for the billboard
     let quad_mesh = Rectangle::new(
@@ -56,7 +60,7 @@ pub fn spawn_cauldron(
     commands.spawn((
         Mesh3d(meshes.add(quad_mesh)),
         MeshMaterial3d(material),
-        Transform::from_translation(constants::CAULDRON_POSITION),
+        Transform::from_translation(position),
         Cauldron,
         CauldronState::default(),
         CauldronAnimation::new(),
@@ -112,6 +116,9 @@ pub fn handle_brew_complete(
     sfx: Res<SpellSfxAssets>,
     game_config: Res<crate::config::GameConfig>,
     mut stone_used: ResMut<super::resources::PhilosophersStoneUsed>,
+    // The cauldron's actual transform — the multiplayer guest's cauldron lives at
+    // CAULDRON_2_POSITION, so bubbles must follow the entity, not the constant.
+    cauldron_query: Query<&Transform, With<Cauldron>>,
 ) {
     for message in messages.read() {
         // Check for hidden combos — batch unlock to avoid N load+save cycles
@@ -169,13 +176,13 @@ pub fn handle_brew_complete(
             stacks.count = 0;
         }
 
-        // Spawn the expanding bubble visual effect
+        // Spawn the expanding bubble visual effect at the cauldron's real
+        // position (host: CAULDRON_POSITION; guest: CAULDRON_2_POSITION).
         let bubble_color = message.recipe.color();
-        let spawn_pos = Vec3::new(
-            constants::CAULDRON_POSITION.x,
-            constants::BREW_BUBBLE_HEIGHT,
-            constants::CAULDRON_POSITION.z,
-        );
+        let spawn_pos = cauldron_query
+            .single()
+            .map(|t| t.translation)
+            .unwrap_or(constants::CAULDRON_POSITION);
 
         commands.spawn((
             Mesh3d(spell_assets.explosion_sphere.clone()),

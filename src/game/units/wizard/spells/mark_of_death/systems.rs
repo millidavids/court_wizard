@@ -358,7 +358,7 @@ pub fn handle_marked_corpses(
         (Entity, &Transform, &Team),
         (Without<Corpse>, Without<MarkedForDeathModifier>),
     >,
-    mut wizard: Query<&mut Mana, With<Wizard>>,
+    mut wizard: Query<&mut Mana, (With<Wizard>, With<LocalWizard>)>,
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     session: Option<Res<crate::networking::session::MultiplayerSession>>,

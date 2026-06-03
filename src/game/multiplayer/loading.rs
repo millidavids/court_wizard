@@ -581,11 +581,20 @@ pub fn process_mp_spawn_queue(
                     spawn_queue.tasks.insert(0, MpSpawnTask::Cauldron);
                     break;
                 };
+                // Place the cauldron beside the LOCAL wizard: host at
+                // CAULDRON_POSITION, guest at the mirrored CAULDRON_2_POSITION
+                // (otherwise the guest's cauldron sits at the host's castle).
+                let cauldron_pos = if session.role == PeerRole::Guest {
+                    crate::game::cauldron::constants::CAULDRON_2_POSITION
+                } else {
+                    crate::game::cauldron::constants::CAULDRON_POSITION
+                };
                 crate::game::cauldron::systems::spawn_cauldron(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
                     assets,
+                    cauldron_pos,
                 );
             }
         }

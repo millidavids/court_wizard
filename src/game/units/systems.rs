@@ -342,6 +342,10 @@ pub fn process_pending_damage_effects(
             Entity,
             &PendingDamageEffect,
             &Transform,
+            // Optional: most damageable entities are units with a Team, but some
+            // (e.g. the multiplayer wizard) have Health and no Team. Keeping this
+            // optional avoids silently dropping their PendingDamageEffect.
+            Option<&Team>,
             Has<SpellShield>,
             Has<ColdModifier>,
             Has<DryModifier>,
@@ -359,8 +363,17 @@ pub fn process_pending_damage_effects(
     let mut burning_patch_mesh: Option<Handle<Mesh>> = None;
     let mut burning_patch_material: Option<Handle<StandardMaterial>> = None;
 
-    for (entity, pending, transform, has_shield, has_cold, has_dry) in pending_query.iter() {
-        if has_shield {
+    for (entity, pending, transform, team, has_shield, has_cold, has_dry) in pending_query.iter() {
+        // A King's SpellShield blocks the DoT only when the spell came from the
+        // ENEMY team. Friendly fire (same team) still applies. `source_team ==
+        // None` keeps the old block-all behavior. Team-less entities never carry a
+        // shield, so they're always processed.
+        let shield_blocks = has_shield
+            && match team {
+                Some(t) => pending.source_team != Some(*t),
+                None => true,
+            };
+        if shield_blocks {
             commands.entity(entity).remove::<PendingDamageEffect>();
             continue;
         }
@@ -1701,6 +1714,7 @@ pub fn update_airborne_units(
                 commands.entity(entity).insert(PendingDamageEffect {
                     damage_type: airborne.damage_type,
                     damage: fall_damage,
+                    source_team: None,
                 });
             }
             commands.entity(entity).remove::<Airborne>();

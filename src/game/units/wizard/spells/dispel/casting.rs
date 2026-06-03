@@ -5,7 +5,7 @@ use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::crt_effect::CorrectedCursorPosition;
-use crate::game::units::wizard::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
+use crate::game::units::wizard::components::{LocalWizard, Mana, PrimedSpell, Spell};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
@@ -66,13 +66,7 @@ pub fn handle_dispel_casting(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &mut Mana,
-            &PrimedSpell,
-            &Wizard,
-            Option<&DispelCooldown>,
-        ),
+        (Entity, &mut Mana, &PrimedSpell, Option<&DispelCooldown>),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -88,8 +82,7 @@ pub fn handle_dispel_casting(
         return;
     }
 
-    let Ok((wizard_entity, mut mana, primed_spell, wizard, cooldown)) = wizard_query.single_mut()
-    else {
+    let Ok((wizard_entity, mut mana, primed_spell, cooldown)) = wizard_query.single_mut() else {
         return;
     };
     if primed_spell.spell != Spell::Dispel {
@@ -103,8 +96,9 @@ pub fn handle_dispel_casting(
 
     let talent_params = compute_talent_params(active_talents.as_deref());
 
-    let mana_cost = talent_params.mana_cost * wizard.mana_cost_multiplier;
-    if !mana.consume(mana_cost) {
+    // The per-wizard mana_cost_multiplier is now applied centrally in
+    // `Mana::consume`, so don't bake it in here (would double-apply).
+    if !mana.consume(talent_params.mana_cost) {
         return;
     }
 

@@ -472,6 +472,11 @@ pub struct RemotePolymorphEffect;
 pub struct PendingDamageEffect {
     pub damage_type: DamageType,
     pub damage: f32,
+    /// Team that cast the spell, when known. Used so a King's `SpellShield` blocks
+    /// only ENEMY spell DoTs (`source_team != king_team`) and lets the King's own
+    /// team's friendly-fire through. `None` (most call sites) = treated as enemy,
+    /// preserving the old block-all behavior.
+    pub source_team: Option<Team>,
 }
 
 /// Fire damage-over-time effect that stacks with repeated fire hits.
@@ -596,7 +601,61 @@ pub fn apply_spell_damage(
     damage_type: DamageType,
     has_spell_shield: bool,
 ) {
-    if has_spell_shield {
+    apply_spell_damage_inner(
+        commands,
+        entity,
+        health,
+        temp_hp,
+        damage,
+        damage_type,
+        has_spell_shield,
+        None,
+    );
+}
+
+/// Team-aware spell damage: a King's `SpellShield` blocks the hit ONLY when the
+/// spell comes from the enemy team (`caster_team != target_team`). The King's own
+/// team's friendly fire still lands. Records `caster_team` on the
+/// `PendingDamageEffect` so its damage-over-time survives the shield check in
+/// `process_pending_damage_effects` too. Use this at area spells that can hit a
+/// same-team King; single-target enemy-seeking spells can keep `apply_spell_damage`.
+#[allow(clippy::too_many_arguments)]
+pub fn apply_spell_damage_with_team(
+    commands: &mut Commands,
+    entity: Entity,
+    health: &mut Health,
+    temp_hp: Option<&mut TemporaryHitPoints>,
+    damage: f32,
+    damage_type: DamageType,
+    has_spell_shield: bool,
+    caster_team: Team,
+    target_team: Team,
+) {
+    let blocked = has_spell_shield && caster_team != target_team;
+    apply_spell_damage_inner(
+        commands,
+        entity,
+        health,
+        temp_hp,
+        damage,
+        damage_type,
+        blocked,
+        Some(caster_team),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn apply_spell_damage_inner(
+    commands: &mut Commands,
+    entity: Entity,
+    health: &mut Health,
+    temp_hp: Option<&mut TemporaryHitPoints>,
+    damage: f32,
+    damage_type: DamageType,
+    blocked: bool,
+    source_team: Option<Team>,
+) {
+    if blocked {
         return;
     }
     let modified_damage = damage * (1.0 + health.spell_vulnerability);
@@ -605,6 +664,7 @@ pub fn apply_spell_damage(
     commands.entity(entity).insert(PendingDamageEffect {
         damage_type,
         damage: modified_damage,
+        source_team,
     });
     // One-frame marker for the multiplayer score screen's per-wizard spell-damage
     // tally. Only `apply_spell_damage` inserts this, so on each peer it captures

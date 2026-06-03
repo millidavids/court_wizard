@@ -10,7 +10,7 @@ use crate::game::units::wizard::archetypes::meteorologist::constants::{
 use crate::game::units::wizard::archetypes::meteorologist::messages::WeatherChangedMessage;
 use crate::game::units::wizard::archetypes::meteorologist::resources::{WeatherState, WeatherType};
 use crate::game::units::wizard::archetypes::meteorologist::systems::try_switch_weather;
-use crate::game::units::wizard::components::Mana;
+use crate::game::units::wizard::components::{LocalWizard, Mana};
 use crate::ui::systems::scale_font_by_text_width;
 
 /// Returns the theme color for a weather type.
@@ -161,7 +161,9 @@ pub(super) fn handle_weather_button_click(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&WeatherButton>,
     mut weather: ResMut<WeatherState>,
-    mut mana_query: Query<&mut Mana>,
+    // Local wizard only — MP has two `Mana`-bearing wizards; an unfiltered
+    // single query would error and the weather button would silently no-op.
+    mut mana_query: Query<&mut Mana, With<LocalWizard>>,
     mut writer: MessageWriter<WeatherChangedMessage>,
 ) {
     for event in button_clicked.read() {

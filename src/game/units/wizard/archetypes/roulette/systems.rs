@@ -4,7 +4,7 @@ use rand::Rng;
 use super::constants::*;
 use super::messages::*;
 use super::resources::*;
-use crate::game::units::wizard::components::{CastingState, Wizard};
+use crate::game::units::wizard::components::{CastingState, LocalWizard, Wizard};
 use crate::game::units::wizard::messages::PrimeSpellMessage;
 
 /// Handles spacebar press to initiate a roulette spin.
@@ -77,7 +77,7 @@ pub fn update_spin(
 /// After the wizard finishes casting (returns to Resting), reset the wheel to Idle.
 pub fn reset_after_cast(
     mut state: ResMut<RouletteState>,
-    wizard_query: Query<&CastingState, (With<Wizard>, Changed<CastingState>)>,
+    wizard_query: Query<&CastingState, (With<Wizard>, With<LocalWizard>, Changed<CastingState>)>,
     mouse: Res<ButtonInput<MouseButton>>,
 ) {
     if !matches!(state.phase, RoulettePhase::Selected { .. }) {

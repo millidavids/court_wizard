@@ -1,9 +1,11 @@
 //! Lightning rod casting and rod spawn.
 
-use super::components::{LightningRod, LightningRodTalentParams, LightningStrike};
+use super::components::{
+    LightningRod, LightningRodTalentParams, LightningStrike, StormSpireSecondaryRod,
+};
 use super::constants::*;
 use crate::config::GameConfig;
-use crate::game::components::OnGameplayScreen;
+use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -64,7 +66,8 @@ fn compute_talent_params(active_talents: Option<&ActiveTalents>) -> LightningRod
         Some(0) => {
             params.storm_spire = true;
             params.damage_mult = STORM_SPIRE_DAMAGE_MULT;
-            params.duration_mult *= STORM_SPIRE_DURATION_MULT;
+            // No duration multiplier: Storm Spire rods are concentration-held
+            // (spawned with f32::MAX duration), so a finite-duration scale is moot.
         }
         Some(1) => params.tesla_coil = true,
         Some(2) => params.lightning_nexus = true,
@@ -288,22 +291,35 @@ fn lightning_rod_casting_logic(
 
                     if talent_params.storm_spire {
                         let offset = Vec3::new(STORM_SPIRE_OFFSET / 2.0, 0.0, 0.0);
-                        spawn_lightning_rod(
+                        // Storm Spire makes Lightning Rod a CONCENTRATION spell:
+                        // the rods never expire on a timer (duration = MAX) and
+                        // persist until the player ends concentration. The anchor
+                        // carries `ConcentrationSpell` (which spawns the End button
+                        // and reserves mana); the secondary is despawned alongside
+                        // it by `cleanup_orphaned_storm_rods`.
+                        let anchor = spawn_lightning_rod(
                             commands,
                             assets,
                             spawn_pos + offset,
                             primed_spell.empowerment,
-                            duration,
+                            f32::MAX,
                             talent_params,
                         );
-                        spawn_lightning_rod(
+                        commands.entity(anchor).insert(ConcentrationSpell {
+                            spell_name: "Lightning Rod",
+                            mana_cost: MANA_COST,
+                        });
+                        let secondary = spawn_lightning_rod(
                             commands,
                             assets,
                             spawn_pos - offset,
                             primed_spell.empowerment,
-                            duration,
+                            f32::MAX,
                             talent_params,
                         );
+                        commands
+                            .entity(secondary)
+                            .insert(StormSpireSecondaryRod { anchor });
                     } else {
                         spawn_lightning_rod(
                             commands,
@@ -348,7 +364,7 @@ pub(crate) fn spawn_lightning_rod(
     empowerment: f32,
     duration: f32,
     talent_params: LightningRodTalentParams,
-) {
+) -> Entity {
     let tower_height = TOWER_HEIGHT;
     let tower_radius = TOWER_RADIUS;
 
@@ -359,23 +375,25 @@ pub(crate) fn spawn_lightning_rod(
     // radius scale = tower_radius / 0.5, height scale = tower_height / 1.0
     let radius_scale = tower_radius / 0.5;
 
-    commands.spawn((
-        LightningRod::new(
-            Vec3::new(position.x, 0.0, position.z),
-            duration,
-            empowerment,
-            talent_params,
-        ),
-        Mesh3d(assets.cross_plane_cylinder.clone()),
-        MeshMaterial3d(assets.lightning_rod.clone()),
-        Transform::from_translation(spawn_pos).with_scale(Vec3::new(
-            radius_scale,
-            tower_height,
-            radius_scale,
-        )),
-        NetworkedSpellEffect {
-            kind: SpellEffectKind::LightningRod,
-        },
-        OnGameplayScreen,
-    ));
+    commands
+        .spawn((
+            LightningRod::new(
+                Vec3::new(position.x, 0.0, position.z),
+                duration,
+                empowerment,
+                talent_params,
+            ),
+            Mesh3d(assets.cross_plane_cylinder.clone()),
+            MeshMaterial3d(assets.lightning_rod.clone()),
+            Transform::from_translation(spawn_pos).with_scale(Vec3::new(
+                radius_scale,
+                tower_height,
+                radius_scale,
+            )),
+            NetworkedSpellEffect {
+                kind: SpellEffectKind::LightningRod,
+            },
+            OnGameplayScreen,
+        ))
+        .id()
 }

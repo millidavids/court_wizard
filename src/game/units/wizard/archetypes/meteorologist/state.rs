@@ -9,7 +9,7 @@ use super::resources::{WeatherState, WeatherType};
 use crate::config::input_bindings::InputBindings;
 use crate::game::units::components::{Corpse, Health, Shocked};
 use crate::game::units::king::components::SpellShield;
-use crate::game::units::wizard::components::{Mana, Wizard};
+use crate::game::units::wizard::components::{LocalWizard, Mana, Wizard};
 
 /// Applies the Drought healing reduction to a heal amount.
 /// Returns the (possibly reduced) heal amount.
@@ -43,8 +43,8 @@ pub(crate) fn try_switch_weather(
         return true;
     }
 
-    // Check mana
-    if mana.current < WEATHER_MANA_COST {
+    // Check mana (`can_afford` applies the wizard's mana_cost_multiplier).
+    if !mana.can_afford(WEATHER_MANA_COST) {
         return false;
     }
     mana.consume(WEATHER_MANA_COST);
@@ -68,7 +68,9 @@ pub fn handle_weather_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     bindings: Res<InputBindings>,
     mut weather: ResMut<WeatherState>,
-    mut mana_query: Query<&mut Mana, With<Wizard>>,
+    // Local wizard only: MP has two `Wizard` entities, so a bare `With<Wizard>`
+    // single query errors and no weather fires.
+    mut mana_query: Query<&mut Mana, (With<Wizard>, With<LocalWizard>)>,
     mut writer: MessageWriter<WeatherChangedMessage>,
 ) {
     let weather_keys: [(Option<KeyCode>, WeatherType); 3] = [

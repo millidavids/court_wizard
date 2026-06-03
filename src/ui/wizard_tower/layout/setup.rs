@@ -528,7 +528,14 @@ pub(crate) fn rebuild_panels_on_tab_change(
     // If showing wizard cards, build the card grid instead of tab content
     if *right_panel_view == RightPanelView::WizardSelect {
         commands.init_resource::<super::super::wizard_cards::SelectedWizard>();
-        super::super::wizard_cards::build_wizard_card_grid(&mut commands, right_entity);
+        // Hide the (MP-unsupported) Psychopath card when switching wizards from
+        // the Multiplayer tab; SP tabs still show it.
+        let exclude_mp_unsupported = *tab == WizardTowerTab::Multiplayer;
+        super::super::wizard_cards::build_wizard_card_grid(
+            &mut commands,
+            right_entity,
+            exclude_mp_unsupported,
+        );
         return;
     }
 

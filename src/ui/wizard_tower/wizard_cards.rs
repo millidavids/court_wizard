@@ -111,13 +111,23 @@ const EXPANDED_SECTION_HEIGHT: f32 = 180.0;
 #[derive(Component)]
 pub(crate) struct WizardCardScrollContainer;
 
-pub(super) fn build_wizard_card_grid(commands: &mut Commands, parent: Entity) {
+pub(super) fn build_wizard_card_grid(
+    commands: &mut Commands,
+    parent: Entity,
+    // True in the multiplayer "Switch Wizard" view: Psychopath isn't supported in
+    // MP, so hide its card there. SP tabs pass false (it's selectable there).
+    exclude_mp_unsupported: bool,
+) {
     let save = load_unified_save();
     let unlocked_names: Vec<String> = save
         .map(|s| s.player.unlocked_content.wizard_types)
         .unwrap_or_default();
 
-    let all_wizards = WizardType::all();
+    let all_wizards: Vec<WizardType> = WizardType::all()
+        .iter()
+        .copied()
+        .filter(|wt| !exclude_mp_unsupported || *wt != WizardType::Psychopath)
+        .collect();
 
     commands.entity(parent).with_children(|grid_parent| {
         // Scrollable row container holding 3 columns

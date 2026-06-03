@@ -50,6 +50,7 @@ impl Plugin for WizardPlugin {
                     ),
                     systems::reset_empowerment_after_cast,
                     systems::apply_wizard_stats_to_primed_spell,
+                    systems::sync_mana_cost_multiplier,
                 )
                     .run_if(is_spell_effects_active),
             )

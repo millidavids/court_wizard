@@ -262,13 +262,7 @@ pub(crate) fn apply_guest_avatar_input(
         }
 
         // Movement — shared with the host's own avatar (`player_movement`).
-        super::combat::apply_avatar_physics(
-            &mut transform,
-            &mut velocity,
-            move_dir,
-            speed.0,
-            dt,
-        );
+        super::combat::apply_avatar_physics(&mut transform, &mut velocity, move_dir, speed.0, dt);
 
         let avatar_pos = transform.translation;
         let dir3 = Vec3::new(facing_c.0.x, 0.0, facing_c.0.y).normalize_or_zero();

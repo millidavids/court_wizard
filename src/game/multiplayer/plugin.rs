@@ -21,10 +21,10 @@ use super::spell_sync;
 use super::systems::{
     cleanup_mp_disconnected, cleanup_mp_game, cleanup_mp_pause_menu, cleanup_mp_score_screen,
     detect_mp_disconnect, detect_mp_loading_disconnect, handle_mp_disconnected_buttons,
-    handle_mp_pause_buttons, handle_mp_score_buttons, handle_mp_score_messages, in_mp_disconnected,
-    in_mp_paused, in_mp_running, in_mp_score_screen, init_mp_game, mp_escape_key_handler,
-    mp_score_escape_handler, setup_mp_disconnected, setup_mp_pause_menu, setup_mp_score_screen,
-    update_mp_stat_values,
+    handle_mp_forfeit_confirm, handle_mp_pause_buttons, handle_mp_score_buttons,
+    handle_mp_score_messages, in_mp_disconnected, in_mp_paused, in_mp_running, in_mp_score_screen,
+    init_mp_game, mp_escape_key_handler, mp_score_escape_handler, setup_mp_disconnected,
+    setup_mp_pause_menu, setup_mp_score_screen, update_mp_stat_values,
 };
 
 /// Plugin that manages multiplayer gameplay.
@@ -359,9 +359,17 @@ impl Plugin for MultiplayerGamePlugin {
         app.add_systems(OnExit(MultiplayerGameState::Paused), cleanup_mp_pause_menu);
         app.add_systems(
             Update,
-            handle_mp_pause_buttons
+            (handle_mp_pause_buttons, handle_mp_forfeit_confirm)
                 .in_set(ButtonActionSet)
                 .run_if(in_mp_paused),
+        );
+        // Host: end the match when the guest forfeits. Runs while Running OR
+        // Paused so a paused host still processes the guest's forfeit promptly
+        // (otherwise the guest sits in limbo until the host unpauses).
+        app.add_systems(
+            Update,
+            host_systems::receive_mp_forfeit
+                .run_if((in_mp_running.or(in_mp_paused)).and(is_multiplayer_host)),
         );
 
         // ── Disconnected Overlay ──────────────────────────────────────

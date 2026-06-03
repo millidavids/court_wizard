@@ -132,7 +132,19 @@ pub struct OnMpPauseScreen;
 pub enum MpPauseButtonAction {
     Resume,
     Settings,
+    Forfeit,
     Disconnect,
+}
+
+/// Marker for the forfeit confirmation overlay.
+#[derive(Component)]
+pub struct OnMpForfeitConfirm;
+
+/// Yes/No actions for the forfeit confirmation overlay.
+#[derive(Component, Clone)]
+pub enum MpForfeitConfirmAction {
+    Confirm,
+    Cancel,
 }
 
 /// Marker for entities on the MP disconnected overlay.

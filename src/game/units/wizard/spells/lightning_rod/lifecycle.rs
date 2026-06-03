@@ -3,7 +3,10 @@
 use std::cmp::Ordering;
 
 use super::casting::spawn_descending_strike;
-use super::components::{LightningRod, LightningRodArc, LightningRodTalentParams, LightningStrike};
+use super::components::{
+    LightningRod, LightningRodArc, LightningRodTalentParams, LightningStrike,
+    StormSpireSecondaryRod,
+};
 use super::constants::*;
 use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::terrain::pond::components::Pond;
@@ -20,6 +23,21 @@ use crate::game::units::wizard::spells::utils::xz_distance;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::BattleTalentProgress;
 use bevy::prelude::*;
+
+/// Despawns the second Storm Spire concentration rod once its anchor (the
+/// `ConcentrationSpell` holder) has been removed by ending concentration, so both
+/// rods always disappear together.
+pub(super) fn cleanup_orphaned_storm_rods(
+    mut commands: Commands,
+    secondary: Query<(Entity, &StormSpireSecondaryRod)>,
+    rods: Query<(), With<LightningRod>>,
+) {
+    for (entity, sec) in &secondary {
+        if rods.get(sec.anchor).is_err() {
+            commands.entity(entity).try_despawn();
+        }
+    }
+}
 
 /// Compute talent parameters from active talent selections.
 pub(super) fn update_lightning_rod(

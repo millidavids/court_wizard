@@ -89,23 +89,38 @@ pub struct Mana {
     pub current: f32,
     /// Maximum mana capacity.
     pub max: f32,
+    /// Per-wizard spell-cost multiplier, mirrored from `Wizard.mana_cost_multiplier`
+    /// by `sync_mana_cost_multiplier`. Applied to EVERY `consume`/`can_afford` so
+    /// the Arcanorouter's mana routing, the BoringOleMage discount, and insight
+    /// bonuses affect ALL spells (not just the few that read the Wizard field).
+    /// 1.0 = no change.
+    pub cost_multiplier: f32,
 }
 
 impl Mana {
     /// Creates a new Mana component with the given maximum.
     pub fn new(max: f32) -> Self {
-        Self { current: max, max }
+        Self {
+            current: max,
+            max,
+            cost_multiplier: 1.0,
+        }
     }
 
-    /// Returns true if there is enough mana for the cost.
+    /// The cost actually deducted for a base `cost`, after the wizard multiplier.
+    fn effective_cost(&self, cost: f32) -> f32 {
+        cost * self.cost_multiplier
+    }
+
+    /// Returns true if there is enough mana for the cost (after the multiplier).
     pub fn can_afford(&self, cost: f32) -> bool {
-        self.current >= cost
+        self.current >= self.effective_cost(cost)
     }
 
     /// Consumes mana, returning true if successful.
     pub fn consume(&mut self, cost: f32) -> bool {
         if self.can_afford(cost) {
-            self.current -= cost;
+            self.current -= self.effective_cost(cost);
             true
         } else {
             false

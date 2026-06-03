@@ -43,9 +43,16 @@ impl Plugin for ActionBarPlugin {
             OnEnter(InGameState::Running),
             systems::spawn_action_bar.after(systems::clear_blocked_action_bar_spells),
         )
+        // Clear Shepherd-blocked (offensive) spells before spawning the action
+        // bar in multiplayer too — this was SP-only, so a guest Shepherd's
+        // offensive spells still appeared in the bar.
         .add_systems(
             OnEnter(MultiplayerGameState::Running),
-            systems::spawn_action_bar,
+            systems::clear_blocked_action_bar_spells,
+        )
+        .add_systems(
+            OnEnter(MultiplayerGameState::Running),
+            systems::spawn_action_bar.after(systems::clear_blocked_action_bar_spells),
         )
         .add_systems(
             Update,

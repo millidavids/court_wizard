@@ -620,6 +620,9 @@ pub fn apply_state_snapshot(
     // Separate query for the smelly tint so the main ghost query stays under
     // Bevy's query-data arity limit.
     smelly_ghosts: Query<Entity, With<crate::game::units::status_effects::SmellyModifier>>,
+    // Separate query so the guest can mirror the host's `InMelee` flag onto ghosts
+    // (drives the battle-ambience melee sound) without widening the main query.
+    melee_ghosts: Query<Entity, With<crate::game::units::components::InMelee>>,
     mut kill_stats: ResMut<crate::game::resources::KillStats>,
 ) {
     // Filter for game snapshots only (type prefix 0x00), re-queue others
@@ -713,6 +716,7 @@ pub fn apply_state_snapshot(
         let remote_mark = unit.flags & UnitFlags::MARK_EFFECT != 0;
         let remote_polymorph = unit.flags & UnitFlags::POLYMORPH != 0;
         let remote_smelly = unit.flags & UnitFlags::SMELLY != 0;
+        let remote_in_melee = unit.flags & UnitFlags::IN_MELEE != 0;
 
         if let Some(&local_entity) = entity_map.remote_to_local.get(&unit.id) {
             if let Ok((
@@ -893,6 +897,26 @@ pub fn apply_state_snapshot(
                     commands
                         .entity(entity)
                         .remove::<crate::game::units::status_effects::SmellyModifier>();
+                }
+                // Mirror the host's melee state so the guest's battle-ambience loop
+                // scales with on-field combat. `InMelee` holds the OPPOSING team
+                // (semantically "in melee with"); on the guest the value is inert
+                // (archer-targeting readers are host-only) but kept correct in case
+                // a future ghost-side system reads it.
+                let has_melee = melee_ghosts.contains(entity);
+                if remote_in_melee && !has_melee {
+                    use crate::game::units::components::Team;
+                    let melee_with = match team {
+                        Team::Defenders => Team::Attackers,
+                        _ => Team::Defenders,
+                    };
+                    commands
+                        .entity(entity)
+                        .insert(crate::game::units::components::InMelee(melee_with));
+                } else if !remote_in_melee && has_melee {
+                    commands
+                        .entity(entity)
+                        .remove::<crate::game::units::components::InMelee>();
                 }
                 // Mark of Death: insert the BARE `ActiveMarkOfDeath` marker so
                 // `spawn_mark_indicators` renders the floating indicator. We do

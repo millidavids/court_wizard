@@ -38,7 +38,7 @@ struct MissileParams {
 }
 
 /// Computes talent-modified parameters for magic missile casting.
-fn compute_missile_params(talents: Option<&ActiveTalents>, wizard: &Wizard) -> MissileParams {
+fn compute_missile_params(talents: Option<&ActiveTalents>) -> MissileParams {
     let t1 = talents.and_then(|t| t.get_selection(Spell::MagicMissile, 0));
     let t2 = talents.and_then(|t| t.get_selection(Spell::MagicMissile, 1));
     let t3 = talents.and_then(|t| t.get_selection(Spell::MagicMissile, 2));
@@ -61,7 +61,9 @@ fn compute_missile_params(talents: Option<&ActiveTalents>, wizard: &Wizard) -> M
     MissileParams {
         missile_count,
         damage_mult,
-        mana_cost: constants::MANA_COST * wizard.mana_cost_multiplier * mana_mult,
+        // The per-wizard mana_cost_multiplier is now applied centrally in
+        // `Mana::consume`, so it must NOT be baked in here (double-apply).
+        mana_cost: constants::MANA_COST * mana_mult,
         cooldown_mult,
         piercing: t2 == Some(2),
         heavy: t1 == Some(1),
@@ -141,7 +143,7 @@ pub fn handle_magic_missile_casting(
     };
 
     let talents = active_talents.as_deref();
-    let params = compute_missile_params(talents, wizard);
+    let params = compute_missile_params(talents);
 
     // Authoritative cooldown gate. The `MagicMissileCooldown` component is the
     // in-world signal but its insert is deferred via `Commands`, so on the

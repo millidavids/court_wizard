@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::constants::WIZARD_POSITION;
+use crate::game::constants::{WIZARD_2_POSITION, WIZARD_POSITION};
 
 /// Offset from wizard position to place the cauldron beside the wizard on the castle wall.
 const CAULDRON_OFFSET: Vec3 = Vec3::new(60.0, -64.0, 90.0);
@@ -12,6 +12,15 @@ pub const CAULDRON_POSITION: Vec3 = Vec3::new(
     WIZARD_POSITION.z + CAULDRON_OFFSET.z,
 );
 
+/// Cauldron position for the multiplayer GUEST, beside `WIZARD_2_POSITION`.
+/// Mirrored across the origin (x/z negated) the same way `SPELL_2_OFFSET` mirrors
+/// `SPELL_OFFSET`, so the guest's cauldron sits at their own castle.
+pub const CAULDRON_2_POSITION: Vec3 = Vec3::new(
+    WIZARD_2_POSITION.x - CAULDRON_OFFSET.x,
+    WIZARD_2_POSITION.y + CAULDRON_OFFSET.y,
+    WIZARD_2_POSITION.z - CAULDRON_OFFSET.z,
+);
+
 /// Total duration of the brew bubble effect (seconds).
 pub const BREW_BUBBLE_DURATION: f32 = 1.0;
 
@@ -20,9 +29,6 @@ pub const BREW_BUBBLE_EXPAND_SPEED: f32 = 3000.0;
 
 /// Starting alpha (translucency) of the bubble.
 pub const BREW_BUBBLE_INITIAL_ALPHA: f32 = 0.2;
-
-/// Y position of the bubble center.
-pub const BREW_BUBBLE_HEIGHT: f32 = CAULDRON_POSITION.y;
 
 /// Sprite sheet animation parameters
 pub const CAULDRON_SPRITE_FRAMES: usize = 9;

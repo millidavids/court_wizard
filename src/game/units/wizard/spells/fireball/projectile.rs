@@ -8,7 +8,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::units::components::{
-    Health, MarkedForDeathModifier, Team, TemporaryHitPoints, apply_spell_damage,
+    Health, MarkedForDeathModifier, Team, TemporaryHitPoints, apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
@@ -517,6 +517,7 @@ pub fn apply_explosion_damage(
         &Transform,
         &mut Health,
         Option<&mut TemporaryHitPoints>,
+        &Team,
         Has<SpellShield>,
         Option<&MarkedForDeathModifier>,
     )>,
@@ -524,7 +525,12 @@ pub fn apply_explosion_damage(
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
+    // The casting peer's team is constant for the whole system run (these
+    // explosions only damage real units on the host, whose spells are its own).
+    let caster_team =
+        crate::game::units::wizard::spells::utils::local_player_team(session.as_deref());
     for mut explosion in &mut explosions {
         if explosion.time_since_last_tick >= constants::DAMAGE_TICK_INTERVAL {
             explosion.time_since_last_tick = 0.0;
@@ -544,8 +550,15 @@ pub fn apply_explosion_damage(
                 damage_type: explosion.damage_type,
             });
 
-            for (entity, transform, mut health, mut temp_hp, has_spell_shield, existing_mark) in
-                &mut targets
+            for (
+                entity,
+                transform,
+                mut health,
+                mut temp_hp,
+                team,
+                has_spell_shield,
+                existing_mark,
+            ) in &mut targets
             {
                 let distance = crate::game::units::wizard::spells::utils::xz_distance(
                     explosion.origin,
@@ -553,7 +566,9 @@ pub fn apply_explosion_damage(
                 );
 
                 if distance <= current_radius {
-                    apply_spell_damage(
+                    // Team-aware: a friendly King takes its own side's fireball;
+                    // the enemy King's shield still blocks it.
+                    apply_spell_damage_with_team(
                         &mut commands,
                         entity,
                         &mut health,
@@ -561,6 +576,8 @@ pub fn apply_explosion_damage(
                         explosion.damage_per_tick,
                         explosion.damage_type,
                         has_spell_shield,
+                        caster_team,
+                        *team,
                     );
                     hit_count += 1;
 

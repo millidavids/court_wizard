@@ -22,7 +22,7 @@ use crate::game::units::wizard::archetypes::meteorologist::{
 use crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage;
 use crate::game::units::wizard::archetypes::runes::messages::RunePressed;
 use crate::game::units::wizard::archetypes::runes::resources::Rune;
-use crate::game::units::wizard::components::{Mana, Wizard};
+use crate::game::units::wizard::components::{LocalWizard, Mana, Wizard};
 
 /// ArcanoRouter slider increment per D-pad press.
 const ARCANOROUTER_STEP: f32 = 0.05;
@@ -116,7 +116,7 @@ pub(super) fn translate_weather(
     active: Res<ActiveInputDevice>,
     gamepads: Query<&Gamepad>,
     mut weather: ResMut<WeatherState>,
-    mut mana_query: Query<&mut Mana, With<Wizard>>,
+    mut mana_query: Query<&mut Mana, (With<Wizard>, With<LocalWizard>)>,
     mut writer: MessageWriter<WeatherChangedMessage>,
 ) {
     let Some(gamepad) = active_gamepad(&active, &gamepads) else {

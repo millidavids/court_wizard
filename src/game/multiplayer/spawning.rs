@@ -141,11 +141,17 @@ pub(super) fn spawn_mp_wizard(
         OnMultiplayerGameScreen,
     ));
 
-    // Warglock fires guns instead of spells — skip priming the default spell
-    // (mirrors single-player `setup_wizard`). Without this guard the Warglock
-    // enters the match with Magic Missile primed and clicks fall through to
-    // spell-casting once the guns are between shots.
-    if wizard_type != crate::config::WizardType::Warglock {
+    // Skip priming the default spell for archetypes that shouldn't start with
+    // Magic Missile (mirrors single-player `setup_wizard`): Warglock fires guns,
+    // the Randomancer only casts what its roulette rolls, and the Shepherd can't
+    // cast offensive spells. Without this guard their clicks would fall through
+    // to casting Magic Missile.
+    if !matches!(
+        wizard_type,
+        crate::config::WizardType::Warglock
+            | crate::config::WizardType::Randomancer
+            | crate::config::WizardType::Shepherd
+    ) {
         entity_commands.insert(magic_missile_constants::PRIMED_MAGIC_MISSILE);
     }
 

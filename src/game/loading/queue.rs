@@ -325,6 +325,7 @@ pub fn process_spawn_queue(
                         &mut meshes,
                         &mut materials,
                         assets,
+                        crate::game::cauldron::constants::CAULDRON_POSITION,
                     );
                 }
             }

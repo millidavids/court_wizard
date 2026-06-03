@@ -106,8 +106,13 @@ pub fn setup_wizard(
         OnGameplayScreen,
     ));
 
-    // Warglock doesn't use spells — skip priming the default spell
-    if config.wizard_type != WizardType::Warglock {
+    // Skip priming Magic Missile for archetypes that shouldn't start with it:
+    // Warglock fires guns, the Randomancer only casts what its roulette rolls,
+    // and the Shepherd can't cast offensive spells.
+    if !matches!(
+        config.wizard_type,
+        WizardType::Warglock | WizardType::Randomancer | WizardType::Shepherd
+    ) {
         entity_commands.insert(magic_missile_constants::PRIMED_MAGIC_MISSILE);
     }
 
@@ -373,5 +378,18 @@ pub fn apply_wizard_stats_to_primed_spell(
         let base_cast_time = primed_spell.spell.primed_config().cast_time;
         primed_spell.cast_time = base_cast_time / wizard.cast_speed_multiplier;
         primed_spell.empowerment = wizard.spell_power_multiplier;
+    }
+}
+
+/// Mirrors `Wizard.mana_cost_multiplier` onto `Mana.cost_multiplier` so the
+/// per-wizard discount is applied centrally by `Mana::consume`/`can_afford` and
+/// thus reaches EVERY spell — the Arcanorouter's mana routing, the BoringOleMage
+/// discount, and insight bonuses. Only the few spells that read the Wizard field
+/// directly honored it before.
+pub fn sync_mana_cost_multiplier(mut wizards: Query<(&Wizard, &mut Mana), Changed<Wizard>>) {
+    for (wizard, mut mana) in &mut wizards {
+        if mana.cost_multiplier != wizard.mana_cost_multiplier {
+            mana.cost_multiplier = wizard.mana_cost_multiplier;
+        }
     }
 }

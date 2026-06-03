@@ -434,7 +434,10 @@ pub fn apply_finger_of_death_damage(
         ),
         Without<Wizard>,
     >,
-    mut wizard_query: Query<(Entity, &mut Mana, &mut CastingState), With<Wizard>>,
+    mut wizard_query: Query<
+        (Entity, &mut Mana, &mut CastingState),
+        (With<Wizard>, With<LocalWizard>),
+    >,
     walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
     rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
     visual_assets: Res<SpellVisualAssets>,

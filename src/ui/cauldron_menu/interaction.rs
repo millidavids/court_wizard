@@ -13,7 +13,7 @@ use crate::game::cauldron::brews::constants::{
 use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::cauldron::messages::{CancelBrewMessage, StartBrewMessage};
 use crate::game::input::messages::MouseClicked;
-use crate::state::InGameState;
+use crate::state::{InGameState, MultiplayerGameState};
 use crate::ui::components::{ButtonActive, ButtonColors};
 use crate::ui::systems::spawn_button;
 
@@ -26,6 +26,9 @@ pub(super) fn button_action(
     mut start_brew: MessageWriter<StartBrewMessage>,
     mut cancel_brew: MessageWriter<CancelBrewMessage>,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
+    // In multiplayer `InGameState` is inactive, so closing/brewing must drive the
+    // `MultiplayerGameState` back to Running instead (mirrors `escape_to_running`).
+    mut next_mp_state: Option<ResMut<NextState<MultiplayerGameState>>>,
 ) {
     let is_brewing = cauldron_query
         .single()
@@ -50,14 +53,23 @@ pub(super) fn button_action(
                         start_brew.write(StartBrewMessage { recipe });
                         selection.clear();
                         next_in_game_state.set(InGameState::Running);
+                        if let Some(ref mut mp) = next_mp_state {
+                            mp.set(MultiplayerGameState::Running);
+                        }
                     }
                 }
                 CauldronMenuButtonAction::CancelBrew => {
                     cancel_brew.write(CancelBrewMessage);
                     next_in_game_state.set(InGameState::Running);
+                    if let Some(ref mut mp) = next_mp_state {
+                        mp.set(MultiplayerGameState::Running);
+                    }
                 }
                 CauldronMenuButtonAction::Close => {
                     next_in_game_state.set(InGameState::Running);
+                    if let Some(ref mut mp) = next_mp_state {
+                        mp.set(MultiplayerGameState::Running);
+                    }
                 }
             }
         }

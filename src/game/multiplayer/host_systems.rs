@@ -71,6 +71,7 @@ pub fn send_state_snapshots(
             Has<crate::game::units::status_effects::PolymorphedModifier>,
             Has<crate::game::units::status_effects::SmellyModifier>,
             Has<crate::game::units::wizard::archetypes::swordcerer::components::SwordcererAvatar>,
+            Has<crate::game::units::components::InMelee>,
         ),
     )>,
     arrows: Query<&Transform, With<Arrow>>,
@@ -109,6 +110,7 @@ pub fn send_state_snapshots(
             has_polymorph,
             has_smelly,
             has_swordcerer_avatar,
+            has_in_melee,
         ),
     ) in &units
     {
@@ -133,6 +135,7 @@ pub fn send_state_snapshots(
             has_polymorph,
             has_smelly,
             has_swordcerer_avatar,
+            has_in_melee,
         ));
     }
 
@@ -171,39 +174,97 @@ pub fn check_mp_king_death(
             Team::Defenders => GameOverResult::GuestWins,
             Team::Attackers | Team::Undead => GameOverResult::HostWins,
         };
+        end_mp_match(
+            result,
+            &mut commands,
+            &mut connection,
+            &mut game_outcome,
+            &mut next_state,
+            &kill_stats,
+            &local_stats,
+        );
+    }
+}
 
-        *game_outcome = match result {
-            GameOverResult::HostWins => GameOutcome::Victory,
-            GameOverResult::GuestWins => GameOutcome::DefeatKingDied,
-        };
+/// Host-authoritative match-end: sets the outcome, assembles the scoreboard,
+/// ships `GameOver` to the guest, and transitions to the score screen. Shared by
+/// King-death and forfeit.
+pub(super) fn end_mp_match(
+    result: GameOverResult,
+    commands: &mut Commands,
+    connection: &mut NetworkConnection,
+    game_outcome: &mut GameOutcome,
+    next_state: &mut NextState<MultiplayerGameState>,
+    kill_stats: &crate::game::resources::KillStats,
+    local_stats: &crate::game::multiplayer::score_stats::LocalWizardStats,
+) {
+    *game_outcome = match result {
+        GameOverResult::HostWins => GameOutcome::Victory,
+        GameOverResult::GuestWins => GameOutcome::DefeatKingDied,
+    };
 
-        // Build the host's authoritative side-level summary for both peers.
-        let defenders_killed = kill_stats.defenders_killed;
-        let attackers_and_undead_killed = kill_stats.attackers_killed + kill_stats.undead_killed;
-        let summary = crate::networking::protocol::HostMatchSummary {
-            defenders_killed,
-            attackers_and_undead_killed,
-            host_spell_damage: local_stats.spell_damage,
-            host_spell_healing: local_stats.spell_healing,
-        };
+    // Build the host's authoritative side-level summary for both peers.
+    let defenders_killed = kill_stats.defenders_killed;
+    let attackers_and_undead_killed = kill_stats.attackers_killed + kill_stats.undead_killed;
+    let summary = crate::networking::protocol::HostMatchSummary {
+        defenders_killed,
+        attackers_and_undead_killed,
+        host_spell_damage: local_stats.spell_damage,
+        host_spell_healing: local_stats.spell_healing,
+    };
 
-        // Host commands the Defenders. Insert the host's scoreboard with its own
-        // side filled in now; the enemy (guest) wizard's spell damage/healing
-        // arrive via `WizardStatsReport` and fill in reactively on the score screen.
-        commands.insert_resource(crate::game::multiplayer::score_stats::MatchStats::assemble(
-            true, // host commands the Defenders
-            defenders_killed,
-            attackers_and_undead_killed,
-            local_stats.spell_damage,
-            local_stats.spell_healing,
-            0.0, // enemy (guest) spell stats arrive via WizardStatsReport
-            0.0,
-        ));
+    // Host commands the Defenders. Insert the host's scoreboard with its own side
+    // filled in now; the enemy (guest) wizard's spell stats arrive via
+    // `WizardStatsReport` and fill in reactively on the score screen.
+    commands.insert_resource(crate::game::multiplayer::score_stats::MatchStats::assemble(
+        true,
+        defenders_killed,
+        attackers_and_undead_killed,
+        local_stats.spell_damage,
+        local_stats.spell_healing,
+        0.0,
+        0.0,
+    ));
 
-        connection
-            .outgoing_messages
-            .push(NetworkMessage::GameOver { result, summary });
-        next_state.set(MultiplayerGameState::ScoreScreen);
+    connection
+        .outgoing_messages
+        .push(NetworkMessage::GameOver { result, summary });
+    next_state.set(MultiplayerGameState::ScoreScreen);
+}
+
+/// Host: the guest forfeited — end the match with the host winning. The resulting
+/// `GameOver` drives the guest's normal score-screen transition.
+pub fn receive_mp_forfeit(
+    mut commands: Commands,
+    mut connection: ResMut<NetworkConnection>,
+    mut game_outcome: ResMut<GameOutcome>,
+    mut next_state: ResMut<NextState<MultiplayerGameState>>,
+    kill_stats: Res<crate::game::resources::KillStats>,
+    local_stats: Res<crate::game::multiplayer::score_stats::LocalWizardStats>,
+) {
+    if connection.incoming_messages.is_empty() {
+        return;
+    }
+    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let mut unhandled = Vec::new();
+    let mut forfeited = false;
+    for msg in messages {
+        match msg {
+            NetworkMessage::Forfeit => forfeited = true,
+            other => unhandled.push(other),
+        }
+    }
+    connection.incoming_messages.extend(unhandled);
+    if forfeited {
+        end_mp_match(
+            GameOverResult::HostWins,
+            &mut commands,
+            &mut connection,
+            &mut game_outcome,
+            &mut next_state,
+            &kill_stats,
+            &local_stats,
+        );
     }
 }
 
@@ -310,6 +371,11 @@ pub fn receive_spell_hit_messages(
                     ec.insert(crate::game::units::components::PendingDamageEffect {
                         damage,
                         damage_type: crate::game::units::damage::DamageType::from_u8(damage_type),
+                        // Forwarded hits always come from the guest, who commands
+                        // the Attacker army — so the guest's own (Attacker) King
+                        // takes its own friendly fire, while the host's (Defender)
+                        // King's shield still blocks these enemy spells.
+                        source_team: Some(crate::game::units::components::Team::Attackers),
                     });
                 }
             }

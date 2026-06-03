@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use super::components::{LightningRod, LightningStrike};
+use super::components::{LightningRod, LightningStrike, StormSpireSecondaryRod};
 use super::systems::*;
 use crate::game::run_conditions::is_spell_effects_active;
 use crate::game::units::wizard::components::Spell;
@@ -26,6 +26,9 @@ impl Plugin for LightningRodPlugin {
                     .run_if(mouse_held_or_wizard_casting),
                 // Tower systems
                 update_lightning_rod.run_if(any_exist::<LightningRod>()),
+                // Storm Spire concentration: tear down the second rod when the
+                // anchor's concentration ends.
+                cleanup_orphaned_storm_rods.run_if(any_exist::<StormSpireSecondaryRod>()),
                 // Strike systems
                 update_lightning_strikes.run_if(any_exist::<LightningStrike>()),
             )

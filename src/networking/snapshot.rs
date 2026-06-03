@@ -114,6 +114,9 @@ impl UnitFlags {
     /// Host's unit is currently smelly (Excremage poop debuff) — set so the guest
     /// renders the brown stink tint on its ghost unit.
     pub const SMELLY: u16 = 1 << 13;
+    /// Host's unit is engaged in melee — set so the guest can run the battle
+    /// ambience (melee-sound) loop scaled by the on-field combat it can hear.
+    pub const IN_MELEE: u16 = 1 << 14;
 }
 
 /// Encodes a `Team` component into a u8.
@@ -161,6 +164,7 @@ pub fn build_unit_snapshot(
     has_polymorph: bool,
     has_smelly: bool,
     has_swordcerer_avatar: bool,
+    has_in_melee: bool,
 ) -> UnitSnapshot {
     let mut flags = 0u16;
     if is_corpse {
@@ -204,6 +208,9 @@ pub fn build_unit_snapshot(
     }
     if has_swordcerer_avatar {
         flags |= UnitFlags::SWORDCERER_AVATAR;
+    }
+    if has_in_melee {
+        flags |= UnitFlags::IN_MELEE;
     }
 
     let (max_hp, damage, healing) = if let Some(crdt) = crdt_health {

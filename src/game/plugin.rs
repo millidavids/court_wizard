@@ -274,13 +274,16 @@ impl Plugin for GamePlugin {
             )
             // Battle ambience — scales looping sword-clash sound with melee unit count
             // Crowd ambience — muffled crowd loop throughout battle
+            // `is_spell_effects_active` (not `is_gameplay_running`) so the MP GUEST
+            // also hears them: the host streams `InMelee` onto ghosts (via the
+            // IN_MELEE snapshot flag) and unit counts come from the ghosts.
             .add_systems(
                 Update,
                 (
                     shared_systems::update_battle_ambience,
                     shared_systems::update_crowd_ambience,
                 )
-                    .run_if(is_gameplay_running),
+                    .run_if(is_spell_effects_active),
             )
             // Billboard rotation is a visual-only system that must run for both
             // SP host AND MP guest (ghost entities need billboard facing too).

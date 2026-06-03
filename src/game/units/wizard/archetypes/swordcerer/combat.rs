@@ -13,7 +13,7 @@ use crate::game::units::components::{
     Corpse, Health, MovementSpeed, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::damage::DamageType;
-use crate::game::units::wizard::components::{Mana, Wizard};
+use crate::game::units::wizard::components::{LocalWizard, Mana, Wizard};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use bevy::prelude::*;
@@ -39,7 +39,7 @@ pub(super) fn handle_retreat(
     mut state: ResMut<SwordcererState>,
     mut commands: Commands,
     avatar_query: Query<Entity, With<SwordcererAvatar>>,
-    mut wizard_query: Query<&mut Visibility, With<Wizard>>,
+    mut wizard_query: Query<&mut Visibility, (With<Wizard>, With<LocalWizard>)>,
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
 ) {
@@ -187,7 +187,7 @@ pub(super) fn fire_missile(
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
     state: Res<SwordcererState>,
-    mut wizard_query: Query<&mut Mana, With<Wizard>>,
+    mut wizard_query: Query<&mut Mana, (With<Wizard>, With<LocalWizard>)>,
     swordcerer_assets: Res<SwordcererAssets>,
 ) {
     if state.phase != SwordcererPhase::OnField {
@@ -366,7 +366,9 @@ pub(super) fn spawn_avatar_missile(
     direction: Vec3,
     avatar_team: Team,
 ) {
-    use crate::game::units::wizard::spells::magic_missile::components::{MagicMissile, TargetTeams};
+    use crate::game::units::wizard::spells::magic_missile::components::{
+        MagicMissile, TargetTeams,
+    };
 
     // Enemies are the opposing army plus the always-hostile Undead.
     let (target_teams, enemy_army) = match avatar_team {

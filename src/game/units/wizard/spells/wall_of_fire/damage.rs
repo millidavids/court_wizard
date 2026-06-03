@@ -14,17 +14,19 @@ use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, 
 use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Corpse, Health, ResidualFireDamaged, SlowMovementModifier, TemporaryHitPoints,
-    apply_spell_damage,
+    Corpse, Health, ResidualFireDamaged, SlowMovementModifier, Team, TemporaryHitPoints,
+    apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::utils::UniqueHitTracker;
+use crate::game::units::wizard::spells::utils::local_player_team;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::{
     FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material,
 };
 use crate::game::units::wizard::talents::resources::BattleTalentProgress;
+use crate::networking::session::MultiplayerSession;
 use bevy::prelude::*;
 
 /// Computes the axis-aligned bounding box of a rotated wall, expanded by the obstacle buffer.
@@ -75,11 +77,14 @@ pub fn apply_wall_of_fire_damage(
         Has<SpellShield>,
         Has<InsideWallOfFire>,
         Option<&SearingHeatDebuff>,
+        &Team,
     )>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     let delta = time.delta_secs();
+    let caster_team = local_player_team(session.as_deref());
 
     for (mut effect, mut hit_tracker) in &mut effects {
         effect.time_alive += delta;
@@ -109,12 +114,13 @@ pub fn apply_wall_of_fire_damage(
                 has_spell_shield,
                 is_inside,
                 searing,
+                team,
             ) in &mut targets
             {
                 let distance = effect.distance_to_point(transform.translation);
 
                 if distance <= effect.half_width {
-                    apply_spell_damage(
+                    apply_spell_damage_with_team(
                         &mut commands,
                         entity,
                         &mut health,
@@ -122,6 +128,8 @@ pub fn apply_wall_of_fire_damage(
                         tick_damage,
                         DamageType::Fire,
                         has_spell_shield,
+                        caster_team,
+                        *team,
                     );
                     commands.entity(entity).insert(ResidualFireDamaged);
 
@@ -348,11 +356,14 @@ pub fn apply_spreading_flames_dot(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
+        &Team,
     )>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     let delta = time.delta_secs();
+    let caster_team = local_player_team(session.as_deref());
 
-    for (entity, mut dot, mut health, mut temp_hp, has_spell_shield) in &mut dots {
+    for (entity, mut dot, mut health, mut temp_hp, has_spell_shield, team) in &mut dots {
         dot.time_remaining -= delta;
         if dot.time_remaining <= 0.0 {
             commands.entity(entity).remove::<SpreadingFlamesDoT>();
@@ -362,7 +373,7 @@ pub fn apply_spreading_flames_dot(
         dot.tick_timer += delta;
         if dot.tick_timer >= dot.tick_interval {
             dot.tick_timer = 0.0;
-            apply_spell_damage(
+            apply_spell_damage_with_team(
                 &mut commands,
                 entity,
                 &mut health,
@@ -370,6 +381,8 @@ pub fn apply_spreading_flames_dot(
                 dot.damage_per_tick,
                 DamageType::Fire,
                 has_spell_shield,
+                caster_team,
+                *team,
             );
             commands.entity(entity).insert(ResidualFireDamaged);
         }

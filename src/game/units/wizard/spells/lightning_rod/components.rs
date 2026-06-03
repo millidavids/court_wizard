@@ -2,6 +2,14 @@
 
 use bevy::prelude::*;
 
+/// Marks the second rod of a Storm Spire concentration cast. The first rod (the
+/// `anchor`) carries `ConcentrationSpell`; when the player ends concentration the
+/// anchor is despawned and `cleanup_orphaned_storm_rods` despawns this one too.
+#[derive(Component)]
+pub(crate) struct StormSpireSecondaryRod {
+    pub anchor: Entity,
+}
+
 /// Pre-computed talent parameters for a lightning rod instance.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct LightningRodTalentParams {

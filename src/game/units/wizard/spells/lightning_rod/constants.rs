@@ -105,9 +105,6 @@ pub(super) const OVERCHARGE_DAMAGE_MULT: f32 = 2.5;
 /// T3-0 Storm Spire: damage multiplier for each rod.
 pub(super) const STORM_SPIRE_DAMAGE_MULT: f32 = 0.6;
 
-/// T3-0 Storm Spire: duration multiplier for each rod.
-pub(super) const STORM_SPIRE_DURATION_MULT: f32 = 0.7;
-
 /// T3-0 Storm Spire: offset distance between the two rods.
 pub(super) const STORM_SPIRE_OFFSET: f32 = 40.0;
 

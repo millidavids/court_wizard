@@ -22,9 +22,9 @@ use crate::ui::systems::spawn_button;
 use crate::ui::wizard_tower::MultiplayerLobby;
 
 use super::components::{
-    MpDisconnectedButtonAction, MpPauseButtonAction, MpRematchState, MpScoreButtonAction,
-    MpStatValueText, OnMpDisconnectedScreen, OnMpPauseScreen, OnMpScoreScreen,
-    OnMultiplayerGameScreen, PendingRematch, RematchStatusText,
+    MpDisconnectedButtonAction, MpForfeitConfirmAction, MpPauseButtonAction, MpRematchState,
+    MpScoreButtonAction, MpStatValueText, OnMpDisconnectedScreen, OnMpForfeitConfirm,
+    OnMpPauseScreen, OnMpScoreScreen, OnMultiplayerGameScreen, PendingRematch, RematchStatusText,
 };
 
 /// Safe run condition for `MultiplayerGameState` sub-states.
@@ -836,6 +836,12 @@ pub(super) fn setup_mp_pause_menu(mut commands: Commands) {
             );
             spawn_button(
                 parent,
+                "Forfeit",
+                MpPauseButtonAction::Forfeit,
+                &PAUSE_BUTTON_STYLE,
+            );
+            spawn_button(
+                parent,
                 "Disconnect",
                 MpPauseButtonAction::Disconnect,
                 &PAUSE_BUTTON_STYLE,
@@ -879,6 +885,9 @@ pub(super) fn handle_mp_pause_buttons(
                 MpPauseButtonAction::Settings => {
                     next_mp_state.set(MultiplayerGameState::Settings);
                 }
+                MpPauseButtonAction::Forfeit => {
+                    spawn_mp_forfeit_confirm(&mut commands);
+                }
                 MpPauseButtonAction::Disconnect => {
                     do_mp_disconnect(
                         &mut connection,
@@ -891,6 +900,111 @@ pub(super) fn handle_mp_pause_buttons(
                         &mut next_app_state,
                     );
                 }
+            }
+        }
+    }
+}
+
+/// Spawns the forfeit confirmation overlay (sits above the pause menu).
+fn spawn_mp_forfeit_confirm(commands: &mut Commands) {
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                row_gap: Val::Px(20.0),
+                ..default()
+            },
+            BackgroundColor(Color::BLACK.with_alpha(0.85)),
+            GlobalZIndex(600),
+            OnMpForfeitConfirm,
+            // Also `OnMpPauseScreen` so leaving the pause menu (Escape) cleans the
+            // confirmation overlay up alongside the menu.
+            OnMpPauseScreen,
+            OnMultiplayerGameScreen,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Forfeit the match?\nYour opponent wins."),
+                TextFont::from_font_size(32.0),
+                TextColor(TEXT_PRIMARY),
+                TextLayout::new_with_justify(Justify::Center),
+                Node {
+                    margin: UiRect::bottom(Val::Px(20.0)),
+                    ..default()
+                },
+            ));
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(20.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    spawn_button(
+                        row,
+                        "Forfeit",
+                        MpForfeitConfirmAction::Confirm,
+                        &PAUSE_BUTTON_STYLE,
+                    );
+                    spawn_button(
+                        row,
+                        "Cancel",
+                        MpForfeitConfirmAction::Cancel,
+                        &PAUSE_BUTTON_STYLE,
+                    );
+                });
+        });
+}
+
+/// Handles the forfeit confirmation Yes/No. The host forfeits authoritatively
+/// (guest wins); the guest tells the host and returns to Running so the host's
+/// `GameOver` drives its normal score-screen transition.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn handle_mp_forfeit_confirm(
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&MpForfeitConfirmAction>,
+    overlay: Query<Entity, With<OnMpForfeitConfirm>>,
+    mut commands: Commands,
+    mut connection: ResMut<NetworkConnection>,
+    mut game_outcome: ResMut<GameOutcome>,
+    mut next_mp_state: ResMut<NextState<MultiplayerGameState>>,
+    session: Res<MultiplayerSession>,
+    kill_stats: Res<KillStats>,
+    local_stats: Res<crate::game::multiplayer::score_stats::LocalWizardStats>,
+) {
+    use crate::networking::protocol::GameOverResult;
+    use crate::networking::resources::PeerRole;
+    for event in button_clicked.read() {
+        let Ok(action) = button_query.get(event.button) else {
+            continue;
+        };
+        match action {
+            MpForfeitConfirmAction::Cancel => {}
+            MpForfeitConfirmAction::Confirm => {
+                if session.role == PeerRole::Host {
+                    super::host_systems::end_mp_match(
+                        GameOverResult::GuestWins,
+                        &mut commands,
+                        &mut connection,
+                        &mut game_outcome,
+                        &mut next_mp_state,
+                        &kill_stats,
+                        &local_stats,
+                    );
+                } else {
+                    connection.outgoing_messages.push(NetworkMessage::Forfeit);
+                    next_mp_state.set(MultiplayerGameState::Running);
+                }
+            }
+        }
+        // Either choice closes the confirmation overlay.
+        for e in &overlay {
+            if let Ok(mut ec) = commands.get_entity(e) {
+                ec.try_despawn();
             }
         }
     }

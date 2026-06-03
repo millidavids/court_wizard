@@ -46,7 +46,10 @@ use crate::game::units::wizard::components::Spell;
 ///   host) — appended after `HandshakeVersion`.
 /// - 7: drops the unused `SwordcererAvatarRetreat` variant and trims
 ///   `CauldronBuffsSync` to the replicated scalars; removes `ExcremageFart`.
-pub const PROTOCOL_VERSION: u32 = 7;
+/// - 8: adds the `Forfeit` message (pause-menu forfeit, appended after
+///   `HandshakeVersion`) and the `UnitFlags::IN_MELEE` bit (so the guest hears
+///   melee battle ambience). Both additive; semantics only.
+pub const PROTOCOL_VERSION: u32 = 8;
 
 /// Messages sent over the reliable WebRTC data channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -245,6 +248,10 @@ pub enum NetworkMessage {
         shield_per_second: f32,
         speed_bonus: f32,
     },
+
+    /// Guest → host: the guest forfeited the match. The host ends the game with
+    /// itself as the winner and ships the resulting `GameOver` back.
+    Forfeit,
 }
 
 /// Discriminator for `NetworkMessage::ApplyStatusEffect`. Add new variants at
