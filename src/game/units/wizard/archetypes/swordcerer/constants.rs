@@ -73,10 +73,10 @@ pub(super) const AVATAR_MELEE_DAMAGE_MULTIPLIER: f32 = 0.25;
 pub(super) const SWORD_HIT_FLASH_DURATION: f32 = 0.12;
 
 /// Hitbox radius for the swordcerer avatar.
-pub(super) const AVATAR_HITBOX_RADIUS: f32 = 8.0 * UNIT_SCALE;
+pub(crate) const AVATAR_HITBOX_RADIUS: f32 = 8.0 * UNIT_SCALE;
 
 /// Hitbox height for the swordcerer avatar.
-pub(super) const AVATAR_HITBOX_HEIGHT: f32 = 25.0 * UNIT_SCALE;
+pub(crate) const AVATAR_HITBOX_HEIGHT: f32 = 25.0 * UNIT_SCALE;
 
 /// WASD acceleration strength for player-controlled movement.
 pub(super) const PLAYER_ACCELERATION: f32 = 2000.0;

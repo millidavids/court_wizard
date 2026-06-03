@@ -69,6 +69,8 @@ pub fn send_state_snapshots(
             Has<crate::game::units::wizard::spells::mark_of_death::components::ActiveMarkOfDeath>,
             Has<crate::game::units::status_effects::PoisonedModifier>,
             Has<crate::game::units::status_effects::PolymorphedModifier>,
+            Has<crate::game::units::status_effects::SmellyModifier>,
+            Has<crate::game::units::wizard::archetypes::swordcerer::components::SwordcererAvatar>,
         ),
     )>,
     arrows: Query<&Transform, With<Arrow>>,
@@ -100,7 +102,14 @@ pub fn send_state_snapshots(
         has_frost,
         has_electric,
         has_spell_shield,
-        (has_combat_animation, has_mark, has_poison, has_polymorph),
+        (
+            has_combat_animation,
+            has_mark,
+            has_poison,
+            has_polymorph,
+            has_smelly,
+            has_swordcerer_avatar,
+        ),
     ) in &units
     {
         snapshot.units.push(build_unit_snapshot(
@@ -122,6 +131,8 @@ pub fn send_state_snapshots(
             has_mark,
             has_poison,
             has_polymorph,
+            has_smelly,
+            has_swordcerer_avatar,
         ));
     }
 

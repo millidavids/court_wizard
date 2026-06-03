@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants;
 use super::messages::*;
-use super::resources::{CauldronAssets, CauldronBuffs};
+use super::resources::{CauldronArmyScalars, CauldronAssets, CauldronBuffs, RemoteCauldronBuffs};
 use crate::config::save_data::{load_unified_save, new_unified_save, save_unified};
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::input::messages::BlockSpellInput;
@@ -15,6 +15,8 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::telekinesis::components::TransmutationStacks;
 use crate::game::units::wizard::spells::telekinesis::constants::TRANSMUTATION_POTENCY_PER_STACK;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::networking::protocol::NetworkMessage;
+use crate::networking::resources::NetworkConnection;
 
 /// Loads the cauldron sprite sheet texture.
 pub fn load_cauldron_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -478,14 +480,23 @@ pub fn buff_defender_resistance(
 
 /// Applies or removes CauldronSpeedModifier on units based on active buffs.
 ///
-/// Defenders get a speed bonus (Meadowsweet), attackers/undead get a slow (Valerian).
+/// Defenders get a speed bonus (Meadowsweet), attackers/undead get a slow
+/// (Valerian). This is the SINGLE owner of `CauldronSpeedModifier` on every
+/// team: in multiplayer the guest Alchemist's Meadowsweet (replicated as
+/// `RemoteCauldronBuffs.speed_bonus`) speeds up the guest's own army
+/// (Team::Attackers), so the Attacker value is the NET of the guest's bonus and
+/// the host's Valerian slow. Keeping it in one system avoids two systems
+/// fighting over the same component each frame.
 pub fn apply_cauldron_speed_modifiers(
     mut commands: Commands,
     cauldron_buffs: Res<CauldronBuffs>,
+    remote: Res<RemoteCauldronBuffs>,
     units: Query<(Entity, &Team, Option<&CauldronSpeedModifier>), Without<Corpse>>,
 ) {
     let defender_bonus = cauldron_buffs.defender_speed_bonus();
     let attacker_slow = cauldron_buffs.attacker_slow_percent();
+    // The guest Alchemist's Meadowsweet buff, applied to the guest's army.
+    let attacker_bonus = remote.0.speed_bonus;
 
     for (entity, team, existing) in &units {
         let modifier = match team {
@@ -496,7 +507,14 @@ pub fn apply_cauldron_speed_modifiers(
                     None
                 }
             }
-            Team::Attackers | Team::Undead => {
+            // The guest's own (Attacker) army: their Meadowsweet bonus minus the
+            // host's Valerian slow.
+            Team::Attackers => {
+                let net = attacker_bonus - attacker_slow;
+                if net != 0.0 { Some(net) } else { None }
+            }
+            // Undead are nobody's brewed army — only the host's Valerian slow.
+            Team::Undead => {
                 if attacker_slow > 0.0 {
                     Some(-attacker_slow)
                 } else {
@@ -506,7 +524,9 @@ pub fn apply_cauldron_speed_modifiers(
         };
 
         if let Some(value) = modifier {
-            if existing.is_none() {
+            // Insert when absent OR when the net value changed (the combined
+            // Attacker value shifts as either side's buffs come and go).
+            if existing.map(|m| m.0) != Some(value) {
                 commands.entity(entity).insert(CauldronSpeedModifier(value));
             }
         } else if existing.is_some() {
@@ -524,6 +544,7 @@ pub fn cleanup_cauldron_buff_components(
     units: Query<
         (
             Entity,
+            &Team,
             Option<&CauldronDamageBonus>,
             Option<&CauldronDamageResistance>,
             Option<&CauldronSpeedModifier>,
@@ -533,7 +554,12 @@ pub fn cleanup_cauldron_buff_components(
     mut defenders: Query<(&mut Effectiveness, &Team), Without<Corpse>>,
     mut wizard: Query<&mut Mana, With<LocalWizard>>,
 ) {
-    for (entity, damage_bonus, resistance, speed_mod) in &units {
+    for (entity, team, damage_bonus, resistance, speed_mod) in &units {
+        // Only clean up the HOST's own (Defender) buffs. The guest's replicated
+        // Attacker buffs are managed by `apply_guest_army_buffs`.
+        if *team != Team::Defenders {
+            continue;
+        }
         if damage_bonus.is_some() {
             commands.entity(entity).remove::<CauldronDamageBonus>();
         }
@@ -597,11 +623,18 @@ pub fn apply_max_mana_buff(
     mut wizard: Query<&mut Mana, With<LocalWizard>>,
 ) {
     let multiplier = cauldron_buffs.max_mana_multiplier();
-    if multiplier <= 1.0 {
-        return;
-    }
     let base_max = crate::game::units::wizard::constants::MANA;
-    let new_max = base_max * multiplier;
+    // Set the cap from the buff, OR reset it to base when no max-mana buff is
+    // active. This system runs on BOTH multiplayer peers (the local wizard's
+    // mana is local state); the host-only `cleanup_cauldron_buff_components`
+    // never runs on the guest, so this self-contained reset is the only thing
+    // that restores the guest's mana cap after the buff expires. The
+    // change-guard below keeps it idempotent, so it's cheap to run every frame.
+    let new_max = if multiplier > 1.0 {
+        base_max * multiplier
+    } else {
+        base_max
+    };
     for mut mana in &mut wizard {
         if (mana.max - new_max).abs() > f32::EPSILON {
             mana.max = new_max;
@@ -621,6 +654,159 @@ pub fn buff_defender_effectiveness(
     for (mut effectiveness, team) in &mut defenders {
         if *team == Team::Defenders && (effectiveness.spell_bonus - bonus).abs() > f32::EPSILON {
             effectiveness.spell_bonus = bonus;
+        }
+    }
+}
+
+// ── Multiplayer: replicate the guest Alchemist's army buffs to the host ──────
+
+/// Guest → host: sends the local Alchemist's army-buff scalars whenever they
+/// change, so the host can apply them to the guest's army. No-op in
+/// single-player (no connection).
+pub fn send_cauldron_buffs_to_host(
+    cauldron_buffs: Res<CauldronBuffs>,
+    connection: Option<ResMut<NetworkConnection>>,
+    mut last_sent: Local<Option<CauldronArmyScalars>>,
+) {
+    let Some(mut connection) = connection else {
+        return;
+    };
+    let scalars = cauldron_buffs.army_scalars();
+    if *last_sent == Some(scalars) {
+        return;
+    }
+    *last_sent = Some(scalars);
+    connection
+        .outgoing_messages
+        .push(NetworkMessage::CauldronBuffsSync {
+            heal_per_second: scalars.heal_per_second,
+            damage_bonus: scalars.damage_bonus,
+            resistance_percent: scalars.resistance_percent,
+            shield_per_second: scalars.shield_per_second,
+            speed_bonus: scalars.speed_bonus,
+        });
+}
+
+/// Host: receives the guest Alchemist's army-buff scalars.
+pub fn receive_cauldron_buffs(
+    connection: Option<ResMut<NetworkConnection>>,
+    mut remote: ResMut<RemoteCauldronBuffs>,
+) {
+    let Some(mut connection) = connection else {
+        return;
+    };
+    if connection.incoming_messages.is_empty() {
+        return;
+    }
+    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let mut unhandled = Vec::new();
+    for msg in messages {
+        match msg {
+            NetworkMessage::CauldronBuffsSync {
+                heal_per_second,
+                damage_bonus,
+                resistance_percent,
+                shield_per_second,
+                speed_bonus,
+            } => {
+                remote.0 = CauldronArmyScalars {
+                    heal_per_second,
+                    damage_bonus,
+                    resistance_percent,
+                    shield_per_second,
+                    speed_bonus,
+                };
+            }
+            other => unhandled.push(other),
+        }
+    }
+    if !unhandled.is_empty() {
+        connection.incoming_messages.extend(unhandled);
+    }
+}
+
+/// Resets the replicated guest buffs at game start so a stale multiplayer value
+/// never buffs a single-player enemy army.
+pub fn reset_remote_cauldron_buffs(mut remote: ResMut<RemoteCauldronBuffs>) {
+    *remote = RemoteCauldronBuffs::default();
+}
+
+/// Host: applies the guest Alchemist's replicated buffs to the guest's army
+/// (Team::Attackers). Additive alongside the host's own Defender buffs and
+/// self-managing: it inserts/removes the buff components as the scalars change,
+/// so no separate cleanup pass is needed. Covers heal / shield / damage /
+/// resistance. The guest's Meadowsweet SPEED buff is handled separately by
+/// `apply_cauldron_speed_modifiers` (the single owner of `CauldronSpeedModifier`,
+/// to avoid two systems fighting over it). Effectiveness and the enemy-slow are
+/// not replicated — effectiveness would clobber poison's shared `spell_bonus`,
+/// and the enemy-slow is team-relative; both are minor.
+#[allow(clippy::type_complexity)]
+pub fn apply_guest_army_buffs(
+    time: Res<Time>,
+    remote: Res<RemoteCauldronBuffs>,
+    mut commands: Commands,
+    mut vitals: Query<
+        (Entity, &Team, &mut Health, Option<&mut TemporaryHitPoints>),
+        Without<Corpse>,
+    >,
+    component_q: Query<
+        (
+            Entity,
+            &Team,
+            Has<CauldronDamageBonus>,
+            Has<CauldronDamageResistance>,
+        ),
+        Without<Corpse>,
+    >,
+) {
+    let s = remote.0;
+    let heal = s.heal_per_second * time.delta_secs();
+    let shield = s.shield_per_second * time.delta_secs();
+    const MAX_SHIELD: f32 = 20.0;
+
+    for (entity, team, mut health, temp_hp) in &mut vitals {
+        if *team != Team::Attackers {
+            continue;
+        }
+        if s.heal_per_second > 0.0 {
+            health.heal(heal);
+        }
+        if s.shield_per_second > 0.0 {
+            match temp_hp {
+                Some(mut existing) => {
+                    existing.amount = (existing.amount + shield).min(MAX_SHIELD);
+                    existing.time_remaining = 5.0;
+                }
+                None => {
+                    commands
+                        .entity(entity)
+                        .insert(TemporaryHitPoints::new(shield, 5.0));
+                }
+            }
+        }
+    }
+
+    for (entity, team, has_damage, has_resistance) in &component_q {
+        if *team != Team::Attackers {
+            continue;
+        }
+        if s.damage_bonus > 0.0 {
+            if !has_damage {
+                commands
+                    .entity(entity)
+                    .insert(CauldronDamageBonus(s.damage_bonus));
+            }
+        } else if has_damage {
+            commands.entity(entity).remove::<CauldronDamageBonus>();
+        }
+        if s.resistance_percent > 0.0 {
+            if !has_resistance {
+                commands
+                    .entity(entity)
+                    .insert(CauldronDamageResistance(s.resistance_percent));
+            }
+        } else if has_resistance {
+            commands.entity(entity).remove::<CauldronDamageResistance>();
         }
     }
 }

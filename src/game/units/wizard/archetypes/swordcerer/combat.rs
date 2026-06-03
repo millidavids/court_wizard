@@ -87,7 +87,7 @@ pub(super) fn player_movement(
             &MovementSpeed,
             Option<&mut SwordcererFacing>,
         ),
-        With<SwordcererAvatar>,
+        (With<SwordcererAvatar>, Without<GuestControlledAvatar>),
     >,
     state: Res<SwordcererState>,
 ) {
@@ -156,34 +156,13 @@ pub(super) fn player_movement(
         }
     }
 
-    let dt = time.delta_secs();
-    let max_speed = speed.0;
-
-    // Apply acceleration from input
-    velocity.x += input_normalized.x * PLAYER_ACCELERATION * dt;
-    velocity.z += input_normalized.y * PLAYER_ACCELERATION * dt;
-
-    // Apply damping
-    let damping = PLAYER_DAMPING.powf(dt * 60.0);
-    velocity.x *= damping;
-    velocity.z *= damping;
-
-    // Clamp to max speed
-    let current_speed = (velocity.x * velocity.x + velocity.z * velocity.z).sqrt();
-    if current_speed > max_speed {
-        let scale = max_speed / current_speed;
-        velocity.x *= scale;
-        velocity.z *= scale;
-    }
-
-    // Apply velocity to position
-    transform.translation.x += velocity.x * dt;
-    transform.translation.z += velocity.z * dt;
-
-    // Clamp to battlefield bounds
-    let half_field = crate::game::constants::BATTLEFIELD_SIZE / 2.0;
-    transform.translation.x = transform.translation.x.clamp(-half_field, half_field);
-    transform.translation.z = transform.translation.z.clamp(-half_field, half_field);
+    apply_avatar_physics(
+        &mut transform,
+        &mut velocity,
+        input_normalized,
+        speed.0,
+        time.delta_secs(),
+    );
 }
 
 /// Handles LT / right-click magic missile firing from the swordcerer avatar.
@@ -202,7 +181,7 @@ pub(super) fn fire_missile(
             Option<&SwordcererMissileCooldown>,
             Option<&SwordcererFacing>,
         ),
-        With<SwordcererAvatar>,
+        (With<SwordcererAvatar>, Without<GuestControlledAvatar>),
     >,
     targets: Query<(Entity, &Transform, &Team), (Without<SwordcererAvatar>, Without<Corpse>)>,
     sfx: Res<SpellSfxAssets>,
@@ -233,71 +212,22 @@ pub(super) fn fire_missile(
         return;
     }
 
-    let spawn_pos = avatar_transform.translation + Vec3::new(0.0, 30.0, 0.0);
-
     let facing_vec = facing.copied().unwrap_or_default().0;
     let direction = Vec3::new(facing_vec.x, 0.0, facing_vec.y).normalize_or_zero();
 
-    let initial_velocity = direction * MISSILE_SPEED;
-
-    // Find nearest enemy target
-    let target = targets
-        .iter()
-        .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
-        .min_by(|a, b| {
-            let dist_a = spawn_pos.distance(a.1.translation);
-            let dist_b = spawn_pos.distance(b.1.translation);
-            dist_a
-                .partial_cmp(&dist_b)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        })
-        .map(|(e, _, _)| e);
-
-    use crate::game::units::wizard::spells::magic_missile::components::{
-        MagicMissile, TargetTeams,
-    };
-
-    let mut missile = MagicMissile::new(
-        initial_velocity,
-        0.0,
-        target,
-        1.0,
-        TargetTeams::AttackersAndUndead,
-        3000.0,
-        spawn_pos,
-    );
-    missile.damage = MISSILE_DAMAGE;
-    missile.base_homing_strength = MISSILE_HOMING_STRENGTH;
-
-    commands.spawn((
-        Mesh3d(visual_assets.magic_missile_mesh.clone()),
-        MeshMaterial3d(visual_assets.magic_missile.clone()),
-        Transform::from_translation(spawn_pos),
-        missile,
-        OnGameplayScreen,
-    ));
-
-    audio::play_sfx(
+    // The host's own avatar is always on the Defenders team.
+    spawn_avatar_missile(
         &mut commands,
-        &sfx.magic_missile_cast,
-        spawn_pos,
-        &config,
+        &visual_assets,
         &sfx,
+        &config,
+        &swordcerer_assets,
+        &targets,
+        avatar_entity,
+        avatar_transform.translation,
+        direction,
+        Team::Defenders,
     );
-
-    // Trigger casting animation
-    commands.entity(avatar_entity).insert(
-        crate::game::units::components::CombatAnimation::new_casting(
-            swordcerer_assets.casting_texture.clone(),
-            swordcerer_assets.sprite_texture.clone(),
-        ),
-    );
-
-    commands
-        .entity(avatar_entity)
-        .insert(SwordcererMissileCooldown {
-            remaining: MISSILE_COOLDOWN,
-        });
 }
 
 /// Handles RT / left-click sword swing from the swordcerer avatar.
@@ -317,10 +247,11 @@ pub(super) fn sword_swing(
             Option<&SwordcererSwordCooldown>,
             Option<&SwordcererFacing>,
         ),
-        With<SwordcererAvatar>,
+        (With<SwordcererAvatar>, Without<GuestControlledAvatar>),
     >,
     state: Res<SwordcererState>,
     swordcerer_assets: Res<SwordcererAssets>,
+    mut pending: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
     if state.phase != SwordcererPhase::OnField {
         return;
@@ -343,37 +274,25 @@ pub(super) fn sword_swing(
 
     let direction = facing.copied().unwrap_or_default().0.normalize_or_zero();
 
-    let arc_mesh = meshes.add(build_arc_strip_mesh(
-        direction,
-        SWORD_ARC_RADIUS,
-        SWORD_ARC_HALF_ANGLE,
-        SWORD_ARC_THICKNESS,
-        SWORD_ARC_SEGMENTS,
-    ));
-
-    // Per-instance material — alpha fades over the arc's lifetime, so each
-    // swing needs its own handle.
-    let material = materials.add(StandardMaterial {
-        base_color: Color::WHITE,
-        alpha_mode: AlphaMode::Blend,
-        unlit: true,
-        cull_mode: None,
-        ..default()
-    });
-
     let arc_pos = Vec3::new(avatar_pos.x, 2.0, avatar_pos.z);
 
-    commands.spawn((
-        Mesh3d(arc_mesh),
-        MeshMaterial3d(material),
-        Transform::from_translation(arc_pos).with_scale(Vec3::splat(SWORD_ARC_MIN_SCALE)),
-        SwordArc {
-            time_alive: 0.0,
-            duration: SWORD_ARC_DURATION,
-            direction,
-        },
-        OnGameplayScreen,
-    ));
+    spawn_sword_arc(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        arc_pos,
+        direction,
+        false,
+    );
+
+    // Replicate the swing to the opponent (visual only — damage crosses via CRDT).
+    crate::game::multiplayer::spell_sync::emit_cast_event(
+        &mut pending,
+        crate::networking::snapshot::CastEventKind::SwordArc,
+        0,
+        arc_pos,
+        [direction.x, direction.y, 0.0, 0.0],
+    );
 
     // Lunge the avatar toward the cursor via velocity impulse
     velocity.x += direction.x * SWORD_LUNGE_SPEED;
@@ -394,6 +313,115 @@ pub(super) fn sword_swing(
         });
 }
 
+/// Shared avatar movement physics — acceleration, damping, max-speed clamp, and
+/// battlefield-bounds clamp. Used by both the host's own avatar
+/// (`player_movement`) and the guest-controlled avatar
+/// (`networking::apply_guest_avatar_input`) so they move identically.
+pub(super) fn apply_avatar_physics(
+    transform: &mut Transform,
+    velocity: &mut Velocity,
+    input_dir: Vec2,
+    max_speed: f32,
+    dt: f32,
+) {
+    velocity.x += input_dir.x * PLAYER_ACCELERATION * dt;
+    velocity.z += input_dir.y * PLAYER_ACCELERATION * dt;
+
+    let damping = PLAYER_DAMPING.powf(dt * 60.0);
+    velocity.x *= damping;
+    velocity.z *= damping;
+
+    let current_speed = (velocity.x * velocity.x + velocity.z * velocity.z).sqrt();
+    if current_speed > max_speed {
+        let scale = max_speed / current_speed;
+        velocity.x *= scale;
+        velocity.z *= scale;
+    }
+
+    transform.translation.x += velocity.x * dt;
+    transform.translation.z += velocity.z * dt;
+
+    let half_field = crate::game::constants::BATTLEFIELD_SIZE / 2.0;
+    transform.translation.x = transform.translation.x.clamp(-half_field, half_field);
+    transform.translation.z = transform.translation.z.clamp(-half_field, half_field);
+}
+
+/// Spawns a homing magic missile from a Swordcerer avatar toward the nearest
+/// enemy unit, plays the cast SFX, and starts the avatar's casting animation +
+/// missile cooldown. Shared by the host's own avatar (`fire_missile`) and the
+/// guest-controlled avatar (`networking::apply_guest_avatar_input`). The enemy
+/// teams are derived from the avatar's own team, so a host (Defenders) avatar
+/// targets Attackers/Undead and a guest (Attackers) avatar targets
+/// Defenders/Undead. Any mana cost is handled by the caller.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn spawn_avatar_missile(
+    commands: &mut Commands,
+    visual_assets: &SpellVisualAssets,
+    sfx: &SpellSfxAssets,
+    config: &GameConfig,
+    swordcerer_assets: &SwordcererAssets,
+    targets: &Query<(Entity, &Transform, &Team), (Without<SwordcererAvatar>, Without<Corpse>)>,
+    avatar_entity: Entity,
+    avatar_pos: Vec3,
+    direction: Vec3,
+    avatar_team: Team,
+) {
+    use crate::game::units::wizard::spells::magic_missile::components::{MagicMissile, TargetTeams};
+
+    // Enemies are the opposing army plus the always-hostile Undead.
+    let (target_teams, enemy_army) = match avatar_team {
+        Team::Defenders => (TargetTeams::AttackersAndUndead, Team::Attackers),
+        _ => (TargetTeams::DefendersAndUndead, Team::Defenders),
+    };
+
+    let spawn_pos = avatar_pos + Vec3::new(0.0, 30.0, 0.0);
+    let target = targets
+        .iter()
+        .filter(|(_, _, team)| **team == enemy_army || **team == Team::Undead)
+        .min_by(|a, b| {
+            spawn_pos
+                .distance(a.1.translation)
+                .partial_cmp(&spawn_pos.distance(b.1.translation))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .map(|(e, _, _)| e);
+
+    let mut missile = MagicMissile::new(
+        direction * MISSILE_SPEED,
+        0.0,
+        target,
+        1.0,
+        target_teams,
+        3000.0,
+        spawn_pos,
+    );
+    missile.damage = MISSILE_DAMAGE;
+    missile.base_homing_strength = MISSILE_HOMING_STRENGTH;
+
+    commands.spawn((
+        Mesh3d(visual_assets.magic_missile_mesh.clone()),
+        MeshMaterial3d(visual_assets.magic_missile.clone()),
+        Transform::from_translation(spawn_pos),
+        missile,
+        OnGameplayScreen,
+    ));
+
+    audio::play_sfx(commands, &sfx.magic_missile_cast, spawn_pos, config, sfx);
+
+    commands.entity(avatar_entity).insert(
+        crate::game::units::components::CombatAnimation::new_casting(
+            swordcerer_assets.casting_texture.clone(),
+            swordcerer_assets.sprite_texture.clone(),
+        ),
+    );
+
+    commands
+        .entity(avatar_entity)
+        .insert(SwordcererMissileCooldown {
+            remaining: MISSILE_COOLDOWN,
+        });
+}
+
 /// Updates sword arc visuals (rapid grow + fade) and checks collisions with
 /// enemies on the first frame.
 #[allow(clippy::too_many_arguments)]
@@ -406,6 +434,7 @@ pub(super) fn update_sword_arcs(
         &mut SwordArc,
         &mut Transform,
         &MeshMaterial3d<StandardMaterial>,
+        Has<GhostSwordArc>,
     )>,
     mut targets: Query<
         (
@@ -424,8 +453,9 @@ pub(super) fn update_sword_arcs(
 ) {
     let dt = time.delta_secs();
     let cos_half_angle = SWORD_ARC_HALF_ANGLE.cos();
-    for (arc_entity, mut arc, mut arc_transform, mat_handle) in &mut arc_query {
-        let just_spawned = arc.is_added();
+    for (arc_entity, mut arc, mut arc_transform, mat_handle, is_ghost) in &mut arc_query {
+        // Ghost arcs (the opponent's replicated swing) are visual-only.
+        let just_spawned = arc.is_added() && !is_ghost;
         arc.time_alive += dt;
 
         let grow_t = (arc.time_alive / SWORD_ARC_GROW_DURATION).clamp(0.0, 1.0);
@@ -542,4 +572,46 @@ fn build_arc_strip_mesh(
     mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
     mesh.insert_indices(Indices::U32(indices));
     mesh
+}
+
+/// Spawns a sword-swing arc (grow + fade visual). Shared by the local
+/// `sword_swing` (`ghost = false`) and the opponent's replicated swing
+/// (`ghost = true`, tagged `GhostSwordArc` so it deals no damage).
+pub(crate) fn spawn_sword_arc(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    pos: Vec3,
+    direction: Vec2,
+    ghost: bool,
+) {
+    let arc_mesh = meshes.add(build_arc_strip_mesh(
+        direction,
+        SWORD_ARC_RADIUS,
+        SWORD_ARC_HALF_ANGLE,
+        SWORD_ARC_THICKNESS,
+        SWORD_ARC_SEGMENTS,
+    ));
+    // Per-instance material — alpha fades over the arc's lifetime.
+    let material = materials.add(StandardMaterial {
+        base_color: Color::WHITE,
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        cull_mode: None,
+        ..default()
+    });
+    let mut entity = commands.spawn((
+        Mesh3d(arc_mesh),
+        MeshMaterial3d(material),
+        Transform::from_translation(pos).with_scale(Vec3::splat(SWORD_ARC_MIN_SCALE)),
+        SwordArc {
+            time_alive: 0.0,
+            duration: SWORD_ARC_DURATION,
+            direction,
+        },
+        OnGameplayScreen,
+    ));
+    if ghost {
+        entity.insert(GhostSwordArc);
+    }
 }

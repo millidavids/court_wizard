@@ -27,6 +27,21 @@ pub struct SwordArc {
     pub direction: Vec2,
 }
 
+/// Marks a sword arc that is a visual-only ghost of the opponent's swing
+/// (spawned from a replicated cast event). Excluded from `update_sword_arcs`'
+/// damage pass — the real damage already crosses via CRDT.
+#[derive(Component)]
+pub struct GhostSwordArc;
+
+/// Marks the host-spawned avatar that the GUEST controls (Team::Attackers). The
+/// host's own local-input systems (player_movement / fire_missile / sword_swing /
+/// check_avatar_death) filter this out with `Without<GuestControlledAvatar>` so a
+/// Swordcerer-vs-Swordcerer match — where the host owns TWO avatars — doesn't
+/// break their `single()` queries; the guest's avatar is driven by
+/// `apply_guest_avatar_input` instead.
+#[derive(Component)]
+pub struct GuestControlledAvatar;
+
 /// Cooldown tracker for swordcerer missile attacks.
 #[derive(Component)]
 pub struct SwordcererMissileCooldown {

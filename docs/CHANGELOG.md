@@ -6,8 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **The game clock now appears during multiplayer** — if you have the clock turned on in settings, it now shows in the top-right corner during multiplayer matches too, not just single-player — handy for keeping an eye on the 90-second shield timer.
+- **The Meteorologist can control the weather in multiplayer** — as either player you can now summon storms, blizzards, and droughts, and both players see the rain, snow, and heat-haze roll across the battlefield.
+- **The Swordcerer can take the field in multiplayer** — both players can now send their wizard onto the battlefield as a sword-fighting avatar (move with WASD or a controller stick, and swing or fire with the mouse buttons or triggers), take damage and die out there, and each player sees the other's avatar charging around and fighting.
 
 ### Changed
+- **Every wizard type has been overhauled to work in multiplayer** — most of the wizard classes had only ever been tested in single-player. They've all been gone through and fixed so they play correctly in head-to-head matches for both players (see the fixes below).
+- **The Psychopath wizard is not available in multiplayer** — its goal of sacrificing its own army to win doesn't make sense in a match against another player, so it's been removed from the multiplayer wizard list.
 - **Annihilation beam now costs far less mana** — because the annihilation beam is locked in place and can't be swept around like the normal beam, it now costs much less mana to keep firing instead of more. Works in both single-player and multiplayer.
 - **Arcane Barrage fires twice as fast** — once it's active, the auto-firing missile barrage now sends out its volleys twice as often. Works in both single-player and multiplayer.
 - **You can no longer teleport your own King in multiplayer** — teleporting the King out of reach was being used to play keep-away and drag matches out forever. The King now stays put; everything else still teleports normally. (Single-player is unchanged.)
@@ -15,6 +19,11 @@ All notable changes to this project will be documented in this file.
 - **Escape now leaves a finished multiplayer match** — on the results screen after a multiplayer game, pressing Escape disconnects and returns you to the main menu, the same as clicking Disconnect.
 
 ### Fixed
+- **The Warglock's guns work properly in multiplayer now** — the gun-slinging wizard would fire a single shot and then start casting a spell instead. All five guns now fire, reload, and keep shooting normally, and the other player can see the gunfire, muzzle flashes, and flames.
+- **The Excremage's spells look and act right in multiplayer** — its spells now turn the proper messy brown color and leave hit enemies stinking (so their own allies back away from them). The other player now sees the brown spells and the stink on their units too.
+- **The Rune Caster and Randomancer now work for the joining player** — as the second player, building rune combinations and spinning the spell wheel did nothing at all. Both now work exactly like they do for the host.
+- **The Alchemist's cauldron now works for the joining player** — as the second player, a brew would start but never complete. Brews now finish, and the boosts they grant — healing, shielding, extra damage, toughness, and speed — now reach your army.
+- **The Shepherd gets its support boost in multiplayer** — the support-focused wizard's stronger healing and buffs now apply in multiplayer matches, not just single-player.
 - **The disintegration beam's sparks and smoke now show up for the other player** — the burst of sparks and the smoke where the beam scorches the ground were missing on the other player's screen. They now appear for both players.
 - **Chain Lightning's Magnetic Pull now pulls on every cast for the second player** — as the joining player, the upgrade that yanks struck enemies toward the lightning often didn't pull them at all. It now pulls every time you cast, just like it does for the host.
 - **Spell and battle sounds now stop when the multiplayer results screen appears** — a lingering beam, weather, or battle-ambience sound could keep playing over the scoreboard. They now cut out the moment the match ends, the same as in single-player.

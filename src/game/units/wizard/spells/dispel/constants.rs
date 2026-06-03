@@ -110,6 +110,8 @@ pub fn spell_effect_mana_cost(kind: crate::networking::snapshot::SpellEffectKind
         // Boulders are physical projectiles / obstacles, not magic spells,
         // so Mana Drain doesn't refund mana for them.
         | SpellEffectKind::BoulderProjectileEffect
-        | SpellEffectKind::BoulderObstacle => 0.0, // Not dispellable (or self-dispel)
+        | SpellEffectKind::BoulderObstacle
+        // Warglock flamethrower ground fire is a gun effect, not a spell.
+        | SpellEffectKind::FlameGroundFire => 0.0, // Not dispellable (or self-dispel)
     }
 }

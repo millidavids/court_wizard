@@ -16,6 +16,38 @@ pub struct CauldronBuffs {
     pub active_buffs: Vec<ActiveBuff>,
 }
 
+/// The army-affecting cauldron buff scalars (no `ActiveBuff` list needed).
+/// Used to replicate the GUEST Alchemist's brews to the host so the host can
+/// apply them to the guest's army; multiplayer-only.
+#[derive(Resource, Debug, Clone, Copy, Default, PartialEq)]
+pub struct CauldronArmyScalars {
+    pub heal_per_second: f32,
+    pub damage_bonus: f32,
+    pub resistance_percent: f32,
+    pub shield_per_second: f32,
+    pub speed_bonus: f32,
+}
+
+impl CauldronBuffs {
+    /// Snapshots the army-affecting scalars for replication. (Effectiveness and
+    /// enemy-slow are not replicated — see `NetworkMessage::CauldronBuffsSync`.)
+    pub fn army_scalars(&self) -> CauldronArmyScalars {
+        CauldronArmyScalars {
+            heal_per_second: self.defender_heal_per_second(),
+            damage_bonus: self.defender_damage_bonus(),
+            resistance_percent: self.damage_resistance_percent(),
+            shield_per_second: self.defender_shield_per_second(),
+            speed_bonus: self.defender_speed_bonus(),
+        }
+    }
+}
+
+/// The remote (guest) Alchemist's army-buff scalars, received on the host and
+/// applied to the guest's army. Empty (all-zero) when the guest isn't an
+/// Alchemist or in single-player.
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct RemoteCauldronBuffs(pub CauldronArmyScalars);
+
 impl CauldronBuffs {
     /// Applies a recipe's effects as a new active buff, optionally amplified by a potency multiplier.
     /// A potency of 1.0 applies effects at their base strength.

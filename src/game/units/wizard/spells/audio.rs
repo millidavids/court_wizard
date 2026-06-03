@@ -276,6 +276,14 @@ pub(crate) fn lookup_sfx_handle<'a>(
         SpellSoundId::BoulderImpact => &sfx.boulder_impact,
         SpellSoundId::RayEyeDeath => &sfx.ray_eye_death,
         SpellSoundId::DisintegrateChannel => &sfx.disintegrate_channel,
+        SpellSoundId::MachineGunShot => &sfx.machine_gun_shot,
+        SpellSoundId::MagnumShot => &sfx.magnum_shot,
+        SpellSoundId::ShotgunShot => &sfx.shotgun_shot,
+        SpellSoundId::RocketShot => &sfx.rocket_launcher_shot,
+        // Flamethrower uses the same looping channel sound locally; reuse it for
+        // the cross-peer burst cue.
+        SpellSoundId::FlamethrowerBurst => &sfx.disintegrate_channel,
+        SpellSoundId::WeatherLightningStrike => &sfx.lightning_rod_impact,
     }
 }
 
@@ -379,10 +387,22 @@ pub(crate) fn play_remote_sfx(
     volume_scale: f32,
     game_config: &GameConfig,
     sfx_assets: &SpellSfxAssets,
+    caster_is_excremage: bool,
 ) {
     let handle = lookup_sfx_handle(sound_id, sfx_assets);
     let kind = sound_id_kind(sound_id);
-    let effective = resolve_excremage_handle(handle, kind, game_config, sfx_assets);
+    // Substitute the Excremage fart/grease sounds when the REMOTE caster is an
+    // Excremage (so the opponent's spells sound right on this screen too), as
+    // well as via the normal local-config path.
+    let effective = if caster_is_excremage {
+        match kind {
+            SfxKind::Cast => &sfx_assets.fart_cast,
+            SfxKind::Impact => &sfx_assets.grease_cast,
+            SfxKind::Channel => &sfx_assets.fart_channeling,
+        }
+    } else {
+        resolve_excremage_handle(handle, kind, game_config, sfx_assets)
+    };
     play_sfx_scaled(commands, effective, effect_pos, game_config, volume_scale);
 }
 

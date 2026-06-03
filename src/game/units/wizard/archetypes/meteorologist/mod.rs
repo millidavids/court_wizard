@@ -2,6 +2,7 @@ pub(crate) mod components;
 pub(crate) mod constants;
 mod effects;
 pub(crate) mod messages;
+mod networking;
 mod plugin;
 pub(crate) mod resources;
 mod state;

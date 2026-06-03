@@ -30,6 +30,24 @@ pub struct MultiplayerSession {
     pub guest_spells: Vec<Spell>,
 }
 
+impl MultiplayerSession {
+    /// This peer's own wizard type.
+    pub fn local_wizard(&self) -> WizardType {
+        match self.role {
+            PeerRole::Host => self.host_wizard,
+            PeerRole::Guest => self.guest_wizard,
+        }
+    }
+
+    /// The opponent's wizard type from this peer's perspective.
+    pub fn remote_wizard(&self) -> WizardType {
+        match self.role {
+            PeerRole::Host => self.guest_wizard,
+            PeerRole::Guest => self.host_wizard,
+        }
+    }
+}
+
 /// Returns true when in a multiplayer game as the host.
 pub fn is_multiplayer_host(session: Option<Res<MultiplayerSession>>) -> bool {
     session.is_some_and(|s| s.role == PeerRole::Host)

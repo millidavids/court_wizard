@@ -61,7 +61,27 @@ impl Plugin for MultiplayerGamePlugin {
         app.add_systems(OnExit(AppState::MultiplayerGame), loading::restore_camera);
 
         // ── Resource Init / Cleanup ──────────────────────────────────
-        app.add_systems(OnEnter(AppState::MultiplayerGame), init_mp_game);
+        // Sync the local wizard type from the session FIRST, so every archetype
+        // run-condition (`is_warglock`, `is_meteorologist`, …) and the systems
+        // gated on them evaluate against the wizard actually being played. Other
+        // archetype-gated `OnEnter(MultiplayerGame)` systems are ordered
+        // `.after(systems::sync_wizard_type_from_session)`.
+        app.add_systems(
+            OnEnter(AppState::MultiplayerGame),
+            (
+                super::systems::sync_wizard_type_from_session,
+                init_mp_game,
+                // Excremage recolors the shared spell materials brown. The SP path
+                // only does this on `OnEnter(AppState::Loading)`, which never fires
+                // for an MP match — so re-run it here, AFTER the wizard type is
+                // synced. The system is idempotent and self-restoring (it skips a
+                // no-op and un-browns when the type isn't Excremage), so it's safe
+                // ungated and also handles a non-Excremage MP match after an
+                // Excremage one.
+                crate::game::units::wizard::spells::visual_assets::refresh_spell_visuals_for_wizard,
+            )
+                .chain(),
+        );
         app.add_systems(OnExit(AppState::MultiplayerGame), cleanup_mp_game);
 
         // ── Cancel casts on exit Running ─────────────────────────────
@@ -157,9 +177,18 @@ impl Plugin for MultiplayerGamePlugin {
                 // Regenerate disintegrate beam-tip VFX for the opposing client's
                 // ghost beam (runs on both peers; the ghost has no DisintegrateBeam).
                 spell_sync::spawn_ghost_beam_impact_vfx,
+                // Brown the opponent's spell ghosts when they're an Excremage
+                // (per-entity material clone — never touches our own spells).
+                super::excremage_theming::theme_remote_excremage_ghosts
+                    .run_if(super::excremage_theming::is_remote_excremage),
             )
                 .chain()
                 .run_if(mp_running),
+        );
+        app.init_resource::<super::excremage_theming::ExcremageGhostMaterials>();
+        app.add_systems(
+            OnExit(AppState::MultiplayerGame),
+            super::excremage_theming::clear_excremage_ghost_materials,
         );
 
         // Outgoing one-shot cast VFX events. Casting handlers push to this
@@ -192,6 +221,15 @@ impl Plugin for MultiplayerGamePlugin {
                 guest_systems::send_crdt_snapshot,
             )
                 .chain()
+                // `apply_state_snapshot` shares `ResMut<Assets<StandardMaterial>>`
+                // with the ghost-spawning spell-sync systems above. Order it after
+                // them so the material-pool writes have a deterministic order (no
+                // schedule ambiguity) on the guest. `apply_remote_cast_events` runs
+                // after `apply_remote_spell_snapshot` in its own chain, so this
+                // covers that one transitively; the Excremage theming pass is the
+                // only other StandardMaterial writer and is named explicitly.
+                .after(spell_sync::apply_remote_cast_events)
+                .after(super::excremage_theming::theme_remote_excremage_ghosts)
                 .run_if(mp_running.and(is_multiplayer_guest)),
         );
 

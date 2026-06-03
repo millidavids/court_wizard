@@ -74,7 +74,12 @@ pub fn fire_machine_gun(
         shot_dir * constants::MACHINE_GUN_BULLET_SPEED,
         range,
     );
-    spawn_muzzle_flash(&mut commands, &visual_assets, gun_spawn_pos());
+    spawn_muzzle_flash(
+        &mut commands,
+        &visual_assets,
+        gun_spawn_pos(),
+        GunType::MachineGun,
+    );
 
     ammo.current -= 1;
     ammo.fire_cooldown = constants::MACHINE_GUN_FIRE_INTERVAL;
@@ -132,7 +137,12 @@ pub fn fire_magnum(
         dir * constants::MAGNUM_BULLET_SPEED,
         range,
     );
-    spawn_muzzle_flash(&mut commands, &visual_assets, gun_spawn_pos());
+    spawn_muzzle_flash(
+        &mut commands,
+        &visual_assets,
+        gun_spawn_pos(),
+        GunType::Magnum,
+    );
 
     ammo.current -= 1;
     ammo.fire_cooldown = constants::MAGNUM_FIRE_INTERVAL;
@@ -191,7 +201,12 @@ pub fn fire_rocket(
         constants::ROCKET_RADIUS * 2.0,
     );
 
-    spawn_muzzle_flash(&mut commands, &visual_assets, gun_spawn_pos());
+    spawn_muzzle_flash(
+        &mut commands,
+        &visual_assets,
+        gun_spawn_pos(),
+        GunType::RocketLauncher,
+    );
 
     ammo.current -= 1;
     ammo.fire_cooldown = constants::ROCKET_FIRE_INTERVAL;
@@ -257,7 +272,12 @@ pub fn fire_shotgun(
         );
     }
 
-    spawn_muzzle_flash(&mut commands, &visual_assets, gun_spawn_pos());
+    spawn_muzzle_flash(
+        &mut commands,
+        &visual_assets,
+        gun_spawn_pos(),
+        GunType::Shotgun,
+    );
 
     ammo.current -= 1;
     ammo.fire_cooldown = constants::SHOTGUN_FIRE_INTERVAL;
@@ -529,7 +549,9 @@ pub fn emit_flame_ground_fire_vfx(
 /// Check flame particle collisions with enemies — apply tick damage.
 pub fn check_flame_collisions(
     mut commands: Commands,
-    flames: Query<(&Transform, &FlameParticle)>,
+    // Ghost flames (opponent's flamethrower, replicated for visuals) deal no
+    // damage — the real damage already crosses via CRDT.
+    flames: Query<(&Transform, &FlameParticle), Without<GhostFlameParticle>>,
     mut enemies: Query<
         (
             Entity,
@@ -579,15 +601,17 @@ pub fn check_flame_collisions(
 /// Despawn flame particles on ground contact or expiry, spawn burning ground AOE on impact.
 pub fn despawn_expired_flames(
     mut commands: Commands,
-    flames: Query<(Entity, &Transform, &FlameParticle)>,
+    flames: Query<(Entity, &Transform, &FlameParticle, Has<GhostFlameParticle>)>,
 ) {
-    for (entity, transform, flame) in &flames {
+    for (entity, transform, flame, is_ghost) in &flames {
         let hit_ground = transform.translation.y <= 1.0;
         let expired = flame.time_alive >= flame.lifetime;
 
         if hit_ground || expired {
-            // Spawn burning ground AOE on ground contact
-            if hit_ground {
+            // Spawn burning ground AOE on ground contact — but NOT for ghost
+            // flames: the opponent receives the burning patch as a networked
+            // spell effect, so spawning it here too would double it.
+            if hit_ground && !is_ghost {
                 let pos = Vec3::new(transform.translation.x, 1.5, transform.translation.z);
                 let mut ground_fire = FireballExplosion::new(
                     pos,
@@ -656,43 +680,54 @@ fn spawn_hitscan_ray(
     ));
 }
 
-fn spawn_tracer(
+pub(super) fn spawn_tracer(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     position: Vec3,
     velocity: Vec3,
     max_range: f32,
-) {
+) -> Entity {
     // Orient the cylinder along the velocity direction for a bullet-line look
     let dir = velocity.normalize_or_zero();
     let rotation = Quat::from_rotation_arc(Vec3::Y, dir);
-    commands.spawn((
-        Mesh3d(assets.cross_plane_cylinder.clone()),
-        MeshMaterial3d(assets.bullet_tracer.clone()),
-        Transform::from_translation(position)
-            .with_rotation(rotation)
-            .with_scale(Vec3::new(
-                constants::BULLET_RADIUS,
-                constants::BULLET_LENGTH,
-                constants::BULLET_RADIUS,
-            )),
-        BulletTracer {
-            velocity,
-            max_range,
-            origin: position,
-        },
-        OnGameplayScreen,
-    ));
+    commands
+        .spawn((
+            Mesh3d(assets.cross_plane_cylinder.clone()),
+            MeshMaterial3d(assets.bullet_tracer.clone()),
+            Transform::from_translation(position)
+                .with_rotation(rotation)
+                .with_scale(Vec3::new(
+                    constants::BULLET_RADIUS,
+                    constants::BULLET_LENGTH,
+                    constants::BULLET_RADIUS,
+                )),
+            BulletTracer {
+                velocity,
+                max_range,
+                origin: position,
+            },
+            OnGameplayScreen,
+        ))
+        .id()
 }
 
-fn spawn_muzzle_flash(commands: &mut Commands, assets: &SpellVisualAssets, position: Vec3) {
-    commands.spawn((
-        Mesh3d(assets.cross_plane_sphere.clone()),
-        MeshMaterial3d(assets.fireball_projectile.clone()),
-        Transform::from_translation(position).with_scale(Vec3::splat(constants::MUZZLE_FLASH_SIZE)),
-        MuzzleFlash {
-            timer: constants::MUZZLE_FLASH_DURATION,
-        },
-        OnGameplayScreen,
-    ));
+pub(super) fn spawn_muzzle_flash(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    position: Vec3,
+    gun: GunType,
+) -> Entity {
+    commands
+        .spawn((
+            Mesh3d(assets.cross_plane_sphere.clone()),
+            MeshMaterial3d(assets.fireball_projectile.clone()),
+            Transform::from_translation(position)
+                .with_scale(Vec3::splat(constants::MUZZLE_FLASH_SIZE)),
+            MuzzleFlash {
+                timer: constants::MUZZLE_FLASH_DURATION,
+                gun,
+            },
+            OnGameplayScreen,
+        ))
+        .id()
 }

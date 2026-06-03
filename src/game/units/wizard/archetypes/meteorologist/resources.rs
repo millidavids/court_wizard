@@ -47,6 +47,25 @@ impl WeatherType {
             WeatherType::Drought,
         ]
     }
+
+    /// Stable wire ordinal for multiplayer replication.
+    pub const fn to_u8(self) -> u8 {
+        match self {
+            WeatherType::Storm => 0,
+            WeatherType::Blizzard => 1,
+            WeatherType::Drought => 2,
+        }
+    }
+
+    /// Inverse of [`WeatherType::to_u8`].
+    pub const fn from_u8(value: u8) -> Option<WeatherType> {
+        match value {
+            0 => Some(WeatherType::Storm),
+            1 => Some(WeatherType::Blizzard),
+            2 => Some(WeatherType::Drought),
+            _ => None,
+        }
+    }
 }
 
 /// Global weather state managed by the Meteorologist.

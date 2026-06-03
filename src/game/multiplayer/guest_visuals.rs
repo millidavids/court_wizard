@@ -873,6 +873,32 @@ pub(super) fn spawn_spell_effect(
                     .id(),
             )
         }
+        // Warglock flamethrower ground fire — an invisible `FireballExplosion`
+        // plus the `FlameGroundFire` marker that drives the fire/smoke puffs via
+        // `emit_flame_ground_fire_vfx` (which runs on both peers). The host owns
+        // the gameplay (`GhostSpellEffect` keeps the guest from re-applying it).
+        SpellEffectKind::FlameGroundFire => {
+            let ground_pos = Vec3::new(pos.x, 1.5, pos.z);
+            let mut explosion = FireballExplosion::new(
+                ground_pos,
+                extra[0],
+                0.0,
+                crate::game::units::DamageType::Fire,
+                1.0,
+            );
+            explosion.duration = extra[1];
+            explosion.skip_growth = true;
+            Some(
+                commands
+                    .spawn((
+                        Transform::from_translation(ground_pos),
+                        explosion,
+                        crate::game::units::wizard::archetypes::gunslinger::FlameGroundFire,
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
+        }
     }
 }
 

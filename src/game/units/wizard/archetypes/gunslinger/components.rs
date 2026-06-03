@@ -102,8 +102,32 @@ pub struct FlameParticle {
     pub radius: f32,
 }
 
+/// Marks a flame particle that is a visual-only ghost of the opponent's
+/// flamethrower (spawned from a replicated cast event). Excluded from
+/// `check_flame_collisions` (no double damage — the real damage already crosses
+/// via CRDT) and from the ground-fire spawn in `despawn_expired_flames` (the
+/// burning patch arrives separately as a networked spell effect).
+#[derive(Component)]
+pub struct GhostFlameParticle;
+
+/// Marks a muzzle flash / bullet tracer that is a visual-only ghost of the
+/// opponent's gunfire. Excluded from the `replicate_gun_*` emitters so a
+/// received ghost is never re-shipped back to the sender (which would otherwise
+/// ping-pong forever in a Warglock-vs-Warglock match).
+#[derive(Component)]
+pub struct GhostMuzzleFlash;
+
+/// See [`GhostMuzzleFlash`].
+#[derive(Component)]
+pub struct GhostBulletTracer;
+
 /// Muzzle flash visual effect.
 #[derive(Component)]
 pub struct MuzzleFlash {
     pub timer: f32,
+    /// The gun that fired this flash. Read by `replicate_gun_muzzle_flashes` to
+    /// play the correct shot sound on the opponent even if the player has since
+    /// switched guns — reading the live `GunState` would race a rapid switch and
+    /// ship the wrong gunshot.
+    pub gun: GunType,
 }

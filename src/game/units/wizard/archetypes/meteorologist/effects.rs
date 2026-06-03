@@ -24,6 +24,7 @@ pub fn storm_lightning(
     mut weather: ResMut<WeatherState>,
     game_config: Res<GameConfig>,
     sfx: Res<SpellSfxAssets>,
+    mut pending: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut targets: Query<
@@ -64,6 +65,13 @@ pub fn storm_lightning(
     };
 
     let strike_pos = transform.translation;
+
+    // Replicate the thunderclap to the opponent (the local sound plays below).
+    crate::game::units::wizard::spells::audio::emit_sfx_event(
+        &mut pending,
+        crate::networking::snapshot::SpellSoundId::WeatherLightningStrike,
+        strike_pos,
+    );
 
     // Deal AoE damage at strike location
     if !has_shield {

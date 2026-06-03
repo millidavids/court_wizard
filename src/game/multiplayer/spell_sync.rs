@@ -14,6 +14,7 @@ use crate::game::multiplayer::components::{
     GhostBeam, GhostMagicMissile, GhostSpellArc, GhostSpellProjectile, NetworkedSpellEffect,
     OnMultiplayerGameScreen, SpellEffectEntityMap,
 };
+use crate::game::units::wizard::archetypes::gunslinger::replication as gunslinger_replication;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::chain_lightning::components::ChainLightningArc;
@@ -66,6 +67,29 @@ pub struct LatestSpellSnapshot(pub Option<SpellVisualSnapshot>);
 pub struct PendingCastEvents {
     pub events: Vec<CastEventSnapshot>,
     pub mp_active: bool,
+}
+
+/// Pushes a one-shot cast VFX event so the remote peer reproduces it locally.
+/// No-op in single-player (when `mp_active` is false). Used for visuals that
+/// have no persistent component to snapshot (gun muzzle flashes, tracers, flame
+/// particles, sword arcs).
+pub(crate) fn emit_cast_event(
+    pending: &mut PendingCastEvents,
+    kind: CastEventKind,
+    subkind: u8,
+    pos: Vec3,
+    extra: [f32; 4],
+) {
+    if pending.mp_active {
+        pending.events.push(CastEventSnapshot {
+            kind: kind as u8,
+            subkind,
+            x: pos.x,
+            y: pos.y,
+            z: pos.z,
+            extra,
+        });
+    }
 }
 
 /// Marks `PendingCastEvents` as MP-active so `_synced` wrappers start pushing.
@@ -454,6 +478,16 @@ pub fn collect_spell_effect_snapshots(
             SpellEffectKind::BoulderObstacle => {
                 if let Ok(b) = boulder_data.1.get(entity) {
                     ([b.sprite_index as f32, b.radius, b.height, 0.0], 0)
+                } else {
+                    continue;
+                }
+            }
+            // Warglock flamethrower ground fire — a `FireballExplosion` carrying
+            // the burning patch. Ship its radius + duration so the opponent
+            // renders the matching fire/smoke puffs.
+            SpellEffectKind::FlameGroundFire => {
+                if let Ok(exp) = explosion_data.0.get(entity) {
+                    ([exp.max_radius, exp.duration, exp.damage_per_tick, 0.0], 0)
                 } else {
                     continue;
                 }
@@ -1103,12 +1137,20 @@ pub fn apply_remote_cast_events(
     time: Res<Time>,
     game_config: Res<crate::config::GameConfig>,
     sfx_assets: Option<Res<crate::game::units::wizard::spells::audio::SpellSfxAssets>>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut standard_materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let Some(snapshot) = &latest.0 else { return };
     let Some(assets) = assets else { return };
     if snapshot.cast_events.is_empty() {
         return;
     }
+
+    // The opponent's spells should sound like their archetype on this screen too.
+    let remote_is_excremage = session
+        .map(|s| s.remote_wizard() == crate::config::WizardType::Excremage)
+        .unwrap_or(false);
 
     use crate::game::units::wizard::spells::banishment::components::BanishmentVfx;
     use crate::game::units::wizard::spells::vfx::systems as vfx;
@@ -1285,6 +1327,42 @@ pub fn apply_remote_cast_events(
                     volume_scale,
                     &game_config,
                     sfx.as_ref(),
+                    remote_is_excremage,
+                );
+            }
+            // Warglock gun visuals (opponent renders the local Warglock's shots).
+            CastEventKind::GunMuzzleFlash => {
+                gunslinger_replication::spawn_ghost_muzzle_flash(&mut commands, &assets, pos);
+            }
+            CastEventKind::GunBulletTracer => {
+                let velocity = Vec3::new(event.extra[0], event.extra[1], event.extra[2]);
+                gunslinger_replication::spawn_ghost_tracer(
+                    &mut commands,
+                    &assets,
+                    pos,
+                    velocity,
+                    event.extra[3],
+                );
+            }
+            CastEventKind::GunFlameParticle => {
+                let velocity = Vec3::new(event.extra[0], event.extra[1], event.extra[2]);
+                gunslinger_replication::spawn_ghost_flame(
+                    &mut commands,
+                    pos,
+                    velocity,
+                    event.extra[3],
+                );
+            }
+            // Swordcerer sword arc — render the opponent's swing (visual only).
+            CastEventKind::SwordArc => {
+                let dir = Vec2::new(event.extra[0], event.extra[1]);
+                crate::game::units::wizard::archetypes::swordcerer::spawn_sword_arc(
+                    &mut commands,
+                    &mut meshes,
+                    &mut standard_materials,
+                    pos,
+                    dir,
+                    true,
                 );
             }
         }

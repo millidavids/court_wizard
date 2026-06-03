@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions;
-use crate::game::run_conditions::is_gameplay_running;
+use crate::game::run_conditions::is_local_wizard_active;
 
 use super::messages::*;
 use super::resources::{LastActivatedSpell, RuneSequence};
@@ -17,6 +17,12 @@ impl Plugin for RunePlugin {
             .add_message::<RunePressed>()
             .add_message::<ActivateRuneSequence>()
             .add_message::<RuneSpellActivated>()
+            // These only mutate the local `RuneSequence` and emit
+            // `PrimeSpellMessage` — no simulation authority is needed. Gating on
+            // `is_local_wizard_active` (both peers) instead of
+            // `is_gameplay_running` (host-only) lets the GUEST RuneCaster prime
+            // spells too; otherwise its rune presses are collected but never
+            // consumed.
             .add_systems(
                 Update,
                 (
@@ -25,7 +31,7 @@ impl Plugin for RunePlugin {
                     systems::update_rune_timeout,
                 )
                     .chain()
-                    .run_if(is_gameplay_running)
+                    .run_if(is_local_wizard_active)
                     .run_if(run_conditions::is_rune_caster),
             );
     }

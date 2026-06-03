@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions;
-use crate::game::run_conditions::is_gameplay_running;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_local_wizard_active;
+use crate::state::{InGameState, MultiplayerGameState};
 
 use super::messages::*;
 use super::resources::RouletteState;
@@ -19,6 +19,17 @@ impl Plugin for RoulettePlugin {
                 OnEnter(InGameState::ScoreScreen),
                 systems::reset_roulette_state.run_if(run_conditions::is_randomancer),
             )
+            // Reset the wheel on the multiplayer score screen too (the SP
+            // `InGameState::ScoreScreen` reset never fires in MP).
+            .add_systems(
+                OnEnter(MultiplayerGameState::ScoreScreen),
+                systems::reset_roulette_state.run_if(run_conditions::is_randomancer),
+            )
+            // The spin state machine only mutates the local `RouletteState` and
+            // emits `PrimeSpellMessage` — no simulation authority needed. Gate on
+            // `is_local_wizard_active` (both peers) so the GUEST Randomancer's
+            // wheel actually spins; under `is_gameplay_running` (host-only) the
+            // guest's spin trigger is collected but never advanced.
             .add_systems(
                 Update,
                 (
@@ -27,7 +38,7 @@ impl Plugin for RoulettePlugin {
                     systems::reset_after_cast,
                 )
                     .chain()
-                    .run_if(is_gameplay_running)
+                    .run_if(is_local_wizard_active)
                     .run_if(run_conditions::is_randomancer),
             );
     }

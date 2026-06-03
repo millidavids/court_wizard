@@ -46,7 +46,7 @@ pub(super) fn tick_cooldowns(
 
 /// Checks if the swordcerer avatar has died and triggers retreat.
 pub(super) fn check_avatar_death(
-    avatar_query: Query<&Health, With<SwordcererAvatar>>,
+    avatar_query: Query<&Health, (With<SwordcererAvatar>, Without<GuestControlledAvatar>)>,
     state: Res<SwordcererState>,
     mut retreat_messages: MessageWriter<RetreatMessage>,
 ) {
@@ -54,7 +54,9 @@ pub(super) fn check_avatar_death(
         return;
     }
 
-    if let Ok(health) = avatar_query.single()
+    // The host's OWN avatar (the guest's is `GuestControlledAvatar` and handled
+    // by `check_guest_avatar_death`).
+    if let Some(health) = avatar_query.iter().next()
         && health.current <= 0.0
     {
         retreat_messages.write(RetreatMessage);
@@ -104,12 +106,25 @@ pub(super) fn spawn_health_bar(
         });
 }
 
-/// Updates the swordcerer health bar fill.
+/// Updates the swordcerer health bar fill. Reads the host's own `SwordcererAvatar`
+/// OR (on the guest) the `GhostSwordcererAvatar` mirrored from the host snapshot,
+/// so the guest sees its host-owned avatar's HP.
 pub(super) fn update_health_bar(
-    avatar_query: Query<&Health, With<SwordcererAvatar>>,
+    avatar_query: Query<
+        &Health,
+        (
+            Or<(
+                With<SwordcererAvatar>,
+                With<crate::game::multiplayer::components::GhostSwordcererAvatar>,
+            )>,
+            Without<GuestControlledAvatar>,
+        ),
+    >,
     mut fill_query: Query<&mut Node, With<SwordcererHealthBarFill>>,
 ) {
-    if let Ok(health) = avatar_query.single()
+    // `.iter().next()` (not `single()`) so a Swordcerer-vs-Swordcerer match,
+    // where two avatars can match, never freezes the bar.
+    if let Some(health) = avatar_query.iter().next()
         && let Ok(mut node) = fill_query.single_mut()
     {
         let pct = (health.current / health.max * 100.0).clamp(0.0, 100.0);
@@ -235,7 +250,11 @@ pub(super) fn handle_location_click(
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     mut text_query: Query<&mut Text, With<EnterFrayButtonText>>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
+    mut connection: Option<ResMut<crate::networking::resources::NetworkConnection>>,
 ) {
+    use crate::networking::protocol::NetworkMessage;
+    use crate::networking::resources::PeerRole;
     if state.phase != SwordcererPhase::ChoosingLocation {
         return;
     }
@@ -261,41 +280,32 @@ pub(super) fn handle_location_click(
     );
     *visibility = Visibility::Hidden;
 
-    // Spawn the avatar at the clicked position
-    let hitbox = Hitbox::new(AVATAR_HITBOX_RADIUS, AVATAR_HITBOX_HEIGHT);
-    let spawn_y = hitbox.height / 2.0 + 1.0;
-
-    let material = create_default_sprite_material(
-        &mut materials,
-        swordcerer_assets.sprite_texture.clone(),
-        AVATAR_SPRITE_TINT,
-    );
-
-    commands.spawn((
-        Mesh3d(swordcerer_assets.sprite_mesh.clone()),
-        MeshMaterial3d(material),
-        Transform::from_xyz(world_pos.x, spawn_y, world_pos.z),
-        Velocity::default(),
-        hitbox,
-        Health::new(AVATAR_HEALTH),
-        MovementSpeed(AVATAR_MOVEMENT_SPEED),
-        AttackTiming::new(),
-        Effectiveness::new(),
-        Team::Defenders,
-        // 75% melee reduction — the avatar fights at melee range; without
-        // this it shreds in a few hits.
-        crate::game::units::components::MeleeDamageReduction {
-            multiplier: AVATAR_MELEE_DAMAGE_MULTIPLIER,
-        },
-        (
-            SwordcererAvatar,
-            SwordcererFacing::default(),
-            WalkingAnimation::default(),
-            FacingDirection::default(),
-            Billboard,
-            OnGameplayScreen,
-        ),
-    ));
+    // Deploy the avatar. The avatar is host-authoritative: single-player and the
+    // multiplayer HOST spawn it locally (Defenders); the multiplayer GUEST is not
+    // authoritative over its own avatar, so it asks the host to spawn it on the
+    // guest's army (Attackers) and then streams control input.
+    let is_mp_guest = session
+        .as_ref()
+        .map(|s| s.role == PeerRole::Guest)
+        .unwrap_or(false);
+    if is_mp_guest {
+        if let Some(connection) = connection.as_mut() {
+            connection
+                .outgoing_messages
+                .push(NetworkMessage::SwordcererAvatarSpawn {
+                    x: world_pos.x,
+                    z: world_pos.z,
+                });
+        }
+    } else {
+        spawn_swordcerer_avatar(
+            &mut commands,
+            &swordcerer_assets,
+            &mut materials,
+            world_pos,
+            Team::Defenders,
+        );
+    }
 
     state.phase = SwordcererPhase::OnField;
 
@@ -303,6 +313,54 @@ pub(super) fn handle_location_click(
     if let Ok(mut text) = text_query.single_mut() {
         **text = FRAY_BUTTON_TEXT.to_string();
     }
+}
+
+/// Spawns the Swordcerer battlefield avatar with the given team. Shared by the
+/// local deploy (`handle_location_click`) and the host's spawn of a guest's
+/// avatar (`receive_swordcerer_spawn`).
+pub(super) fn spawn_swordcerer_avatar(
+    commands: &mut Commands,
+    swordcerer_assets: &SwordcererAssets,
+    materials: &mut Assets<StandardMaterial>,
+    world_pos: Vec3,
+    team: Team,
+) -> Entity {
+    let hitbox = Hitbox::new(AVATAR_HITBOX_RADIUS, AVATAR_HITBOX_HEIGHT);
+    let spawn_y = hitbox.height / 2.0 + 1.0;
+
+    let material = create_default_sprite_material(
+        materials,
+        swordcerer_assets.sprite_texture.clone(),
+        AVATAR_SPRITE_TINT,
+    );
+
+    commands
+        .spawn((
+            Mesh3d(swordcerer_assets.sprite_mesh.clone()),
+            MeshMaterial3d(material),
+            Transform::from_xyz(world_pos.x, spawn_y, world_pos.z),
+            Velocity::default(),
+            hitbox,
+            Health::new(AVATAR_HEALTH),
+            MovementSpeed(AVATAR_MOVEMENT_SPEED),
+            AttackTiming::new(),
+            Effectiveness::new(),
+            team,
+            // 75% melee reduction — the avatar fights at melee range; without
+            // this it shreds in a few hits.
+            crate::game::units::components::MeleeDamageReduction {
+                multiplier: AVATAR_MELEE_DAMAGE_MULTIPLIER,
+            },
+            (
+                SwordcererAvatar,
+                SwordcererFacing::default(),
+                WalkingAnimation::default(),
+                FacingDirection::default(),
+                Billboard,
+                OnGameplayScreen,
+            ),
+        ))
+        .id()
 }
 
 /// Shows/hides the "Enter the Fray" button based on swordcerer state.

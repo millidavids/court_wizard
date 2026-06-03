@@ -164,6 +164,11 @@ pub(crate) fn load_my_unlocked_content() -> (Vec<WizardType>, Vec<Spell>) {
             WizardType::all()
                 .iter()
                 .copied()
+                // Psychopath is disabled in multiplayer — its self-sabotage win
+                // condition (kill 70% of your own defenders) doesn't map to a
+                // competitive match. Filtering here keeps it out of the lobby grid
+                // AND the `PlayerInfo` exchange, so it can never reach a match.
+                .filter(|wt| *wt != WizardType::Psychopath)
                 .filter(|wt| names.iter().any(|n| n == &format!("{:?}", wt)))
                 .collect::<Vec<_>>()
         })

@@ -23,6 +23,29 @@ pub fn load_wizard_assets(mut commands: Commands, asset_server: Res<AssetServer>
 /// Sets up the wizard when entering the InGame state.
 ///
 /// Spawns the wizard entity as an animated sprite billboard on the castle platform.
+/// Applies archetype-identity stat bonuses to a freshly built `Wizard`.
+///
+/// Shared by single-player `setup_wizard` and multiplayer `spawn_mp_wizard` so
+/// the two never drift apart. This covers ONLY archetype *identity* multipliers
+/// (the flat bonuses that define how an archetype plays). Progression bonuses
+/// (`InsightBonuses`) are deliberately NOT applied here: single-player layers
+/// them on afterward, while multiplayer leaves them off so a player's unlock
+/// progress can't tilt a competitive match.
+pub(crate) fn apply_archetype_stat_bonuses(wizard: &mut Wizard, wizard_type: WizardType) {
+    match wizard_type {
+        WizardType::BoringOleMage => {
+            wizard.spell_range = constants::DEFAULT_SPELL_RANGE * 1.05;
+            wizard.mana_cost_multiplier = 0.95; // 5% cheaper
+            wizard.spell_power_multiplier = 1.05;
+            wizard.cast_speed_multiplier = 1.05;
+        }
+        WizardType::Shepherd => {
+            wizard.spell_power_multiplier = super::archetypes::shepherd::SPELL_POWER_MULTIPLIER;
+        }
+        _ => {}
+    }
+}
+
 pub fn setup_wizard(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -55,16 +78,11 @@ pub fn setup_wizard(
 
     // Build wizard with archetype-specific stat bonuses
     let mut wizard = Wizard::new(constants::DEFAULT_SPELL_RANGE);
-    if config.wizard_type == WizardType::BoringOleMage {
-        wizard.spell_range = constants::DEFAULT_SPELL_RANGE * 1.05;
-        wizard.mana_cost_multiplier = 0.95; // 5% cheaper
-        wizard.spell_power_multiplier = 1.05;
-        wizard.cast_speed_multiplier = 1.05;
-    } else if config.wizard_type == WizardType::Shepherd {
-        wizard.spell_power_multiplier = super::archetypes::shepherd::SPELL_POWER_MULTIPLIER;
-    }
+    apply_archetype_stat_bonuses(&mut wizard, config.wizard_type);
 
-    // Apply permanent insight bonuses on top of archetype stats
+    // Apply permanent insight bonuses on top of archetype stats (single-player
+    // only — multiplayer omits these to keep matches balanced; see
+    // `apply_archetype_stat_bonuses`).
     let insight = crate::game::insight_bonuses::InsightBonuses::from_save();
     wizard.spell_power_multiplier *= insight.spell_damage_mult;
     wizard.spell_range *= insight.spell_range_mult;

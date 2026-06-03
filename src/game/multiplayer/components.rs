@@ -70,6 +70,12 @@ pub struct GhostSpellProjectile;
 #[derive(Component)]
 pub struct GhostSpellArc;
 
+/// Marker for the opponent's Swordcerer battlefield avatar, rendered from the
+/// unit snapshot's `SWORDCERER_AVATAR` flag. Lets the health-bar UI find it and
+/// keeps it visually distinct from a generic infantry ghost.
+#[derive(Component)]
+pub struct GhostSwordcererAvatar;
+
 /// Marker for entities on the multiplayer score screen.
 ///
 /// Used for targeted cleanup when leaving the score screen sub-state.

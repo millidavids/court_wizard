@@ -34,7 +34,19 @@ use crate::game::units::wizard::components::Spell;
 /// - 4: `GameOver` now carries a `HostMatchSummary` (side kills/deaths + host
 ///   wizard spell stats) and a new `WizardStatsReport` variant carries the guest
 ///   wizard's spell stats, for the multiplayer post-match scoreboard.
-pub const PROTOCOL_VERSION: u32 = 4;
+/// - 5: full wizard-archetype multiplayer support. Adds `WeatherChanged`
+///   (Meteorologist) and the Swordcerer avatar control messages
+///   (`SwordcererAvatarSpawn` / `SwordcererAvatarInput` / `SwordcererAvatarDied` /
+///   `SwordcererAvatarRetreat`) — all appended AFTER `HandshakeVersion` to keep
+///   its wire index frozen. Also adds gun-visual + sword-arc `CastEventKind`
+///   variants, the `FlameGroundFire` `SpellEffectKind`, the
+///   `SWORDCERER_AVATAR` / `SMELLY` `UnitFlags` bits, and new `SpellSoundId`
+///   entries (Excremage fart, gun shots, weather lightning).
+/// - 6: adds `CauldronBuffsSync` (guest Alchemist army buffs replicated to the
+///   host) — appended after `HandshakeVersion`.
+/// - 7: drops the unused `SwordcererAvatarRetreat` variant and trims
+///   `CauldronBuffsSync` to the replicated scalars; removes `ExcremageFart`.
+pub const PROTOCOL_VERSION: u32 = 7;
 
 /// Messages sent over the reliable WebRTC data channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -176,15 +188,63 @@ pub enum NetworkMessage {
     /// own `PROTOCOL_VERSION`; on mismatch, the lobby transitions to
     /// `Failed` with a clear message.
     ///
-    /// **Placement matters**: this MUST stay the LAST variant of the enum
-    /// so older binaries (which don't know about it) decode it as an
-    /// unknown variant index → bincode returns `Err` → message dropped
-    /// with a warn. The new binary then never sees a `HandshakeVersion`
-    /// from the old peer and detects the mismatch via the "first message
-    /// must be HandshakeVersion" invariant on the receiver side. Adding
-    /// new variants before this one shifts its discriminant and breaks
-    /// the cross-version detection.
+    /// **Placement matters**: `HandshakeVersion`'s wire index is FROZEN.
+    /// bincode 1.x encodes an enum variant by its POSITIONAL INDEX in
+    /// declaration order, so this variant's index must never change —
+    /// older binaries (which don't know about it) decode it as an unknown
+    /// variant index → bincode returns `Err` → message dropped with a warn,
+    /// and a peer on a different protocol version decodes the wrong variant
+    /// unless every prior variant keeps its index. The new binary then
+    /// detects the mismatch via the "first message must be HandshakeVersion"
+    /// invariant + version compare. **Append all future variants AFTER this
+    /// one; never insert a variant before it.** (The new trailing variants
+    /// are only exchanged between two same-version peers after a successful
+    /// handshake, so older peers never receive them.)
     HandshakeVersion { version: u32 },
+
+    // --- Variants below are appended after `HandshakeVersion` to keep its
+    //     wire index frozen (see the note above). v5+ only. ---
+    /// Meteorologist weather change. Sent host→guest to replicate the active
+    /// weather (so the opponent renders rain/storm), and guest→host when the
+    /// guest is the Meteorologist (the host is authoritative for the weather
+    /// simulation). `weather` is `None` when cleared, else a `WeatherType`
+    /// ordinal (`WeatherType::from_u8`). `intensity` is the 0..1 ramp.
+    WeatherChanged { weather: Option<u8>, intensity: f32 },
+
+    /// Guest → host: the guest (a Swordcerer) deployed its avatar at the given
+    /// battlefield position. The host spawns the authoritative avatar on the
+    /// guest's army team.
+    SwordcererAvatarSpawn { x: f32, z: f32 },
+
+    /// Guest → host: per-tick avatar control input for a guest-controlled
+    /// Swordcerer avatar (movement delta + attack intents + facing). The host
+    /// applies it to the authoritative avatar entity.
+    SwordcererAvatarInput {
+        dx: f32,
+        dz: f32,
+        fire_missile: bool,
+        swing_sword: bool,
+        facing_x: f32,
+        facing_z: f32,
+    },
+
+    /// Host → guest: the guest's Swordcerer avatar died on the authoritative
+    /// simulation; the guest tears down its local UI / control state. (Retreat
+    /// is death-only, so there is no separate voluntary-retreat message.)
+    SwordcererAvatarDied,
+
+    /// Guest → host: the guest Alchemist's current army-buff scalars, sent when
+    /// they change. The host applies them to the guest's army (Attackers).
+    /// Effectiveness and enemy-slow are intentionally omitted — effectiveness
+    /// shares `spell_bonus` with poison, and enemy-slow targets the host's army
+    /// (which the host's own cleanup manages).
+    CauldronBuffsSync {
+        heal_per_second: f32,
+        damage_bonus: f32,
+        resistance_percent: f32,
+        shield_per_second: f32,
+        speed_bonus: f32,
+    },
 }
 
 /// Discriminator for `NetworkMessage::ApplyStatusEffect`. Add new variants at

@@ -3,6 +3,7 @@
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
+use crate::config::{GameConfig, WizardType};
 use crate::game::cauldron::resources::CauldronBuffs;
 use crate::game::input::messages::MouseClicked;
 use crate::game::plugin::GlobalAttackCycle;
@@ -106,6 +107,39 @@ pub(super) fn init_mp_game(
     // SpellVisualAssets is initialized globally at startup, no MP-specific asset init needed.
 }
 
+/// Backs up the single-player `GameConfig.wizard_type` for the lifetime of a
+/// multiplayer match so `cleanup_mp_game` can restore it on exit (a later
+/// single-player run must not inherit the MP archetype).
+#[derive(Resource)]
+pub(crate) struct MpWizardTypeBackup(pub WizardType);
+
+/// Points `GameConfig.wizard_type` at THIS peer's wizard for the duration of the
+/// match.
+///
+/// Every archetype run-condition (`is_warglock`, `is_meteorologist`,
+/// `is_swordcerer`, …) reads `GameConfig.wizard_type`. In multiplayer that field
+/// is otherwise whatever the last single-player run left behind, so without this
+/// the local archetype's systems silently gate against the wrong wizard. We sync
+/// it from the authoritative `MultiplayerSession` on match entry and stash the
+/// previous value for restoration on exit.
+///
+/// Runs on `OnEnter(AppState::MultiplayerGame)` before `init_mp_game`. Other
+/// `OnEnter(AppState::MultiplayerGame)` systems gated on an archetype
+/// run-condition must be ordered `.after(sync_wizard_type_from_session)`.
+pub(crate) fn sync_wizard_type_from_session(
+    mut commands: Commands,
+    session: Res<MultiplayerSession>,
+    backup: Option<Res<MpWizardTypeBackup>>,
+    mut config: ResMut<GameConfig>,
+) {
+    // Stash the single-player wizard type ONCE — don't clobber it if a rematch
+    // re-enters and re-syncs (the stash already holds the true SP value).
+    if backup.is_none() {
+        commands.insert_resource(MpWizardTypeBackup(config.wizard_type));
+    }
+    config.wizard_type = session.local_wizard();
+}
+
 /// Cleans up multiplayer game entities and resources.
 ///
 /// If `PendingRematch` is present, the `MultiplayerSession` is kept alive
@@ -120,6 +154,8 @@ pub(super) fn cleanup_mp_game(
     mut defenders_activated: ResMut<DefendersActivated>,
     mut cauldron_buffs: ResMut<CauldronBuffs>,
     mut game_outcome: ResMut<GameOutcome>,
+    mut config: ResMut<GameConfig>,
+    wizard_type_backup: Option<Res<MpWizardTypeBackup>>,
 ) {
     // `OnGameplayScreen` entities (battlefield + terrain, spawned via the
     // reused single-player path) are despawned by `shared_systems::cleanup_game`,
@@ -144,6 +180,14 @@ pub(super) fn cleanup_mp_game(
     // SP run doesn't inherit the guest's mirrored origin.
     commands
         .insert_resource(crate::game::units::wizard::spells::utils::LocalSpellOrigin::default());
+
+    // Restore the single-player wizard type stashed at match entry
+    // (`sync_wizard_type_from_session`) so a later SP run doesn't inherit the MP
+    // archetype. On rematch the next entry re-syncs from the session.
+    if let Some(backup) = wizard_type_backup {
+        config.wizard_type = backup.0;
+        commands.remove_resource::<MpWizardTypeBackup>();
+    }
 
     // Remove MP-only resources that are created in init_mp_game.
     commands.remove_resource::<crate::networking::crdt::PeerId>();
@@ -586,7 +630,14 @@ pub(super) fn handle_mp_score_messages(
                     stats.enemy_healing = spell_healing;
                 }
             }
-            other => unhandled.push(other),
+            // Keep connection/lobby-level messages for other handlers; DROP
+            // stale in-flight gameplay messages (weather, spell hits, avatar
+            // control, etc.) — the match is over, so re-queuing them forever
+            // just wastes a drain every frame.
+            other @ (NetworkMessage::Ping { .. }
+            | NetworkMessage::Pong { .. }
+            | NetworkMessage::HandshakeVersion { .. }) => unhandled.push(other),
+            _ => {}
         }
     }
 

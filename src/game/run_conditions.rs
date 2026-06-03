@@ -181,6 +181,21 @@ pub fn is_swordcerer(config: Res<GameConfig>) -> bool {
     config.wizard_type == WizardType::Swordcerer
 }
 
+/// Returns true when EITHER player is the Swordcerer — used host-side for the
+/// avatar systems that must run regardless of which peer owns the avatar (e.g.
+/// cooldown ticking).
+pub fn is_swordcerer_participant(
+    config: Res<GameConfig>,
+    session: Option<Res<MultiplayerSession>>,
+) -> bool {
+    if config.wizard_type == WizardType::Swordcerer {
+        return true;
+    }
+    session.is_some_and(|s| {
+        s.host_wizard == WizardType::Swordcerer || s.guest_wizard == WizardType::Swordcerer
+    })
+}
+
 /// Returns true if the active wizard type is Meteorologist.
 pub fn is_meteorologist(config: Res<GameConfig>) -> bool {
     config.wizard_type == WizardType::Meteorologist

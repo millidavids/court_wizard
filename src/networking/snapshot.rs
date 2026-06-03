@@ -107,6 +107,13 @@ impl UnitFlags {
     /// renders on the guest (the unit snapshot otherwise carries no "is a sheep"
     /// state and the guest only swaps materials at spawn / corpse transitions).
     pub const POLYMORPH: u16 = 1 << 11;
+    /// Host's unit IS the Swordcerer battlefield avatar — set so the guest spawns
+    /// the ghost with the avatar sprite/hitbox and renders its health bar, rather
+    /// than treating it as a generic infantry unit.
+    pub const SWORDCERER_AVATAR: u16 = 1 << 12;
+    /// Host's unit is currently smelly (Excremage poop debuff) — set so the guest
+    /// renders the brown stink tint on its ghost unit.
+    pub const SMELLY: u16 = 1 << 13;
 }
 
 /// Encodes a `Team` component into a u8.
@@ -152,6 +159,8 @@ pub fn build_unit_snapshot(
     has_mark: bool,
     has_poison: bool,
     has_polymorph: bool,
+    has_smelly: bool,
+    has_swordcerer_avatar: bool,
 ) -> UnitSnapshot {
     let mut flags = 0u16;
     if is_corpse {
@@ -189,6 +198,12 @@ pub fn build_unit_snapshot(
     }
     if has_polymorph {
         flags |= UnitFlags::POLYMORPH;
+    }
+    if has_smelly {
+        flags |= UnitFlags::SMELLY;
+    }
+    if has_swordcerer_avatar {
+        flags |= UnitFlags::SWORDCERER_AVATAR;
     }
 
     let (max_hp, damage, healing) = if let Some(crdt) = crdt_health {
@@ -357,6 +372,10 @@ pub enum SpellEffectKind {
     // guest picks the matching asset.
     BoulderProjectileEffect = 60,
     BoulderObstacle = 61,
+    // Warglock flamethrower ground fire — the persistent burning patch left on
+    // the ground. `extra[0]` = radius, `extra[1]` = remaining duration,
+    // `extra[2]` = damage-per-tick, `extra[3]` = 1.0 if growth-suppressed.
+    FlameGroundFire = 70,
 }
 
 impl TryFrom<u8> for SpellEffectKind {
@@ -386,6 +405,7 @@ impl TryFrom<u8> for SpellEffectKind {
             51 => Ok(Self::NapalmTrail),
             60 => Ok(Self::BoulderProjectileEffect),
             61 => Ok(Self::BoulderObstacle),
+            70 => Ok(Self::FlameGroundFire),
             _ => Err(()),
         }
     }
@@ -521,6 +541,18 @@ pub enum CastEventKind {
     /// One-shot spell SFX. `subkind` = `SpellSoundId` ordinal; `x/y/z` = world
     /// position for distance attenuation; `extra[0]` = volume scale.
     SfxOneShot = 9,
+    /// Warglock gun muzzle flash. `x/y/z` = muzzle origin; `subkind` = `GunType`
+    /// ordinal; `extra[0]` = flash radius.
+    GunMuzzleFlash = 10,
+    /// Warglock hitscan bullet tracer. `x/y/z` = origin; `subkind` = `GunType`
+    /// ordinal; `extra` = `[dir_x, dir_y, dir_z, length]`.
+    GunBulletTracer = 11,
+    /// Warglock flamethrower flame particle. `x/y/z` = spawn position;
+    /// `extra` = `[vel_x, vel_y, vel_z, lifetime]`.
+    GunFlameParticle = 12,
+    /// Swordcerer sword-swing arc. `x/y/z` = avatar position; `extra` =
+    /// `[dir_x, dir_z, 0, 0]` (swing facing).
+    SwordArc = 13,
 }
 
 impl TryFrom<u8> for CastEventKind {
@@ -537,6 +569,10 @@ impl TryFrom<u8> for CastEventKind {
             7 => Ok(Self::BanishmentLens),
             8 => Ok(Self::FinalStandExplosion),
             9 => Ok(Self::SfxOneShot),
+            10 => Ok(Self::GunMuzzleFlash),
+            11 => Ok(Self::GunBulletTracer),
+            12 => Ok(Self::GunFlameParticle),
+            13 => Ok(Self::SwordArc),
             _ => Err(()),
         }
     }
@@ -582,6 +618,16 @@ pub enum SpellSoundId {
     RayEyeDeath = 29,
     /// Looping disintegrate beam channel sound (played one-shot on the remote peer).
     DisintegrateChannel = 30,
+    // (Excremage fart is applied by the receiver substituting the handle for a
+    // remote Excremage caster — no dedicated sound id needed.)
+    /// Warglock gun shots.
+    MachineGunShot = 31,
+    MagnumShot = 32,
+    ShotgunShot = 33,
+    RocketShot = 34,
+    FlamethrowerBurst = 35,
+    /// Meteorologist storm lightning strike — played on both peers.
+    WeatherLightningStrike = 36,
 }
 
 impl TryFrom<u8> for SpellSoundId {
@@ -619,6 +665,12 @@ impl TryFrom<u8> for SpellSoundId {
             28 => Ok(Self::BoulderImpact),
             29 => Ok(Self::RayEyeDeath),
             30 => Ok(Self::DisintegrateChannel),
+            31 => Ok(Self::MachineGunShot),
+            32 => Ok(Self::MagnumShot),
+            33 => Ok(Self::ShotgunShot),
+            34 => Ok(Self::RocketShot),
+            35 => Ok(Self::FlamethrowerBurst),
+            36 => Ok(Self::WeatherLightningStrike),
             _ => Err(()),
         }
     }

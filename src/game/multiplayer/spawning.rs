@@ -119,13 +119,11 @@ pub(super) fn spawn_mp_wizard(
         ..default()
     });
 
+    // Apply archetype-identity stat bonuses via the shared helper so MP and SP
+    // stay in sync (BoringOleMage, Shepherd, …). Insight/progression bonuses are
+    // intentionally omitted in MP to keep matches balanced.
     let mut wizard = Wizard::new(constants::DEFAULT_SPELL_RANGE);
-    if wizard_type == crate::config::WizardType::BoringOleMage {
-        wizard.spell_range = constants::DEFAULT_SPELL_RANGE * 1.05;
-        wizard.mana_cost_multiplier = 0.95;
-        wizard.spell_power_multiplier = 1.05;
-        wizard.cast_speed_multiplier = 1.05;
-    }
+    crate::game::units::wizard::systems::apply_archetype_stat_bonuses(&mut wizard, wizard_type);
 
     let mut entity_commands = commands.spawn((
         Mesh3d(meshes.add(quad_mesh)),
@@ -138,11 +136,18 @@ pub(super) fn spawn_mp_wizard(
         ManaRegen::new(constants::MANA_REGEN),
         CastingState::new(),
         wizard,
-        magic_missile_constants::PRIMED_MAGIC_MISSILE,
         WizardAnimation::new(),
         Billboard,
         OnMultiplayerGameScreen,
     ));
+
+    // Warglock fires guns instead of spells — skip priming the default spell
+    // (mirrors single-player `setup_wizard`). Without this guard the Warglock
+    // enters the match with Magic Missile primed and clicks fall through to
+    // spell-casting once the guns are between shots.
+    if wizard_type != crate::config::WizardType::Warglock {
+        entity_commands.insert(magic_missile_constants::PRIMED_MAGIC_MISSILE);
+    }
 
     // Add wizard role markers
     // LocalWizard: the wizard this player controls (host's own or guest's own)

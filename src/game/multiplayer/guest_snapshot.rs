@@ -592,6 +592,9 @@ pub fn apply_state_snapshot(
     king_assets: Res<KingAssets>,
     undead_assets: Res<UndeadAssets>,
     spell_assets: Res<SpellVisualAssets>,
+    swordcerer_assets: Res<
+        crate::game::units::wizard::archetypes::swordcerer::resources::SwordcererAssets,
+    >,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut ghost_query: Query<
@@ -614,6 +617,9 @@ pub fn apply_state_snapshot(
         With<GhostEntity>,
     >,
     ghost_arrows: Query<Entity, With<GhostArrow>>,
+    // Separate query for the smelly tint so the main ghost query stays under
+    // Bevy's query-data arity limit.
+    smelly_ghosts: Query<Entity, With<crate::game::units::status_effects::SmellyModifier>>,
     mut kill_stats: ResMut<crate::game::resources::KillStats>,
 ) {
     // Filter for game snapshots only (type prefix 0x00), re-queue others
@@ -669,6 +675,7 @@ pub fn apply_state_snapshot(
         let is_king = unit.flags & UnitFlags::KING != 0;
         let is_archer = unit.flags & UnitFlags::ARCHER != 0;
         let is_guard = unit.flags & UnitFlags::KINGS_GUARD != 0;
+        let is_swordcerer_avatar = unit.flags & UnitFlags::SWORDCERER_AVATAR != 0;
         let team = u8_to_team(unit.team);
 
         let pos = Vec3::new(unit.x, unit.y, unit.z);
@@ -705,6 +712,7 @@ pub fn apply_state_snapshot(
         let remote_poison = unit.flags & UnitFlags::POISON_EFFECT != 0;
         let remote_mark = unit.flags & UnitFlags::MARK_EFFECT != 0;
         let remote_polymorph = unit.flags & UnitFlags::POLYMORPH != 0;
+        let remote_smelly = unit.flags & UnitFlags::SMELLY != 0;
 
         if let Some(&local_entity) = entity_map.remote_to_local.get(&unit.id) {
             if let Ok((
@@ -863,6 +871,28 @@ pub fn apply_state_snapshot(
                     commands.entity(entity).insert(RemotePoisonEffect);
                 } else if !remote_poison && has_remote_poison {
                     commands.entity(entity).remove::<RemotePoisonEffect>();
+                }
+                // Excremage smelly tint. The real `SmellyModifier` drives the
+                // existing brown tint in `update_persistent_effect_visuals`
+                // (visual, both peers). Its repulsion lives in host-only velocity
+                // systems, so it has no gameplay effect on the guest ghost. Use a
+                // separate `.contains` query to keep the main ghost query under
+                // Bevy's arity limit.
+                let has_remote_smelly = smelly_ghosts.contains(entity);
+                if remote_smelly && !has_remote_smelly {
+                    // Use a very long duration: the ghost's smelly state is driven
+                    // entirely by the SMELLY snapshot flag (removed below when it
+                    // clears), so the local `update_timed_modifier` timer must NOT
+                    // expire it on its own — otherwise the brown tint flickers off
+                    // for one frame whenever the local timer runs out before the
+                    // next snapshot reasserts the flag.
+                    commands.entity(entity).insert(
+                        crate::game::units::status_effects::SmellyModifier::new(1.0e9),
+                    );
+                } else if !remote_smelly && has_remote_smelly {
+                    commands
+                        .entity(entity)
+                        .remove::<crate::game::units::status_effects::SmellyModifier>();
                 }
                 // Mark of Death: insert the BARE `ActiveMarkOfDeath` marker so
                 // `spawn_mark_indicators` renders the floating indicator. We do
@@ -1037,6 +1067,11 @@ pub fn apply_state_snapshot(
                     crate::game::units::archer::constants::ARCHER_RADIUS,
                     crate::game::constants::DEFENDER_HITBOX_HEIGHT,
                 )
+            } else if is_swordcerer_avatar {
+                Hitbox::new(
+                    crate::game::units::wizard::archetypes::swordcerer::AVATAR_HITBOX_RADIUS,
+                    crate::game::units::wizard::archetypes::swordcerer::AVATAR_HITBOX_HEIGHT,
+                )
             } else {
                 // Infantry and king's guards both use the standard unit radius.
                 Hitbox::new(
@@ -1050,6 +1085,8 @@ pub fn apply_state_snapshot(
                 king_assets.sprite_mesh.clone()
             } else if is_archer {
                 archer_assets.sprite_mesh.clone()
+            } else if is_swordcerer_avatar {
+                swordcerer_assets.sprite_mesh.clone()
             } else {
                 infantry_assets.sprite_mesh.clone()
             };
@@ -1058,18 +1095,26 @@ pub fn apply_state_snapshot(
             // animation systems own the ghost's `MeshMaterial3d` — the
             // snapshot loop only touches it again on the alive→corpse
             // transition (see the `is_corpse != has_corpse` branch above).
-            let material_handle = pick_material(
-                &infantry_assets,
-                &archer_assets,
-                &king_assets,
-                &undead_assets,
-                &mut materials,
-                team,
-                is_corpse,
-                is_king,
-                is_archer,
-                is_guard,
-            );
+            let material_handle = if is_swordcerer_avatar {
+                crate::game::units::systems::create_default_sprite_material(
+                    &mut materials,
+                    swordcerer_assets.sprite_texture.clone(),
+                    Color::WHITE,
+                )
+            } else {
+                pick_material(
+                    &infantry_assets,
+                    &archer_assets,
+                    &king_assets,
+                    &undead_assets,
+                    &mut materials,
+                    team,
+                    is_corpse,
+                    is_king,
+                    is_archer,
+                    is_guard,
+                )
+            };
 
             let initial_health = Health::new(remote_crdt.max_hp);
             let entity = commands
@@ -1094,6 +1139,13 @@ pub fn apply_state_snapshot(
                     ),
                 ))
                 .id();
+
+            // Tag the opponent's Swordcerer avatar so the health-bar UI finds it.
+            if is_swordcerer_avatar {
+                commands
+                    .entity(entity)
+                    .insert(super::components::GhostSwordcererAvatar);
+            }
 
             // Tag the ghost king with the `King` marker AND attach the
             // SP-style aura sphere. The HP bar reads

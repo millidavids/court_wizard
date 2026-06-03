@@ -118,7 +118,6 @@ pub fn update_ground_overlay(
 /// Spawns weather particles each frame based on active weather.
 pub fn spawn_weather_particles(
     mut commands: Commands,
-    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     weather: Res<WeatherState>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -127,7 +126,11 @@ pub fn spawn_weather_particles(
         return;
     };
 
-    let rng = &mut game_rng.0;
+    // Particles are purely visual. Use a NON-seeded RNG so running this on both
+    // multiplayer peers (for full-fidelity weather visuals) doesn't perturb the
+    // shared seeded `GameRng` stream and desync gameplay.
+    let mut thread_rng = rand::rng();
+    let rng = &mut thread_rng;
     let normalized = ((weather.intensity - 1.0) / 0.5).clamp(0.0, 1.0);
     // Scale particle count with intensity ramp (start with half, ramp to full)
     let intensity_scale = 0.5 + 0.5 * normalized;

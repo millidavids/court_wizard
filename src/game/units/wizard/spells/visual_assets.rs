@@ -1239,7 +1239,7 @@ fn aura_mat(
     })
 }
 
-fn excremage_color(original: Color) -> Color {
+pub(crate) fn excremage_color(original: Color) -> Color {
     let alpha = original.to_srgba().alpha;
     let brown = EXCREMAGE_BROWN.to_srgba();
     Color::srgba(brown.red, brown.green, brown.blue, alpha)
@@ -1247,7 +1247,7 @@ fn excremage_color(original: Color) -> Color {
 
 /// Converts emissive to a brown glow, scaling intensity from the original.
 /// Derives ratios from `EXCREMAGE_BROWN` so the tint stays consistent.
-fn excremage_emissive(original: bevy::color::LinearRgba) -> bevy::color::LinearRgba {
+pub(crate) fn excremage_emissive(original: bevy::color::LinearRgba) -> bevy::color::LinearRgba {
     let brown = EXCREMAGE_BROWN.to_linear();
     let intensity = (original.red + original.green + original.blue) / 3.0;
     // Normalize brown channels so the brightest channel maps to 1.0,

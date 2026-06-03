@@ -6,12 +6,26 @@
 
 use bevy::prelude::*;
 
+use crate::config::WizardType;
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{NetworkConnection, PeerRole};
 use crate::networking::session::MultiplayerSession;
 use crate::state::AppState;
 
 use super::state::{LobbyPhase, MultiplayerLobby, load_my_unlocked_content};
+
+/// Coerces a wizard type to one allowed in multiplayer. Psychopath is disabled
+/// in MP (its self-sabotage win condition doesn't map to a competitive match);
+/// it's already filtered from the lobby grid, but if a peer still proposes it
+/// (an old or modified client) fall back to Boring Ole Mage rather than entering
+/// a match in an undefined state.
+fn mp_safe_wizard(wt: WizardType) -> WizardType {
+    if wt == WizardType::Psychopath {
+        WizardType::BoringOleMage
+    } else {
+        wt
+    }
+}
 
 /// Drains `NetworkConnection.incoming_messages` and handles
 /// `PlayerInfo`/`WizardSelected`/`ReadyUp`/`Unready`/`StartGame`.
@@ -130,8 +144,8 @@ pub(crate) fn process_lobby_messages(
                         let (_, my_spells) = load_my_unlocked_content();
                         let session = MultiplayerSession {
                             role: PeerRole::Guest,
-                            host_wizard: *opp_wiz,
-                            guest_wizard: *my_wiz,
+                            host_wizard: mp_safe_wizard(*opp_wiz),
+                            guest_wizard: mp_safe_wizard(*my_wiz),
                             host_spells: Vec::new(),
                             guest_spells: my_spells,
                         };
@@ -180,8 +194,8 @@ pub(super) fn commit_host_start(
         let (_, my_spells) = load_my_unlocked_content();
         let session = MultiplayerSession {
             role: PeerRole::Host,
-            host_wizard: *my_wiz,
-            guest_wizard: *opp_wiz,
+            host_wizard: mp_safe_wizard(*my_wiz),
+            guest_wizard: mp_safe_wizard(*opp_wiz),
             host_spells: my_spells,
             guest_spells: Vec::new(),
         };
