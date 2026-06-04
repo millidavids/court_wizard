@@ -49,7 +49,10 @@ use crate::game::units::wizard::components::Spell;
 /// - 8: adds the `Forfeit` message (pause-menu forfeit, appended after
 ///   `HandshakeVersion`) and the `UnitFlags::IN_MELEE` bit (so the guest hears
 ///   melee battle ambience). Both additive; semantics only.
-pub const PROTOCOL_VERSION: u32 = 8;
+/// - 9: adds `effectiveness_bonus` to `CauldronBuffsSync` so a guest Alchemist's
+///   Effectiveness brew reaches their army (now isolated on its own
+///   `Effectiveness.cauldron_spell_bonus` field, away from poison).
+pub const PROTOCOL_VERSION: u32 = 9;
 
 /// Messages sent over the reliable WebRTC data channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -238,15 +241,17 @@ pub enum NetworkMessage {
 
     /// Guest → host: the guest Alchemist's current army-buff scalars, sent when
     /// they change. The host applies them to the guest's army (Attackers).
-    /// Effectiveness and enemy-slow are intentionally omitted — effectiveness
-    /// shares `spell_bonus` with poison, and enemy-slow targets the host's army
-    /// (which the host's own cleanup manages).
+    /// Effectiveness rides its own dedicated `Effectiveness.cauldron_spell_bonus`
+    /// field (separate from poison's `spell_bonus`), so it replicates safely.
+    /// The enemy-slow is still omitted — it targets the host's army, which the
+    /// host's own cleanup manages.
     CauldronBuffsSync {
         heal_per_second: f32,
         damage_bonus: f32,
         resistance_percent: f32,
         shield_per_second: f32,
         speed_bonus: f32,
+        effectiveness_bonus: f32,
     },
 
     /// Guest → host: the guest forfeited the match. The host ends the game with

@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 - **Controller buttons work in multiplayer** — on a controller during a multiplayer match, the Start button now opens and closes the pause menu, and the cauldron button now brings up the brewing cauldron, just like they already did in single-player.
 - **Action bar spell icons stay a steady size** — when you switch between mouse/keyboard and a controller, the spell icons no longer briefly balloon or shrink; they now hold their size and only resize as the bar smoothly rearranges into the controller's ring layout.
 - **Action bar buttons reset cleanly when you switch controls** — buttons could get stuck looking pressed-in (or a glitchy mix of pressed and not, especially in the controller's ring layout) after swapping between keyboard and controller. They now snap back to normal the instant you switch, while the button you're actually holding or pointing at still lights up.
+- **Brewing buff icons now show in multiplayer** — the row of potion-boost icons and their countdown timers at the top of the screen now appears during multiplayer matches for both players, so you can keep track of your active healing, shield, and other brew boosts just like in single-player.
+- **The Alchemist's effectiveness brew now reaches the joining player's army** — as the second player, the brew that makes your whole army fight more effectively wasn't being applied; it now boosts your units the same way it does for the host. As a bonus, this brew and poison effects no longer cancel each other out on the same unit, in both single-player and multiplayer.
 
 ## [v0.8.91] - 2026-06-04
 

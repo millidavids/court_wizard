@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::game::run_conditions::{
     is_gameplay_running, is_local_wizard_active, is_spell_effects_active,
 };
-use crate::state::{AppState, InGameState};
+use crate::state::{AppState, InGameState, MultiplayerGameState};
 use crate::ui::plugin::ButtonActionSet;
 
 use super::components::{RetreatFlash, ShieldFellFlash};
@@ -118,7 +118,11 @@ impl Plugin for InGamePlugin {
                     .run_if(is_gameplay_running)
                     .run_if(any_with_component::<crate::game::units::boss::ray::RayEye>),
             )
-            // Buff tracker: SP only (CauldronBuffs only exists in SP)
+            // Buff tracker: runs in single-player AND multiplayer. `CauldronBuffs`
+            // is a per-peer resource that both the host and the guest fill in when
+            // their own brew completes, so the local player's brewed buffs show in
+            // the top-left tracker on both peers (the MP HUD spawns the matching
+            // `BuffTrackerContainer`).
             .add_systems(
                 Update,
                 (
@@ -126,7 +130,9 @@ impl Plugin for InGamePlugin {
                     systems::update_buff_timers,
                     systems::show_buff_tooltip,
                 )
-                    .run_if(in_state(InGameState::Running)),
+                    .run_if(
+                        in_state(InGameState::Running).or(in_state(MultiplayerGameState::Running)),
+                    ),
             );
     }
 }

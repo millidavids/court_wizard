@@ -87,7 +87,12 @@ impl Plugin for CauldronPlugin {
                     systems::apply_cauldron_speed_modifiers
                         .run_if(has_active_buffs.or(is_remote_alchemist)),
                     systems::shield_defenders.run_if(has_active_buffs),
-                    systems::buff_defender_effectiveness.run_if(has_active_buffs),
+                    // NOT gated on `has_active_buffs`: it writes the dedicated
+                    // `Effectiveness.cauldron_spell_bonus` field every frame so it
+                    // self-resets to 0 when the brew lapses (a pure-effectiveness
+                    // brew leaves no component for `cleanup` to key off of). The
+                    // internal change-guard prevents per-frame write spam.
+                    systems::buff_defender_effectiveness,
                     systems::cleanup_cauldron_buff_components.run_if(needs_buff_cleanup),
                 )
                     .chain()
@@ -122,6 +127,11 @@ impl Plugin for CauldronPlugin {
                     systems::apply_guest_army_buffs,
                 )
                     .chain()
+                    // Both this and `buff_defender_effectiveness` hold
+                    // `&mut Effectiveness` (Attackers vs Defenders, runtime-
+                    // disjoint). Order them explicitly so the schedule is
+                    // unambiguous.
+                    .after(systems::buff_defender_effectiveness)
                     .run_if(is_gameplay_running)
                     // Only when the GUEST is an Alchemist — otherwise these would
                     // needlessly scan every unit each frame.

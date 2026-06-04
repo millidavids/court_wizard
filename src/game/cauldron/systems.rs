@@ -558,7 +558,6 @@ pub fn cleanup_cauldron_buff_components(
         ),
         Without<Corpse>,
     >,
-    mut defenders: Query<(&mut Effectiveness, &Team), Without<Corpse>>,
     mut wizard: Query<&mut Mana, With<LocalWizard>>,
 ) {
     for (entity, team, damage_bonus, resistance, speed_mod) in &units {
@@ -577,12 +576,9 @@ pub fn cleanup_cauldron_buff_components(
             commands.entity(entity).remove::<CauldronSpeedModifier>();
         }
     }
-    // Reset defender effectiveness bonus
-    for (mut effectiveness, team) in &mut defenders {
-        if *team == Team::Defenders && effectiveness.spell_bonus != 0.0 {
-            effectiveness.spell_bonus = 0.0;
-        }
-    }
+    // Effectiveness is self-reset every frame by `buff_defender_effectiveness`
+    // (it writes 0.0 when no buff is active), so it is intentionally not handled
+    // here — that also keeps cleanup from ever touching the poison-shared field.
     // Reset wizard mana max to base
     let base_max = crate::game::units::wizard::constants::MANA;
     for mut mana in &mut wizard {
@@ -652,15 +648,24 @@ pub fn apply_max_mana_buff(
     }
 }
 
-/// Applies effectiveness bonus to all defenders based on active cauldron buffs.
+/// Applies the cauldron effectiveness bonus to all defenders. Writes the
+/// dedicated `cauldron_spell_bonus` field (NOT the poison-shared `spell_bonus`).
+///
+/// Runs every frame (not gated on `has_active_buffs`) so it is self-resetting:
+/// when no effectiveness buff is active `effectiveness_bonus()` returns 0.0 and
+/// the field is zeroed. This is why `cleanup_cauldron_buff_components` no longer
+/// touches effectiveness — a pure-effectiveness brew (no damage/resistance/speed
+/// component) would otherwise never be reset by the cleanup pass.
 pub fn buff_defender_effectiveness(
     cauldron_buffs: Res<CauldronBuffs>,
     mut defenders: Query<(&mut Effectiveness, &Team), Without<Corpse>>,
 ) {
     let bonus = cauldron_buffs.effectiveness_bonus();
     for (mut effectiveness, team) in &mut defenders {
-        if *team == Team::Defenders && (effectiveness.spell_bonus - bonus).abs() > f32::EPSILON {
-            effectiveness.spell_bonus = bonus;
+        if *team == Team::Defenders
+            && (effectiveness.cauldron_spell_bonus - bonus).abs() > f32::EPSILON
+        {
+            effectiveness.cauldron_spell_bonus = bonus;
         }
     }
 }
@@ -691,6 +696,7 @@ pub fn send_cauldron_buffs_to_host(
             resistance_percent: scalars.resistance_percent,
             shield_per_second: scalars.shield_per_second,
             speed_bonus: scalars.speed_bonus,
+            effectiveness_bonus: scalars.effectiveness_bonus,
         });
 }
 
@@ -715,6 +721,7 @@ pub fn receive_cauldron_buffs(
                 resistance_percent,
                 shield_per_second,
                 speed_bonus,
+                effectiveness_bonus,
             } => {
                 remote.0 = CauldronArmyScalars {
                     heal_per_second,
@@ -722,6 +729,7 @@ pub fn receive_cauldron_buffs(
                     resistance_percent,
                     shield_per_second,
                     speed_bonus,
+                    effectiveness_bonus,
                 };
             }
             other => unhandled.push(other),
@@ -740,13 +748,15 @@ pub fn reset_remote_cauldron_buffs(mut remote: ResMut<RemoteCauldronBuffs>) {
 
 /// Host: applies the guest Alchemist's replicated buffs to the guest's army
 /// (Team::Attackers). Additive alongside the host's own Defender buffs and
-/// self-managing: it inserts/removes the buff components as the scalars change,
-/// so no separate cleanup pass is needed. Covers heal / shield / damage /
-/// resistance. The guest's Meadowsweet SPEED buff is handled separately by
-/// `apply_cauldron_speed_modifiers` (the single owner of `CauldronSpeedModifier`,
-/// to avoid two systems fighting over it). Effectiveness and the enemy-slow are
-/// not replicated — effectiveness would clobber poison's shared `spell_bonus`,
-/// and the enemy-slow is team-relative; both are minor.
+/// self-managing: it inserts/removes the buff components (and writes the
+/// effectiveness field) as the scalars change, so no separate cleanup pass is
+/// needed. Covers heal / shield / damage / resistance / effectiveness.
+/// Effectiveness rides `Effectiveness.cauldron_spell_bonus` (its own field, kept
+/// clear of poison's `spell_bonus`), and is written every frame so it self-resets
+/// to 0 when the guest's brew lapses. The guest's Meadowsweet SPEED buff is
+/// handled separately by `apply_cauldron_speed_modifiers` (the single owner of
+/// `CauldronSpeedModifier`); the enemy-slow stays host-only (it targets the
+/// host's army, which the host's own cleanup manages).
 #[allow(clippy::type_complexity)]
 pub fn apply_guest_army_buffs(
     time: Res<Time>,
@@ -756,10 +766,11 @@ pub fn apply_guest_army_buffs(
         (Entity, &Team, &mut Health, Option<&mut TemporaryHitPoints>),
         Without<Corpse>,
     >,
-    component_q: Query<
+    mut component_q: Query<
         (
             Entity,
             &Team,
+            &mut Effectiveness,
             Has<CauldronDamageBonus>,
             Has<CauldronDamageResistance>,
         ),
@@ -793,9 +804,14 @@ pub fn apply_guest_army_buffs(
         }
     }
 
-    for (entity, team, has_damage, has_resistance) in &component_q {
+    for (entity, team, mut effectiveness, has_damage, has_resistance) in &mut component_q {
         if *team != Team::Attackers {
             continue;
+        }
+        // Effectiveness: written every frame (self-resets to 0 when the brew
+        // lapses). Uses the dedicated field so it never clobbers poison.
+        if (effectiveness.cauldron_spell_bonus - s.effectiveness_bonus).abs() > f32::EPSILON {
+            effectiveness.cauldron_spell_bonus = s.effectiveness_bonus;
         }
         if s.damage_bonus > 0.0 {
             if !has_damage {

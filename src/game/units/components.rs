@@ -739,8 +739,15 @@ pub struct Effectiveness {
     pub current: f32,
     /// Base effectiveness before any modifiers (always 1.0).
     pub base: f32,
-    /// Bonus from spell effects (future feature).
+    /// Bonus from spell effects (e.g. raise-the-dead revenant damage) and the
+    /// additive poison penalty. Shared/contended field — do NOT use it for the
+    /// cauldron (see `cauldron_spell_bonus`).
     pub spell_bonus: f32,
+    /// Effectiveness bonus from the Alchemist's cauldron brews. Kept separate
+    /// from `spell_bonus` so the cauldron's overwrite-style write never clobbers
+    /// the poison status effect's additive bookkeeping — which is what lets the
+    /// cauldron effectiveness buff replicate to a guest's army in multiplayer.
+    pub cauldron_spell_bonus: f32,
 }
 
 impl Effectiveness {
@@ -750,12 +757,13 @@ impl Effectiveness {
             current: 1.0,
             base: 1.0,
             spell_bonus: 0.0,
+            cauldron_spell_bonus: 0.0,
         }
     }
 
     /// Recalculates effectiveness based on proximity modifiers and spell bonuses.
     ///
-    /// Formula: current = clamp(base + proximity_modifier + spell_bonus, MIN, MAX)
+    /// Formula: current = clamp(base + proximity_modifier + spell_bonus + cauldron_spell_bonus, MIN, MAX)
     ///
     /// # Arguments
     /// * `ally_count` - Number of allies in melee range
@@ -769,8 +777,9 @@ impl Effectiveness {
         let proximity_modifier = (ally_count as f32 * EFFECTIVENESS_ALLY_BONUS_PER_UNIT)
             + (enemy_count as f32 * EFFECTIVENESS_ENEMY_PENALTY_PER_UNIT);
 
-        self.current = (self.base + proximity_modifier + self.spell_bonus)
-            .clamp(EFFECTIVENESS_MIN, EFFECTIVENESS_MAX);
+        self.current =
+            (self.base + proximity_modifier + self.spell_bonus + self.cauldron_spell_bonus)
+                .clamp(EFFECTIVENESS_MIN, EFFECTIVENESS_MAX);
     }
 
     /// Returns the current effectiveness multiplier.
@@ -799,6 +808,7 @@ mod tests {
         assert_eq!(eff.current, 1.0);
         assert_eq!(eff.base, 1.0);
         assert_eq!(eff.spell_bonus, 0.0);
+        assert_eq!(eff.cauldron_spell_bonus, 0.0);
     }
 
     #[test]
@@ -807,6 +817,7 @@ mod tests {
         assert_eq!(eff.current, 1.0);
         assert_eq!(eff.base, 1.0);
         assert_eq!(eff.spell_bonus, 0.0);
+        assert_eq!(eff.cauldron_spell_bonus, 0.0);
     }
 
     #[test]
@@ -856,6 +867,18 @@ mod tests {
         eff.spell_bonus = 0.5;
         eff.recalculate(0, 0); // No proximity modifiers
         assert_eq!(eff.current, 1.0 + 0.5);
+    }
+
+    #[test]
+    fn test_effectiveness_cauldron_composes_with_spell_bonus() {
+        // The cauldron bonus and the (poison-shared) spell_bonus must STACK, not
+        // clobber: a poisoned unit (negative spell_bonus) that's also under a
+        // cauldron effectiveness brew should net the two.
+        let mut eff = Effectiveness::new();
+        eff.spell_bonus = -0.2; // e.g. a poison penalty
+        eff.cauldron_spell_bonus = 0.5; // cauldron effectiveness brew
+        eff.recalculate(0, 0);
+        assert_eq!(eff.current, 1.0 - 0.2 + 0.5);
     }
 
     #[test]

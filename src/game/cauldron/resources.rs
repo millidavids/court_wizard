@@ -26,11 +26,13 @@ pub struct CauldronArmyScalars {
     pub resistance_percent: f32,
     pub shield_per_second: f32,
     pub speed_bonus: f32,
+    pub effectiveness_bonus: f32,
 }
 
 impl CauldronBuffs {
-    /// Snapshots the army-affecting scalars for replication. (Effectiveness and
-    /// enemy-slow are not replicated — see `NetworkMessage::CauldronBuffsSync`.)
+    /// Snapshots the army-affecting scalars for replication. (The enemy-slow is
+    /// not replicated — it targets the host's own army; see
+    /// `NetworkMessage::CauldronBuffsSync`.)
     pub fn army_scalars(&self) -> CauldronArmyScalars {
         CauldronArmyScalars {
             heal_per_second: self.defender_heal_per_second(),
@@ -38,6 +40,7 @@ impl CauldronBuffs {
             resistance_percent: self.damage_resistance_percent(),
             shield_per_second: self.defender_shield_per_second(),
             speed_bonus: self.defender_speed_bonus(),
+            effectiveness_bonus: self.effectiveness_bonus(),
         }
     }
 }

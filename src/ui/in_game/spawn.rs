@@ -510,6 +510,18 @@ pub(super) fn spawn_mp_hud(mut commands: Commands, config: Res<GameConfig>) {
                             HudButtonAction::OpenCauldronMenu,
                             &BUTTON_STYLE,
                         );
+                        // Buff tracker container (buff boxes spawned dynamically) —
+                        // mirrors the single-player HUD so brewed buffs are visible
+                        // in multiplayer too.
+                        buttons.spawn((
+                            Node {
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(BUFF_BOX_GAP),
+                                align_items: AlignItems::FlexStart,
+                                ..default()
+                            },
+                            BuffTrackerContainer,
+                        ));
                     });
 
                     // Match clock (top-right) — reuses the single-player Level
