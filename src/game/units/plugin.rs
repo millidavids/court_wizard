@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 
 use super::components::FrostAccumulation;
-use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
+use crate::game::run_conditions::{
+    is_gameplay_running, is_not_mp_setup_phase, is_spell_effects_active,
+};
 
 use super::aerialist::AerialistPlugin;
 use super::archer::ArcherPlugin;
@@ -68,7 +70,9 @@ impl Plugin for UnitsPlugin {
                 Update,
                 (MovementCalculationSet, ApplyTransformsSet)
                     .chain()
-                    .run_if(is_gameplay_running),
+                    .run_if(is_gameplay_running)
+                    // Freeze all unit movement during the multiplayer setup stage.
+                    .run_if(is_not_mp_setup_phase),
             )
             .add_systems(
                 Update,
@@ -191,7 +195,12 @@ impl Plugin for UnitsPlugin {
                     systems::update_airborne_units.run_if(any_with_component::<Airborne>),
                 )
                     .after(ApplyTransformsSet)
-                    .run_if(is_gameplay_running),
+                    .run_if(is_gameplay_running)
+                    // Freeze spell-driven displacement (knockback/airborne launches)
+                    // during the multiplayer setup stage, matching the movement sets.
+                    // This also stops update_airborne_units from stacking a landing
+                    // PendingDamageEffect on the immune, frozen armies.
+                    .run_if(is_not_mp_setup_phase),
             )
             .add_systems(
                 Update,

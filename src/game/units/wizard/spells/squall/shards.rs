@@ -518,8 +518,10 @@ pub(super) fn update_absolute_zero(
 
             let distance = xz_distance(unit_transform.translation, storm.position);
 
-            if distance <= storm.radius {
-                // Apply damage
+            // During the multiplayer setup stage units are immune, so Absolute Zero
+            // applies neither damage nor its slow/frost debuffs (no pre-loading a
+            // movement debuff on the frozen enemy army before the fight begins).
+            if distance <= storm.radius && !crate::game::units::components::is_setup_immune() {
                 health.take_damage(damage_this_frame);
 
                 // Stack slow (Absolute Zero has its own stacking on top of frost accumulation)

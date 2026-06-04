@@ -5,6 +5,7 @@ mod components;
 mod constants;
 pub(super) mod displays;
 pub(super) mod plugin;
+mod setup_banner;
 pub(super) mod spawn;
 mod systems;
 

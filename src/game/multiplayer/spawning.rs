@@ -124,6 +124,10 @@ pub(super) fn spawn_mp_wizard(
     // intentionally omitted in MP to keep matches balanced.
     let mut wizard = Wizard::new(constants::DEFAULT_SPELL_RANGE);
     crate::game::units::wizard::systems::apply_archetype_stat_bonuses(&mut wizard, wizard_type);
+    // Multiplayer-only spell-range buff (+5% reach). Applies to every archetype.
+    // The Arcanorouter recomputes its range each frame in `apply_bonuses_to_wizard_stats`,
+    // which applies the same multiplier, so this spawn-time value is just its first frame.
+    wizard.spell_range *= constants::MP_SPELL_RANGE_MULTIPLIER;
 
     let mut entity_commands = commands.spawn((
         Mesh3d(meshes.add(quad_mesh)),

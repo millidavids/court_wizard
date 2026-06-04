@@ -175,7 +175,7 @@ pub(super) fn spawn_shield_fell_flash(
 }
 
 /// Spawns a centered flash banner at the top of the screen with the given marker.
-fn spawn_flash_banner_with_marker<M: Component>(
+pub(super) fn spawn_flash_banner_with_marker<M: Component>(
     commands: &mut Commands,
     text: &str,
     color: Color,

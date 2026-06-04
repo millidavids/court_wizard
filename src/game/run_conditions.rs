@@ -151,6 +151,22 @@ pub fn is_spell_effects_active(
     })
 }
 
+/// Duration (seconds) of the multiplayer setup stage at the start of a match,
+/// during which armies are frozen and units are immune to damage.
+pub const MP_SETUP_DURATION: f32 = 10.0;
+
+/// Returns true OUTSIDE the multiplayer setup stage. Used to gate movement
+/// system sets so they pause during the first `MP_SETUP_DURATION` seconds of a
+/// match. Driven by the host-authoritative match clock (`KillStats::elapsed_time`),
+/// which the guest mirrors via snapshots, so both peers agree. Always true in
+/// single-player (no `MultiplayerSession`).
+pub fn is_not_mp_setup_phase(
+    kill_stats: Res<crate::game::resources::KillStats>,
+    session: Option<Res<MultiplayerSession>>,
+) -> bool {
+    !(session.is_some() && kill_stats.elapsed_time < MP_SETUP_DURATION)
+}
+
 /// Returns true if the active wizard type is RuneCaster.
 pub fn is_rune_caster(config: Res<GameConfig>) -> bool {
     config.wizard_type == WizardType::RuneCaster

@@ -61,6 +61,7 @@ pub(super) fn in_mp_disconnected(state: Option<Res<State<MultiplayerGameState>>>
 /// GlobalAttackCycle, KillStats, DefendersActivated, and GameOutcome are already
 /// initialized by GamePlugin at startup. We reset them here to ensure clean state
 /// and additionally insert MP-only resources.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn init_mp_game(
     mut commands: Commands,
     mut attack_cycle: ResMut<GlobalAttackCycle>,
@@ -68,6 +69,10 @@ pub(super) fn init_mp_game(
     mut defenders_activated: ResMut<DefendersActivated>,
     mut game_outcome: ResMut<GameOutcome>,
     connection: Res<NetworkConnection>,
+    config: Res<GameConfig>,
+    arcanorouter_state: Option<
+        Res<crate::game::units::wizard::archetypes::arcanorouter::ArcanoRouterState>,
+    >,
 ) {
     // Reset globally-owned resources to clean state for this match
     *attack_cycle = GlobalAttackCycle::default();
@@ -103,6 +108,19 @@ pub(super) fn init_mp_game(
     commands.init_resource::<super::spell_sync::LatestSpellSnapshot>();
     // Per-match wizard spell-stat accumulator for the score screen.
     commands.init_resource::<super::score_stats::LocalWizardStats>();
+
+    // Pin the Arcanorouter's range allocation for the setup stage (per-peer:
+    // `config.wizard_type` was just synced to THIS peer's wizard).
+    if config.wizard_type == WizardType::Arcanorouter {
+        let baseline = arcanorouter_state
+            .map(|s| s.range_allocation)
+            .unwrap_or(100.0);
+        commands.insert_resource(
+            crate::game::units::wizard::archetypes::arcanorouter::ArcanoRouterSetupBaseline(
+                baseline,
+            ),
+        );
+    }
 
     // SpellVisualAssets is initialized globally at startup, no MP-specific asset init needed.
 }
@@ -173,6 +191,11 @@ pub(super) fn cleanup_mp_game(
     *attack_cycle = GlobalAttackCycle::default();
     kill_stats.reset();
     defenders_activated.active = false;
+    // Clear the setup-stage immunity flag so it never leaks into a later
+    // single-player game (e.g. if the match ended mid-setup).
+    crate::game::units::components::set_setup_immunity(false);
+    commands
+        .remove_resource::<crate::game::units::wizard::archetypes::arcanorouter::ArcanoRouterSetupBaseline>();
     cauldron_buffs.active_buffs.clear();
     *game_outcome = GameOutcome::Victory;
 

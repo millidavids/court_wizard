@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [pending]
 
+### Added
+- **Multiplayer matches now open with a 10-second setup phase** — a countdown banner appears at the top of the screen and both armies hold still while it ticks down, giving you time to brew potions, raise walls of dirt, place your spells, and plan your opening. Nobody can be hurt during this window, so you can't be picked off before you're ready — and the battle kicks off automatically when the countdown hits zero.
+
+### Changed
+- **Wizards reach a little farther in multiplayer** — every wizard's spell range is 5% larger in multiplayer matches.
+- **The Arcanorouter can't stretch its range during the setup phase** — its range dial stays put while the countdown runs (the other dials still work), so it can't reach clear across the battlefield before the fight even begins.
+
 ### Fixed
 - **Controller buttons work in multiplayer** — on a controller during a multiplayer match, the Start button now opens and closes the pause menu, and the cauldron button now brings up the brewing cauldron, just like they already did in single-player.
 - **Action bar spell icons stay a steady size** — when you switch between mouse/keyboard and a controller, the spell icons no longer briefly balloon or shrink; they now hold their size and only resize as the bar smoothly rearranges into the controller's ring layout.

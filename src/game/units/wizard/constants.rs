@@ -20,6 +20,9 @@ pub const MANA_REGEN: f32 = 5.0;
 /// Wizard default spell range (units from wizard).
 pub const DEFAULT_SPELL_RANGE: f32 = 3000.0;
 
+/// Spell-range bonus applied to every wizard in multiplayer (5% extra reach).
+pub(crate) const MP_SPELL_RANGE_MULTIPLIER: f32 = 1.05;
+
 // Sprite sheet animation parameters
 /// Total animation frames in the idle sprite sheet.
 pub const WIZARD_SPRITE_FRAMES: usize = 9;

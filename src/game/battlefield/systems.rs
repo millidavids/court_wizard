@@ -552,6 +552,10 @@ pub fn apply_lava_damage(
         ),
     >,
 ) {
+    // Multiplayer setup stage: units are immune to damage.
+    if crate::game::units::components::is_setup_immune() {
+        return;
+    }
     let damage = LAVA_DAMAGE_PER_SECOND * time.delta_secs();
     let lava_xz = Vec2::new(LAVA_POOL_POSITION.x, LAVA_POOL_POSITION.z);
     let radius_sq = LAVA_DAMAGE_RADIUS * LAVA_DAMAGE_RADIUS;

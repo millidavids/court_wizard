@@ -9,6 +9,7 @@ use crate::state::{AppState, InGameState, MultiplayerGameState};
 use crate::ui::plugin::ButtonActionSet;
 
 use super::components::{RetreatFlash, ShieldFellFlash};
+use super::setup_banner;
 use super::systems;
 
 /// Plugin that manages in-game UI and input handling.
@@ -29,6 +30,19 @@ impl Plugin for InGamePlugin {
             // Use AppState::MultiplayerGame so it spawns once, not on every
             // Running re-entry from SpellBook/Paused.
             .add_systems(OnEnter(AppState::MultiplayerGame), systems::spawn_mp_hud)
+            // MP setup-stage countdown banner. Spawns on both peers (MP only;
+            // entering MultiplayerGame implies a MultiplayerSession). The update
+            // system counts down from the mirrored match clock and despawns the
+            // banner when the setup stage ends.
+            .add_systems(
+                OnEnter(AppState::MultiplayerGame),
+                setup_banner::spawn_setup_countdown_banner,
+            )
+            .add_systems(
+                Update,
+                setup_banner::update_setup_countdown_banner
+                    .run_if(in_state(AppState::MultiplayerGame)),
+            )
             .add_systems(
                 Update,
                 systems::hud_button_action

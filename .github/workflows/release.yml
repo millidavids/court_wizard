@@ -111,6 +111,49 @@ jobs:
           depot3Path: macos/court_wizard
           releaseBranch: staging
 
+  steam-deploy-playtest:
+    # Runs after the main staging push (sequentially, to avoid two concurrent
+    # steamcmd logins on the same account) whenever that push happens. Same
+    # build artifacts, same Steam credentials — only the app, depots, and branch
+    # differ. Gated on the same STEAM_DEPLOY toggle as the main deploy.
+    needs: [check-version, build, release, steam-deploy]
+    if: needs.check-version.outputs.should_release == 'true' && vars.STEAM_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Stage content
+        run: |
+          mkdir -p steam-content/windows steam-content/linux steam-content/macos
+          unzip -q artifacts/court_wizard-windows/*.zip -d steam-content/windows
+          unzip -q artifacts/court_wizard-linux/*.zip   -d steam-content/linux
+          unzip -q artifacts/court_wizard-macos/*.zip   -d steam-content/macos
+
+      - name: Upload playtest build to Steamworks
+        uses: game-ci/steam-deploy@v3
+        with:
+          username: ${{ secrets.STEAM_USER }}
+          configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
+          appId: '4820340'
+          firstDepotIdOverride: '4820342'
+          buildDescription: v${{ needs.check-version.outputs.version }} (${{ github.sha }})
+          rootPath: steam-content
+          # Playtest depot IDs increment from firstDepotIdOverride in path order:
+          # 4820342 (windows) -> 4820343 (macOS) -> 4820344 (linux/SteamOS).
+          # NOTE: this order is windows/macos/linux, which differs from the main
+          # app's windows/linux/macos ordering above — do not "align" them.
+          depot1Path: windows/court_wizard
+          depot2Path: macos/court_wizard
+          depot3Path: linux/court_wizard
+          # Upload to the playtest's "staging" beta branch and promote
+          # staging -> default by hand in Steamworks (avoids Steam blocking an
+          # automated set-live straight to default). The "staging" beta branch
+          # must already exist on app 4820340 in Steamworks, or this step fails.
+          releaseBranch: staging
+
   notify-discord:
     needs: [check-version, release]
     if: needs.check-version.outputs.should_release == 'true'

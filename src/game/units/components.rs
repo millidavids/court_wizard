@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use bevy::prelude::*;
 
 use super::constants::{
@@ -383,6 +385,38 @@ impl Health {
     }
 }
 
+/// Process-wide flag that, while set, makes every unit immune to damage. Driven
+/// by [`sync_setup_immunity_flag`] from the multiplayer setup stage. Damage
+/// helpers and the few direct-`take_damage` sites early-return when this is set.
+///
+/// A `static` (rather than a Bevy resource) is used because the damage helpers
+/// below are plain free functions called from ~50 sites with no `World`/`Res`
+/// access. Only one game runs per process, and the flag is reset on match exit.
+static SETUP_IMMUNITY_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+/// Sets the global setup-stage damage-immunity flag.
+pub(crate) fn set_setup_immunity(active: bool) {
+    SETUP_IMMUNITY_ACTIVE.store(active, Ordering::Relaxed);
+}
+
+/// Returns true while units are immune to damage (multiplayer setup stage).
+pub(crate) fn is_setup_immune() -> bool {
+    SETUP_IMMUNITY_ACTIVE.load(Ordering::Relaxed)
+}
+
+/// Updates [`SETUP_IMMUNITY_ACTIVE`] each frame from the multiplayer setup-stage
+/// condition. Registered under `resource_exists::<MultiplayerSession>` so it only
+/// runs in multiplayer; the flag is additionally reset on match exit so it never
+/// leaks into a later single-player game.
+pub fn sync_setup_immunity_flag(
+    kill_stats: Res<crate::game::resources::KillStats>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
+) {
+    let active = session.is_some()
+        && kill_stats.elapsed_time < crate::game::run_conditions::MP_SETUP_DURATION;
+    set_setup_immunity(active);
+}
+
 /// Applies damage to a unit, absorbing with temporary HP first.
 ///
 /// This function should be used instead of directly calling `health.take_damage()`
@@ -399,6 +433,10 @@ pub fn apply_damage_to_unit(
     temp_hp: Option<&mut TemporaryHitPoints>,
     damage: f32,
 ) {
+    // Multiplayer setup stage: units are immune to all damage.
+    if is_setup_immune() {
+        return;
+    }
     let overflow = if let Some(temp) = temp_hp {
         temp.absorb_damage(damage)
     } else {
@@ -656,6 +694,11 @@ fn apply_spell_damage_inner(
     source_team: Option<Team>,
 ) {
     if blocked {
+        return;
+    }
+    // Multiplayer setup stage: skip damage AND its downstream DoT/tally effects so
+    // no damage-over-time is pre-applied to the frozen, immune armies.
+    if is_setup_immune() {
         return;
     }
     let modified_damage = damage * (1.0 + health.spell_vulnerability);

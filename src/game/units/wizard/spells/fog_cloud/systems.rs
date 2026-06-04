@@ -334,6 +334,10 @@ pub fn apply_choking_fog_damage(
     mut zones: Query<(&FogCloudZone, &mut ChokingFogZone)>,
     mut targets: Query<(&Transform, &Team, &mut Health), Without<Corpse>>,
 ) {
+    // Multiplayer setup stage: units are immune to damage.
+    if crate::game::units::components::is_setup_immune() {
+        return;
+    }
     let delta = time.delta_secs();
     for (zone, mut choking) in &mut zones {
         choking.tick_accumulator += delta;

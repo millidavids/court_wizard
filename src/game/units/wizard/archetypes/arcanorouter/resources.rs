@@ -23,6 +23,13 @@ impl SliderType {
     }
 }
 
+/// Captures the Arcanorouter's `range_allocation` at multiplayer match start so
+/// it can be pinned during the setup stage (the player may still adjust
+/// mana/power/speed, but range must not rise). Present only for an Arcanorouter
+/// in multiplayer; inserted in `init_mp_game`, removed in `cleanup_mp_game`.
+#[derive(Resource, Debug, Clone, Copy)]
+pub(in crate::game) struct ArcanoRouterSetupBaseline(pub f32);
+
 /// Tracks the current allocation state for all four resource sliders.
 ///
 /// This resource manages a fixed pool of 400% that is distributed across
@@ -132,6 +139,73 @@ impl ArcanoRouterState {
         self.speed_allocation *= scale;
     }
 
+    /// Re-balances mana/power/speed so they sum to
+    /// `TOTAL_ALLOCATION_POOL - range_allocation`, leaving `range_allocation`
+    /// exactly untouched. Used during the multiplayer setup stage to pin range
+    /// while the other three sliders remain adjustable.
+    ///
+    /// Intentionally does NOT call [`normalize`](Self::normalize), which would
+    /// rescale all four sliders and drift the pinned range. Because clamping each
+    /// slider to `[MIN, MAX]` can leave the sum off-target, a residual pass
+    /// redistributes the remainder onto sliders that still have headroom, so the
+    /// pool stays balanced (`range` + the three == `TOTAL_ALLOCATION_POOL`).
+    pub(super) fn normalize_excluding_range(&mut self) {
+        let target_rest = TOTAL_ALLOCATION_POOL - self.range_allocation;
+        let mut vals = [
+            self.mana_allocation,
+            self.power_allocation,
+            self.speed_allocation,
+        ];
+        let current_rest: f32 = vals.iter().sum();
+
+        if current_rest < 0.01 {
+            // Degenerate: split the remaining pool evenly across the three.
+            let each = (target_rest / 3.0).clamp(MIN_ALLOCATION, MAX_ALLOCATION);
+            vals = [each, each, each];
+        } else {
+            let scale = target_rest / current_rest;
+            for v in &mut vals {
+                *v = (*v * scale).clamp(MIN_ALLOCATION, MAX_ALLOCATION);
+            }
+        }
+
+        // Clamping can leave the sum off target; push the residual onto whichever
+        // sliders still have room in the needed direction. `target_rest` is in
+        // [200, 375] (range is in [25, 200]) and three sliders span [75, 600], so
+        // a feasible distribution always exists; a few passes converge.
+        for _ in 0..4 {
+            let residual = target_rest - vals.iter().sum::<f32>();
+            if residual.abs() < 0.01 {
+                break;
+            }
+            let room: f32 = vals
+                .iter()
+                .map(|v| {
+                    if residual > 0.0 {
+                        MAX_ALLOCATION - v
+                    } else {
+                        v - MIN_ALLOCATION
+                    }
+                })
+                .sum();
+            if room < 0.01 {
+                break;
+            }
+            for v in &mut vals {
+                let slot_room = if residual > 0.0 {
+                    MAX_ALLOCATION - *v
+                } else {
+                    *v - MIN_ALLOCATION
+                };
+                *v = (*v + residual * (slot_room / room)).clamp(MIN_ALLOCATION, MAX_ALLOCATION);
+            }
+        }
+
+        self.mana_allocation = vals[0];
+        self.power_allocation = vals[1];
+        self.speed_allocation = vals[2];
+    }
+
     /// Converts an allocation percentage to a multiplier (100% = 1.0x)
     #[allow(dead_code)]
     pub fn get_multiplier(&self, slider: SliderType) -> f32 {
@@ -201,5 +275,37 @@ mod tests {
 
         // Total should still be approximately 400%
         assert!((state.total_allocation() - 400.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn test_normalize_excluding_range_pins_range_and_pool() {
+        // A state where one non-range slider is at MAX, so a naive scale+clamp
+        // would undershoot the pool (the bug the residual pass fixes).
+        let mut state = ArcanoRouterState {
+            range_allocation: 25.0,
+            mana_allocation: 200.0,
+            power_allocation: 25.0,
+            speed_allocation: 150.0,
+        };
+
+        state.normalize_excluding_range();
+
+        // Range is left exactly untouched.
+        assert_eq!(state.range_allocation, 25.0);
+        // The other three are re-balanced to fill the rest of the pool, so the
+        // total returns to exactly 400 (no silent undershoot from clamping).
+        assert!(
+            (state.total_allocation() - TOTAL_ALLOCATION_POOL).abs() < 0.1,
+            "pool drifted: {}",
+            state.total_allocation()
+        );
+        // Every slider stays within bounds.
+        for slider in SliderType::all() {
+            let v = state.get_allocation(slider);
+            assert!(
+                (MIN_ALLOCATION..=MAX_ALLOCATION).contains(&v),
+                "out of bounds: {v}"
+            );
+        }
     }
 }

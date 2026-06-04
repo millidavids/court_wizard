@@ -4,7 +4,7 @@ use crate::state::{AppState, InGameState};
 
 #[cfg(debug_assertions)]
 use super::components::OnGameplayScreen;
-use super::run_conditions::{is_gameplay_running, is_spell_effects_active};
+use super::run_conditions::{is_gameplay_running, is_not_mp_setup_phase, is_spell_effects_active};
 #[cfg(debug_assertions)]
 use super::units::components::Hitbox;
 
@@ -171,9 +171,12 @@ impl Plugin for GamePlugin {
             .configure_sets(
                 Update,
                 (
-                    VelocitySystemSet.run_if(is_gameplay_running),
+                    VelocitySystemSet
+                        .run_if(is_gameplay_running)
+                        .run_if(is_not_mp_setup_phase),
                     MovementSystemSet
                         .run_if(is_gameplay_running)
+                        .run_if(is_not_mp_setup_phase)
                         .after(VelocitySystemSet),
                     PostCombatSet
                         .run_if(is_gameplay_running)
@@ -190,6 +193,19 @@ impl Plugin for GamePlugin {
                     shared_systems::tick_elapsed_time,
                 )
                     .run_if(is_gameplay_running),
+            )
+            // Drives the global setup-stage damage-immunity flag. Runs on BOTH
+            // peers (guest mirrors the host's clock) so guest-cast spells also
+            // deal no damage during setup. Gated on the session resource so it
+            // is a no-op in single-player.
+            .add_systems(
+                Update,
+                crate::game::units::components::sync_setup_immunity_flag
+                    .run_if(resource_exists::<crate::networking::session::MultiplayerSession>)
+                    // Write the immunity flag before any damage is resolved this
+                    // frame, so there's no first-frame window where the flag is
+                    // still false while combat runs.
+                    .before(PostCombatSet),
             )
             // Wave staging is single-player only. Multiplayer's attacker
             // armies are spawned in full at match start (`init_mp_loading`);
@@ -239,7 +255,11 @@ impl Plugin for GamePlugin {
             .add_systems(
                 Update,
                 (
-                    movement_systems::enforce_wall_collision,
+                    // Frozen during the MP setup stage so units aren't shoved out
+                    // of player-built walls while the armies are meant to hold still.
+                    // (The rest of PostCombatSet keeps running — snapshots, combat
+                    // whose damage is already neutralized by the immunity flag, etc.)
+                    movement_systems::enforce_wall_collision.run_if(is_not_mp_setup_phase),
                     combat_systems::combat,
                     combat_systems::enforce_invulnerability,
                     super::units::wizard::spells::berserker_rage::systems::undying_fury_trigger,
