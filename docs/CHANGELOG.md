@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.9.2] - 2026-06-04
 
 ### Added
 - **Multiplayer matches now open with a 10-second setup phase** — a countdown banner appears at the top of the screen and both armies hold still while it ticks down, giving you time to brew potions, raise walls of dirt, place your spells, and plan your opening. Nobody can be hurt during this window, so you can't be picked off before you're ready — and the battle kicks off automatically when the countdown hits zero.
