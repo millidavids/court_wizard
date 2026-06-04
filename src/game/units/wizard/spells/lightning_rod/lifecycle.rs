@@ -3,41 +3,40 @@
 use std::cmp::Ordering;
 
 use super::casting::spawn_descending_strike;
-use super::components::{
-    LightningRod, LightningRodArc, LightningRodTalentParams, LightningStrike,
-    StormSpireSecondaryRod,
-};
+use super::components::{LightningRod, LightningRodArc, LightningRodTalentParams, LightningStrike};
 use super::constants::*;
 use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::terrain::pond::components::Pond;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Corpse, Health, SlowMovementModifier, TemporaryHitPoints, apply_spell_damage,
+    Corpse, Health, SlowMovementModifier, Team, TemporaryHitPoints, apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::lightning_bolt::{
     LightningBolt, LightningBoltConfig, spawn_lightning_bolt,
 };
+use crate::game::units::wizard::spells::utils::local_player_team;
 use crate::game::units::wizard::spells::utils::xz_distance;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::BattleTalentProgress;
+use crate::networking::session::MultiplayerSession;
 use bevy::prelude::*;
 
-/// Despawns the second Storm Spire concentration rod once its anchor (the
-/// `ConcentrationSpell` holder) has been removed by ending concentration, so both
-/// rods always disappear together.
-pub(super) fn cleanup_orphaned_storm_rods(
-    mut commands: Commands,
-    secondary: Query<(Entity, &StormSpireSecondaryRod)>,
-    rods: Query<(), With<LightningRod>>,
-) {
-    for (entity, sec) in &secondary {
-        if rods.get(sec.anchor).is_err() {
-            commands.entity(entity).try_despawn();
-        }
-    }
-}
+/// Shared query shape for arc-damage targets (the rod's lightning strikes and
+/// their chained arcs). Factored into a type alias so the same complex query
+/// can be passed by `&mut` through `update_lightning_strikes` →
+/// `spawn_arcs_to_nearby_units` → `apply_arc_hit` without re-spelling it.
+type ArcTargetData = (
+    Entity,
+    &'static Transform,
+    &'static mut Health,
+    Option<&'static mut TemporaryHitPoints>,
+    Has<SpellShield>,
+    Option<&'static mut SlowMovementModifier>,
+    &'static Team,
+);
+type ArcTargetFilter = (Without<Corpse>, Without<LightningStrike>);
 
 /// Compute talent parameters from active talent selections.
 pub(super) fn update_lightning_rod(
@@ -117,22 +116,14 @@ pub(super) fn update_lightning_strikes(
     visual_assets: Res<SpellVisualAssets>,
     mut strikes: Query<(Entity, &mut LightningBolt, &LightningStrike)>,
     mut screen_flash: MessageWriter<crate::game::crt_effect::ScreenFlashMessage>,
-    mut units: Query<
-        (
-            Entity,
-            &Transform,
-            &mut Health,
-            Option<&mut TemporaryHitPoints>,
-            Has<SpellShield>,
-            Option<&mut SlowMovementModifier>,
-        ),
-        (Without<Corpse>, Without<LightningStrike>),
-    >,
+    mut units: Query<ArcTargetData, ArcTargetFilter>,
     ponds: Query<&Pond>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     let delta = time.delta_secs();
+    let caster_team = local_player_team(session.as_deref());
 
     for (entity, mut bolt, strike) in strikes.iter_mut() {
         // Drive the bolt's end downward; the jagged-bolt system re-jitters
@@ -168,6 +159,7 @@ pub(super) fn update_lightning_strikes(
                 &strike.talent_params,
                 &mut units,
                 &mut talent_progress,
+                caster_team,
             );
 
             // Also arc to nearby ponds (shock already applied via TerrainDamageMessage above).
@@ -231,23 +223,14 @@ fn spawn_arcs_to_nearby_units(
     empowerment: f32,
     max_targets: usize,
     talent_params: &LightningRodTalentParams,
-    units: &mut Query<
-        (
-            Entity,
-            &Transform,
-            &mut Health,
-            Option<&mut TemporaryHitPoints>,
-            Has<SpellShield>,
-            Option<&mut SlowMovementModifier>,
-        ),
-        (Without<Corpse>, Without<LightningStrike>),
-    >,
+    units: &mut Query<ArcTargetData, ArcTargetFilter>,
     talent_progress: &mut Option<ResMut<BattleTalentProgress>>,
+    caster_team: Team,
 ) -> u32 {
     // Collect targets sorted by distance (closest first)
     let mut targets: Vec<(Entity, Vec3, f32)> = units
         .iter()
-        .map(|(entity, transform, _, _, _, _)| {
+        .map(|(entity, transform, _, _, _, _, _)| {
             let pos = transform.translation;
             let dist = Vec3::new(rod_top.x, 0.0, rod_top.z).distance(Vec3::new(pos.x, 0.0, pos.z));
             (entity, pos, dist)
@@ -264,7 +247,14 @@ fn spawn_arcs_to_nearby_units(
 
     // Apply damage and spawn arc visuals
     for (target_entity, target_pos, _) in &targets {
-        kills += apply_arc_hit(commands, units, *target_entity, damage, talent_params);
+        kills += apply_arc_hit(
+            commands,
+            units,
+            *target_entity,
+            damage,
+            talent_params,
+            caster_team,
+        );
         hit_entities.push(*target_entity);
         spawn_arc(commands, assets, rod_top, *target_pos, empowerment);
     }
@@ -280,7 +270,7 @@ fn spawn_arcs_to_nearby_units(
             // Find closest unit to the primary target that wasn't already hit
             let mut candidates: Vec<(Entity, Vec3, f32)> = units
                 .iter()
-                .filter_map(|(entity, transform, _, _, _, _)| {
+                .filter_map(|(entity, transform, _, _, _, _, _)| {
                     if hit_entities.contains(&entity) || entity == *primary_entity {
                         return None;
                     }
@@ -308,7 +298,14 @@ fn spawn_arcs_to_nearby_units(
 
         // Apply chain damage
         for (chain_entity, chain_pos, source_pos) in &chain_targets {
-            kills += apply_arc_hit(commands, units, *chain_entity, chain_damage, talent_params);
+            kills += apply_arc_hit(
+                commands,
+                units,
+                *chain_entity,
+                chain_damage,
+                talent_params,
+                caster_team,
+            );
             spawn_arc(commands, assets, *source_pos, *chain_pos, empowerment);
         }
     }
@@ -326,29 +323,21 @@ fn spawn_arcs_to_nearby_units(
 /// Applies arc damage to a single target, optionally slows it (Magnetic Field), and returns 1 if killed.
 fn apply_arc_hit(
     commands: &mut Commands,
-    units: &mut Query<
-        (
-            Entity,
-            &Transform,
-            &mut Health,
-            Option<&mut TemporaryHitPoints>,
-            Has<SpellShield>,
-            Option<&mut SlowMovementModifier>,
-        ),
-        (Without<Corpse>, Without<LightningStrike>),
-    >,
+    units: &mut Query<ArcTargetData, ArcTargetFilter>,
     entity: Entity,
     damage: f32,
     talent_params: &LightningRodTalentParams,
+    caster_team: Team,
 ) -> u32 {
-    let Ok((_, _, mut health, mut temp_hp, has_spell_shield, mut slow)) = units.get_mut(entity)
+    let Ok((_, _, mut health, mut temp_hp, has_spell_shield, mut slow, team)) =
+        units.get_mut(entity)
     else {
         return 0;
     };
 
     let was_alive = health.current > 0.0;
 
-    apply_spell_damage(
+    apply_spell_damage_with_team(
         commands,
         entity,
         &mut health,
@@ -356,6 +345,8 @@ fn apply_arc_hit(
         damage,
         DamageType::Electric,
         has_spell_shield,
+        caster_team,
+        *team,
     );
 
     let killed = u32::from(was_alive && health.current <= 0.0);

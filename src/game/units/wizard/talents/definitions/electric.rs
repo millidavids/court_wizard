@@ -116,8 +116,8 @@ pub(super) fn lightning_rod_talents() -> [[TalentDefinition; 3]; 3] {
         [
             TalentDefinition {
                 name: "Storm Spire",
-                description: "Places 2 rods instead of 1. Each rod deals 60% damage and lasts 70% as long.",
-                locked_text: "Why have one lightning rod when you can have two?",
+                description: "Lightning Rod becomes a channeled spell: hold a single focused rod (60% damage) in place for as long as you keep concentrating.",
+                locked_text: "Channel the storm into one unrelenting spire.",
                 implemented: true,
             },
             TalentDefinition {

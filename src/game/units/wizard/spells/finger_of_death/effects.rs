@@ -6,14 +6,16 @@ use super::components::*;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::units::components::{
-    Corpse, Health, PermanentCorpse, Team, TemporaryHitPoints, apply_spell_damage,
+    Corpse, Health, PermanentCorpse, Team, TemporaryHitPoints, apply_spell_damage_with_team,
 };
 use crate::game::units::constants::{EXCREMAGE_BROWN, EXCREMAGE_BROWN_DARK};
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::spells::utils::local_player_team;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::BattleTalentProgress;
+use crate::networking::session::MultiplayerSession;
 use bevy::prelude::*;
 
 /// Computes talent-modified parameters for Finger of Death.
@@ -133,10 +135,14 @@ pub fn apply_necrotic_explosion_damage(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
+            &Team,
         ),
         Without<Wizard>,
     >,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
+
     // Collect positions and damage of explosions that haven't applied damage yet
     let mut pending: Vec<(Vec3, f32)> = Vec::new();
     for (transform, mut burst) in explosions.iter_mut() {
@@ -147,23 +153,24 @@ pub fn apply_necrotic_explosion_damage(
     }
 
     for (explosion_pos, explosion_damage) in &pending {
-        for (entity, transform, mut health, mut temp_hp, has_spell_shield) in targets.iter_mut() {
-            if has_spell_shield {
-                continue;
-            }
+        for (entity, transform, mut health, mut temp_hp, has_spell_shield, team) in
+            targets.iter_mut()
+        {
             let dist = crate::game::units::wizard::spells::utils::xz_distance(
                 transform.translation,
                 *explosion_pos,
             );
             if dist <= constants::NECROTIC_EXPLOSION_RADIUS {
-                apply_spell_damage(
+                apply_spell_damage_with_team(
                     &mut commands,
                     entity,
                     &mut health,
                     temp_hp.as_deref_mut(),
                     *explosion_damage,
                     DamageType::Necrotic,
-                    false,
+                    has_spell_shield,
+                    caster_team,
+                    *team,
                 );
             }
         }
@@ -282,6 +289,7 @@ pub fn update_reapers_scythe(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
+            &Team,
         ),
         Without<Wizard>,
     >,
@@ -290,8 +298,10 @@ pub fn update_reapers_scythe(
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     let dt = time.delta_secs();
+    let caster_team = local_player_team(session.as_deref());
 
     for (sweep_entity, mut sweep) in sweeps.iter_mut() {
         sweep.time_elapsed += dt;
@@ -349,8 +359,11 @@ pub fn update_reapers_scythe(
         let mut kill_count = 0u32;
 
         // Damage targets in current sweep position (skip already-hit)
-        for (entity, transform, mut health, mut temp_hp, has_spell_shield) in targets.iter_mut() {
-            if has_spell_shield || sweep.hit_entities.contains(&entity) {
+        for (entity, transform, mut health, mut temp_hp, has_spell_shield, team) in
+            targets.iter_mut()
+        {
+            // Enemy shielded King is immune; your own King takes the sweep (friendly fire).
+            if (has_spell_shield && caster_team != *team) || sweep.hit_entities.contains(&entity) {
                 continue;
             }
             if beam.contains_point(transform.translation, beam_width) {
@@ -358,14 +371,16 @@ pub fn update_reapers_scythe(
                 if proj <= effective_length {
                     sweep.hit_entities.insert(entity);
                     let was_alive = health.current > 0.0;
-                    apply_spell_damage(
+                    apply_spell_damage_with_team(
                         &mut commands,
                         entity,
                         &mut health,
                         temp_hp.as_deref_mut(),
                         damage,
                         DamageType::Necrotic,
-                        false,
+                        has_spell_shield,
+                        caster_team,
+                        *team,
                     );
 
                     if was_alive && health.current <= 0.0 {

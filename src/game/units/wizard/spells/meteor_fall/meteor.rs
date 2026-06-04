@@ -16,16 +16,18 @@ use crate::game::pathfinding::resources::PathfindingGrid;
 use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Health, Knockback, Team, TemporaryHitPoints, apply_spell_damage,
+    Health, Knockback, Team, TemporaryHitPoints, apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::local_player_team;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::{
     FireExplosionSphereMaterial, SpellVisualAssets, explosion_fade_opacity,
 };
 use crate::game::units::wizard::talents::resources::BattleTalentProgress;
+use crate::networking::session::MultiplayerSession;
 use crate::networking::snapshot::SpellEffectKind;
 
 pub(super) fn update_meteor_projectiles(
@@ -163,13 +165,16 @@ pub(super) fn check_meteor_collisions(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
+            &Team,
         ),
         Without<MeteorProjectile>,
     >,
     active_toggles: Option<Res<ActiveToggles>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     let scorched_mult =
         crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
+    let caster_team = local_player_team(session.as_deref());
     for (entity, transform, projectile) in projectiles.iter() {
         let projectile_pos = transform.translation;
 
@@ -216,15 +221,21 @@ pub(super) fn check_meteor_collisions(
 
             // Aftershock: knockback + bonus damage to nearby enemies
             if projectile.aftershock {
-                for (unit_entity, unit_transform, mut health, mut temp_hp, has_spell_shield) in
-                    &mut units
+                for (
+                    unit_entity,
+                    unit_transform,
+                    mut health,
+                    mut temp_hp,
+                    has_spell_shield,
+                    team,
+                ) in &mut units
                 {
                     let dx = unit_transform.translation.x - pos.x;
                     let dz = unit_transform.translation.z - pos.z;
                     let dist = (dx * dx + dz * dz).sqrt();
                     if dist <= AFTERSHOCK_RADIUS {
                         // Apply bonus damage
-                        apply_spell_damage(
+                        apply_spell_damage_with_team(
                             &mut commands,
                             unit_entity,
                             &mut health,
@@ -232,6 +243,8 @@ pub(super) fn check_meteor_collisions(
                             AFTERSHOCK_DAMAGE * projectile.empowerment,
                             DamageType::Fire,
                             has_spell_shield,
+                            caster_team,
+                            *team,
                         );
                         // Apply knockback
                         let direction = if dist > 0.1 {
@@ -429,11 +442,13 @@ pub(super) fn apply_meteor_explosion_damage(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
+            &Team,
         ),
         Without<MeteorExplosion>,
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     for (explosion_entity, mut explosion) in explosions.iter_mut() {
         // Apply damage once when explosion spawns
@@ -447,9 +462,10 @@ pub(super) fn apply_meteor_explosion_damage(
                 damage_type: DamageType::Fire,
             });
 
+            let caster_team = local_player_team(session.as_deref());
             let mut hit_count = 0u32;
 
-            for (unit_entity, unit_transform, mut health, mut temp_hp, has_spell_shield) in
+            for (unit_entity, unit_transform, mut health, mut temp_hp, has_spell_shield, team) in
                 units.iter_mut()
             {
                 let distance = crate::game::units::wizard::spells::utils::xz_distance(
@@ -458,7 +474,7 @@ pub(super) fn apply_meteor_explosion_damage(
                 );
 
                 if distance <= explosion.max_radius {
-                    apply_spell_damage(
+                    apply_spell_damage_with_team(
                         &mut commands,
                         unit_entity,
                         &mut health,
@@ -466,6 +482,8 @@ pub(super) fn apply_meteor_explosion_damage(
                         explosion.damage,
                         DamageType::Fire,
                         has_spell_shield,
+                        caster_team,
+                        *team,
                     );
                     hit_count += 1;
                 }
@@ -521,6 +539,7 @@ pub(super) fn spawn_ground_fire_particles(
 }
 
 /// Applies periodic fire damage to units standing in ground fire zones.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn apply_ground_fire_damage(
     mut commands: Commands,
     time: Res<Time>,
@@ -536,9 +555,12 @@ pub(super) fn apply_ground_fire_damage(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
+        &Team,
     )>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     let delta = time.delta_secs();
+    let caster_team = local_player_team(session.as_deref());
 
     for mut fire in &mut fires {
         fire.time_alive += delta;
@@ -547,7 +569,7 @@ pub(super) fn apply_ground_fire_damage(
         if fire.time_since_last_tick >= fire.tick_interval {
             fire.time_since_last_tick = 0.0;
 
-            for (entity, transform, mut health, mut temp_hp, has_spell_shield) in &mut units {
+            for (entity, transform, mut health, mut temp_hp, has_spell_shield, team) in &mut units {
                 let dist = Vec3::new(
                     fire.origin.x - transform.translation.x,
                     0.0,
@@ -556,7 +578,7 @@ pub(super) fn apply_ground_fire_damage(
                 .length();
 
                 if dist <= fire.radius {
-                    apply_spell_damage(
+                    apply_spell_damage_with_team(
                         &mut commands,
                         entity,
                         &mut health,
@@ -564,6 +586,8 @@ pub(super) fn apply_ground_fire_damage(
                         fire.damage_per_tick,
                         DamageType::Fire,
                         has_spell_shield,
+                        caster_team,
+                        *team,
                     );
                 }
             }

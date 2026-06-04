@@ -12,18 +12,22 @@ use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::crt_effect::ScreenDesaturateMessage;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::components::{
+    Health, Team, TemporaryHitPoints, apply_spell_damage_with_team,
+};
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     PendingDefenderHeal, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
+    local_player_team,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use crate::networking::session::MultiplayerSession;
 use crate::networking::snapshot::SpellSoundId;
 use bevy::prelude::*;
 
@@ -442,9 +446,12 @@ pub fn apply_finger_of_death_damage(
     rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    // `session` is bundled into this tuple to stay under Bevy's 16-param system
+    // limit (the message writers are already grouped here for the same reason).
     msg_ctx: (
         MessageWriter<ScreenDesaturateMessage>,
         MessageWriter<crate::game::crt_effect::VignettePulseMessage>,
+        Option<Res<MultiplayerSession>>,
     ),
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
@@ -452,7 +459,8 @@ pub fn apply_finger_of_death_damage(
     local_origin: Res<LocalSpellOrigin>,
     mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
-    let (mut desaturate, mut vignette_pulse) = msg_ctx;
+    let (mut desaturate, mut vignette_pulse, session) = msg_ctx;
+    let caster_team = local_player_team(session.as_deref());
     let mut any_fired = false;
 
     let mut hit_positions: Vec<Vec3> = Vec::new();
@@ -523,24 +531,27 @@ pub fn apply_finger_of_death_damage(
         let damage = beam.damage();
 
         // Normal damage application
-        for (entity, transform, mut health, mut temp_hp, has_spell_shield, _team) in
+        for (entity, transform, mut health, mut temp_hp, has_spell_shield, team) in
             targets.iter_mut()
         {
-            if has_spell_shield {
+            // Enemy shielded King is immune; your own King takes the beam (friendly fire).
+            if has_spell_shield && caster_team != *team {
                 continue;
             }
             if beam.contains_point(transform.translation, beam_width) {
                 let proj = (transform.translation - beam.origin).dot(beam.direction);
                 if proj <= effective_length {
                     let was_alive = health.current > 0.0;
-                    apply_spell_damage(
+                    apply_spell_damage_with_team(
                         &mut commands,
                         entity,
                         &mut health,
                         temp_hp.as_deref_mut(),
                         damage,
                         DamageType::Necrotic,
-                        false,
+                        has_spell_shield,
+                        caster_team,
+                        *team,
                     );
                     total_damage_dealt += damage;
                     hit_positions.push(transform.translation);

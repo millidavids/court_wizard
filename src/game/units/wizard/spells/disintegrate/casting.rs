@@ -12,16 +12,21 @@ use crate::config::GameConfig;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::terrain::messages::TerrainDamageMessage;
-use crate::game::units::components::{Health, Hitbox, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::components::{
+    Health, Hitbox, Team, TemporaryHitPoints, apply_spell_damage_with_team,
+};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
 use crate::game::units::wizard::spells::audio::{self, ChannelingSfx, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
-use crate::game::units::wizard::spells::utils::{UniqueHitTracker, get_cursor_world_position};
+use crate::game::units::wizard::spells::utils::{
+    UniqueHitTracker, get_cursor_world_position, local_player_team,
+};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
+use crate::networking::session::MultiplayerSession;
 use bevy::prelude::*;
 
 /// Talent configuration computed once from ActiveTalents.
@@ -498,6 +503,7 @@ pub fn apply_disintegrate_damage(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
+            &Team,
         ),
         Without<Wizard>,
     >,
@@ -507,7 +513,9 @@ pub fn apply_disintegrate_damage(
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     for (mut beam, mut hit_tracker) in beam_query.iter_mut() {
         beam.update_damage_timer(time.delta_secs());
         beam.update_time_alive(time.delta_secs());
@@ -575,7 +583,7 @@ pub fn apply_disintegrate_damage(
                 });
             }
 
-            for (entity, transform, hitbox, mut health, mut temp_hp, has_spell_shield) in
+            for (entity, transform, hitbox, mut health, mut temp_hp, has_spell_shield, team) in
                 target_query.iter_mut()
             {
                 if beam.intersects_hitbox_cylinder(
@@ -583,7 +591,7 @@ pub fn apply_disintegrate_damage(
                     hitbox.radius,
                     hitbox.height,
                 ) {
-                    apply_spell_damage(
+                    apply_spell_damage_with_team(
                         &mut commands,
                         entity,
                         &mut health,
@@ -591,6 +599,8 @@ pub fn apply_disintegrate_damage(
                         damage,
                         constants::DAMAGE_TYPE,
                         has_spell_shield,
+                        caster_team,
+                        *team,
                     );
                     if hit_tracker.track_hit(entity) {
                         hit_count += 1;

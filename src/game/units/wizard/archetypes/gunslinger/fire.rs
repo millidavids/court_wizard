@@ -11,15 +11,16 @@ use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::components::{
-    Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
+    Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage, apply_spell_damage_with_team,
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::fireball::systems::spawn_fireball_entity;
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::units::wizard::spells::utils::{get_cursor_world_position, local_player_team};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::networking::session::MultiplayerSession;
 
 /// Initialize gun state when entering gameplay.
 #[allow(clippy::too_many_arguments)]
@@ -565,6 +566,7 @@ pub fn check_flame_collisions(
     >,
     time: Res<Time>,
     mut damage_timer: Local<f32>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     // Only apply damage every 0.1s to avoid frame-rate dependent DPS
     *damage_timer += time.delta_secs();
@@ -573,25 +575,29 @@ pub fn check_flame_collisions(
     }
     *damage_timer -= 0.1;
 
+    let caster_team = local_player_team(session.as_deref());
     for (flame_transform, flame) in &flames {
-        for (enemy_entity, enemy_transform, mut health, mut temp_hp, _team, has_spell_shield) in
+        for (enemy_entity, enemy_transform, mut health, mut temp_hp, team, has_spell_shield) in
             &mut enemies
         {
             let distance = flame_transform
                 .translation
                 .distance(enemy_transform.translation);
             if distance < flame.radius + 20.0 {
-                if has_spell_shield {
+                // Enemy shielded King is immune; your own King takes the flames (friendly fire).
+                if has_spell_shield && caster_team != *team {
                     continue;
                 }
-                apply_spell_damage(
+                apply_spell_damage_with_team(
                     &mut commands,
                     enemy_entity,
                     &mut health,
                     temp_hp.as_deref_mut(),
                     flame.damage,
                     DamageType::Fire,
-                    false,
+                    has_spell_shield,
+                    caster_team,
+                    *team,
                 );
             }
         }

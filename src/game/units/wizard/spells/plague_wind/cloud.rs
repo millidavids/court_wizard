@@ -10,14 +10,15 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Corpse, Health, SlowMovementModifier, TemporaryHitPoints, apply_spell_damage,
+    Corpse, Health, SlowMovementModifier, Team, TemporaryHitPoints, apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::Spell;
-use crate::game::units::wizard::spells::utils::UniqueHitTracker;
+use crate::game::units::wizard::spells::utils::{UniqueHitTracker, local_player_team};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::BattleTalentProgress;
+use crate::networking::session::MultiplayerSession;
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
 
@@ -132,9 +133,12 @@ pub fn apply_plague_wind_damage(
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
         Has<InsidePlagueCloud>,
+        &Team,
     )>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     let delta = time.delta_secs();
     let mut unique_hits: u32 = 0;
 
@@ -157,7 +161,7 @@ pub fn apply_plague_wind_damage(
             continue;
         }
 
-        for (entity, transform, mut health, mut temp_hp, has_spell_shield, already_marked) in
+        for (entity, transform, mut health, mut temp_hp, has_spell_shield, already_marked, team) in
             &mut units
         {
             let inside = horizontal_distance(cloud.origin, transform.translation) <= cloud.radius;
@@ -177,7 +181,7 @@ pub fn apply_plague_wind_damage(
                             .insert(ToxicWeaknessDebuff(constants::TOXIC_WEAKNESS_VULNERABILITY));
                     }
 
-                    apply_spell_damage(
+                    apply_spell_damage_with_team(
                         &mut commands,
                         entity,
                         &mut health,
@@ -185,6 +189,8 @@ pub fn apply_plague_wind_damage(
                         cloud.damage_per_tick,
                         DamageType::Poison,
                         has_spell_shield,
+                        caster_team,
+                        *team,
                     );
                     if hit_tracker.track_hit(entity) {
                         unique_hits += 1;
@@ -285,11 +291,14 @@ pub fn apply_plague_carrier_dot(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
+        &Team,
     )>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     let delta = time.delta_secs();
 
-    for (entity, mut dot, mut health, mut temp_hp, has_spell_shield) in &mut dot_units {
+    for (entity, mut dot, mut health, mut temp_hp, has_spell_shield, team) in &mut dot_units {
         dot.time_remaining -= delta;
         dot.time_since_last_tick += delta;
 
@@ -300,7 +309,7 @@ pub fn apply_plague_carrier_dot(
 
         if dot.time_since_last_tick >= dot.tick_interval {
             dot.time_since_last_tick = 0.0;
-            apply_spell_damage(
+            apply_spell_damage_with_team(
                 &mut commands,
                 entity,
                 &mut health,
@@ -308,6 +317,8 @@ pub fn apply_plague_carrier_dot(
                 dot.damage_per_tick,
                 DamageType::Poison,
                 has_spell_shield,
+                caster_team,
+                *team,
             );
         }
     }

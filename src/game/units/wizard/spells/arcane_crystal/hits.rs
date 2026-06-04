@@ -12,7 +12,7 @@ use super::components::*;
 use super::constants::*;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
+    Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::Spell;
@@ -26,13 +26,14 @@ use crate::game::units::wizard::spells::magic_missile::components::MagicMissile;
 use crate::game::units::wizard::spells::meteor_fall::casting::MeteorProjectileTalentFlags;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorProjectile;
 use crate::game::units::wizard::spells::meteor_fall::systems as meteor_fall_systems;
-use crate::game::units::wizard::spells::utils::xz_distance;
+use crate::game::units::wizard::spells::utils::{local_player_team, xz_distance};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::{
     disintegrate_constants, finger_of_death_constants, fireball_constants, magic_missile_constants,
     meteor_fall_constants,
 };
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use crate::networking::session::MultiplayerSession;
 
 pub(super) fn detect_fireball_hits(
     mut commands: Commands,
@@ -580,9 +581,12 @@ pub(super) fn detect_chain_lightning_hits(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
+        &Team,
     )>,
     mut progress: ResMut<BattleTalentProgress>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     // Check if any bolt's last_hit_position matches a crystal position
     // (chain lightning system sets crystal as a bounce target, so the bolt
     // will have the crystal's position as last_hit_position after bouncing to it)
@@ -621,10 +625,10 @@ pub(super) fn detect_chain_lightning_hits(
 
             for (target_entity, target_pos) in &enemies {
                 // Apply damage
-                if let Ok((mut health, mut temp_hp, has_spell_shield)) =
+                if let Ok((mut health, mut temp_hp, has_spell_shield, team)) =
                     health_query.get_mut(*target_entity)
                 {
-                    apply_spell_damage(
+                    apply_spell_damage_with_team(
                         &mut commands,
                         *target_entity,
                         &mut health,
@@ -632,6 +636,8 @@ pub(super) fn detect_chain_lightning_hits(
                         damage,
                         DamageType::Electric,
                         has_spell_shield,
+                        caster_team,
+                        *team,
                     );
                 }
 

@@ -542,51 +542,86 @@ pub(super) fn spawn_mp_hud(mut commands: Commands, config: Res<GameConfig>) {
                     ..default()
                 })
                 .with_children(|bars| {
-                    // Mana bar — matches the SP layout (Row flex with a
-                    // current-mana child and a reserved-mana partition for
-                    // Concentration). Without the reserved child, the
-                    // "Concentrating" partition is invisible in MP.
-                    bars.spawn((
-                        Node {
-                            width: MANA_BAR_WIDTH,
-                            height: MANA_BAR_HEIGHT,
-                            border: UiRect::all(Val::Px(2.0)),
-                            flex_direction: FlexDirection::Row,
-                            ..default()
-                        },
-                        BackgroundColor(MANA_BAR_BG_COLOR),
-                    ))
-                    .with_children(|mana| {
-                        mana.spawn((
+                    // Warglock shows its gun ammo instead of a mana bar (mirrors SP).
+                    if config.wizard_type == WizardType::Warglock {
+                        bars.spawn((
                             Node {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                ..default()
-                            },
-                            BackgroundColor(MANA_BAR_FILL_COLOR),
-                            ManaBarFill,
-                        ));
-                        mana.spawn((
-                            Node {
-                                width: Val::Percent(0.0),
-                                height: Val::Percent(100.0),
-                                justify_content: JustifyContent::Center,
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(3.0),
                                 align_items: AlignItems::Center,
-                                overflow: Overflow::clip(),
+                                height: MANA_BAR_HEIGHT,
                                 ..default()
                             },
-                            BackgroundColor(MANA_BAR_RESERVED_COLOR),
-                            ManaBarReservedFill,
+                            AmmoDisplayContainer,
                         ))
-                        .with_children(|reserved| {
-                            reserved.spawn((
-                                Text::new("Concentrating"),
-                                TextFont::from_font_size(8.0),
-                                TextColor(Color::srgba(0.7, 0.6, 1.0, 0.8)),
-                                ManaBarReservedText,
+                        .with_children(|ammo_row| {
+                            ammo_row.spawn((
+                                Text::new("60 / 60"),
+                                TextFont::from_font_size(14.0),
+                                TextColor(Color::WHITE),
+                                AmmoCounterText,
                             ));
+                            let initial_pieces = GunType::MachineGun.max_ammo()
+                                / GunType::MachineGun.ammo_per_ui_piece();
+                            for i in 0..initial_pieces {
+                                ammo_row.spawn((
+                                    Node {
+                                        width: Val::Px(4.0),
+                                        height: Val::Px(14.0),
+                                        ..default()
+                                    },
+                                    BackgroundColor(Color::srgba(1.0, 0.8, 0.2, 0.9)),
+                                    AmmoPiece { index: i },
+                                ));
+                            }
                         });
-                    });
+                    } else {
+                        // Mana bar — matches the SP layout (Row flex with a
+                        // current-mana child and a reserved-mana partition for
+                        // Concentration). Without the reserved child, the
+                        // "Concentrating" partition is invisible in MP.
+                        bars.spawn((
+                            Node {
+                                width: MANA_BAR_WIDTH,
+                                height: MANA_BAR_HEIGHT,
+                                border: UiRect::all(Val::Px(2.0)),
+                                flex_direction: FlexDirection::Row,
+                                ..default()
+                            },
+                            BackgroundColor(MANA_BAR_BG_COLOR),
+                        ))
+                        .with_children(|mana| {
+                            mana.spawn((
+                                Node {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    ..default()
+                                },
+                                BackgroundColor(MANA_BAR_FILL_COLOR),
+                                ManaBarFill,
+                            ));
+                            mana.spawn((
+                                Node {
+                                    width: Val::Percent(0.0),
+                                    height: Val::Percent(100.0),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    overflow: Overflow::clip(),
+                                    ..default()
+                                },
+                                BackgroundColor(MANA_BAR_RESERVED_COLOR),
+                                ManaBarReservedFill,
+                            ))
+                            .with_children(|reserved| {
+                                reserved.spawn((
+                                    Text::new("Concentrating"),
+                                    TextFont::from_font_size(8.0),
+                                    TextColor(Color::srgba(0.7, 0.6, 1.0, 0.8)),
+                                    ManaBarReservedText,
+                                ));
+                            });
+                        });
+                    }
 
                     // Cast bar
                     bars.spawn((
@@ -609,6 +644,30 @@ pub(super) fn spawn_mp_hud(mut commands: Commands, config: Res<GameConfig>) {
                             BackgroundColor(CAST_BAR_FILL_COLOR),
                             CastBarFill,
                         ));
+
+                        // Brewing/reload overlay (hidden by default) — without this
+                        // the cast bar never showed "Brewing..." in multiplayer.
+                        cast_bar
+                            .spawn((
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                Visibility::Hidden,
+                                BrewingOverlay,
+                            ))
+                            .with_children(|overlay| {
+                                overlay.spawn((
+                                    Text::new("Brewing..."),
+                                    TextFont::from_font_size(12.0),
+                                    TextColor(Color::WHITE),
+                                    BrewingOverlayText,
+                                ));
+                            });
                     });
                 });
         });

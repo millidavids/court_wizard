@@ -25,12 +25,13 @@ use crate::game::units::wizard::spells::disintegrate::components::{
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
-    clamp_to_spell_range, cleanup_spell_caster, handle_spell_release, spawn_circle_indicator,
-    update_indicator_position, xz_distance,
+    clamp_to_spell_range, cleanup_spell_caster, handle_spell_release, local_player_team,
+    spawn_circle_indicator, update_indicator_position, xz_distance,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
+use crate::networking::session::MultiplayerSession;
 use crate::networking::snapshot::SpellEffectKind;
 
 // ===== Talent Param Computation =====
@@ -570,9 +571,12 @@ pub(super) fn cleanup_expired_crystals(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
+        &Team,
     )>,
     visual_assets: Res<SpellVisualAssets>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     for (crystal_entity, crystal, has_prismatic) in &crystals {
         if crystal.permanent {
             continue;
@@ -591,6 +595,7 @@ pub(super) fn cleanup_expired_crystals(
                     0.5,
                     &targets,
                     &mut health_query,
+                    caster_team,
                 );
             }
 

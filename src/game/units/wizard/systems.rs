@@ -265,9 +265,13 @@ pub fn mana_on_kill(
 /// Applies cauldron spell power buff as a base empowerment multiplier.
 /// Blocks same-spell priming when Spell Rotation toggle is active.
 pub fn handle_prime_spell_messages(
+    mut commands: Commands,
     mut messages: MessageReader<PrimeSpellMessage>,
     cauldron_buffs: Res<CauldronBuffs>,
-    mut wizard_query: Query<&mut PrimedSpell, With<LocalWizard>>,
+    // `Option<&mut PrimedSpell>` so archetypes that start with no primed spell
+    // (Randomancer, Shepherd) get one INSERTED on their first prime instead of the
+    // message being silently dropped.
+    mut wizard_query: Query<(Entity, Option<&mut PrimedSpell>), With<LocalWizard>>,
     active_talents: Option<Res<ActiveTalents>>,
     last_cast: Option<Res<crate::game::game_mode::components::LastCastSpell>>,
 ) {
@@ -280,28 +284,36 @@ pub fn handle_prime_spell_messages(
             continue;
         }
 
-        if let Ok(mut primed_spell) = wizard_query.single_mut() {
-            let mut spell = message.spell;
-            if cauldron_buffs.spell_power_multiplier() > 1.0 {
-                spell = spell
-                    .with_empowerment(spell.empowerment * cauldron_buffs.spell_power_multiplier());
+        let Ok((wizard_entity, primed)) = wizard_query.single_mut() else {
+            continue;
+        };
+
+        let mut spell = message.spell;
+        if cauldron_buffs.spell_power_multiplier() > 1.0 {
+            spell =
+                spell.with_empowerment(spell.empowerment * cauldron_buffs.spell_power_multiplier());
+        }
+        let cast_speed = cauldron_buffs.cast_speed_multiplier();
+        if cast_speed > 1.0 {
+            spell.cast_time /= cast_speed;
+        }
+        let range_mult = cauldron_buffs.spell_range_multiplier();
+        if range_mult > 1.0 {
+            spell.range_multiplier *= range_mult;
+        }
+        // Apply talent-based cast time modifiers
+        if let Some(ref talents) = active_talents {
+            let mult = talent_cast_time_multiplier(spell.spell, talents);
+            if mult < 1.0 {
+                spell.cast_time *= mult;
             }
-            let cast_speed = cauldron_buffs.cast_speed_multiplier();
-            if cast_speed > 1.0 {
-                spell.cast_time /= cast_speed;
+        }
+
+        match primed {
+            Some(mut primed_spell) => *primed_spell = spell,
+            None => {
+                commands.entity(wizard_entity).insert(spell);
             }
-            let range_mult = cauldron_buffs.spell_range_multiplier();
-            if range_mult > 1.0 {
-                spell.range_multiplier *= range_mult;
-            }
-            // Apply talent-based cast time modifiers
-            if let Some(ref talents) = active_talents {
-                let mult = talent_cast_time_multiplier(spell.spell, talents);
-                if mult < 1.0 {
-                    spell.cast_time *= mult;
-                }
-            }
-            *primed_spell = spell;
         }
     }
 }

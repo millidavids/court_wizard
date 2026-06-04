@@ -18,8 +18,9 @@ All notable changes to this project will be documented in this file.
 - **You can no longer teleport your own King in multiplayer** — teleporting the King out of reach was being used to play keep-away and drag matches out forever. The King now stays put; everything else still teleports normally. (Single-player is unchanged.)
 - **The King's spell shield now wears off after 90 seconds in multiplayer** — previously the shield only dropped once you'd lost most of your army, so a player could hide behind walls and stalling tactics to keep it up forever. It now falls after 90 seconds no matter what, and a banner tells both players whenever a King's shield comes down — so matches can't be stalled out.
 - **Escape now leaves a finished multiplayer match** — on the results screen after a multiplayer game, pressing Escape disconnects and returns you to the main menu, the same as clicking Disconnect.
-- **The Lightning Rod's Storm Spire upgrade now holds the towers up as long as you concentrate** — instead of the rods fading on a timer, with Storm Spire they stay (reserving a little of your mana) until you choose to end concentration. Works in single-player and multiplayer.
+- **The Lightning Rod's Storm Spire upgrade now holds the tower up as long as you concentrate** — instead of the rod fading on a timer, with Storm Spire it stays (reserving a little of your mana) until you choose to end concentration. Works in single-player and multiplayer.
 - **The Warglock's guns take longer to reload** — every gun's reload time has been doubled.
+- **Two Meteorologists can now stack different weather** — when both players control the weather, each can run their own condition at the same time: one can summon a storm while the other calls down a blizzard, and both sweep across the battlefield together instead of one replacing the other. Each player's weather only affects the other's King if it's an enemy effect.
 
 ### Fixed
 - **The Warglock's guns work properly in multiplayer now** — the gun-slinging wizard would fire a single shot and then start casting a spell instead. All five guns now fire, reload, and keep shooting normally, and the other player can see the gunfire, muzzle flashes, and flames.
@@ -38,6 +39,8 @@ All notable changes to this project will be documented in this file.
 - **The Shepherd no longer starts with an attack spell** — the support wizard begins with nothing offensive primed, and attack spells no longer show up in its action bar.
 - **The Arcanorouter's mana dial now makes spells cheaper, not pricier** — raising the mana slider used to *increase* costs; it now lowers them, and the discount applies to every spell you cast (the speed dial correctly affects casting speed).
 - **The joining player can hear the battle again** — clashing-melee and crowd sounds now play for both players during a multiplayer match, not just the host.
+- **Your own spells no longer bounce off your own King** — your King's protective shield was also stopping the spells *you* cast, so your own meteors, lightning, fire, and other area magic couldn't touch your own King — even though magic isn't supposed to pick sides. The shield now blocks only the *enemy's* spells; your own area spells affect your King the same way they affect the rest of your army. (Your King still can't be slowed or rooted by your own ground traps.)
+- **Rematches remember your wizard** — starting a rematch now keeps you on the wizard you were already playing instead of resetting to the first one in the list.
 
 ## [v0.8.72] - 2026-06-02
 

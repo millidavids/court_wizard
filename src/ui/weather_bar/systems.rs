@@ -190,8 +190,9 @@ pub(super) fn update_weather_buttons(
     mut fills: Query<(&WeatherIntensityFill, &mut Node)>,
     mut status_text: Query<&mut Text, With<WeatherStatusText>>,
 ) {
-    let active = weather.active;
-    let intensity = weather.intensity;
+    // The bar shows the LOCAL player's own weather; the opponent's shows via VFX.
+    let active = weather.local.active;
+    let intensity = weather.local.intensity;
 
     // Update button borders and backgrounds
     for (btn, mut border, mut bg, interaction) in buttons.iter_mut() {

@@ -2,14 +2,6 @@
 
 use bevy::prelude::*;
 
-/// Marks the second rod of a Storm Spire concentration cast. The first rod (the
-/// `anchor`) carries `ConcentrationSpell`; when the player ends concentration the
-/// anchor is despawned and `cleanup_orphaned_storm_rods` despawns this one too.
-#[derive(Component)]
-pub(crate) struct StormSpireSecondaryRod {
-    pub anchor: Entity,
-}
-
 /// Pre-computed talent parameters for a lightning rod instance.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct LightningRodTalentParams {
@@ -29,7 +21,7 @@ pub(crate) struct LightningRodTalentParams {
     pub magnetic_field: bool,
     /// T2-2 Overcharge: every Nth strike is empowered.
     pub overcharge: bool,
-    /// T3-0 Storm Spire: place 2 rods instead of 1.
+    /// T3-0 Storm Spire: turn the rod into a concentration (channeled) spell.
     pub storm_spire: bool,
     /// T3-1 Tesla Coil: ramp damage per strike.
     pub tesla_coil: bool,

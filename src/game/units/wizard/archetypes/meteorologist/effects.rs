@@ -10,9 +10,13 @@ use super::messages::WeatherChangedMessage;
 use super::resources::{WeatherState, WeatherType};
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::components::{Corpse, Health, TemporaryHitPoints, apply_damage_to_unit};
+use crate::game::units::components::{
+    Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit, apply_spell_damage_with_team,
+};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::local_player_team;
+use crate::networking::session::MultiplayerSession;
 
 /// Applies the Drought healing reduction to a heal amount.
 /// Returns the (possibly reduced) heal amount.
@@ -31,109 +35,156 @@ pub fn storm_lightning(
         (
             Entity,
             &Transform,
+            &Team,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
         ),
         Without<Corpse>,
     >,
+    session: Option<Res<MultiplayerSession>>,
 ) {
-    if weather.active != Some(WeatherType::Storm) {
+    let local_team = local_player_team(session.as_deref());
+    // Weather sim is host-only, so the `remote` slot (the opponent's storm) must
+    // be attributed to the OTHER player's team — otherwise the host's shield check
+    // treats the opponent's storm as friendly and the King-shield is inverted.
+    let remote_team = if local_team == Team::Defenders {
+        Team::Attackers
+    } else {
+        Team::Defenders
+    };
+    let delta = time.delta_secs();
+
+    // Tick each active Storm slot's lightning timer; collect (intensity, owner)
+    // for every slot that strikes THIS frame. Both slots can be Storm in a
+    // Meteorologist-vs-Meteorologist match, each firing on its own cadence.
+    let weather_ref = &mut *weather;
+    let mut strikes: Vec<(f32, Team)> = Vec::new();
+    for (slot, owner_team) in [
+        (&mut weather_ref.local, local_team),
+        (&mut weather_ref.remote, remote_team),
+    ] {
+        if slot.active != Some(WeatherType::Storm) {
+            continue;
+        }
+        slot.lightning_timer -= delta;
+        if slot.lightning_timer <= 0.0 {
+            // Reset timer (scales with intensity — faster strikes when stronger)
+            slot.lightning_timer = THUNDERSTORM_LIGHTNING_INTERVAL / slot.intensity.max(0.01);
+            strikes.push((slot.intensity, owner_team));
+        }
+    }
+    if strikes.is_empty() {
         return;
     }
 
-    weather.lightning_timer -= time.delta_secs();
-    if weather.lightning_timer > 0.0 {
-        return;
-    }
-
-    // Reset timer (scales with intensity — faster strikes at higher intensity)
-    weather.lightning_timer = THUNDERSTORM_LIGHTNING_INTERVAL / weather.intensity;
-
-    // Pick a random target
+    // Count targets once — strikes deal damage but never despawn units, so the
+    // count is stable for the whole loop.
     let target_count = targets.iter().len();
     if target_count == 0 {
         return;
     }
-    let rng = &mut game_rng.0;
-    let target_index = rng.random_range(0..target_count);
 
-    let Some((entity, transform, mut health, temp_hp, has_shield)) =
-        targets.iter_mut().nth(target_index)
-    else {
-        return;
-    };
+    for (storm_intensity, owner_team) in strikes {
+        let rng = &mut game_rng.0;
+        let target_index = rng.random_range(0..target_count);
 
-    let strike_pos = transform.translation;
+        let Some((entity, transform, target_team, mut health, mut temp_hp, has_shield)) =
+            targets.iter_mut().nth(target_index)
+        else {
+            // A slot's strike found no target this frame; try the next slot.
+            continue;
+        };
 
-    // Replicate the thunderclap to the opponent (the local sound plays below).
-    crate::game::units::wizard::spells::audio::emit_sfx_event(
-        &mut pending,
-        crate::networking::snapshot::SpellSoundId::WeatherLightningStrike,
-        strike_pos,
-    );
+        let strike_pos = transform.translation;
 
-    // Deal AoE damage at strike location
-    if !has_shield {
-        let damage = THUNDERSTORM_LIGHTNING_DAMAGE * weather.intensity;
-        apply_damage_to_unit(&mut health, temp_hp.map(|t| t.into_inner()), damage);
-        commands
-            .entity(entity)
-            .insert(crate::game::units::components::PendingDamageEffect {
-                damage_type: crate::game::units::damage::DamageType::Electric,
-                damage,
-                source_team: None,
-            });
-    }
+        // Replicate the thunderclap to the opponent (the local sound plays below).
+        crate::game::units::wizard::spells::audio::emit_sfx_event(
+            &mut pending,
+            crate::networking::snapshot::SpellSoundId::WeatherLightningStrike,
+            strike_pos,
+        );
 
-    // Deal AoE damage to nearby units
-    let splash_targets: Vec<Entity> = targets
-        .iter()
-        .filter(|(e, t, _, _, shield)| {
-            *e != entity && !shield && {
-                let dx = strike_pos.x - t.translation.x;
-                let dz = strike_pos.z - t.translation.z;
-                (dx * dx + dz * dz) <= THUNDERSTORM_LIGHTNING_RADIUS * THUNDERSTORM_LIGHTNING_RADIUS
+        // Deal AoE damage at the strike location. apply_spell_damage_with_team
+        // blocks only the OPPONENT's storm via the King's shield (owner_team !=
+        // target) and records source_team + the spell-damage tally.
+        let damage = THUNDERSTORM_LIGHTNING_DAMAGE * storm_intensity;
+        apply_spell_damage_with_team(
+            &mut commands,
+            entity,
+            &mut health,
+            temp_hp.as_deref_mut(),
+            damage,
+            crate::game::units::damage::DamageType::Electric,
+            has_shield,
+            owner_team,
+            *target_team,
+        );
+
+        // Deal AoE damage to nearby units — also via the team-aware helper so
+        // splash victims get the Electric DoT/status stacking and the tally too.
+        // The helper does the shield check, so the filter only needs the radius.
+        let splash_targets: Vec<Entity> = targets
+            .iter()
+            .filter(|(e, t, _, _, _, _)| {
+                *e != entity && {
+                    let dx = strike_pos.x - t.translation.x;
+                    let dz = strike_pos.z - t.translation.z;
+                    (dx * dx + dz * dz)
+                        <= THUNDERSTORM_LIGHTNING_RADIUS * THUNDERSTORM_LIGHTNING_RADIUS
+                }
+            })
+            .map(|(e, _, _, _, _, _)| e)
+            .collect();
+
+        let splash_damage = THUNDERSTORM_LIGHTNING_DAMAGE * storm_intensity * 0.5;
+        for splash_entity in splash_targets {
+            if let Ok((_, _, splash_team, mut h, mut th, splash_shield)) =
+                targets.get_mut(splash_entity)
+            {
+                apply_spell_damage_with_team(
+                    &mut commands,
+                    splash_entity,
+                    &mut h,
+                    th.as_deref_mut(),
+                    splash_damage,
+                    crate::game::units::damage::DamageType::Electric,
+                    splash_shield,
+                    owner_team,
+                    *splash_team,
+                );
             }
-        })
-        .map(|(e, _, _, _, _)| e)
-        .collect();
-
-    let splash_damage = THUNDERSTORM_LIGHTNING_DAMAGE * weather.intensity * 0.5;
-    for splash_entity in splash_targets {
-        if let Ok((_, _, mut h, th, _)) = targets.get_mut(splash_entity) {
-            apply_damage_to_unit(&mut h, th.map(|t| t.into_inner()), splash_damage);
         }
+
+        // Play lightning rod impact SFX at strike location
+        audio::play_impact_sfx_scaled(
+            &mut commands,
+            &sfx.lightning_rod_impact,
+            strike_pos,
+            &game_config,
+            &sfx,
+            0.5,
+        );
+
+        // Spawn lightning visual (vertical beam)
+        let beam_height = 3000.0;
+        let beam_pos = Vec3::new(strike_pos.x, beam_height / 2.0, strike_pos.z);
+
+        let material = materials.add(StandardMaterial {
+            base_color: THUNDERSTORM_LIGHTNING_COLOR,
+            unlit: true,
+            ..default()
+        });
+        let mesh = meshes.add(Rectangle::new(8.0, beam_height));
+
+        commands.spawn((
+            LightningStrike { lifetime: 0.15 },
+            Mesh3d(mesh),
+            MeshMaterial3d(material),
+            Transform::from_translation(beam_pos),
+            OnGameplayScreen,
+        ));
     }
-
-    // Play lightning rod impact SFX at strike location
-    audio::play_impact_sfx_scaled(
-        &mut commands,
-        &sfx.lightning_rod_impact,
-        strike_pos,
-        &game_config,
-        &sfx,
-        0.5,
-    );
-
-    // Spawn lightning visual (vertical beam)
-    let beam_height = 3000.0;
-    let beam_pos = Vec3::new(strike_pos.x, beam_height / 2.0, strike_pos.z);
-
-    let material = materials.add(StandardMaterial {
-        base_color: THUNDERSTORM_LIGHTNING_COLOR,
-        unlit: true,
-        ..default()
-    });
-    let mesh = meshes.add(Rectangle::new(8.0, beam_height));
-
-    commands.spawn((
-        LightningStrike { lifetime: 0.15 },
-        Mesh3d(mesh),
-        MeshMaterial3d(material),
-        Transform::from_translation(beam_pos),
-        OnGameplayScreen,
-    ));
 }
 
 /// Ticks and despawns burning patches, dealing damage to units inside.
@@ -170,6 +221,9 @@ pub fn update_burning_patches(
         let radius_sq = patch.radius * patch.radius;
 
         for (unit_tf, mut health, temp_hp, has_shield) in units.iter_mut() {
+            // Burning patches are an unowned environmental weather hazard, so a
+            // shielded King is immune (matching pre-King-shield behavior) rather
+            // than risk mis-attributing the opponent's patches to the host team.
             if has_shield {
                 continue;
             }
@@ -250,7 +304,7 @@ pub fn update_weather_sfx(
     weather: Res<WeatherState>,
     game_config: Res<GameConfig>,
     sfx: Res<SpellSfxAssets>,
-    existing_sfx: Query<Entity, With<WeatherSfx>>,
+    existing_sfx: Query<(Entity, &WeatherSfx)>,
     mut msg: MessageReader<WeatherChangedMessage>,
 ) {
     // Only act on weather changes
@@ -258,27 +312,48 @@ pub fn update_weather_sfx(
         return;
     }
 
-    // Despawn existing weather sound
-    for entity in existing_sfx.iter() {
-        commands.entity(entity).try_despawn();
+    let volume = game_config.effective_sfx_volume() * WEATHER_SFX_VOLUME;
+
+    // Desired set: each unique active weather across both slots that has a looping
+    // sound (Drought is silent). Empty when volume is muted.
+    let mut desired: Vec<WeatherType> = Vec::new();
+    if volume > 0.0 {
+        for slot in [&weather.local, &weather.remote] {
+            if let Some(w) = slot.active
+                && matches!(w, WeatherType::Storm | WeatherType::Blizzard)
+                && !desired.contains(&w)
+            {
+                desired.push(w);
+            }
+        }
     }
 
-    // Spawn new looping sound if weather is active
-    let handle = match weather.active {
-        Some(WeatherType::Storm) => Some(&sfx.rain_persistent),
-        Some(WeatherType::Blizzard) => Some(&sfx.blizzard_persistent),
-        _ => None,
-    };
-
-    if let Some(handle) = handle {
-        let volume = game_config.effective_sfx_volume() * WEATHER_SFX_VOLUME;
-        if volume > 0.0 {
-            commands.spawn((
-                AudioPlayer::new(handle.clone()),
-                PlaybackSettings::LOOP.with_volume(Volume::Linear(volume)),
-                WeatherSfx,
-                OnGameplayScreen,
-            ));
+    // Reconcile: keep sounds still wanted (so an unchanged loop never restarts),
+    // despawn the rest, and remember what survives.
+    let mut still_playing: Vec<WeatherType> = Vec::new();
+    for (entity, marker) in existing_sfx.iter() {
+        if desired.contains(&marker.0) && !still_playing.contains(&marker.0) {
+            still_playing.push(marker.0);
+        } else {
+            commands.entity(entity).try_despawn();
         }
+    }
+
+    // Spawn only the wanted weathers that aren't already playing.
+    for w in desired {
+        if still_playing.contains(&w) {
+            continue;
+        }
+        let handle = match w {
+            WeatherType::Storm => &sfx.rain_persistent,
+            WeatherType::Blizzard => &sfx.blizzard_persistent,
+            WeatherType::Drought => continue,
+        };
+        commands.spawn((
+            AudioPlayer::new(handle.clone()),
+            PlaybackSettings::LOOP.with_volume(Volume::Linear(volume)),
+            WeatherSfx(w),
+            OnGameplayScreen,
+        ));
     }
 }

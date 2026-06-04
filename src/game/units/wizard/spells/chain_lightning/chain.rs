@@ -12,14 +12,17 @@ use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::terrain::pond::components::Pond;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Corpse, Health, Knockback, SlowMovementModifier, Team, TemporaryHitPoints, apply_spell_damage,
+    Corpse, Health, Knockback, SlowMovementModifier, Team, TemporaryHitPoints,
+    apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
+use crate::game::units::wizard::spells::utils::local_player_team;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::game::units::wizard::talents::resources::BattleTalentProgress;
+use crate::networking::session::MultiplayerSession;
 use bevy::prelude::*;
 
 #[allow(clippy::too_many_arguments)]
@@ -49,7 +52,9 @@ pub fn process_chain_lightning_bounces(
     mut slow_query: Query<&mut SlowMovementModifier>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     // Collect bolt data to avoid borrow conflicts when spawning child bolts
     let mut bolts_to_process: Vec<(Entity, ChainLightningBoltSnapshot)> = Vec::new();
 
@@ -130,10 +135,10 @@ pub fn process_chain_lightning_bounces(
             } else if !is_pond {
                 // Ponds are bounce nodes only; their shock is handled via TerrainDamageMessage.
                 let target_killed;
-                if let Ok((_, _, _, mut health, mut temp_hp, has_spell_shield)) =
+                if let Ok((_, _, team, mut health, mut temp_hp, has_spell_shield)) =
                     enemies.get_mut(*target_entity)
                 {
-                    apply_spell_damage(
+                    apply_spell_damage_with_team(
                         &mut commands,
                         *target_entity,
                         &mut health,
@@ -141,6 +146,8 @@ pub fn process_chain_lightning_bounces(
                         snapshot.current_damage,
                         snapshot.damage_type,
                         has_spell_shield,
+                        caster_team,
+                        *team,
                     );
                     target_killed = health.current <= 0.0;
                 } else {
@@ -181,10 +188,10 @@ pub fn process_chain_lightning_bounces(
                         }
                     }
                     for (aoe_entity, _) in &aoe_targets {
-                        if let Ok((_, _, _, mut health, mut temp_hp, has_spell_shield)) =
+                        if let Ok((_, _, team, mut health, mut temp_hp, has_spell_shield)) =
                             enemies.get_mut(*aoe_entity)
                         {
-                            apply_spell_damage(
+                            apply_spell_damage_with_team(
                                 &mut commands,
                                 *aoe_entity,
                                 &mut health,
@@ -192,6 +199,8 @@ pub fn process_chain_lightning_bounces(
                                 aoe_damage,
                                 snapshot.damage_type,
                                 has_spell_shield,
+                                caster_team,
+                                *team,
                             );
                         }
                     }

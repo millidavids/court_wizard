@@ -15,7 +15,8 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    AttackTiming, Corpse, Health, PolymorphedModifier, Team, TemporaryHitPoints, apply_spell_damage,
+    AttackTiming, Corpse, Health, PolymorphedModifier, Team, TemporaryHitPoints,
+    apply_spell_damage, apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::systems::create_sprite_material;
@@ -23,11 +24,12 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input,
-    clamp_cursor_to_spell_range_with_origin,
+    clamp_cursor_to_spell_range_with_origin, local_player_team,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use crate::networking::session::MultiplayerSession;
 use crate::networking::snapshot::SpellSoundId;
 use bevy::prelude::*;
 
@@ -602,10 +604,14 @@ pub fn check_explosive_sheep_deaths(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
+            &Team,
         ),
         (Without<Corpse>, Without<PolymorphedModifier>),
     >,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
+
     for (sheep_entity, sheep_transform, sheep_health, modifier, is_explosive) in &sheep_query {
         if !sheep_health.is_dead() {
             continue;
@@ -623,13 +629,14 @@ pub fn check_explosive_sheep_deaths(
                 mut target_health,
                 mut temp_hp,
                 has_spell_shield,
+                team,
             ) in &mut damage_targets
             {
                 let dist = target_transform
                     .translation
                     .distance(sheep_transform.translation);
                 if dist <= constants::EXPLOSIVE_SHEEP_RADIUS {
-                    apply_spell_damage(
+                    apply_spell_damage_with_team(
                         &mut commands,
                         target_entity,
                         &mut target_health,
@@ -637,6 +644,8 @@ pub fn check_explosive_sheep_deaths(
                         constants::EXPLOSIVE_SHEEP_DAMAGE,
                         DamageType::Nature,
                         has_spell_shield,
+                        caster_team,
+                        *team,
                     );
                 }
             }

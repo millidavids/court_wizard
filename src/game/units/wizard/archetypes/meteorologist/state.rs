@@ -33,11 +33,12 @@ pub(crate) fn try_switch_weather(
         return false;
     }
 
-    // Pressing the active weather clears it
-    if weather.active == Some(requested) {
-        weather.active = None;
-        weather.intensity = INTENSITY_MIN;
-        weather.time_active = 0.0;
+    // Pressing the active weather clears it. Only the LOCAL slot is toggled —
+    // this also naturally blocks a wizard from stacking its own weather.
+    if weather.local.active == Some(requested) {
+        weather.local.active = None;
+        weather.local.intensity = INTENSITY_MIN;
+        weather.local.time_active = 0.0;
         weather.cooldown = WEATHER_SWITCH_COOLDOWN;
         writer.write(WeatherChangedMessage);
         return true;
@@ -49,11 +50,11 @@ pub(crate) fn try_switch_weather(
     }
     mana.consume(WEATHER_MANA_COST);
 
-    weather.active = Some(requested);
-    weather.intensity = INTENSITY_MIN;
-    weather.time_active = 0.0;
+    weather.local.active = Some(requested);
+    weather.local.intensity = INTENSITY_MIN;
+    weather.local.time_active = 0.0;
+    weather.local.lightning_timer = THUNDERSTORM_LIGHTNING_INTERVAL;
     weather.cooldown = WEATHER_SWITCH_COOLDOWN;
-    weather.lightning_timer = THUNDERSTORM_LIGHTNING_INTERVAL;
     writer.write(WeatherChangedMessage);
     true
 }
@@ -97,21 +98,28 @@ pub fn handle_weather_input(
     try_switch_weather(&mut weather, &mut mana, requested, &mut writer);
 }
 
-/// Ticks cooldown and intensity timers.
+/// Ramps one slot's intensity from its `time_active`. Runs on both peers from
+/// the same formula, so the remote slot stays in sync without intensity packets.
+fn ramp_slot(slot: &mut super::resources::WeatherSlot, delta: f32) {
+    if slot.active.is_some() {
+        slot.time_active += delta;
+        let t = (slot.time_active / INTENSITY_RAMP_TIME).min(1.0);
+        slot.intensity = INTENSITY_MIN + (INTENSITY_MAX - INTENSITY_MIN) * t;
+    }
+}
+
+/// Ticks the switch cooldown and ramps BOTH slots' intensity.
 pub fn tick_weather_timers(time: Res<Time>, mut weather: ResMut<WeatherState>) {
     let delta = time.delta_secs();
 
-    // Tick cooldown
+    // Tick cooldown (gates only the local player's next switch)
     if weather.cooldown > 0.0 {
         weather.cooldown = (weather.cooldown - delta).max(0.0);
     }
 
-    // Tick intensity ramp
-    if weather.active.is_some() {
-        weather.time_active += delta;
-        let t = (weather.time_active / INTENSITY_RAMP_TIME).min(1.0);
-        weather.intensity = INTENSITY_MIN + (INTENSITY_MAX - INTENSITY_MIN) * t;
-    }
+    // Tick intensity ramp for both this peer's weather and the opponent's.
+    ramp_slot(&mut weather.local, delta);
+    ramp_slot(&mut weather.remote, delta);
 }
 
 /// Applies or removes weather status components on all living units.
@@ -128,20 +136,30 @@ pub fn apply_weather_status(
     units_with_dry: Query<Entity, With<DryModifier>>,
     units_with_charged: Query<Entity, With<ChargedModifier>>,
 ) {
-    let active = weather.active;
+    // Union across BOTH slots: an effect is present if EITHER weather produces
+    // it. Each weather maps to a DISJOINT set of components (Storm → Wet+Charged,
+    // Blizzard → Cold, Drought → Dry), so a unit can carry several at once
+    // (e.g. Wet from one player's Storm and Cold from the other's Blizzard).
+    // Computing the union booleans first means a single if/else per effect — no
+    // per-slot `else` that would wipe a modifier the other slot just added. When
+    // both slots are the same weather, the stronger (max) intensity wins.
+    let storm = weather.any_is(WeatherType::Storm);
+    let blizzard = weather.any_is(WeatherType::Blizzard);
+    let drought = weather.any_is(WeatherType::Drought);
 
-    // Apply Wet + Charged if storm, remove if not
-    if active == Some(WeatherType::Storm) {
+    // Wet + Charged (storm)
+    if storm {
+        let intensity = weather.max_intensity_for(WeatherType::Storm);
         for entity in units_without_wet.iter() {
             commands.entity(entity).insert(WetModifier {
-                intensity: weather.intensity,
+                intensity,
                 time_remaining: super::components::WET_DURATION,
             });
         }
         for entity in units_without_charged.iter() {
-            commands.entity(entity).insert(ChargedModifier {
-                intensity: weather.intensity,
-            });
+            commands
+                .entity(entity)
+                .insert(ChargedModifier { intensity });
         }
     } else {
         // Don't remove wet — let the timer expire naturally (10s duration).
@@ -151,12 +169,11 @@ pub fn apply_weather_status(
         }
     }
 
-    // Apply Cold if blizzard, remove if not
-    if active == Some(WeatherType::Blizzard) {
+    // Cold (blizzard)
+    if blizzard {
+        let intensity = weather.max_intensity_for(WeatherType::Blizzard);
         for entity in units_without_cold.iter() {
-            commands.entity(entity).insert(ColdModifier {
-                intensity: weather.intensity,
-            });
+            commands.entity(entity).insert(ColdModifier { intensity });
         }
     } else {
         for entity in units_with_cold.iter() {
@@ -164,12 +181,11 @@ pub fn apply_weather_status(
         }
     }
 
-    // Apply Dry if drought, remove if not
-    if active == Some(WeatherType::Drought) {
+    // Dry (drought)
+    if drought {
+        let intensity = weather.max_intensity_for(WeatherType::Drought);
         for entity in units_without_dry.iter() {
-            commands.entity(entity).insert(DryModifier {
-                intensity: weather.intensity,
-            });
+            commands.entity(entity).insert(DryModifier { intensity });
         }
     } else {
         for entity in units_with_dry.iter() {
@@ -186,29 +202,31 @@ pub fn update_weather_intensity(
     mut dry_query: Query<&mut DryModifier>,
     mut charged_query: Query<&mut ChargedModifier>,
 ) {
-    let intensity = weather.intensity;
-    match weather.active {
-        Some(WeatherType::Storm) => {
-            for mut m in wet_query.iter_mut() {
-                m.intensity = intensity;
-                // Refresh timer while storm is active
-                m.time_remaining = super::components::WET_DURATION;
-            }
-            for mut m in charged_query.iter_mut() {
-                m.intensity = intensity;
-            }
+    // Each effect syncs to the MAX intensity across the slots producing it, so
+    // stacked same-kind weather drives the stronger value. Independent `if`s (not
+    // a single match) because multiple effects can be live at once.
+    if weather.any_is(WeatherType::Storm) {
+        let intensity = weather.max_intensity_for(WeatherType::Storm);
+        for mut m in wet_query.iter_mut() {
+            m.intensity = intensity;
+            // Refresh timer while a storm is active
+            m.time_remaining = super::components::WET_DURATION;
         }
-        Some(WeatherType::Blizzard) => {
-            for mut m in cold_query.iter_mut() {
-                m.intensity = intensity;
-            }
+        for mut m in charged_query.iter_mut() {
+            m.intensity = intensity;
         }
-        Some(WeatherType::Drought) => {
-            for mut m in dry_query.iter_mut() {
-                m.intensity = intensity;
-            }
+    }
+    if weather.any_is(WeatherType::Blizzard) {
+        let intensity = weather.max_intensity_for(WeatherType::Blizzard);
+        for mut m in cold_query.iter_mut() {
+            m.intensity = intensity;
         }
-        None => {}
+    }
+    if weather.any_is(WeatherType::Drought) {
+        let intensity = weather.max_intensity_for(WeatherType::Drought);
+        for mut m in dry_query.iter_mut() {
+            m.intensity = intensity;
+        }
     }
 }
 
@@ -223,11 +241,11 @@ pub fn spread_shock_to_wet(
         (With<WetModifier>, Without<Corpse>),
     >,
 ) {
-    // Use weather intensity for spread radius if storm is active, otherwise base radius
+    // Use storm intensity for spread radius if any storm is active, else base.
     let intensity = weather
         .as_ref()
-        .filter(|w| w.active == Some(WeatherType::Storm))
-        .map(|w| w.intensity)
+        .filter(|w| w.any_is(WeatherType::Storm))
+        .map(|w| w.max_intensity_for(WeatherType::Storm))
         .unwrap_or(1.0);
     let spread_radius = WET_SHOCK_SPREAD_RADIUS * intensity;
 

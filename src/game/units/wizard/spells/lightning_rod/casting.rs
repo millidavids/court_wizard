@@ -1,8 +1,6 @@
 //! Lightning rod casting and rod spawn.
 
-use super::components::{
-    LightningRod, LightningRodTalentParams, LightningStrike, StormSpireSecondaryRod,
-};
+use super::components::{LightningRod, LightningRodTalentParams, LightningStrike};
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
@@ -290,36 +288,22 @@ fn lightning_rod_casting_logic(
                         TOWER_DURATION * primed_spell.empowerment * talent_params.duration_mult;
 
                     if talent_params.storm_spire {
-                        let offset = Vec3::new(STORM_SPIRE_OFFSET / 2.0, 0.0, 0.0);
-                        // Storm Spire makes Lightning Rod a CONCENTRATION spell:
-                        // the rods never expire on a timer (duration = MAX) and
-                        // persist until the player ends concentration. The anchor
-                        // carries `ConcentrationSpell` (which spawns the End button
-                        // and reserves mana); the secondary is despawned alongside
-                        // it by `cleanup_orphaned_storm_rods`.
-                        let anchor = spawn_lightning_rod(
+                        // Storm Spire makes Lightning Rod a CONCENTRATION spell: a
+                        // single rod never expires on a timer (duration = MAX) and
+                        // persists until the player ends concentration. The
+                        // `ConcentrationSpell` spawns the End button and reserves mana.
+                        let rod = spawn_lightning_rod(
                             commands,
                             assets,
-                            spawn_pos + offset,
+                            spawn_pos,
                             primed_spell.empowerment,
                             f32::MAX,
                             talent_params,
                         );
-                        commands.entity(anchor).insert(ConcentrationSpell {
+                        commands.entity(rod).insert(ConcentrationSpell {
                             spell_name: "Lightning Rod",
                             mana_cost: MANA_COST,
                         });
-                        let secondary = spawn_lightning_rod(
-                            commands,
-                            assets,
-                            spawn_pos - offset,
-                            primed_spell.empowerment,
-                            f32::MAX,
-                            talent_params,
-                        );
-                        commands
-                            .entity(secondary)
-                            .insert(StormSpireSecondaryRod { anchor });
                     } else {
                         spawn_lightning_rod(
                             commands,

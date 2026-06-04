@@ -10,7 +10,7 @@ use super::systems::{
     update_focus_memory,
 };
 use crate::game::input::gamepad::resources::ActiveInputDevice;
-use crate::state::InGameState;
+use crate::state::{InGameState, MultiplayerGameState};
 
 pub(crate) struct FocusPlugin;
 
@@ -18,10 +18,23 @@ fn gamepad_active(active: Res<ActiveInputDevice>) -> bool {
     active.is_gamepad()
 }
 
-/// Focus navigation is disabled during active gameplay (`InGameState::Running`):
-/// any forced `Interaction::Hovered` on a HUD button would cause
-/// `block_spell_input_on_button_interaction` to silently block every cast.
-fn focus_enabled(in_game: Option<Res<State<InGameState>>>) -> bool {
+/// Focus navigation is disabled during active gameplay (`InGameState::Running`
+/// in single-player, `MultiplayerGameState::Running` in multiplayer): any forced
+/// `Interaction::Hovered` on a HUD button would cause
+/// `block_spell_input_on_button_interaction` to silently block every cast, and
+/// `override_focused_interaction` would steal a RuneCaster rune button's own
+/// mouse hover so it never animates. Menus/overlays (Paused, Settings, …) keep
+/// focus navigation, so only the `Running` variants disable it.
+fn focus_enabled(
+    in_game: Option<Res<State<InGameState>>>,
+    mp_game: Option<Res<State<MultiplayerGameState>>>,
+) -> bool {
+    if mp_game
+        .map(|s| *s.get() == MultiplayerGameState::Running)
+        .unwrap_or(false)
+    {
+        return false;
+    }
     in_game
         .map(|s| *s.get() != InGameState::Running)
         .unwrap_or(true)
@@ -117,6 +130,12 @@ impl Plugin for FocusPlugin {
             )
             .add_systems(
                 OnEnter(InGameState::Running),
+                |mut focused: ResMut<FocusedEntity>| focused.0 = None,
+            )
+            // Mirror the single-player clear for multiplayer: start gameplay with
+            // no stale focus so HUD/rune-button interactions aren't overridden.
+            .add_systems(
+                OnEnter(MultiplayerGameState::Running),
                 |mut focused: ResMut<FocusedEntity>| focused.0 = None,
             );
     }

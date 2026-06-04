@@ -4,13 +4,14 @@ use super::components::{BlackHole, BlackHoleSfx, UnitInBlackHole};
 use super::constants::*;
 use crate::game::components::Acceleration;
 use crate::game::units::components::{
-    Corpse, Health, SlowMovementModifier, Team, TemporaryHitPoints, apply_spell_damage,
+    Corpse, Health, SlowMovementModifier, Team, TemporaryHitPoints, apply_spell_damage_with_team,
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{Spell, Wizard};
-use crate::game::units::wizard::spells::utils::PendingDefenderHeal;
+use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, local_player_team};
 use crate::game::units::wizard::talents::resources::BattleTalentProgress;
+use crate::networking::session::MultiplayerSession;
 use bevy::prelude::*;
 
 type DimensionalRiftUnitData = (
@@ -19,6 +20,7 @@ type DimensionalRiftUnitData = (
     &'static mut Health,
     Option<&'static mut TemporaryHitPoints>,
     Has<SpellShield>,
+    &'static Team,
 );
 type DimensionalRiftUnitFilter = (
     With<Team>,
@@ -140,11 +142,14 @@ pub(super) fn apply_black_hole_damage(
             Option<&mut TemporaryHitPoints>,
             Option<&mut UnitInBlackHole>,
             Has<SpellShield>,
+            &Team,
         ),
         Without<Wizard>,
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     let mut total_siphon_heal = 0.0;
     let mut siphon_origin = Vec3::ZERO;
 
@@ -155,13 +160,15 @@ pub(super) fn apply_black_hole_damage(
 
         let bh_pos = black_hole.position;
 
-        for (entity, transform, mut health, mut temp_hp, tracking, has_spell_shield) in
+        for (entity, transform, mut health, mut temp_hp, tracking, has_spell_shield, team) in
             units.iter_mut()
         {
             let unit_pos = transform.translation;
 
             if black_hole.contains_point(unit_pos) {
-                if has_spell_shield {
+                // Enemy shielded units (the enemy King) are immune; your own
+                // shielded King still takes your own black hole's friendly fire.
+                if has_spell_shield && caster_team != *team {
                     continue;
                 }
 
@@ -190,14 +197,16 @@ pub(super) fn apply_black_hole_damage(
                 // Apply scaled damage
                 let total_damage =
                     black_hole.damage_per_tick() * damage_multiplier * event_horizon_mult;
-                apply_spell_damage(
+                apply_spell_damage_with_team(
                     &mut commands,
                     entity,
                     &mut health,
                     temp_hp.as_deref_mut(),
                     total_damage,
                     DamageType::Force,
-                    false,
+                    has_spell_shield,
+                    caster_team,
+                    *team,
                 );
 
                 // Accumulate siphon healing
@@ -287,7 +296,9 @@ pub(super) fn apply_dimensional_rift(
     mut commands: Commands,
     mut black_holes: Query<&mut BlackHole>,
     mut units: Query<DimensionalRiftUnitData, DimensionalRiftUnitFilter>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     for mut black_hole in black_holes.iter_mut() {
         if !black_hole.talent_params.dimensional_rift {
             continue;
@@ -300,25 +311,28 @@ pub(super) fn apply_dimensional_rift(
         black_hole.time_since_rift_pulse = 0.0;
         let bh_pos = black_hole.position;
 
-        for (entity, mut transform, mut health, mut temp_hp, has_spell_shield) in units.iter_mut() {
-            if has_spell_shield {
-                continue;
-            }
-
+        for (entity, mut transform, mut health, mut temp_hp, has_spell_shield, team) in
+            units.iter_mut()
+        {
             if black_hole.contains_point(transform.translation) {
-                // Teleport to center (keep Y)
-                transform.translation.x = bh_pos.x;
-                transform.translation.z = bh_pos.z;
+                // The shielded King is never yanked to the singularity (preserve
+                // its anti-stall teleport immunity). Your own rift still damages
+                // your own King; the enemy's rift is blocked by the shield.
+                if !has_spell_shield {
+                    transform.translation.x = bh_pos.x;
+                    transform.translation.z = bh_pos.z;
+                }
 
-                // Deal burst damage
-                apply_spell_damage(
+                apply_spell_damage_with_team(
                     &mut commands,
                     entity,
                     &mut health,
                     temp_hp.as_deref_mut(),
                     DIMENSIONAL_RIFT_DAMAGE * black_hole.empowerment,
                     DamageType::Force,
-                    false,
+                    has_spell_shield,
+                    caster_team,
+                    *team,
                 );
             }
         }
@@ -379,29 +393,35 @@ pub(super) fn despawn_expired_black_holes(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
+            &Team,
         ),
         (Without<Wizard>, Without<BlackHole>),
     >,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     for (entity, black_hole) in black_holes.iter() {
         if black_hole.is_expired() {
             // Singularity: collapse damage to all units inside
             if black_hole.talent_params.singularity {
-                for (unit_entity, transform, mut health, mut temp_hp, has_spell_shield) in
+                for (unit_entity, transform, mut health, mut temp_hp, has_spell_shield, team) in
                     units.iter_mut()
                 {
-                    if has_spell_shield {
+                    // Enemy shielded King immune; your own King takes friendly fire.
+                    if has_spell_shield && caster_team != *team {
                         continue;
                     }
                     if black_hole.contains_point(transform.translation) {
-                        apply_spell_damage(
+                        apply_spell_damage_with_team(
                             &mut commands,
                             unit_entity,
                             &mut health,
                             temp_hp.as_deref_mut(),
                             SINGULARITY_DAMAGE * black_hole.empowerment,
                             DamageType::Force,
-                            false,
+                            has_spell_shield,
+                            caster_team,
+                            *team,
                         );
                     }
                 }

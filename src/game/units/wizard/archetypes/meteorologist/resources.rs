@@ -68,17 +68,54 @@ impl WeatherType {
     }
 }
 
-/// Global weather state managed by the Meteorologist.
-#[derive(Resource, Debug, Clone, Default)]
-pub struct WeatherState {
-    /// Currently active weather, or None for clear skies.
+/// One owner's weather: their chosen condition plus its own intensity ramp and
+/// lightning timer. Each peer's `WeatherState` holds two of these so two opposing
+/// Meteorologists' different weathers can be active at the same time.
+#[derive(Debug, Clone, Default)]
+pub struct WeatherSlot {
+    /// Currently active weather for this slot, or None for clear skies.
     pub active: Option<WeatherType>,
     /// Intensity multiplier (1.0 to max, grows over time).
     pub intensity: f32,
-    /// Cooldown timer before weather can be changed again (seconds).
-    pub cooldown: f32,
-    /// How long the current weather has been active (seconds).
+    /// How long this slot's weather has been active (seconds).
     pub time_active: f32,
-    /// Timer for storm lightning strikes.
+    /// Timer for this slot's storm lightning strikes.
     pub lightning_timer: f32,
+}
+
+/// Global weather state managed by the Meteorologist.
+///
+/// Split into two owner slots: `local` is this peer's own weather (driven by
+/// local input) and `remote` is the opponent's (driven by received messages,
+/// always None in single-player). The host applies the UNION of both slots'
+/// effects to its units; both peers render both slots' visuals.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct WeatherState {
+    /// This peer's own weather.
+    pub local: WeatherSlot,
+    /// The opponent's weather (None outside multiplayer).
+    pub remote: WeatherSlot,
+    /// Cooldown gating the LOCAL player's next weather switch (seconds).
+    pub cooldown: f32,
+}
+
+impl WeatherState {
+    /// True when EITHER slot is currently the given weather.
+    pub fn any_is(&self, weather: WeatherType) -> bool {
+        self.local.active == Some(weather) || self.remote.active == Some(weather)
+    }
+
+    /// Highest intensity among slots currently set to the given weather
+    /// (0.0 if neither slot is that weather). Used so two stacked weathers of
+    /// the same kind take the stronger effect.
+    pub fn max_intensity_for(&self, weather: WeatherType) -> f32 {
+        let mut intensity = 0.0_f32;
+        if self.local.active == Some(weather) {
+            intensity = intensity.max(self.local.intensity);
+        }
+        if self.remote.active == Some(weather) {
+            intensity = intensity.max(self.remote.intensity);
+        }
+        intensity
+    }
 }

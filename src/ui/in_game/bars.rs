@@ -98,7 +98,9 @@ pub(super) fn update_ammo_display(
 /// Updates the cast bar width based on current wizard casting progress, brewing progress,
 /// or reload progress for the gunslinger.
 pub(super) fn update_cast_bar(
-    wizard_query: Query<(&CastingState, &PrimedSpell), With<LocalWizard>>,
+    // `Option<&PrimedSpell>` so the bar still works for a Randomancer that hasn't
+    // spun its wheel yet (no primed spell) — the query would otherwise be empty.
+    wizard_query: Query<(&CastingState, Option<&PrimedSpell>), With<LocalWizard>>,
     cauldron_query: Query<&CauldronState, With<Cauldron>>,
     gun_state: Option<Res<GunState>>,
     mut cast_bar_query: Query<(&mut Node, &mut BackgroundColor), With<CastBarFill>>,
@@ -130,7 +132,9 @@ pub(super) fn update_cast_bar(
             bg_color.0 = CAST_BAR_BREWING_FILL_COLOR;
         } else {
             if let Ok((casting_state, primed_spell)) = wizard_query.single() {
-                let progress_percent = casting_state.progress(primed_spell.cast_time) * 100.0;
+                let progress_percent = primed_spell
+                    .map(|p| casting_state.progress(p.cast_time) * 100.0)
+                    .unwrap_or(0.0);
                 node.width = Val::Percent(progress_percent);
             }
             bg_color.0 = CAST_BAR_FILL_COLOR;

@@ -12,18 +12,21 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Airborne, Corpse, Health, RootedModifier, TemporaryHitPoints, apply_spell_damage,
+    Airborne, Corpse, Health, RootedModifier, Team, TemporaryHitPoints,
+    apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
+use crate::game::units::wizard::spells::utils::local_player_team;
 use crate::game::units::wizard::spells::utils::xz_distance;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::game::units::wizard::talents::resources::BattleTalentProgress;
+use crate::networking::session::MultiplayerSession;
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
 
@@ -54,12 +57,15 @@ pub fn check_grease_ignition(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
+            &Team,
         ),
         Without<Corpse>,
     >,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     // Collect ignited zone positions for chain-ignition checks
     let ignited_zones: Vec<(Vec3, f32)> = ignited_zone_query
         .iter()
@@ -188,10 +194,12 @@ pub fn check_grease_ignition(
             // Apply one-time burst fire damage only near the ignition point
             if zone.ignite_damage > 0.0 {
                 let burst_radius = zone.radius * constants::IGNITION_BURST_RADIUS_FRACTION;
-                for (entity, transform, mut health, mut temp_hp, has_spell_shield) in &mut targets {
+                for (entity, transform, mut health, mut temp_hp, has_spell_shield, team) in
+                    &mut targets
+                {
                     let dist = xz_distance(ign_point, transform.translation);
                     if dist <= burst_radius {
-                        apply_spell_damage(
+                        apply_spell_damage_with_team(
                             &mut commands,
                             entity,
                             &mut health,
@@ -199,6 +207,8 @@ pub fn check_grease_ignition(
                             zone.ignite_damage * zone.empowerment,
                             DamageType::Fire,
                             has_spell_shield,
+                            caster_team,
+                            *team,
                         );
                     }
                 }
@@ -207,7 +217,8 @@ pub fn check_grease_ignition(
             // Talent: Grease Geyser — launch enemies upward at ignition
             if zone.talent_params.grease_geyser {
                 let mut units_launched: u32 = 0;
-                for (entity, transform, _health, _temp_hp, _has_spell_shield) in &mut targets {
+                for (entity, transform, _health, _temp_hp, _has_spell_shield, _team) in &mut targets
+                {
                     let dist = xz_distance(zone.origin, transform.translation);
                     if dist <= zone.radius {
                         commands.entity(entity).insert((
@@ -304,11 +315,14 @@ pub fn apply_grease_burn(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
+            &Team,
         ),
         Without<Corpse>,
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     let delta = time.delta_secs();
     for (mut zone, ignited) in &mut zones {
         zone.time_alive += delta;
@@ -325,7 +339,8 @@ pub fn apply_grease_burn(
                 zone.ignite_burn_damage * zone.empowerment * zone.talent_params.burn_damage_mult;
             let mut units_burned: u32 = 0;
 
-            for (entity, transform, mut health, mut temp_hp, has_spell_shield) in &mut targets {
+            for (entity, transform, mut health, mut temp_hp, has_spell_shield, team) in &mut targets
+            {
                 let in_burn_area = if spreading {
                     // Check distance from ignition point during spread
                     xz_distance(ignited.ignition_point, transform.translation) <= fire_radius
@@ -335,7 +350,7 @@ pub fn apply_grease_burn(
                 };
 
                 if in_burn_area {
-                    apply_spell_damage(
+                    apply_spell_damage_with_team(
                         &mut commands,
                         entity,
                         &mut health,
@@ -343,6 +358,8 @@ pub fn apply_grease_burn(
                         burn_damage,
                         DamageType::Fire,
                         has_spell_shield,
+                        caster_team,
+                        *team,
                     );
                     units_burned += 1;
                 }

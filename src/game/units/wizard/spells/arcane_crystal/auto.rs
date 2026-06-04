@@ -12,7 +12,7 @@ use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
+    Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::Spell;
@@ -24,13 +24,14 @@ use crate::game::units::wizard::spells::fireball::systems as fireball_systems;
 use crate::game::units::wizard::spells::magic_missile::components::TargetTeams;
 use crate::game::units::wizard::spells::meteor_fall::casting::MeteorProjectileTalentFlags;
 use crate::game::units::wizard::spells::meteor_fall::systems as meteor_fall_systems;
-use crate::game::units::wizard::spells::utils::xz_distance;
+use crate::game::units::wizard::spells::utils::{local_player_team, xz_distance};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::{
     disintegrate_constants, finger_of_death_constants, fireball_constants, magic_missile_constants,
     meteor_fall_constants,
 };
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use crate::networking::session::MultiplayerSession;
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn auto_cast_remembered_spell(
@@ -50,12 +51,15 @@ pub(super) fn auto_cast_remembered_spell(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
+        &Team,
     )>,
     active_talents: Option<Res<ActiveTalents>>,
     peer_id: Option<Res<crate::networking::crdt::PeerId>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     let target_teams = crystal_target_teams(peer_id.as_deref());
     let talent_cfg = disintegrate_systems::compute_talent_config(active_talents.as_deref());
+    let caster_team = local_player_team(session.as_deref());
     let delta = time.delta_secs();
 
     // Collect crystal data to avoid borrow conflicts (skip permanent turrets).
@@ -180,6 +184,7 @@ pub(super) fn auto_cast_remembered_spell(
                         &visual_assets,
                         &targets,
                         &mut health_query,
+                        caster_team,
                     );
                 }
                 RememberedSpell::Meteor => {
@@ -466,7 +471,9 @@ fn auto_cast_chain_lightning(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
+        &Team,
     )>,
+    caster_team: Team,
 ) {
     let enemies = find_random_targets_in_range(
         rng,
@@ -479,10 +486,10 @@ fn auto_cast_chain_lightning(
         cl_constants::INITIAL_DAMAGE * DAMAGE_SCALE * params.empowerment * params.damage_mult;
 
     for (target_entity, target_pos) in &enemies {
-        if let Ok((mut health, mut temp_hp, has_spell_shield)) =
+        if let Ok((mut health, mut temp_hp, has_spell_shield, team)) =
             health_query.get_mut(*target_entity)
         {
-            apply_spell_damage(
+            apply_spell_damage_with_team(
                 commands,
                 *target_entity,
                 &mut health,
@@ -490,6 +497,8 @@ fn auto_cast_chain_lightning(
                 damage,
                 DamageType::Electric,
                 has_spell_shield,
+                caster_team,
+                *team,
             );
         }
 
@@ -661,9 +670,12 @@ pub(super) fn resonance_cascade_burst(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
+        &Team,
     )>,
     mut progress: ResMut<BattleTalentProgress>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     for (mut crystal, mut resonance) in &mut crystals {
         if resonance.absorptions < RESONANCE_CASCADE_THRESHOLD {
             continue;
@@ -683,6 +695,7 @@ pub(super) fn resonance_cascade_burst(
             0.3,
             &targets,
             &mut health_query,
+            caster_team,
         );
 
         if hit_count > 0 {
@@ -708,7 +721,9 @@ pub(super) fn crystal_aoe_burst(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
+        &Team,
     )>,
+    caster_team: Team,
 ) -> u32 {
     let mut hit_count: u32 = 0;
 
@@ -718,9 +733,10 @@ pub(super) fn crystal_aoe_burst(
             continue;
         }
 
-        if let Ok((mut health, mut temp_hp, has_spell_shield)) = health_query.get_mut(target_entity)
+        if let Ok((mut health, mut temp_hp, has_spell_shield, team)) =
+            health_query.get_mut(target_entity)
         {
-            apply_spell_damage(
+            apply_spell_damage_with_team(
                 commands,
                 target_entity,
                 &mut health,
@@ -728,6 +744,8 @@ pub(super) fn crystal_aoe_burst(
                 damage,
                 DamageType::Force,
                 has_spell_shield,
+                caster_team,
+                *team,
             );
             hit_count += 1;
         }

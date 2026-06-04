@@ -105,9 +105,6 @@ pub(super) const OVERCHARGE_DAMAGE_MULT: f32 = 2.5;
 /// T3-0 Storm Spire: damage multiplier for each rod.
 pub(super) const STORM_SPIRE_DAMAGE_MULT: f32 = 0.6;
 
-/// T3-0 Storm Spire: offset distance between the two rods.
-pub(super) const STORM_SPIRE_OFFSET: f32 = 40.0;
-
 /// T3-2 Lightning Nexus: damage multiplier for each successive bonus strike (compounds).
 pub(super) const LIGHTNING_NEXUS_FALLOFF: f32 = 0.5;
 

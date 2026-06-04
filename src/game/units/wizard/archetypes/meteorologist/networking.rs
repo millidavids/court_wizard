@@ -48,21 +48,24 @@ pub(crate) fn send_weather_state(
     let Some(mut connection) = connection else {
         return;
     };
+    // We replicate only this peer's OWN weather (the local slot); the opponent
+    // writes it into their `remote` slot on receipt.
+    let local_active = weather.local.active;
     // First run: record the (cleared) starting state without sending a spurious
     // WeatherChanged{None} packet.
     if last_sent.is_none() {
-        *last_sent = Some(weather.active);
+        *last_sent = Some(local_active);
         return;
     }
-    if *last_sent == Some(weather.active) {
+    if *last_sent == Some(local_active) {
         return;
     }
-    *last_sent = Some(weather.active);
+    *last_sent = Some(local_active);
     connection
         .outgoing_messages
         .push(NetworkMessage::WeatherChanged {
-            weather: weather.active.map(WeatherType::to_u8),
-            intensity: weather.intensity,
+            weather: local_active.map(WeatherType::to_u8),
+            intensity: weather.local.intensity,
         });
 }
 
@@ -88,11 +91,15 @@ pub(crate) fn receive_weather_message(
                 intensity,
             } => {
                 let new_active = w.and_then(WeatherType::from_u8);
-                if weather.active != new_active {
-                    weather.active = new_active;
-                    weather.time_active = 0.0;
-                    weather.intensity = intensity;
-                    weather.lightning_timer = THUNDERSTORM_LIGHTNING_INTERVAL;
+                // The opponent's choice lands in OUR `remote` slot — it never
+                // touches the local slot, so both weathers coexist. Intensity
+                // then ramps locally from `time_active` (same formula on both
+                // peers), keeping them in sync without per-frame packets.
+                if weather.remote.active != new_active {
+                    weather.remote.active = new_active;
+                    weather.remote.time_active = 0.0;
+                    weather.remote.intensity = intensity;
+                    weather.remote.lightning_timer = THUNDERSTORM_LIGHTNING_INTERVAL;
                     writer.write(WeatherChangedMessage);
                 }
             }

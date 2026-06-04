@@ -25,9 +25,11 @@ pub(super) fn button_action(
     mut selection: ResMut<IngredientSelection>,
     mut start_brew: MessageWriter<StartBrewMessage>,
     mut cancel_brew: MessageWriter<CancelBrewMessage>,
-    mut next_in_game_state: ResMut<NextState<InGameState>>,
-    // In multiplayer `InGameState` is inactive, so closing/brewing must drive the
-    // `MultiplayerGameState` back to Running instead (mirrors `escape_to_running`).
+    // BOTH optional: `InGameState` is a SubState that is REMOVED during
+    // `AppState::MultiplayerGame` (and `MultiplayerGameState` is absent in SP), so a
+    // non-optional `ResMut<NextState<InGameState>>` would PANIC on any cauldron-menu
+    // click in multiplayer. Set whichever exists (mirrors `escape_to_running`).
+    mut next_in_game_state: Option<ResMut<NextState<InGameState>>>,
     mut next_mp_state: Option<ResMut<NextState<MultiplayerGameState>>>,
 ) {
     let is_brewing = cauldron_query
@@ -52,7 +54,9 @@ pub(super) fn button_action(
                         let recipe = Recipe::new(selection.build_ingredients());
                         start_brew.write(StartBrewMessage { recipe });
                         selection.clear();
-                        next_in_game_state.set(InGameState::Running);
+                        if let Some(ref mut s) = next_in_game_state {
+                            s.set(InGameState::Running);
+                        }
                         if let Some(ref mut mp) = next_mp_state {
                             mp.set(MultiplayerGameState::Running);
                         }
@@ -60,13 +64,17 @@ pub(super) fn button_action(
                 }
                 CauldronMenuButtonAction::CancelBrew => {
                     cancel_brew.write(CancelBrewMessage);
-                    next_in_game_state.set(InGameState::Running);
+                    if let Some(ref mut s) = next_in_game_state {
+                        s.set(InGameState::Running);
+                    }
                     if let Some(ref mut mp) = next_mp_state {
                         mp.set(MultiplayerGameState::Running);
                     }
                 }
                 CauldronMenuButtonAction::Close => {
-                    next_in_game_state.set(InGameState::Running);
+                    if let Some(ref mut s) = next_in_game_state {
+                        s.set(InGameState::Running);
+                    }
                     if let Some(ref mut mp) = next_mp_state {
                         mp.set(MultiplayerGameState::Running);
                     }

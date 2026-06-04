@@ -18,7 +18,8 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Health, RootedModifier, SlowMovementModifier, TemporaryHitPoints, apply_spell_damage,
+    Health, RootedModifier, SlowMovementModifier, Team, TemporaryHitPoints,
+    apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
@@ -26,11 +27,13 @@ use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     self, SpellCircleIndicator, TargetAssistWorldPos, UniqueHitTracker, apply_target_assist,
     build_wizard_input, clamp_cursor_to_spell_range_with_origin, cleanup_spell_caster,
-    handle_spell_release, try_start_cast_with_indicator, update_indicator_position, xz_distance,
+    handle_spell_release, local_player_team, try_start_cast_with_indicator,
+    update_indicator_position, xz_distance,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use crate::networking::session::MultiplayerSession;
 use crate::networking::snapshot::SpellEffectKind;
 use crate::networking::snapshot::SpellSoundId;
 use bevy::prelude::*;
@@ -272,10 +275,13 @@ pub fn apply_spike_growth_damage(
         Option<&mut SlowMovementModifier>,
         Has<SpellShield>,
         Option<&mut ZonePresenceTracker>,
+        &Team,
     )>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     let delta = time.delta_secs();
+    let caster_team = local_player_team(session.as_deref());
 
     for (zone_entity, mut zone, mut hit_tracker) in &mut zones {
         zone.time_alive += delta;
@@ -305,6 +311,7 @@ pub fn apply_spike_growth_damage(
             existing_slow,
             has_spell_shield,
             zone_tracker,
+            team,
         ) in &mut targets
         {
             let distance = xz_distance(zone.origin, transform.translation);
@@ -312,7 +319,7 @@ pub fn apply_spike_growth_damage(
             if distance <= effective_radius {
                 let was_alive = !health.is_dead();
 
-                apply_spell_damage(
+                apply_spell_damage_with_team(
                     &mut commands,
                     entity,
                     &mut health,
@@ -320,8 +327,15 @@ pub fn apply_spike_growth_damage(
                     zone.damage_per_tick,
                     DamageType::Poison,
                     has_spell_shield,
+                    caster_team,
+                    *team,
                 );
 
+                // The damage above is team-aware (your own zone hurts your own
+                // King), but the crowd-control side-effects below must NOT apply
+                // to a shielded King — slowing/rooting your own King could stall
+                // it (it is deliberately unteleportable). Any shielded unit skips
+                // the slow / zone-tracking / Quicksand root.
                 if has_spell_shield {
                     continue;
                 }
@@ -409,11 +423,14 @@ pub fn tick_lingering_poison(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
+        &Team,
     )>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     let delta = time.delta_secs();
+    let caster_team = local_player_team(session.as_deref());
 
-    for (entity, mut poison, mut health, mut temp_hp, has_spell_shield) in &mut targets {
+    for (entity, mut poison, mut health, mut temp_hp, has_spell_shield, team) in &mut targets {
         poison.time_remaining -= delta;
         poison.time_since_last_tick += delta;
 
@@ -426,7 +443,7 @@ pub fn tick_lingering_poison(
 
         if poison.time_since_last_tick >= poison.tick_interval {
             poison.time_since_last_tick = 0.0;
-            apply_spell_damage(
+            apply_spell_damage_with_team(
                 &mut commands,
                 entity,
                 &mut health,
@@ -434,6 +451,8 @@ pub fn tick_lingering_poison(
                 poison.damage_per_tick,
                 DamageType::Poison,
                 has_spell_shield,
+                caster_team,
+                *team,
             );
         }
     }
@@ -545,6 +564,7 @@ pub fn spike_storm_volley(
 }
 
 /// Updates spike storm projectile positions and checks for collisions.
+#[allow(clippy::too_many_arguments)]
 pub fn update_spike_storm_projectiles(
     mut commands: Commands,
     time: Res<Time>,
@@ -556,11 +576,14 @@ pub fn update_spike_storm_projectiles(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
+            &Team,
         ),
         Without<SpikeStormProjectile>,
     >,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     let delta = time.delta_secs();
+    let caster_team = local_player_team(session.as_deref());
 
     for (proj_entity, mut proj_transform, mut projectile) in &mut projectiles {
         projectile.time_alive += delta;
@@ -573,7 +596,7 @@ pub fn update_spike_storm_projectiles(
         proj_transform.translation += projectile.direction * projectile.speed * delta;
 
         let mut hit = false;
-        for (target_entity, target_transform, mut health, mut temp_hp, has_spell_shield) in
+        for (target_entity, target_transform, mut health, mut temp_hp, has_spell_shield, team) in
             &mut targets
         {
             if health.is_dead() {
@@ -582,7 +605,7 @@ pub fn update_spike_storm_projectiles(
             let dist = xz_distance(proj_transform.translation, target_transform.translation);
 
             if dist <= projectile.radius + constants::UNIT_COLLISION_RADIUS {
-                apply_spell_damage(
+                apply_spell_damage_with_team(
                     &mut commands,
                     target_entity,
                     &mut health,
@@ -590,6 +613,8 @@ pub fn update_spike_storm_projectiles(
                     projectile.damage,
                     DamageType::Poison,
                     has_spell_shield,
+                    caster_team,
+                    *team,
                 );
                 hit = true;
                 break;

@@ -18,14 +18,14 @@ use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     FogEvasionModifier, FrostAccumulation, Health, Hitbox, SlowMovementModifier, Team,
-    TemporaryHitPoints, apply_spell_damage,
+    TemporaryHitPoints, apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{LocalWizard, Mana, Spell, Wizard};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     clamp_to_spell_range_ground, get_cursor_world_position, indicator_pulse_scale,
-    sphere_intersects_cylinder, xz_distance,
+    local_player_team, sphere_intersects_cylinder, xz_distance,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::{
@@ -33,6 +33,7 @@ use crate::game::units::wizard::spells::visual_assets::{
 };
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::game::units::wizard::talents::resources::BattleTalentProgress;
+use crate::networking::session::MultiplayerSession;
 use crate::networking::snapshot::SpellEffectKind;
 
 /// Applies or inserts a [`SlowMovementModifier`] on an entity.
@@ -290,13 +291,16 @@ pub(super) fn update_ice_explosions(
             Has<SpellShield>,
             Option<&mut FrostAccumulation>,
             &Hitbox,
+            &Team,
         ),
         Without<IceExplosion>,
     >,
     storms: Query<&SquallStorm, Without<crate::game::multiplayer::components::GhostSpellEffect>>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     // Get the active storm's talent params for permafrost tracking
     let storm_has_permafrost = storms
         .iter()
@@ -372,6 +376,7 @@ pub(super) fn update_ice_explosions(
                 has_spell_shield,
                 frost_accum,
                 hitbox,
+                team,
             ) in units.iter_mut()
             {
                 let hit = sphere_intersects_cylinder(
@@ -389,7 +394,7 @@ pub(super) fn update_ice_explosions(
                 );
 
                 if hit {
-                    apply_spell_damage(
+                    apply_spell_damage_with_team(
                         &mut commands,
                         unit_entity,
                         &mut health,
@@ -397,6 +402,8 @@ pub(super) fn update_ice_explosions(
                         explosion.damage,
                         DamageType::Frost,
                         has_spell_shield,
+                        caster_team,
+                        *team,
                     );
                     units_hit += 1;
 

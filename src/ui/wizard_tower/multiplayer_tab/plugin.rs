@@ -107,11 +107,15 @@ fn handle_pending_rematch_on_enter(
         commands.insert_resource(crate::ui::wizard_tower::layout::WizardTowerTab::Multiplayer);
     }
 
-    // Pre-populate WizardSelect from the previous session
+    // Pre-populate WizardSelect from the previous session. Keep the wizard the
+    // player chose last match (the `MultiplayerSession` survives a rematch), only
+    // falling back to the first unlocked type if it's somehow gone/locked.
     let (my_wt, _) = super::state::load_my_unlocked_content();
-    let initial = my_wt
-        .first()
-        .copied()
+    let initial = session
+        .as_ref()
+        .map(|s| s.local_wizard())
+        .filter(|wt| my_wt.contains(wt))
+        .or_else(|| my_wt.first().copied())
         .unwrap_or(crate::config::WizardType::BoringOleMage);
 
     let previous_opponent = session.as_ref().map(|s| {

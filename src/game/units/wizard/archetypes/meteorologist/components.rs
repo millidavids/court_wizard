@@ -57,9 +57,11 @@ pub struct LightningStrike {
     pub lifetime: f32,
 }
 
-/// Marker for the looping weather ambient sound entity.
+/// Marker for a looping weather ambient sound entity, tagged with which weather
+/// it plays so `update_weather_sfx` can reconcile (keep/add/remove) per weather
+/// instead of restarting every sound on each change.
 #[derive(Component)]
-pub(crate) struct WeatherSfx;
+pub(crate) struct WeatherSfx(pub super::resources::WeatherType);
 
 /// A single weather particle (rain drop, snowflake, etc.).
 #[derive(Component)]

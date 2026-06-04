@@ -30,10 +30,11 @@ impl ArcanoRouterBonuses {
     }
 
     /// Higher mana allocation = CHEAPER spells. Reciprocal of the allocation %
-    /// (default 100 → 1.0×; 200 → 0.5×; 50 → 2.0×), so raising the bar reduces
-    /// cost and it never reaches zero.
+    /// (default 100 → 1.0×; 200 → 0.5×; 50 → 2.0×), clamped to a 0.5 floor so the
+    /// discount caps at 50% off even when `normalize()` pushes the allocation past
+    /// 200 (otherwise a fully-cranked mana dial made spells nearly free).
     pub fn get_mana_cost_multiplier(&self) -> f32 {
-        100.0 / self.mana_cost_bonus
+        (100.0 / self.mana_cost_bonus).max(0.5)
     }
 
     pub fn get_spell_power_multiplier(&self) -> f32 {

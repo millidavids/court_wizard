@@ -8,12 +8,15 @@ use super::components::{
 };
 use super::constants;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::components::{Health, Hitbox, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::components::{
+    Health, Hitbox, Team, TemporaryHitPoints, apply_spell_damage_with_team,
+};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
-use crate::game::units::wizard::spells::utils::UniqueHitTracker;
+use crate::game::units::wizard::spells::utils::{UniqueHitTracker, local_player_team};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::networking::session::MultiplayerSession;
 use bevy::prelude::*;
 
 #[allow(clippy::too_many_arguments)]
@@ -629,11 +632,14 @@ pub fn update_searing_finale_detonations(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
+            &Team,
         ),
         (Without<Wizard>, Without<SearingFinaleDetonation>),
     >,
     time: Res<Time>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
+    let caster_team = local_player_team(session.as_deref());
     let dt = time.delta_secs();
 
     for (det_entity, mut detonation, mut transform) in detonation_query.iter_mut() {
@@ -648,8 +654,15 @@ pub fn update_searing_finale_detonations(
         if !detonation.damage_applied {
             detonation.damage_applied = true;
 
-            for (entity, target_transform, hitbox, mut health, mut temp_hp, has_spell_shield) in
-                target_query.iter_mut()
+            for (
+                entity,
+                target_transform,
+                hitbox,
+                mut health,
+                mut temp_hp,
+                has_spell_shield,
+                team,
+            ) in target_query.iter_mut()
             {
                 let pos = target_transform.translation;
                 let to_point = pos - detonation.origin;
@@ -664,7 +677,7 @@ pub fn update_searing_finale_detonations(
                 let dist = pos.distance(closest);
 
                 if dist <= detonation.half_width + hitbox.radius {
-                    apply_spell_damage(
+                    apply_spell_damage_with_team(
                         &mut commands,
                         entity,
                         &mut health,
@@ -672,6 +685,8 @@ pub fn update_searing_finale_detonations(
                         detonation.damage,
                         constants::DAMAGE_TYPE,
                         has_spell_shield,
+                        caster_team,
+                        *team,
                     );
                 }
             }

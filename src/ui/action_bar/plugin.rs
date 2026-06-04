@@ -41,7 +41,9 @@ impl Plugin for ActionBarPlugin {
         )
         .add_systems(
             OnEnter(InGameState::Running),
-            systems::spawn_action_bar.after(systems::clear_blocked_action_bar_spells),
+            systems::spawn_action_bar
+                .after(systems::clear_blocked_action_bar_spells)
+                .run_if(action_bar_enabled),
         )
         // Clear Shepherd-blocked (offensive) spells before spawning the action
         // bar in multiplayer too — this was SP-only, so a guest Shepherd's
@@ -52,7 +54,9 @@ impl Plugin for ActionBarPlugin {
         )
         .add_systems(
             OnEnter(MultiplayerGameState::Running),
-            systems::spawn_action_bar.after(systems::clear_blocked_action_bar_spells),
+            systems::spawn_action_bar
+                .after(systems::clear_blocked_action_bar_spells)
+                .run_if(action_bar_enabled),
         )
         .add_systems(
             Update,
@@ -115,6 +119,12 @@ impl Plugin for ActionBarPlugin {
                 .run_if(in_state(InGameState::Running).or(in_state(MultiplayerGameState::Running))),
         );
     }
+}
+
+/// The action bar is hidden for archetypes that don't choose spells from it
+/// (RuneCaster casts via rune combos, Randomancer via the roulette).
+fn action_bar_enabled(config: Res<crate::config::GameConfig>) -> bool {
+    !config.wizard_type.uses_exclusive_casting()
 }
 
 /// Resets the radial-vs-linear morph progress on gameplay start. Snaps
