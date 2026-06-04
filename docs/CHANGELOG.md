@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.8.91] - 2026-06-04
 
 ### Added
 - **The game clock now appears during multiplayer** — if you have the clock turned on in settings, it now shows in the top-right corner during multiplayer matches too, not just single-player — handy for keeping an eye on the 90-second shield timer.
