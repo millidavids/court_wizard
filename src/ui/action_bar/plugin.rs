@@ -67,6 +67,20 @@ impl Plugin for ActionBarPlugin {
             )
                 .run_if(is_local_wizard_active),
         )
+        // On every mouse/keyboard ↔ controller switch, clear any stale
+        // press/hover left on the slots so buttons don't read "stuck
+        // depressed" after the transition. Runs before the highlight
+        // systems so a held key or hovered radial slot re-lights at once.
+        .add_systems(
+            Update,
+            systems::reset_action_bar_on_device_change
+                .before(systems::highlight_keyboard_pressed_slots)
+                .before(radial::highlight_radial_hovered_slot)
+                .run_if(is_local_wizard_active)
+                .run_if(
+                    resource_changed::<crate::game::input::gamepad::resources::ActiveInputDevice>,
+                ),
+        )
         // Layout morph: runs every frame while the action bar exists so
         // the buttons smoothly reorganize whenever the input device
         // changes, and so the current progress is applied immediately

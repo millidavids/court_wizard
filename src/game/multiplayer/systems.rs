@@ -754,10 +754,18 @@ pub(super) fn detect_mp_loading_disconnect(
 /// Toggles the escape menu overlay during multiplayer gameplay.
 pub(super) fn mp_escape_key_handler(
     keyboard: Res<ButtonInput<KeyCode>>,
+    active: Res<crate::game::input::gamepad::resources::ActiveInputDevice>,
+    gamepads: Query<&Gamepad>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     mut next_mp_state: ResMut<NextState<MultiplayerGameState>>,
 ) {
-    if !keyboard.just_pressed(KeyCode::Escape) {
+    // The gamepad Start button toggles the pause menu, same as Escape (mirrors the
+    // single-player `keyboard_input` handler).
+    let gamepad_start = active
+        .gamepad_entity()
+        .and_then(|e| gamepads.get(e).ok())
+        .is_some_and(|g| g.just_pressed(GamepadButton::Start));
+    if !keyboard.just_pressed(KeyCode::Escape) && !gamepad_start {
         return;
     }
 

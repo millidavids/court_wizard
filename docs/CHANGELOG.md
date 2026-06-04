@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Fixed
+- **Controller buttons work in multiplayer** — on a controller during a multiplayer match, the Start button now opens and closes the pause menu, and the cauldron button now brings up the brewing cauldron, just like they already did in single-player.
+- **Action bar spell icons stay a steady size** — when you switch between mouse/keyboard and a controller, the spell icons no longer briefly balloon or shrink; they now hold their size and only resize as the bar smoothly rearranges into the controller's ring layout.
+- **Action bar buttons reset cleanly when you switch controls** — buttons could get stuck looking pressed-in (or a glitchy mix of pressed and not, especially in the controller's ring layout) after swapping between keyboard and controller. They now snap back to normal the instant you switch, while the button you're actually holding or pointing at still lights up.
+
 ## [v0.8.91] - 2026-06-04
 
 ### Added

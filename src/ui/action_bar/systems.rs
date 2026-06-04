@@ -337,6 +337,10 @@ pub(super) fn handle_keyboard_input(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn update_action_bar_slots(
     config: Res<GameConfig>,
+    // The icon size must match the radial-morph scale, or assigning/casting a spell
+    // while a controller is active (radial mode) snaps the icon to full linear size
+    // inside the shrunken button (the morph's early-out won't re-correct it).
+    layout_progress: Res<ActionBarLayoutProgress>,
     icon_assets: Res<SpellIconAssets>,
     gun_icon_assets: Res<GunIconAssets>,
     gun_state: Option<Res<GunState>>,
@@ -380,6 +384,9 @@ pub(super) fn update_action_bar_slots(
     }
 
     if config.is_changed() {
+        // Match the radial-morph scale so the icon size stays consistent whether a
+        // controller (radial) or mouse/keyboard (linear) is active.
+        let icon_px = SPELL_ICON_SIZE * (1.0 + (RADIAL_SLOT_SCALE - 1.0) * ease(layout_progress.0));
         if is_gunslinger {
             // Show gun icons in slots, hide name text.
             let guns = GunType::all();
@@ -398,8 +405,8 @@ pub(super) fn update_action_bar_slots(
                 if let Some(handle) = handle {
                     *image_node = ImageNode::new(handle);
                     *visibility = Visibility::Inherited;
-                    node.width = Val::Px(SPELL_ICON_SIZE);
-                    node.height = Val::Px(SPELL_ICON_SIZE);
+                    node.width = Val::Px(icon_px);
+                    node.height = Val::Px(icon_px);
                     node.flex_grow = 1.0;
                 } else {
                     *visibility = Visibility::Hidden;
@@ -437,8 +444,8 @@ pub(super) fn update_action_bar_slots(
             if let Some(handle) = spell.and_then(|s| icon_assets.get(&s).cloned()) {
                 *image_node = ImageNode::new(handle);
                 *visibility = Visibility::Inherited;
-                node.width = Val::Px(SPELL_ICON_SIZE);
-                node.height = Val::Px(SPELL_ICON_SIZE);
+                node.width = Val::Px(icon_px);
+                node.height = Val::Px(icon_px);
                 node.flex_grow = 1.0;
             } else {
                 *visibility = Visibility::Hidden;
@@ -532,6 +539,45 @@ pub(super) fn highlight_keyboard_pressed_slots(
                 if let Ok(mut outline) = edge_query.get_mut(child) {
                     outline.color = crate::ui::constants::BUTTON_REST_OUTLINE;
                 }
+            }
+        }
+    }
+}
+
+/// Resets every action-bar slot to its rest 3D look when the active input
+/// device changes. A leftover keyboard-press highlight or mouse-hover raise
+/// from before the switch would otherwise linger into the new device's mode —
+/// e.g. a slot stuck "depressed" after switching from keyboard to controller,
+/// or a button that reads half-pressed in the radial layout. The per-frame
+/// highlight systems re-apply the correct state the same frame (a held key
+/// re-presses, the hovered radial slot re-lights), so the active slot snaps
+/// back immediately while every stale one returns to rest. Slots mid commit
+/// flash are skipped so a just-cast confirmation isn't cut short.
+pub(super) fn reset_action_bar_on_device_change(
+    mut commands: Commands,
+    mut slots: Query<
+        (
+            Entity,
+            &ButtonColors,
+            &Children,
+            Option<&mut ButtonAnimState>,
+        ),
+        (With<ActionBarSlot>, Without<RadialCommitFlash>),
+    >,
+    mut front_query: Query<&mut BorderColor, (With<ButtonFront>, Without<ButtonEdge>)>,
+    mut edge_query: Query<&mut Outline, With<ButtonEdge>>,
+) {
+    for (entity, colors, children, anim) in &mut slots {
+        commands.entity(entity).remove::<KeyboardHighlighted>();
+        if let Some(mut anim) = anim {
+            anim.target = BUTTON_3D_OFFSET_REST;
+        }
+        for child in children.iter() {
+            if let Ok(mut bc) = front_query.get_mut(child) {
+                *bc = BorderColor::all(colors.border);
+            }
+            if let Ok(mut outline) = edge_query.get_mut(child) {
+                outline.color = crate::ui::constants::BUTTON_REST_OUTLINE;
             }
         }
     }

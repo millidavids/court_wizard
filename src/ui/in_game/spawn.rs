@@ -73,11 +73,13 @@ pub(super) fn gamepad_hud_shortcuts(
             next_mp.set(MultiplayerGameState::SpellBook);
         }
     }
-    if gamepad.just_pressed(GamepadButton::North)
-        && mp_state.is_none()
-        && let Some(ref mut next_sp) = next_in_game_state
-    {
-        next_sp.set(InGameState::CauldronMenu);
+    if gamepad.just_pressed(GamepadButton::North) {
+        if let Some(ref mut next_sp) = next_in_game_state {
+            next_sp.set(InGameState::CauldronMenu);
+        }
+        if let Some(ref mut next_mp) = next_mp_state {
+            next_mp.set(MultiplayerGameState::CauldronMenu);
+        }
     }
 }
 
