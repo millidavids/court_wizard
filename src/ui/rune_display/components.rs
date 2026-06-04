@@ -16,6 +16,12 @@ pub(super) struct RuneButton {
     pub(super) rune: Rune,
 }
 
+/// Tracks that a rune button is currently held down by its keyboard key, so the
+/// press visuals are applied/cleared on the press/release edges only (mirrors the
+/// action bar's `KeyboardHighlighted`).
+#[derive(Component)]
+pub(super) struct RuneKeyHeld;
+
 /// Marker for the activated spell name text shown above the rune display.
 #[derive(Component)]
 pub(super) struct ActivatedSpellText;

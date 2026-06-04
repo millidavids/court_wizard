@@ -1,10 +1,11 @@
 use bevy::prelude::*;
 
 /// Width of each weather button.
-pub(super) const BUTTON_WIDTH: f32 = 74.0;
+pub(super) const BUTTON_WIDTH: f32 = 64.0;
 
-/// Height of each weather button.
-pub(super) const BUTTON_HEIGHT: f32 = 36.0;
+/// Height of each weather button. Kept small so the bar fits the gap above the
+/// cast/mana bars without the buttons' top edge being clipped.
+pub(super) const BUTTON_HEIGHT: f32 = 28.0;
 
 /// Gap between weather buttons.
 pub(super) const BUTTON_GAP: f32 = 5.0;

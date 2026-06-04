@@ -177,6 +177,10 @@ pub fn spawn_weather_particles(
                     base_color: RAIN_PARTICLE_COLOR,
                     alpha_mode: AlphaMode::Blend,
                     unlit: true,
+                    // Double-sided: the multiplayer guest's camera is mirrored to the
+                    // far side of the battlefield and would otherwise see only the
+                    // backface of these flat quads (which is culled by default).
+                    cull_mode: None,
                     ..default()
                 });
 
@@ -204,6 +208,8 @@ pub fn spawn_weather_particles(
                     base_color: SNOW_PARTICLE_COLOR,
                     alpha_mode: AlphaMode::Blend,
                     unlit: true,
+                    // Double-sided so the mirrored multiplayer guest camera sees them.
+                    cull_mode: None,
                     ..default()
                 });
 

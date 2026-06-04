@@ -127,6 +127,25 @@ impl Mana {
         }
     }
 
+    /// True if there is enough mana for an ALREADY-multiplied (raw) cost.
+    /// Pair with [`Mana::consume_raw`] for spells that compute their own combined
+    /// multiplier (e.g. a channeled spell stacking a talent discount with the
+    /// Arcanorouter dial, clamped so the total never exceeds 50% off).
+    pub fn can_afford_raw(&self, cost: f32) -> bool {
+        self.current >= cost
+    }
+
+    /// Consumes an ALREADY-multiplied (raw) cost, bypassing `cost_multiplier` so
+    /// the caller can apply a combined/clamped multiplier itself.
+    pub fn consume_raw(&mut self, cost: f32) -> bool {
+        if self.current >= cost {
+            self.current -= cost;
+            true
+        } else {
+            false
+        }
+    }
+
     /// Regenerates mana, clamped to max.
     pub fn regenerate(&mut self, amount: f32) {
         self.current = (self.current + amount).min(self.max);

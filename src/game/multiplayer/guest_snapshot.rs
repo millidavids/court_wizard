@@ -1033,7 +1033,15 @@ pub fn apply_state_snapshot(
                 // with a frozen mid-swing UV until the next attack
                 // overwrites it.
                 if remote_combat && !has_combat && !is_corpse && !is_king {
-                    let (combat_tex, walking_tex) = if is_archer {
+                    let (combat_tex, walking_tex) = if is_swordcerer_avatar {
+                        // The Swordcerer avatar has its own attack sheet — without this
+                        // the guest's ghost permanently swapped to the infantry sheet
+                        // the first time the host's avatar attacked.
+                        (
+                            swordcerer_assets.attacking_texture.clone(),
+                            swordcerer_assets.sprite_texture.clone(),
+                        )
+                    } else if is_archer {
                         (
                             archer_assets.shooting_texture.clone(),
                             archer_assets.sprite_texture.clone(),
@@ -1233,7 +1241,12 @@ pub fn apply_state_snapshot(
                 ec.insert(RemotePolymorphEffect);
             }
             if remote_combat && !is_corpse && !is_king {
-                let (combat_tex, walking_tex) = if is_archer {
+                let (combat_tex, walking_tex) = if is_swordcerer_avatar {
+                    (
+                        swordcerer_assets.attacking_texture.clone(),
+                        swordcerer_assets.sprite_texture.clone(),
+                    )
+                } else if is_archer {
                     (
                         archer_assets.shooting_texture.clone(),
                         archer_assets.sprite_texture.clone(),

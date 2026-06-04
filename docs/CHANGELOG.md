@@ -34,13 +34,17 @@ All notable changes to this project will be documented in this file.
 - **The Swordcerer can pick where to step onto the battlefield in multiplayer** — after choosing to enter the fray, clicking the ground had no effect; it now places your wizard where you click.
 - **The joining player finally has a cauldron** — the brewing cauldron now sits next to your own wizard in multiplayer instead of over at the opponent's base, and its bubbling brew effect appears there too.
 - **The brewing menu's Back button now works in multiplayer** — it closes the menu like it should (before, only the Escape key did).
-- **The Rune Caster's rune buttons now react to hover and clicks** — they sat flat with no feedback; they now press and highlight like every other button.
+- **The Rune Caster's rune buttons now react when you press their keys** — they sat flat with no feedback; they now press in and light up as you tap their rune keys, just like the action bar buttons do for the number keys.
 - **The Randomancer no longer starts with a spell ready** — it begins each match empty-handed and only casts whatever its spin wheel lands on.
 - **The Shepherd no longer starts with an attack spell** — the support wizard begins with nothing offensive primed, and attack spells no longer show up in its action bar.
-- **The Arcanorouter's mana dial now makes spells cheaper, not pricier** — raising the mana slider used to *increase* costs; it now lowers them, and the discount applies to every spell you cast (the speed dial correctly affects casting speed).
+- **The Arcanorouter's mana dial now makes spells cheaper, not pricier** — raising the mana slider used to *increase* costs; it now lowers them, and the discount applies to every spell you cast (the speed dial correctly affects casting speed). The dial is capped at half off, so even stacked with a spell's own discounts it can't make a spell — like a held disintegration beam — nearly free.
 - **The joining player can hear the battle again** — clashing-melee and crowd sounds now play for both players during a multiplayer match, not just the host.
 - **Your own spells no longer bounce off your own King** — your King's protective shield was also stopping the spells *you* cast, so your own meteors, lightning, fire, and other area magic couldn't touch your own King — even though magic isn't supposed to pick sides. The shield now blocks only the *enemy's* spells; your own area spells affect your King the same way they affect the rest of your army. (Your King still can't be slowed or rooted by your own ground traps.)
 - **Rematches remember your wizard** — starting a rematch now keeps you on the wizard you were already playing instead of resetting to the first one in the list.
+- **Controllers work during a match now** — on a controller (including the Steam Deck), the right trigger casts spells and the face buttons open the spell book and cauldron during gameplay, in both single-player and multiplayer. Aiming no longer starts parked in the corner of the screen.
+- **The joining player's Swordcerer looks and steers correctly** — the second player's sword-fighting avatar now uses the proper wizard look instead of a foot-soldier, and its movement is no longer reversed.
+- **The Meteorologist's rain and snow now show for the joining player** — storms and blizzards were only drawing their sky tint on the second player's screen; the rain and snowfall now appear too.
+- **Weather effects now clear when the match ends** — leftover rain, snow, and sky tint no longer linger over the results screen, and pausing during a storm no longer wipes the weather.
 
 ## [v0.8.72] - 2026-06-02
 

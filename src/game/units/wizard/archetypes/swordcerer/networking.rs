@@ -167,13 +167,18 @@ pub(crate) fn send_swordcerer_avatar_input(
 
     connection
         .outgoing_messages
+        // The guest's camera is mirrored 180° on the XZ plane vs the host's, so the
+        // guest's screen-space input maps to the OPPOSITE world direction. Negate
+        // both movement axes AND facing so the host receives correct world-space
+        // directions — the avatar then moves and aims toward the enemy, not the
+        // guest's own castle.
         .push(NetworkMessage::SwordcererAvatarInput {
-            dx: dir.x,
-            dz: dir.y,
+            dx: -dir.x,
+            dz: -dir.y,
             fire_missile: fire,
             swing_sword: swing,
-            facing_x: last_facing.x,
-            facing_z: last_facing.y,
+            facing_x: -last_facing.x,
+            facing_z: -last_facing.y,
         });
 }
 

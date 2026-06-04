@@ -268,7 +268,11 @@ pub fn update_burning_patch_visuals(
     }
 }
 
-/// Cleans up all weather status components and patches when exiting gameplay.
+/// Removes weather status components and despawns hazard entities when LEAVING the
+/// Running gameplay state. NOTE: `OnExit(Running)` also fires on pause / spell-book /
+/// cauldron (sibling sub-states), so this must NOT touch the persistent weather
+/// state or overlays — the status modifiers re-apply on resume from the still-active
+/// `WeatherState`. End-of-match VFX teardown lives in `clear_weather_visuals`.
 pub fn cleanup_weather(
     mut commands: Commands,
     wet: Query<Entity, With<WetModifier>>,
@@ -292,6 +296,32 @@ pub fn cleanup_weather(
     for entity in patches.iter().chain(strikes.iter()) {
         commands.entity(entity).try_despawn();
     }
+}
+
+/// Tears down the weather VFX at the END of a match (`OnEnter(ScoreScreen)`):
+/// despawns in-flight particles, resets the sky/ground overlay tints to
+/// transparent, and clears the weather state — so nothing lingers over the
+/// scoreboard. Deliberately NOT on `OnExit(Running)` (that fires on pause too).
+pub fn clear_weather_visuals(
+    mut commands: Commands,
+    particles: Query<Entity, With<WeatherParticle>>,
+    mut overlay_bg: Query<&mut BackgroundColor, With<WeatherOverlay>>,
+    ground_overlay: Query<&MeshMaterial3d<StandardMaterial>, With<WeatherGroundOverlay>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut weather: ResMut<WeatherState>,
+) {
+    for entity in particles.iter() {
+        commands.entity(entity).try_despawn();
+    }
+    if let Ok(mut bg) = overlay_bg.single_mut() {
+        *bg = BackgroundColor(Color::BLACK.with_alpha(0.0));
+    }
+    if let Ok(mat_handle) = ground_overlay.single()
+        && let Some(material) = materials.get_mut(&mat_handle.0)
+    {
+        material.base_color = Color::WHITE.with_alpha(0.0);
+    }
+    *weather = WeatherState::default();
 }
 
 // ---------------------------------------------------------------------------

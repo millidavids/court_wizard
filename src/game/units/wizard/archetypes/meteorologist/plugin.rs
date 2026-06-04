@@ -123,7 +123,8 @@ impl Plugin for MeteorologistPlugin {
                     .run_if(is_spell_effects_active)
                     .run_if(is_meteorologist_participating),
             )
-            // Cleanup on exit (SP + MP)
+            // Status/hazard cleanup on leaving Running (SP + MP). This also fires
+            // on pause/spell-book, so it must NOT wipe the persistent weather.
             .add_systems(
                 OnExit(InGameState::Running),
                 cleanup_weather.run_if(is_meteorologist_participating),
@@ -131,6 +132,16 @@ impl Plugin for MeteorologistPlugin {
             .add_systems(
                 OnExit(MultiplayerGameState::Running),
                 cleanup_weather.run_if(is_meteorologist_participating),
+            )
+            // End-of-match VFX teardown — fires only when the score screen appears,
+            // NOT on pause, so the weather VFX clear at game over but survive a pause.
+            .add_systems(
+                OnEnter(InGameState::ScoreScreen),
+                clear_weather_visuals.run_if(is_meteorologist_participating),
+            )
+            .add_systems(
+                OnEnter(MultiplayerGameState::ScoreScreen),
+                clear_weather_visuals.run_if(is_meteorologist_participating),
             );
     }
 }

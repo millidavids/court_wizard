@@ -43,13 +43,19 @@ impl Plugin for InGamePlugin {
                 Update,
                 (
                     systems::keyboard_input,
-                    systems::gamepad_hud_shortcuts,
                     systems::update_level_display,
                     systems::update_past_victory_display,
                     systems::spawn_retreat_flash,
                     systems::update_timed_flash::<RetreatFlash>,
                 )
                     .run_if(is_gameplay_running),
+            )
+            // Gamepad HUD shortcuts (X = spell book, Y = cauldron) must run for
+            // BOTH peers in MP — the guest opens its spell book too — so gate on
+            // the local wizard being active, not host-only `is_gameplay_running`.
+            .add_systems(
+                Update,
+                systems::gamepad_hud_shortcuts.run_if(is_local_wizard_active),
             )
             // The level/match clock updates on BOTH peers in MP (and in SP) via
             // is_spell_effects_active, so the guest's HUD clock advances too — not

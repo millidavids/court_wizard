@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
+use crate::config::input_bindings::InputBindings;
 use crate::game::components::OnGameplayScreen;
 use crate::game::game_mode::components::ArchetypeUI;
 use crate::game::input::gamepad::resources::ActiveInputDevice;
@@ -9,8 +10,12 @@ use crate::game::input::messages::MouseClicked;
 use crate::game::units::wizard::archetypes::runes::resources::Rune;
 use crate::game::units::wizard::archetypes::runes::{LastActivatedSpell, RuneSequence};
 use crate::ui::button_systems::{edge_color, opaque};
+use crate::ui::color_utils::border_bright;
 use crate::ui::components::{ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront};
-use crate::ui::constants::{BUTTON_3D_OFFSET_REST, BUTTON_REST_OUTLINE, BUTTON_SHADOW_COLOR};
+use crate::ui::constants::{
+    BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_PRESSED_OUTLINE, BUTTON_REST_OUTLINE,
+    BUTTON_SHADOW_COLOR,
+};
 use crate::ui::focus::Focusable;
 use crate::ui::gamepad_glyphs::{CurrentControllerGlyphStyle, GamepadGlyphFonts, glyph_char};
 
@@ -202,6 +207,71 @@ fn spawn_rune_button(row: &mut ChildSpawnerCommands, rune: Rune) {
                 ));
             });
     });
+}
+
+/// Animates a rune button when its rune key (Q/W/E/R) is held — mirrors the action
+/// bar's keyboard-driven press visuals (`update_action_bar`). The rune buttons are
+/// driven by the rune keys, not mouse hover, so this gives the same depress + glow
+/// feedback the action bar gives on the 1–5 keys. The global `animate_button_3d`
+/// system moves the front face once we set `ButtonAnimState.target`.
+pub(super) fn update_rune_button_press_visuals(
+    mut commands: Commands,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    bindings: Res<InputBindings>,
+    mut buttons: Query<(
+        Entity,
+        &RuneButton,
+        &ButtonColors,
+        &Children,
+        Option<&mut ButtonAnimState>,
+        Has<RuneKeyHeld>,
+    )>,
+    mut front_query: Query<&mut BorderColor, (With<ButtonFront>, Without<ButtonEdge>)>,
+    mut edge_query: Query<&mut Outline, With<ButtonEdge>>,
+) {
+    for (entity, rune_button, colors, children, anim, is_held) in &mut buttons {
+        let key = match rune_button.rune {
+            Rune::Q => bindings.rune_caster.rune_1,
+            Rune::W => bindings.rune_caster.rune_2,
+            Rune::E => bindings.rune_caster.rune_3,
+            Rune::R => bindings.rune_caster.rune_4,
+        };
+        let pressed = key.is_some_and(|k| keyboard.pressed(k));
+
+        // Re-assert the depress target EVERY frame (not just on the press edge) so
+        // the global `button_interaction` (mouse hover/leave) can't reset a button
+        // back to rest while its key is still held.
+        if let Some(mut anim) = anim {
+            anim.target = if pressed {
+                BUTTON_3D_OFFSET_PRESSED
+            } else {
+                BUTTON_3D_OFFSET_REST
+            };
+        }
+
+        // The border/edge glow only changes on the press/release edges.
+        if pressed && !is_held {
+            commands.entity(entity).insert(RuneKeyHeld);
+            for child in children.iter() {
+                if let Ok(mut bc) = front_query.get_mut(child) {
+                    *bc = BorderColor::all(border_bright(colors.border));
+                }
+                if let Ok(mut outline) = edge_query.get_mut(child) {
+                    outline.color = BUTTON_PRESSED_OUTLINE;
+                }
+            }
+        } else if !pressed && is_held {
+            commands.entity(entity).remove::<RuneKeyHeld>();
+            for child in children.iter() {
+                if let Ok(mut bc) = front_query.get_mut(child) {
+                    *bc = BorderColor::all(colors.border);
+                }
+                if let Ok(mut outline) = edge_query.get_mut(child) {
+                    outline.color = BUTTON_REST_OUTLINE;
+                }
+            }
+        }
+    }
 }
 
 /// Handles rune button clicks by adding the rune to the sequence.

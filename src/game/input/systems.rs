@@ -17,18 +17,32 @@ use crate::game::crt_effect::CorrectedCursorPosition;
 
 /// Clears all mouse input state to prevent stale events from carrying across state transitions.
 ///
-/// Runs on entering `InGameState::Running` to ensure menu clicks don't trigger
-/// spell casts when the game begins.
+/// Runs on entering `InGameState::Running` and `MultiplayerGameState::Running` to
+/// ensure menu clicks don't trigger spell casts when the game begins. Also seeds
+/// the gamepad virtual cursor at screen center so a right-trigger cast before any
+/// stick motion aims at the battlefield rather than the (0,0) screen corner.
 pub fn clear_mouse_input_state(
     mut mouse: ResMut<ButtonInput<MouseButton>>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_held_state: ResMut<MouseLeftHeldThisFrame>,
     mut mouse_right_held_state: ResMut<MouseRightHeldThisFrame>,
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    mut virtual_cursor: ResMut<crate::game::input::gamepad::resources::VirtualCursorPosition>,
 ) {
     mouse.clear();
     mouse_state.left_consumed = false;
     mouse_left_held_state.held = false;
     mouse_right_held_state.held = false;
+
+    // Seed the gamepad virtual cursor at screen center, but ONLY on the first
+    // gameplay entry (while it's still at the origin default). `OnEnter(Running)`
+    // also fires when returning from pause / the spell book / the cauldron, and
+    // re-centering then would yank a gamepad player's aim to center mid-match.
+    if virtual_cursor.screen_pos == Vec2::ZERO
+        && let Ok(window) = windows.single()
+    {
+        virtual_cursor.screen_pos = Vec2::new(window.width() * 0.5, window.height() * 0.5);
+    }
 }
 
 /// Detects mouse button input and sends messages.

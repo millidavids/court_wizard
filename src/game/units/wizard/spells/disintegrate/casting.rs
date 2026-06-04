@@ -402,10 +402,15 @@ fn disintegrate_casting_logic(
         CastingState::Channeling { .. } => {
             casting_state.advance_channel(time.delta_secs());
 
-            let mana_cost =
-                constants::MANA_COST_PER_SECOND * mana_cost_multiplier * time.delta_secs();
+            // Compose the talent discount with the Arcanorouter dial, but floor the
+            // COMBINED discount at 50% so a maxed mana dial + Annihilation/Efficient
+            // can't make the held beam near-free (it stacks a burn DoT, so even a weak
+            // beam destroys units if held long enough). `consume_raw` skips the dial
+            // multiplier since it's already folded into `combined`.
+            let combined = (mana_cost_multiplier * mana.cost_multiplier).max(0.5);
+            let mana_cost = constants::MANA_COST_PER_SECOND * combined * time.delta_secs();
 
-            if mana.consume(mana_cost) {
+            if mana.consume_raw(mana_cost) {
                 if let Some(target_pos) = input.cursor_pos {
                     let beam_origin =
                         wizard_pos + Vec3::new(0.0, constants::BEAM_ORIGIN_HEIGHT_OFFSET, 0.0);
@@ -477,7 +482,11 @@ fn disintegrate_casting_logic(
         }
         CastingState::Resting => {
             if (input.just_pressed || input.pressed)
-                && mana.can_afford(constants::MANA_COST_PER_SECOND * mana_cost_multiplier * 0.1)
+                && mana.can_afford_raw(
+                    constants::MANA_COST_PER_SECOND
+                        * (mana_cost_multiplier * mana.cost_multiplier).max(0.5)
+                        * 0.1,
+                )
             {
                 casting_state.start_cast();
             }

@@ -137,6 +137,7 @@ pub(super) fn update_virtual_cursor(
     gamepads: Query<&Gamepad>,
     windows: Query<&Window, With<PrimaryWindow>>,
     in_game: Option<Res<State<crate::state::InGameState>>>,
+    mp_game: Option<Res<State<crate::state::MultiplayerGameState>>>,
     mut virtual_cursor: ResMut<VirtualCursorPosition>,
     mut corrected: ResMut<CorrectedCursorPosition>,
 ) {
@@ -144,11 +145,18 @@ pub(super) fn update_virtual_cursor(
         return;
     };
 
-    let is_gameplay = in_game
+    // Active gameplay in single-player OR multiplayer (in MP, `InGameState`
+    // doesn't exist — `MultiplayerGameState` does — so without this the virtual
+    // cursor would be forced to None and gamepad casts couldn't aim.)
+    let sp_gameplay = in_game
         .as_deref()
         .map(|s| *s.get() == crate::state::InGameState::Running)
         .unwrap_or(false);
-    if !is_gameplay {
+    let mp_gameplay = mp_game
+        .as_deref()
+        .map(|s| *s.get() == crate::state::MultiplayerGameState::Running)
+        .unwrap_or(false);
+    if !sp_gameplay && !mp_gameplay {
         corrected.0 = None;
         return;
     }
