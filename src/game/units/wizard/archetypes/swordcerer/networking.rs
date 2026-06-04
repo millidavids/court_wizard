@@ -96,6 +96,13 @@ pub(crate) fn send_swordcerer_avatar_input(
     mut swing_pressed: MessageReader<crate::game::input::messages::MouseLeftPressed>,
     connection: Option<ResMut<NetworkConnection>>,
     mut last_facing: Local<Vec2>,
+    mut commands: Commands,
+    ghost_avatar: Query<
+        &Transform,
+        With<crate::game::multiplayer::components::GhostSwordcererAvatar>,
+    >,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Drain the press messages every frame (even when we bail early) so a click
     // made before deploying doesn't leak into the first on-field frame.
@@ -180,6 +187,26 @@ pub(crate) fn send_swordcerer_avatar_input(
             facing_x: -last_facing.x,
             facing_z: -last_facing.y,
         });
+
+    // Draw the sword arc LOCALLY on the guest the instant it swings. The host's
+    // authoritative swing (damage) still happens, but the host's arc only reaches
+    // the guest through the UNRELIABLE cast-event snapshot, so a brief swing was
+    // frequently missed. This is a cosmetic ghost arc (no damage) at the guest's
+    // ghost-avatar position, facing the same world direction the host will use.
+    if swing
+        && *last_facing != Vec2::ZERO
+        && let Ok(ghost_tf) = ghost_avatar.single()
+    {
+        let arc_pos = Vec3::new(ghost_tf.translation.x, 2.0, ghost_tf.translation.z);
+        super::combat::spawn_sword_arc(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            arc_pos,
+            -*last_facing,
+            true,
+        );
+    }
 }
 
 /// Host: applies the guest's streamed input to its avatar (movement + missile +
@@ -210,7 +237,11 @@ pub(crate) fn apply_guest_avatar_input(
     swordcerer_assets: Res<SwordcererAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut pending: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
+    // The last movement direction received from the guest. Input arrives at the
+    // network rate (well below 60 Hz), so we hold the last direction and apply
+    // physics EVERY frame — otherwise the avatar only accelerates on the frames a
+    // packet lands and crawls compared to the host's own avatar.
+    mut last_move_dir: Local<Vec2>,
 ) {
     let Some(mut connection) = connection else {
         return;
@@ -248,8 +279,11 @@ pub(crate) fn apply_guest_avatar_input(
             connection.incoming_messages.extend(unhandled);
         }
     }
-    if !got_input {
-        return;
+    // Remember the latest movement direction; a released key arrives as (0,0), so
+    // when no packet lands this frame we keep applying the last direction (and
+    // damping) every frame — matching the host avatar's per-frame physics.
+    if got_input {
+        *last_move_dir = move_dir;
     }
 
     let dt = time.delta_secs();
@@ -266,8 +300,15 @@ pub(crate) fn apply_guest_avatar_input(
             facing_c.0 = facing;
         }
 
-        // Movement — shared with the host's own avatar (`player_movement`).
-        super::combat::apply_avatar_physics(&mut transform, &mut velocity, move_dir, speed.0, dt);
+        // Movement — shared with the host's own avatar (`player_movement`). Use the
+        // last-known direction so physics runs every frame, not just on packet frames.
+        super::combat::apply_avatar_physics(
+            &mut transform,
+            &mut velocity,
+            *last_move_dir,
+            speed.0,
+            dt,
+        );
 
         let avatar_pos = transform.translation;
         let dir3 = Vec3::new(facing_c.0.x, 0.0, facing_c.0.y).normalize_or_zero();
@@ -301,13 +342,9 @@ pub(crate) fn apply_guest_avatar_input(
                 facing_c.0,
                 false,
             );
-            crate::game::multiplayer::spell_sync::emit_cast_event(
-                &mut pending,
-                crate::networking::snapshot::CastEventKind::SwordArc,
-                0,
-                arc_pos,
-                [facing_c.0.x, facing_c.0.y, 0.0, 0.0],
-            );
+            // No SwordArc cast-event emit here: the guest draws its OWN arc locally
+            // and immediately (see `send_swordcerer_avatar_input`), so replicating
+            // the host's arc would produce a latency-offset double slash.
             velocity.x += facing_c.0.x * SWORD_LUNGE_SPEED;
             velocity.z += facing_c.0.y * SWORD_LUNGE_SPEED;
             commands.entity(entity).insert(

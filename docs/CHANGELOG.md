@@ -42,9 +42,10 @@ All notable changes to this project will be documented in this file.
 - **Your own spells no longer bounce off your own King** — your King's protective shield was also stopping the spells *you* cast, so your own meteors, lightning, fire, and other area magic couldn't touch your own King — even though magic isn't supposed to pick sides. The shield now blocks only the *enemy's* spells; your own area spells affect your King the same way they affect the rest of your army. (Your King still can't be slowed or rooted by your own ground traps.)
 - **Rematches remember your wizard** — starting a rematch now keeps you on the wizard you were already playing instead of resetting to the first one in the list.
 - **Controllers work during a match now** — on a controller (including the Steam Deck), the right trigger casts spells and the face buttons open the spell book and cauldron during gameplay, in both single-player and multiplayer. Aiming no longer starts parked in the corner of the screen.
-- **The joining player's Swordcerer looks and steers correctly** — the second player's sword-fighting avatar now uses the proper wizard look instead of a foot-soldier, and its movement is no longer reversed.
+- **The joining player's Swordcerer plays correctly now** — the second player's sword-fighting avatar uses the proper wizard look (instead of a foot-soldier), its movement is no longer reversed, it moves at full speed, and its sword swing now shows on every strike.
 - **The Meteorologist's rain and snow now show for the joining player** — storms and blizzards were only drawing their sky tint on the second player's screen; the rain and snowfall now appear too.
 - **Weather effects now clear when the match ends** — leftover rain, snow, and sky tint no longer linger over the results screen, and pausing during a storm no longer wipes the weather.
+- **The Meteorologist's weather buttons are no longer cut off** — the Storm/Blizzard/Drought buttons at the bottom of the screen were being clipped by the action bar above them; they now sit clear of it.
 
 ## [v0.8.72] - 2026-06-02
 

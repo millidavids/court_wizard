@@ -43,8 +43,7 @@ pub(super) const STATUS_TEXT_COLOR: Color = Color::srgba(0.6, 0.9, 1.0, 1.0);
 /// Maximum width for the status text to prevent bleeding under mana bar.
 pub(super) const STATUS_TEXT_MAX_WIDTH: f32 = 320.0;
 
-/// Bottom margin for the weather bar.
-/// Action bar: bottom 15px + height 50px = top at ~65px.
-/// Mana/cast bars: ~45px tall at bottom of screen.
-/// This places the weather bar just above the action bar, centered in the gap.
-pub(super) const BAR_BOTTOM_MARGIN: f32 = 10.0;
+/// Bottom margin for the weather bar. The Meteorologist still has the action bar
+/// (bottom 15px + 50px slots = top at ~65px), so the weather bar must sit ABOVE it
+/// — otherwise the action bar renders over the weather buttons and clips their top.
+pub(super) const BAR_BOTTOM_MARGIN: f32 = 70.0;
