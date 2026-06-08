@@ -412,7 +412,9 @@ pub fn sync_setup_immunity_flag(
     kill_stats: Res<crate::game::resources::KillStats>,
     session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
-    let active = session.is_some()
+    // Only a VERSUS session has the opening setup-immunity stage. Co-op runs on
+    // the SP endless/roguelite battlefield and must never grant blanket immunity.
+    let active = session.is_some_and(|s| !s.is_coop())
         && kill_stats.elapsed_time < crate::game::run_conditions::MP_SETUP_DURATION;
     set_setup_immunity(active);
 }

@@ -5,7 +5,7 @@
 
 use bevy::prelude::*;
 
-use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::game::multiplayer::components::{NetworkedSpellEffect, NoSnapshot};
 use crate::game::resources::GameOutcome;
 use crate::game::units::archer::Archer;
 use crate::game::units::archer::components::Arrow;
@@ -29,7 +29,20 @@ use crate::state::MultiplayerGameState;
 pub fn assign_network_ids(
     mut commands: Commands,
     mut counter: ResMut<EntityIdCounter>,
-    new_units: Query<Entity, (With<Health>, With<Team>, Without<NetworkEntityId>)>,
+    // Wizards are spawned locally on BOTH peers (never ghosted), so they carry
+    // `NoSnapshot` (added in their spawn bundle) to stay out of the snapshot
+    // stream. Versus wizards lack `Team` and were already skipped; the co-op
+    // host's wizard HAS `Team::Defenders`, so `NoSnapshot` is what keeps both
+    // co-op wizards from being double-rendered as ghosts.
+    new_units: Query<
+        Entity,
+        (
+            With<Health>,
+            With<Team>,
+            Without<NetworkEntityId>,
+            Without<NoSnapshot>,
+        ),
+    >,
     new_effects: Query<Entity, (With<NetworkedSpellEffect>, Without<NetworkEntityId>)>,
 ) {
     for entity in new_units.iter().chain(new_effects.iter()) {

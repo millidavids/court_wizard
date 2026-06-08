@@ -31,14 +31,17 @@ impl Default for LocalSpellOrigin {
     }
 }
 
-/// The team the **local** player commands: `Defenders` in single-player and as
-/// the multiplayer host, `Attackers` as the guest. Enemy-targeting spells should
-/// filter with `unit_team.is_enemy(&local_player_team(session.as_deref()))`
+/// The team the **local** player commands: `Defenders` in single-player, as the
+/// multiplayer host, and as a **co-op** guest (co-op partners are both
+/// Defenders); `Attackers` only as the **versus** guest. Enemy-targeting spells
+/// should filter with `unit_team.is_enemy(&local_player_team(session.as_deref()))`
 /// instead of hardcoding `Team::Attackers` (which only resolves correctly for the
-/// host, making the guest target its own army).
+/// host, making a guest target its own army).
 pub fn local_player_team(session: Option<&MultiplayerSession>) -> Team {
-    match session.map(|s| s.role) {
-        Some(PeerRole::Guest) => Team::Attackers,
+    match session {
+        // Versus guest commands the Attackers army; everyone else (SP, host,
+        // co-op guest) commands the Defenders.
+        Some(s) if s.role == PeerRole::Guest && !s.is_coop() => Team::Attackers,
         _ => Team::Defenders,
     }
 }

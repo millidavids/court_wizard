@@ -52,7 +52,12 @@ use crate::game::units::wizard::components::Spell;
 /// - 9: adds `effectiveness_bonus` to `CauldronBuffsSync` so a guest Alchemist's
 ///   Effectiveness brew reaches their army (now isolated on its own
 ///   `Effectiveness.cauldron_spell_bonus` field, away from poison).
-pub const PROTOCOL_VERSION: u32 = 9;
+/// - 10: co-op mode. `StartGame` gains `coop_mode: Option<u8>` (None = versus,
+///   Some(SessionMode ordinal) = co-op) and `level: u32` (the host's endless/
+///   roguelite level, ignored in versus). Adds the co-op lifecycle messages
+///   `CoopLevelOver` / `CoopNextLevel` / `CoopRunEnded` — appended AFTER
+///   `Forfeit` to keep every prior wire index frozen.
+pub const PROTOCOL_VERSION: u32 = 10;
 
 /// Messages sent over the reliable WebRTC data channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,7 +85,19 @@ pub enum NetworkMessage {
 
     /// Host tells guest to start loading the match, sharing the run seed so
     /// both peers seed their RNG identically.
-    StartGame { seed: u64 },
+    ///
+    /// `coop_mode` is `None` for a versus match (existing behavior) and
+    /// `Some(SessionMode ordinal)` for co-op (`0` = CoopEndless, `1` =
+    /// CoopRoguelite). `level` is the host's endless/roguelite level so the
+    /// co-op guest generates matching seeded terrain; it is ignored in versus.
+    /// NOTE: adding fields to this existing variant is a wire-layout change,
+    /// made safe by the v10 bump — the handshake rejects any v9↔v10 pairing
+    /// before a `StartGame` is ever exchanged.
+    StartGame {
+        seed: u64,
+        coop_mode: Option<u8>,
+        level: u32,
+    },
 
     /// Player has finished loading.
     GameLoaded,
@@ -257,6 +274,35 @@ pub enum NetworkMessage {
     /// Guest → host: the guest forfeited the match. The host ends the game with
     /// itself as the winner and ships the resulting `GameOver` back.
     Forfeit,
+
+    // --- Co-op lifecycle (v10). Host drives the guest through the multi-level
+    //     endless/roguelite flow, since the host runs the authoritative SP
+    //     simulation in `AppState::InGame` while the guest spectates+casts in
+    //     `AppState::MultiplayerGame`. Appended after `Forfeit`. ---
+    /// Host → guest: a co-op level just ended. The guest mirrors the outcome to
+    /// its score screen and records its own progression/achievements from the
+    /// shared totals (its own spell stats are tracked locally). `level` is the
+    /// host's level number for this battle (used by the guest's endless
+    /// contiguity rule).
+    CoopLevelOver {
+        victory: bool,
+        level: u32,
+        defenders_killed: u32,
+        attackers_killed: u32,
+        undead_killed: u32,
+        host_spell_damage: f32,
+        host_spell_healing: f32,
+    },
+
+    /// Host → guest: advance to the next co-op level. Carries the next level's
+    /// seed + number so the guest rebuilds matching seeded terrain on re-entry
+    /// to `MultiplayerLoading`.
+    CoopNextLevel { seed: u64, level: u32 },
+
+    /// Host → guest: the co-op run/session ended (roguelite run finished, or an
+    /// endless defeat). The guest finalizes its own save record and returns to
+    /// the wizard tower.
+    CoopRunEnded { victory: bool },
 }
 
 /// Discriminator for `NetworkMessage::ApplyStatusEffect`. Add new variants at

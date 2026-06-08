@@ -29,6 +29,20 @@ pub struct CauldronArmyScalars {
     pub effectiveness_bonus: f32,
 }
 
+impl CauldronArmyScalars {
+    /// True if any army-buff scalar is currently non-zero. Used in co-op so the
+    /// host's Defender buff-cleanup doesn't strip the guest Alchemist's live
+    /// buffs while only the guest is brewing.
+    pub fn has_active(&self) -> bool {
+        self.heal_per_second > 0.0
+            || self.damage_bonus > 0.0
+            || self.resistance_percent > 0.0
+            || self.shield_per_second > 0.0
+            || self.speed_bonus > 0.0
+            || self.effectiveness_bonus > 0.0
+    }
+}
+
 impl CauldronBuffs {
     /// Snapshots the army-affecting scalars for replication. (The enemy-slow is
     /// not replicated — it targets the host's own army; see

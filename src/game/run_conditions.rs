@@ -164,7 +164,16 @@ pub fn is_not_mp_setup_phase(
     kill_stats: Res<crate::game::resources::KillStats>,
     session: Option<Res<MultiplayerSession>>,
 ) -> bool {
-    !(session.is_some() && kill_stats.elapsed_time < MP_SETUP_DURATION)
+    // Co-op runs on the single-player endless/roguelite battlefield (whose
+    // attacker waves pace themselves), so it has NO versus-style setup freeze.
+    // Only a versus session freezes the armies for the opening seconds.
+    let Some(session) = session else {
+        return true;
+    };
+    if session.is_coop() {
+        return true;
+    }
+    kill_stats.elapsed_time >= MP_SETUP_DURATION
 }
 
 /// Returns true if the active wizard type is RuneCaster.

@@ -159,6 +159,11 @@ pub(super) fn spawn_mp_wizard(
         entity_commands.insert(magic_missile_constants::PRIMED_MAGIC_MISSILE);
     }
 
+    // Wizards are spawned locally on both peers and synced via spell visuals,
+    // not snapshots — keep them out of the snapshot stream (the co-op guest
+    // wizard proxy carries `Team::Defenders`, which would otherwise be ghosted).
+    entity_commands.insert(crate::game::multiplayer::components::NoSnapshot);
+
     // Add wizard role markers
     // LocalWizard: the wizard this player controls (host's own or guest's own)
     // GuestWizard: the guest's wizard as seen by the host (for spell command processing)

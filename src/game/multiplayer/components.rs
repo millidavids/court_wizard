@@ -10,6 +10,20 @@ use crate::networking::snapshot::SpellEffectKind;
 #[derive(Component, Clone)]
 pub struct OnMultiplayerGameScreen;
 
+/// Marker: this entity must NEVER be assigned a `NetworkEntityId` / included in
+/// state snapshots, even though it has `Health` + `Team`.
+///
+/// Wizards are spawned locally on BOTH peers (their casts sync via the
+/// bidirectional spell-visual path), so they must not also be ghosted from the
+/// host snapshot or they'd double-render. The single-player wizard carries
+/// `Team::Defenders`, so a plain `(With<Health>, With<Team>)` filter in
+/// `assign_network_ids` would pick it up — this marker is the principled
+/// exclusion (add it to any future local-only Health+Team entity rather than
+/// growing an ad-hoc `Without<…>` list). Placed in the spawn bundle so it is
+/// present on the entity's very first frame, before `assign_network_ids` runs.
+#[derive(Component)]
+pub struct NoSnapshot;
+
 /// Marker for ghost entities rendered on the guest from host state snapshots.
 ///
 /// Ghost entities are lightweight visual representations — they have a mesh,

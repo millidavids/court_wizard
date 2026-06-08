@@ -321,11 +321,13 @@ pub fn process_mp_spawn_queue(
 
     // Per-client visual mirror: the battlefield/walls/lava/water are purely
     // visual and rendered locally — units and terrain stay in shared world
-    // coords. The guest spawns its copy rotated 180° around the world origin
-    // so that, combined with its mirrored camera, the asymmetric SP wall art
-    // (right wall with tunnels, left wall) appears correctly oriented from
-    // the guest's perspective.
-    let origin_transform = if session.role == PeerRole::Guest {
+    // coords. The VERSUS guest spawns its copy rotated 180° around the world
+    // origin so that, combined with its mirrored camera, the asymmetric SP wall
+    // art (right wall with tunnels, left wall) appears correctly oriented from
+    // the guest's perspective. The CO-OP guest keeps the single-player camera
+    // (no mirror — see `setup_mp_camera`), so it must NOT rotate the world
+    // either, or the wall art would appear backwards.
+    let origin_transform = if session.role == PeerRole::Guest && !session.is_coop() {
         Transform::from_rotation(Quat::from_rotation_y(std::f32::consts::PI))
     } else {
         Transform::IDENTITY
@@ -672,8 +674,11 @@ pub fn setup_mp_camera(
 ) {
     if let Ok(mut transform) = camera_query.single_mut()
         && session.role == PeerRole::Guest
+        && !session.is_coop()
     {
-        // Mirrored camera: opposite corner looking at origin
+        // Versus guest: mirrored camera (opposite corner looking at origin). The
+        // CO-OP guest stands beside the host and keeps the single-player camera
+        // angle, so it is intentionally excluded here.
         *transform = Transform::from_xyz(1000.0, 2500.0, -2500.0)
             .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y);
     }

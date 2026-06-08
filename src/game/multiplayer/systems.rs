@@ -70,6 +70,7 @@ pub(super) fn init_mp_game(
     mut game_outcome: ResMut<GameOutcome>,
     connection: Res<NetworkConnection>,
     config: Res<GameConfig>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
     arcanorouter_state: Option<
         Res<crate::game::units::wizard::archetypes::arcanorouter::ArcanoRouterState>,
     >,
@@ -90,10 +91,16 @@ pub(super) fn init_mp_game(
     commands.insert_resource(peer_id);
 
     // Point the spell-origin resource at the local player's wizard so all the
-    // shared spell-casting code spawns visuals at the correct corner.
-    use crate::game::constants::{SPELL_2_ORIGIN, SPELL_ORIGIN};
+    // shared spell-casting code spawns visuals at the correct corner. The co-op
+    // guest stands beside the host on the SP battlefield (`SPELL_COOP_ORIGIN`),
+    // whereas the versus guest is mirrored to the opposite corner
+    // (`SPELL_2_ORIGIN`). Only the GUEST runs `init_mp_game`; the host keeps the
+    // default `SPELL_ORIGIN` from single-player startup.
+    use crate::game::constants::{SPELL_2_ORIGIN, SPELL_COOP_ORIGIN, SPELL_ORIGIN};
     use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
+    let is_coop = session.as_deref().is_some_and(|s| s.is_coop());
     let origin = match connection.role {
+        Some(PeerRole::Guest) if is_coop => SPELL_COOP_ORIGIN,
         Some(PeerRole::Guest) => SPELL_2_ORIGIN,
         _ => SPELL_ORIGIN,
     };

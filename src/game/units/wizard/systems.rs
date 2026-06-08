@@ -117,6 +117,9 @@ pub fn setup_wizard(
     }
 
     entity_commands.insert(Team::Defenders);
+    // Keep the wizard out of the multiplayer snapshot stream (it carries
+    // `Team::Defenders`, which `assign_network_ids` would otherwise pick up).
+    entity_commands.insert(crate::game::multiplayer::components::NoSnapshot);
 
     // Add archetype-specific components
     if config.wizard_type == WizardType::Arcanorouter {

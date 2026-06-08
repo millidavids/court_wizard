@@ -6,6 +6,45 @@ use super::resources::PeerRole;
 use crate::config::WizardType;
 use crate::game::units::wizard::components::Spell;
 
+/// Which flavor of multiplayer match this session is.
+///
+/// `Versus` is the original 1v1 duel (both peers in `AppState::MultiplayerGame`).
+/// The `Coop*` variants are cooperative play on the single-player endless/
+/// roguelite battlefield: the host runs the authoritative simulation in
+/// `AppState::InGame` while the guest spectates+casts in `MultiplayerGame`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionMode {
+    Versus,
+    CoopEndless,
+    CoopRoguelite,
+}
+
+impl SessionMode {
+    /// Wire ordinal for `NetworkMessage::StartGame.coop_mode` (`None` = versus).
+    pub fn to_coop_wire(self) -> Option<u8> {
+        match self {
+            SessionMode::Versus => None,
+            SessionMode::CoopEndless => Some(0),
+            SessionMode::CoopRoguelite => Some(1),
+        }
+    }
+
+    /// Decode a `StartGame.coop_mode` payload back into a `SessionMode`.
+    ///
+    /// `None` is versus; an unrecognized `Some(n)` also falls back to `Versus`.
+    /// That fallback is safe because the `PROTOCOL_VERSION` handshake rejects any
+    /// cross-version peer before a `StartGame` is ever exchanged, so a `Some(n)`
+    /// with an ordinal this build doesn't know can't reach here in practice — any
+    /// future co-op variant must bump `PROTOCOL_VERSION`.
+    pub fn from_coop_wire(wire: Option<u8>) -> Self {
+        match wire {
+            Some(0) => SessionMode::CoopEndless,
+            Some(1) => SessionMode::CoopRoguelite,
+            _ => SessionMode::Versus,
+        }
+    }
+}
+
 /// Tracks the active multiplayer session configuration.
 ///
 /// Inserted when both players are ready to start a match.
@@ -14,6 +53,9 @@ use crate::game::units::wizard::components::Spell;
 pub struct MultiplayerSession {
     /// Whether this peer is the host or guest.
     pub role: PeerRole,
+
+    /// Whether this is a versus duel or a co-op endless/roguelite match.
+    pub mode: SessionMode,
 
     /// Wizard type chosen by the host.
     pub host_wizard: WizardType,
@@ -46,6 +88,14 @@ impl MultiplayerSession {
             PeerRole::Guest => self.host_wizard,
         }
     }
+
+    /// True for a cooperative endless/roguelite session (not a versus duel).
+    pub fn is_coop(&self) -> bool {
+        matches!(
+            self.mode,
+            SessionMode::CoopEndless | SessionMode::CoopRoguelite
+        )
+    }
 }
 
 /// Returns true when in a multiplayer game as the host.
@@ -56,4 +106,18 @@ pub fn is_multiplayer_host(session: Option<Res<MultiplayerSession>>) -> bool {
 /// Returns true when in a multiplayer game as the guest.
 pub fn is_multiplayer_guest(session: Option<Res<MultiplayerSession>>) -> bool {
     session.is_some_and(|s| s.role == PeerRole::Guest)
+}
+
+/// Returns true when the active session is a co-op (endless/roguelite) match.
+// Wired as a run condition in WS5/WS7 (host networking gate widening + the
+// co-op attacker-effectiveness buff); kept here so both land on one predicate.
+#[allow(dead_code)]
+pub fn is_coop_session(session: Option<Res<MultiplayerSession>>) -> bool {
+    session.is_some_and(|s| s.is_coop())
+}
+
+/// Returns true when the active session is a versus duel.
+#[allow(dead_code)]
+pub fn is_versus_session(session: Option<Res<MultiplayerSession>>) -> bool {
+    session.is_some_and(|s| !s.is_coop())
 }

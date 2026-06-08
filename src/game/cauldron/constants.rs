@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{WIZARD_2_POSITION, WIZARD_POSITION};
+use crate::game::constants::{WIZARD_2_POSITION, WIZARD_COOP_POSITION, WIZARD_POSITION};
 
 /// Offset from wizard position to place the cauldron beside the wizard on the castle wall.
 const CAULDRON_OFFSET: Vec3 = Vec3::new(60.0, -64.0, 90.0);
@@ -19,6 +19,17 @@ pub const CAULDRON_2_POSITION: Vec3 = Vec3::new(
     WIZARD_2_POSITION.x - CAULDRON_OFFSET.x,
     WIZARD_2_POSITION.y + CAULDRON_OFFSET.y,
     WIZARD_2_POSITION.z - CAULDRON_OFFSET.z,
+);
+
+/// Cauldron position for the **co-op guest**, beside `WIZARD_COOP_POSITION`.
+/// Uses the SAME offset direction as the host's `CAULDRON_OFFSET` (not mirrored)
+/// because the co-op guest stands beside the host on the shared battlefield.
+// Referenced by the co-op guest cauldron spawn in WS4 (co-op SP-shell loading).
+#[allow(dead_code)]
+pub const CAULDRON_COOP_POSITION: Vec3 = Vec3::new(
+    WIZARD_COOP_POSITION.x + CAULDRON_OFFSET.x,
+    WIZARD_COOP_POSITION.y + CAULDRON_OFFSET.y,
+    WIZARD_COOP_POSITION.z + CAULDRON_OFFSET.z,
 );
 
 /// Total duration of the brew bubble effect (seconds).

@@ -17,6 +17,7 @@ use crate::game::units::wizard::spells::telekinesis::constants::TRANSMUTATION_PO
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::NetworkConnection;
+use crate::networking::session::MultiplayerSession;
 
 /// Loads the cauldron sprite sheet texture.
 pub fn load_cauldron_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -498,27 +499,41 @@ pub fn apply_cauldron_speed_modifiers(
     mut commands: Commands,
     cauldron_buffs: Res<CauldronBuffs>,
     remote: Res<RemoteCauldronBuffs>,
+    session: Option<Res<MultiplayerSession>>,
     units: Query<(Entity, &Team, Option<&CauldronSpeedModifier>), Without<Corpse>>,
 ) {
     let defender_bonus = cauldron_buffs.defender_speed_bonus();
     let attacker_slow = cauldron_buffs.attacker_slow_percent();
-    // The guest Alchemist's Meadowsweet buff, applied to the guest's army.
-    let attacker_bonus = remote.0.speed_bonus;
+    // The guest Alchemist's Meadowsweet speed buff. In VERSUS it speeds the
+    // guest's own army (Attackers); in CO-OP both wizards defend, so it stacks
+    // onto the shared Defender army instead.
+    let remote_speed = remote.0.speed_bonus;
+    let coop = session.is_some_and(|s| s.is_coop());
 
     for (entity, team, existing) in &units {
         let modifier = match team {
             Team::Defenders => {
-                if defender_bonus > 0.0 {
-                    Some(defender_bonus)
-                } else {
-                    None
-                }
+                // Host's Meadowsweet, plus the guest Alchemist's in co-op. Both
+                // sources are non-negative speed bonuses, so keep the original
+                // `> 0.0` guard (a `!= 0.0` test would also apply a negative
+                // value as a slow, which Defenders should never receive here).
+                let bonus = defender_bonus + if coop { remote_speed } else { 0.0 };
+                if bonus > 0.0 { Some(bonus) } else { None }
             }
-            // The guest's own (Attacker) army: their Meadowsweet bonus minus the
-            // host's Valerian slow.
             Team::Attackers => {
-                let net = attacker_bonus - attacker_slow;
-                if net != 0.0 { Some(net) } else { None }
+                if coop {
+                    // Co-op: Attackers are the real enemies — host's slow only.
+                    if attacker_slow > 0.0 {
+                        Some(-attacker_slow)
+                    } else {
+                        None
+                    }
+                } else {
+                    // Versus: the guest's own army — their Meadowsweet bonus
+                    // minus the host's Valerian slow.
+                    let net = remote_speed - attacker_slow;
+                    if net != 0.0 { Some(net) } else { None }
+                }
             }
             // Undead are nobody's brewed army — only the host's Valerian slow.
             Team::Undead => {
@@ -658,9 +673,20 @@ pub fn apply_max_mana_buff(
 /// component) would otherwise never be reset by the cleanup pass.
 pub fn buff_defender_effectiveness(
     cauldron_buffs: Res<CauldronBuffs>,
+    remote: Res<RemoteCauldronBuffs>,
+    session: Option<Res<MultiplayerSession>>,
     mut defenders: Query<(&mut Effectiveness, &Team), Without<Corpse>>,
 ) {
-    let bonus = cauldron_buffs.effectiveness_bonus();
+    // In co-op the guest Alchemist's effectiveness brew also targets the shared
+    // Defender army, so MERGE host + remote here — this system is the single
+    // owner of `cauldron_spell_bonus` on Defenders, and `apply_guest_army_buffs`
+    // skips the effectiveness write in co-op to avoid the two fighting.
+    let remote_bonus = if session.is_some_and(|s| s.is_coop()) {
+        remote.0.effectiveness_bonus
+    } else {
+        0.0
+    };
+    let bonus = cauldron_buffs.effectiveness_bonus() + remote_bonus;
     for (mut effectiveness, team) in &mut defenders {
         if *team == Team::Defenders
             && (effectiveness.cauldron_spell_bonus - bonus).abs() > f32::EPSILON
@@ -761,6 +787,7 @@ pub fn reset_remote_cauldron_buffs(mut remote: ResMut<RemoteCauldronBuffs>) {
 pub fn apply_guest_army_buffs(
     time: Res<Time>,
     remote: Res<RemoteCauldronBuffs>,
+    session: Option<Res<MultiplayerSession>>,
     mut commands: Commands,
     mut vitals: Query<
         (Entity, &Team, &mut Health, Option<&mut TemporaryHitPoints>),
@@ -782,8 +809,32 @@ pub fn apply_guest_army_buffs(
     let shield = s.shield_per_second * time.delta_secs();
     const MAX_SHIELD: f32 = 20.0;
 
+    // The guest Alchemist's army: their own Attackers in versus, the SHARED
+    // Defender army in co-op.
+    //
+    // CO-OP buff ownership (see also `buff_defender_effectiveness`,
+    // `needs_buff_cleanup`, `apply_cauldron_speed_modifiers`):
+    //   - effectiveness: owned/merged by `buff_defender_effectiveness` → skipped
+    //     here in co-op.
+    //   - speed: owned/merged by `apply_cauldron_speed_modifiers`.
+    //   - heal/shield: additive — these add on top of the host's own
+    //     `heal_defenders`/`shield_defenders`, so they STACK naturally.
+    //   - cleanup: `needs_buff_cleanup` is co-op-aware, so the guest's Defender
+    //     components are no longer stripped while the guest is brewing.
+    // REMAINING (cauldron co-op pass): `CauldronDamageBonus`/`CauldronDamageResistance`
+    //   are inserted with the guest's value (insert-if-none), so if BOTH wizards
+    //   brew damage/resistance they do not SUM (first-writer-wins). True summing
+    //   needs an owner that reads host `CauldronBuffs` + remote and live-updates
+    //   the component value; do that when co-op is wired and testable.
+    let coop = session.is_some_and(|sess| sess.is_coop());
+    let guest_army = if coop {
+        Team::Defenders
+    } else {
+        Team::Attackers
+    };
+
     for (entity, team, mut health, temp_hp) in &mut vitals {
-        if *team != Team::Attackers {
+        if *team != guest_army {
             continue;
         }
         if s.heal_per_second > 0.0 {
@@ -805,12 +856,16 @@ pub fn apply_guest_army_buffs(
     }
 
     for (entity, team, mut effectiveness, has_damage, has_resistance) in &mut component_q {
-        if *team != Team::Attackers {
+        if *team != guest_army {
             continue;
         }
-        // Effectiveness: written every frame (self-resets to 0 when the brew
-        // lapses). Uses the dedicated field so it never clobbers poison.
-        if (effectiveness.cauldron_spell_bonus - s.effectiveness_bonus).abs() > f32::EPSILON {
+        // Effectiveness (VERSUS only): owns the guest's Attacker effectiveness,
+        // written every frame so it self-resets when the brew lapses. In co-op
+        // the shared Defender effectiveness is merged by
+        // `buff_defender_effectiveness`, so skip here to avoid the two fighting.
+        if !coop
+            && (effectiveness.cauldron_spell_bonus - s.effectiveness_bonus).abs() > f32::EPSILON
+        {
             effectiveness.cauldron_spell_bonus = s.effectiveness_bonus;
         }
         if s.damage_bonus > 0.0 {

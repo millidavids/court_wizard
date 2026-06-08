@@ -9,7 +9,7 @@ use bevy::prelude::*;
 use crate::config::WizardType;
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{NetworkConnection, PeerRole};
-use crate::networking::session::MultiplayerSession;
+use crate::networking::session::{MultiplayerSession, SessionMode};
 use crate::state::AppState;
 
 use super::state::{LobbyPhase, MultiplayerLobby, load_my_unlocked_content};
@@ -130,8 +130,13 @@ pub(crate) fn process_lobby_messages(
                         *opponent_ready = false;
                     }
                 }
-                NetworkMessage::StartGame { seed } => {
-                    info!("[MP Lobby] Received StartGame from host (seed {seed})");
+                NetworkMessage::StartGame {
+                    seed,
+                    coop_mode,
+                    level,
+                } => {
+                    let mode = SessionMode::from_coop_wire(coop_mode);
+                    info!("[MP Lobby] Received StartGame from host (seed {seed}, mode {mode:?})");
                     // Only start if we have a valid wizard-select state — the
                     // session and RNG must be in place before the transition,
                     // or `init_mp_loading` panics on the missing resource.
@@ -144,6 +149,7 @@ pub(crate) fn process_lobby_messages(
                         let (_, my_spells) = load_my_unlocked_content();
                         let session = MultiplayerSession {
                             role: PeerRole::Guest,
+                            mode,
                             host_wizard: mp_safe_wizard(*opp_wiz),
                             guest_wizard: mp_safe_wizard(*my_wiz),
                             host_spells: Vec::new(),
@@ -153,6 +159,9 @@ pub(crate) fn process_lobby_messages(
                         // Seed the shared RNG from the host's seed so both
                         // peers produce identical randomness.
                         insert_game_rng(&mut commands, seed);
+                        // WS4 consumes `_level` for co-op so the guest's seeded
+                        // terrain matches the host's endless/roguelite level.
+                        let _level = level;
                         next_app_state.set(AppState::MultiplayerLoading);
                     } else {
                         warn!("[MP Lobby] Ignoring StartGame received outside wizard select");
@@ -192,8 +201,12 @@ pub(super) fn commit_host_start(
             my_wiz, opp_wiz
         );
         let (_, my_spells) = load_my_unlocked_content();
+        // This button is the VERSUS start path only. Co-op matches are started
+        // from the Endless/Roguelite tabs with a connection active (WS2), which
+        // build a co-op `MultiplayerSession` on the single-player Loading path.
         let session = MultiplayerSession {
             role: PeerRole::Host,
+            mode: SessionMode::Versus,
             host_wizard: mp_safe_wizard(*my_wiz),
             guest_wizard: mp_safe_wizard(*opp_wiz),
             host_spells: my_spells,
@@ -206,7 +219,11 @@ pub(super) fn commit_host_start(
         insert_game_rng(commands, seed);
         connection
             .outgoing_messages
-            .push(NetworkMessage::StartGame { seed });
+            .push(NetworkMessage::StartGame {
+                seed,
+                coop_mode: SessionMode::Versus.to_coop_wire(),
+                level: 0,
+            });
         next_app_state.set(AppState::MultiplayerLoading);
     }
 }
