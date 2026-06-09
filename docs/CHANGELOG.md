@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - **Reorganized the Wizard Tower's multiplayer screens** — the Multiplayer tab is now just the connection screen, there's a separate **VS** tab for head-to-head duels that unlocks once you're connected, and the Study button is set off to the side.
+- **The host now sets up co-op for both players** — once a friend joins, the host picks what to play (Endless, Roguelite, or a VS duel) while the friend stays on one multiplayer screen that mirrors the host's choice, shows the level or run about to start, and lets them pick a wizard and hit Ready. The host's start button waits, showing "Guest Not Ready," until the friend readies up — and the host never has to ready themselves.
 - **Enemies hit a little harder in co-op** — while a partner is helping you in an Endless or Roguelite battle, the attackers fight more effectively. The boost lifts the moment your partner leaves.
 - **Co-op battles keep going if your partner drops** — if your friend disconnects mid-battle, the fight continues on your own and they can rejoin at the next level. (Head-to-head duels still end when someone disconnects.)
 - **Your battles remember when you played with a friend** — Endless levels and Roguelite runs now record whether you played co-op, and who with.

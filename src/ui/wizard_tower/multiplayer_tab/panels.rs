@@ -8,17 +8,18 @@
 
 use bevy::prelude::*;
 
-use crate::networking::resources::NetworkConnection;
+use crate::networking::resources::{NetworkConnection, PeerRole};
 
 use super::panel_connect::build_connect;
 use super::panel_failed::build_failed;
+use super::panel_guest_mirror::build_guest_mode_mirror;
 use super::panel_handshake::build_handshake;
 use super::panel_hosting::build_hosting;
 use super::panel_joining::build_joining;
 use super::panel_steam_hosting::build_steam_hosting;
 use super::panel_steam_joining::build_steam_joining;
 use super::panel_wizard_select::{build_wizard_select_left, build_wizard_select_right};
-use super::state::{LobbyPhase, MultiplayerLobby};
+use super::state::{CoopHostSelection, LobbyPhase, MultiplayerLobby};
 
 /// Spawns panel content for the multiplayer tab based on the current lobby phase.
 ///
@@ -34,6 +35,8 @@ pub(crate) fn build_multiplayer_panels(
     steam_available: bool,
     // `false` → the Multiplayer (connection) tab; `true` → the VS (duel-setup) tab.
     for_vs_tab: bool,
+    // Guest-side mirror of the host's selected mode (drives the guest's left panel).
+    host_selection: Option<&CoopHostSelection>,
 ) {
     // The right panel node has no padding of its own (unlike the left panel,
     // which is padded in `layout/setup.rs`). Wrap content in a padded column
@@ -92,9 +95,29 @@ pub(crate) fn build_multiplayer_panels(
             LobbyPhase::SteamHosting => build_steam_hosting(commands, right_entity),
             LobbyPhase::SteamJoining => build_steam_joining(commands, right_entity),
             LobbyPhase::Handshake => build_handshake(commands, right_entity, connection),
-            // Connected — the duel setup moved to the VS tab; co-op starts from
-            // the Endless/Roguelite tabs.
-            LobbyPhase::WizardSelect { .. } => build_connected_info(commands, right_entity),
+            // Connected. The GUEST does everything here: left = a live mirror of
+            // the host's selected mode + Ready/Disconnect, right = switch wizard.
+            // The HOST instead picks the mode on the Endless/Roguelite/VS tabs, so
+            // its connection tab just points there.
+            LobbyPhase::WizardSelect {
+                my_wizard,
+                my_ready,
+                ..
+            } => {
+                if connection.role == Some(PeerRole::Guest) {
+                    build_guest_mode_mirror(
+                        commands,
+                        left_entity,
+                        host_selection,
+                        *my_wizard,
+                        *my_ready,
+                        connection,
+                    );
+                    build_wizard_select_right(commands, right_entity, *my_wizard, *my_ready);
+                } else {
+                    build_connected_info(commands, right_entity);
+                }
+            }
             LobbyPhase::Failed { reason } => build_failed(commands, right_entity, reason),
         }
     }

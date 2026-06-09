@@ -18,6 +18,7 @@ use crate::ui::components::{ButtonActive, ButtonColors};
 use crate::ui::systems::spawn_button;
 
 /// Spawns the cauldron menu UI when entering the CauldronMenu state.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn button_action(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&CauldronMenuButtonAction>,

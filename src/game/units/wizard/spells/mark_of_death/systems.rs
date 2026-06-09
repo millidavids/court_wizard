@@ -241,7 +241,7 @@ fn mark_of_death_casting_logic(
                             // Single target: find nearest enemy to cursor
                             if let Some((target_entity, _)) = enemies_query
                                 .iter()
-                                .filter(|(_, _, team)| caster_team.is_enemy(*team))
+                                .filter(|(_, _, team)| caster_team.is_enemy(team))
                                 .filter_map(|(entity, transform, _)| {
                                     let dist =
                                         crate::game::units::wizard::spells::utils::xz_distance(
@@ -304,6 +304,7 @@ pub fn tick_doom_marks(
 }
 
 /// Executioner's Brand: deal burst damage when marked target falls below 30% HP.
+#[allow(clippy::type_complexity)]
 pub fn executioner_brand_check(
     mut commands: Commands,
     mut targets: Query<
@@ -378,7 +379,7 @@ pub fn handle_marked_corpses(
         if flags.spreading_blight {
             let nearest = alive_enemies
                 .iter()
-                .filter(|(_, _, team)| caster_team.is_enemy(*team))
+                .filter(|(_, _, team)| caster_team.is_enemy(team))
                 .min_by(|a, b| {
                     let dist_a = a.1.translation.distance_squared(transform.translation);
                     let dist_b = b.1.translation.distance_squared(transform.translation);

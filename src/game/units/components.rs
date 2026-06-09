@@ -897,7 +897,9 @@ mod tests {
         let expected = 1.0
             + 2.0 * EFFECTIVENESS_ALLY_BONUS_PER_UNIT
             + 1.0 * EFFECTIVENESS_ENEMY_PENALTY_PER_UNIT;
-        assert_eq!(eff.current, expected);
+        // Approximate: `recalculate` sums the terms in a different association
+        // order than `expected`, so the float results differ in the last ulp.
+        assert!((eff.current - expected).abs() < 1e-4);
     }
 
     #[test]

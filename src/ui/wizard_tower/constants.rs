@@ -193,6 +193,44 @@ pub(super) const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     text_shadow: true,
 };
 
+/// Greyed, unclickable variant of `BUTTON_STYLE` for a co-op start button that
+/// is disabled until the guest readies ("Guest Not Ready"). Pair with a `()`
+/// action so no system matches the click.
+pub(crate) const GUEST_NOT_READY_BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: 220.0,
+    height: 55.0,
+    border_width: 3.0,
+    font_size: 16.0,
+    background: Color::hsla(0.0, 0.0, 0.18, 0.85),
+    border: Color::hsla(0.0, 0.0, 0.30, 1.0),
+    text_color: TEXT_DISABLED,
+    text_shadow: false,
+};
+
+/// Spawns a co-op-gated mode-start button: the normal `(label, action, style)`
+/// button, or a greyed unclickable "Guest Not Ready" button when a guest is
+/// connected but not ready (`guest_pending == Some(false)`). Shared by the
+/// Endless/Roguelite start buttons so the host can't start while the guest is
+/// still readying.
+pub(crate) fn spawn_coop_gated_button(
+    parent: &mut ChildSpawnerCommands,
+    guest_pending: Option<bool>,
+    normal_label: &str,
+    action: impl Bundle,
+    normal_style: &ButtonStyle,
+) {
+    if guest_pending == Some(false) {
+        crate::ui::systems::spawn_button(
+            parent,
+            "Guest Not Ready",
+            (),
+            &GUEST_NOT_READY_BUTTON_STYLE,
+        );
+    } else {
+        crate::ui::systems::spawn_button(parent, normal_label, action, normal_style);
+    }
+}
+
 pub(super) const COMMIT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     width: 180.0,
     height: 50.0,

@@ -345,6 +345,8 @@ pub(super) fn build_roguelite_no_run_right_panel(
     modifiers: &RogueliteModifiers,
     pending_toggles: &PendingToggles,
     seed_text: &str,
+    // Co-op gating: Some(false) disables the start button ("Guest Not Ready").
+    guest_pending: Option<bool>,
 ) {
     commands.entity(right_panel_entity).with_children(|right| {
         // Padding wrapper (parent panel handles scrolling)
@@ -367,8 +369,9 @@ pub(super) fn build_roguelite_no_run_right_panel(
                         ..default()
                     })
                     .with_children(|buttons| {
-                        spawn_button(
+                        spawn_coop_gated_button(
                             buttons,
+                            guest_pending,
                             "Start Run",
                             RogueliteAction::StartRun,
                             &START_RUN_BUTTON_STYLE,
@@ -465,6 +468,8 @@ pub(super) fn build_roguelite_no_run_left_panel(
 pub(super) fn build_roguelite_active_run_right_panel(
     commands: &mut Commands,
     right_panel_entity: Entity,
+    // Co-op gating: Some(false) disables Continue Run ("Guest Not Ready").
+    guest_pending: Option<bool>,
 ) {
     commands
         .entity(right_panel_entity)
@@ -489,8 +494,9 @@ pub(super) fn build_roguelite_active_run_right_panel(
                             ..default()
                         })
                         .with_children(|buttons| {
-                            spawn_button(
+                            spawn_coop_gated_button(
                                 buttons,
+                                guest_pending,
                                 "Continue Run",
                                 RogueliteAction::ContinueRun,
                                 &CONTINUE_RUN_BUTTON_STYLE,
@@ -889,44 +895,52 @@ fn spawn_toggle_row(
         });
 }
 
+/// Builds the run-summary lines (non-default sliders + enabled toggles, or a
+/// "Default settings" placeholder) as plain strings. Shared by the local panel
+/// (`spawn_summary_items`) and the co-op host broadcast (so the guest's mirror
+/// shows the same summary the host sees).
+pub(crate) fn roguelite_summary_lines(
+    mods: &RogueliteModifiers,
+    pending_toggles: &PendingToggles,
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    for (label, pct) in mods.non_default_entries() {
+        lines.push(format!("{}: {}%", label, pct));
+    }
+    for toggle in &pending_toggles.enabled {
+        lines.push(format!(
+            "{} (+{}% Insight)",
+            toggle.display_name(),
+            toggle.insight_bonus_percent()
+        ));
+    }
+    if lines.is_empty() {
+        lines.push("Default settings".to_string());
+    }
+    lines
+}
+
 /// Spawns text items inside the run summary content container.
 fn spawn_summary_items(
     parent: &mut ChildSpawnerCommands,
     mods: &RogueliteModifiers,
     pending_toggles: &PendingToggles,
 ) {
-    let mut has_items = false;
-
-    // Slider modifiers at non-default values
-    for (label, pct) in mods.non_default_entries() {
+    let lines = roguelite_summary_lines(mods, pending_toggles);
+    // Colour the lines as the "Default settings" placeholder when nothing is
+    // active — derived from the inputs, not a fragile string-compare on output.
+    let is_placeholder =
+        mods.non_default_entries().is_empty() && pending_toggles.enabled.is_empty();
+    let color = if is_placeholder {
+        SUMMARY_PLACEHOLDER_COLOR
+    } else {
+        SUMMARY_ITEM_COLOR
+    };
+    for line in lines {
         parent.spawn((
-            Text::new(format!("{}: {}%", label, pct)),
+            Text::new(line),
             TextFont::from_font_size(SUMMARY_ITEM_FONT_SIZE),
-            TextColor(SUMMARY_ITEM_COLOR),
-        ));
-        has_items = true;
-    }
-
-    // Enabled toggle names with bonus percentages
-    for toggle in &pending_toggles.enabled {
-        parent.spawn((
-            Text::new(format!(
-                "{} (+{}% Insight)",
-                toggle.display_name(),
-                toggle.insight_bonus_percent()
-            )),
-            TextFont::from_font_size(SUMMARY_ITEM_FONT_SIZE),
-            TextColor(SUMMARY_ITEM_COLOR),
-        ));
-        has_items = true;
-    }
-
-    // Placeholder if nothing active
-    if !has_items {
-        parent.spawn((
-            Text::new("Default settings"),
-            TextFont::from_font_size(SUMMARY_ITEM_FONT_SIZE),
-            TextColor(SUMMARY_PLACEHOLDER_COLOR),
+            TextColor(color),
         ));
     }
 }

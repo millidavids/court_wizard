@@ -30,12 +30,14 @@ pub(super) fn build_wizard_select_left(
     opponent_ready: bool,
     connection: &NetworkConnection,
 ) {
+    // The VS tab is the HOST's duel-setup screen; the guest is locked to the
+    // Multiplayer tab (the `!is_host` arm is a safety fallback only). The host
+    // never readies — it just waits for the guest, then clicks Start Game.
     let is_host = connection.role == Some(PeerRole::Host);
-    let both_ready = my_ready && opponent_ready;
 
     commands.entity(entity).with_children(|left| {
         left.spawn((
-            Text::new("Multiplayer Match"),
+            Text::new("Versus Duel"),
             TextFont::from_font_size(HEADING_FONT_SIZE),
             TextColor(TEXT_PRIMARY),
             Node {
@@ -59,29 +61,20 @@ pub(super) fn build_wizard_select_left(
             ..default()
         });
 
-        if my_ready {
-            spawn_button(left, "Unready", MpTabAction::Unready, &UNREADY_BUTTON_STYLE);
-        } else {
-            spawn_button(left, "Ready!", MpTabAction::Ready, &READY_BUTTON_STYLE);
-        }
-
         if is_host {
-            if both_ready {
+            // Host doesn't ready — Start Game enables once the guest is ready.
+            if opponent_ready {
                 spawn_button(left, "Start Game", MpTabAction::StartGame, &BUTTON_STYLE);
             } else {
-                // Disabled until both players are ready — empty `()` action.
-                spawn_button(left, "Start Game", (), &DISABLED_BUTTON_STYLE);
+                spawn_button(left, "Guest Not Ready", (), &DISABLED_BUTTON_STYLE);
             }
-        } else if both_ready {
-            left.spawn((
-                Text::new("Waiting for host to start..."),
-                TextFont::from_font_size(BODY_FONT_SIZE),
-                TextColor(SUCCESS_COLOR),
-                Node {
-                    margin: UiRect::vertical(Val::Px(6.0)),
-                    ..default()
-                },
-            ));
+        } else {
+            // Safety fallback (guests are locked out of this tab): standard ready-up.
+            if my_ready {
+                spawn_button(left, "Unready", MpTabAction::Unready, &UNREADY_BUTTON_STYLE);
+            } else {
+                spawn_button(left, "Ready!", MpTabAction::Ready, &READY_BUTTON_STYLE);
+            }
         }
 
         spawn_button(
@@ -146,7 +139,7 @@ pub(super) fn build_wizard_select_right(
     });
 }
 
-fn spawn_player_row(
+pub(super) fn spawn_player_row(
     parent: &mut ChildSpawnerCommands,
     label: &str,
     wizard: Option<WizardType>,

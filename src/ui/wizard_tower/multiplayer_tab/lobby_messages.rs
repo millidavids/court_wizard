@@ -12,7 +12,8 @@ use crate::networking::resources::{NetworkConnection, PeerRole};
 use crate::networking::session::{MultiplayerSession, SessionMode};
 use crate::state::AppState;
 
-use super::state::{LobbyPhase, MultiplayerLobby, load_my_unlocked_content};
+use super::state::{CoopHostSelection, LobbyPhase, MultiplayerLobby, load_my_unlocked_content};
+use crate::ui::wizard_tower::layout::WizardTowerTab;
 
 /// Coerces a wizard type to one allowed in multiplayer. Psychopath is disabled
 /// in MP (its self-sabotage win condition doesn't map to a competitive match);
@@ -37,6 +38,7 @@ pub(crate) fn process_lobby_messages(
     mut lobby: ResMut<MultiplayerLobby>,
     mut commands: Commands,
     mut next_app_state: ResMut<NextState<AppState>>,
+    mut tab: Option<ResMut<WizardTowerTab>>,
 ) {
     if connection.incoming_messages.is_empty() {
         return;
@@ -111,6 +113,15 @@ pub(crate) fn process_lobby_messages(
                     connection
                         .outgoing_messages
                         .push(NetworkMessage::WizardSelected(initial));
+                    // The guest does everything from the Multiplayer tab — pull it
+                    // there if the player was browsing another tab when the
+                    // connection completed (the other tabs lock for a connected
+                    // guest, but force the view so they land on the lobby screen).
+                    if connection.role == Some(PeerRole::Guest)
+                        && let Some(tab) = tab.as_deref_mut()
+                    {
+                        *tab = WizardTowerTab::Multiplayer;
+                    }
                 }
                 NetworkMessage::WizardSelected(wt) => {
                     if let LobbyPhase::WizardSelect {
@@ -171,6 +182,25 @@ pub(crate) fn process_lobby_messages(
                         warn!("[MP Lobby] Ignoring StartGame received outside wizard select");
                     }
                 }
+                NetworkMessage::HostModeSelection {
+                    mode,
+                    host_wizard,
+                    level,
+                    is_continue,
+                    detail_lines,
+                } => {
+                    // Guest-only: mirror the host's selected mode into the
+                    // resource that drives the guest's Multiplayer-tab left panel.
+                    if connection.role == Some(PeerRole::Guest) {
+                        commands.insert_resource(CoopHostSelection {
+                            mode,
+                            host_wizard: Some(host_wizard),
+                            level,
+                            is_continue,
+                            detail_lines,
+                        });
+                    }
+                }
                 other => unhandled.push(other),
             }
         }
@@ -181,9 +211,10 @@ pub(crate) fn process_lobby_messages(
     }
 }
 
-/// Host-only: if both wizards are selected and both players are ready, build
-/// the `MultiplayerSession`, send `StartGame`, and transition to
-/// `MultiplayerLoading`. Called by the host's explicit "Start Game" button.
+/// Host-only: if both wizards are selected and the GUEST is ready, build the
+/// `MultiplayerSession`, send `StartGame`, and transition to `MultiplayerLoading`.
+/// Called by the host's explicit "Start Game" button (VS tab). The host no longer
+/// readies — only the guest does — so this gates on `opponent_ready` alone.
 /// No-ops if preconditions aren't met or the local peer isn't the host.
 pub(super) fn commit_host_start(
     lobby: &MultiplayerLobby,
@@ -194,14 +225,13 @@ pub(super) fn commit_host_start(
     if let LobbyPhase::WizardSelect {
         my_wizard: Some(my_wiz),
         opponent_wizard: Some(opp_wiz),
-        my_ready: true,
         opponent_ready: true,
         ..
     } = &lobby.phase
         && connection.role == Some(PeerRole::Host)
     {
         info!(
-            "[MP Lobby] Both ready! Host: {:?}, Guest: {:?} — sending StartGame",
+            "[MP Lobby] Guest ready! Host: {:?}, Guest: {:?} — sending StartGame",
             my_wiz, opp_wiz
         );
         let (_, my_spells) = load_my_unlocked_content();

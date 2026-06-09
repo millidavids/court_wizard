@@ -4,6 +4,7 @@ pub(super) mod interaction;
 pub(super) mod lobby_messages;
 pub(super) mod panel_connect;
 pub(super) mod panel_failed;
+pub(super) mod panel_guest_mirror;
 pub(super) mod panel_handshake;
 pub(super) mod panel_hosting;
 pub(super) mod panel_joining;
@@ -18,4 +19,4 @@ pub(super) mod sync;
 pub(super) mod text_input;
 
 pub(crate) use plugin::MultiplayerTabPlugin;
-pub(crate) use state::MultiplayerLobby;
+pub(crate) use state::{CoopHostSelection, MultiplayerLobby};

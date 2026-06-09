@@ -57,7 +57,10 @@ use crate::game::units::wizard::components::Spell;
 ///   roguelite level, ignored in versus). Adds the co-op lifecycle messages
 ///   `CoopLevelOver` / `CoopRunEnded` — appended AFTER `Forfeit` to keep every
 ///   prior wire index frozen.
-pub const PROTOCOL_VERSION: u32 = 10;
+/// - 11: co-op lobby restructure. Adds `HostModeSelection` (host→guest live
+///   broadcast of the selected game-mode/level so the guest's Multiplayer-tab
+///   left panel mirrors what's about to start). Appended after `CoopRunEnded`.
+pub const PROTOCOL_VERSION: u32 = 11;
 
 /// Messages sent over the reliable WebRTC data channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -301,6 +304,32 @@ pub enum NetworkMessage {
     /// endless defeat). The guest finalizes its own save record and returns to
     /// the wizard tower.
     CoopRunEnded { victory: bool },
+
+    /// Host → guest (lobby): a live broadcast of the host's currently-selected
+    /// game mode so the guest's Multiplayer-tab left panel mirrors what's about
+    /// to start. Sent while the host sits in the WizardSelect lobby on any tab.
+    /// `detail_lines` are host-formatted summary lines (roguelite modifier
+    /// summary, endless level info) shown verbatim by the guest.
+    HostModeSelection {
+        mode: HostMode,
+        host_wizard: WizardType,
+        level: u32,
+        is_continue: bool,
+        detail_lines: Vec<String>,
+    },
+}
+
+/// Which game mode the host has selected in the lobby, broadcast to the guest in
+/// `NetworkMessage::HostModeSelection`. A shared enum (rather than a raw `u8`) so
+/// the broadcaster and the guest's renderer can't drift out of sync.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum HostMode {
+    /// Host is on a non-startable tab (Multiplayer/Study) — no mode chosen yet.
+    #[default]
+    Browsing,
+    Endless,
+    Roguelite,
+    Versus,
 }
 
 /// Discriminator for `NetworkMessage::ApplyStatusEffect`. Add new variants at

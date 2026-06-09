@@ -16,8 +16,10 @@ use crate::ui::wizard_tower::wizard_cards::SelectedWizard;
 
 use super::interaction::handle_mp_tab_actions;
 use super::lobby_messages::process_lobby_messages;
-use super::state::{LobbyPhase, MultiplayerLobby};
-use super::sync::{sync_lobby_with_connection, sync_mp_wizard_selection};
+use super::state::{CoopHostSelection, LobbyPhase, MultiplayerLobby};
+use super::sync::{
+    broadcast_host_mode_to_guest, sync_lobby_with_connection, sync_mp_wizard_selection,
+};
 use super::text_input::handle_join_code_input;
 
 /// Plugin that registers all systems for the multiplayer tab.
@@ -26,6 +28,7 @@ pub struct MultiplayerTabPlugin;
 impl Plugin for MultiplayerTabPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MultiplayerLobby>()
+            .init_resource::<CoopHostSelection>()
             // A rematch routes through the main menu; bounce straight back into
             // the tower so `handle_pending_rematch_on_enter` can pick it up.
             .add_systems(OnEnter(MenuState::Landing), route_pending_rematch_from_menu)
@@ -41,6 +44,15 @@ impl Plugin for MultiplayerTabPlugin {
                 Update,
                 (process_lobby_messages, sync_lobby_with_connection)
                     .run_if(in_state(MetaGameState::WizardTower)),
+            )
+            // The host broadcasts its selected mode to the guest on ANY tab (it
+            // sits on Endless/Roguelite/VS while the guest waits on Multiplayer),
+            // so this is gated only on the tower + the tab resource existing.
+            .add_systems(
+                Update,
+                broadcast_host_mode_to_guest
+                    .run_if(in_state(MetaGameState::WizardTower))
+                    .run_if(resource_exists::<crate::ui::wizard_tower::layout::WizardTowerTab>),
             )
             // Tab UI interaction only runs while the Multiplayer tab is shown.
             .add_systems(
@@ -170,6 +182,7 @@ fn reset_lobby_on_exit(
     mut steam_lobby_state: Option<ResMut<SteamLobbyState>>,
     mut steam_socket: Option<ResMut<SteamP2pSocket>>,
     coop_pending: Option<Res<crate::game::multiplayer::coop::CoopPendingSession>>,
+    mut host_selection: ResMut<super::state::CoopHostSelection>,
 ) {
     // Preserve the connection when leaving the tower INTO a match: versus goes to
     // MultiplayerLoading/MultiplayerGame; the co-op host goes to the single-player
@@ -214,4 +227,5 @@ fn reset_lobby_on_exit(
     // `Disconnected`.
     connection.reset();
     *lobby = MultiplayerLobby::new();
+    *host_selection = super::state::CoopHostSelection::default();
 }

@@ -48,6 +48,9 @@ pub(super) fn build_endless_right_panel(
     commands: &mut Commands,
     right_panel_entity: Entity,
     config: &GameConfig,
+    // Co-op gating: None = no guest (solo); Some(false) = guest not ready;
+    // Some(true) = guest ready. When Some(false) the start button is disabled.
+    guest_pending: Option<bool>,
 ) {
     let show_time_travel = config.highest_level_achieved > 1;
 
@@ -83,8 +86,9 @@ pub(super) fn build_endless_right_panel(
                         } else {
                             "Continue Playing"
                         };
-                        spawn_button(
+                        spawn_coop_gated_button(
                             left_col,
+                            guest_pending,
                             continue_label,
                             EndlessAction::ContinuePlay,
                             &BUTTON_STYLE,

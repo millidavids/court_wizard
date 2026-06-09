@@ -90,6 +90,7 @@ pub(crate) fn apply_entangle(
 /// Spawns random flat vine rings within the entangle circle. Generic over the
 /// cleanup marker so the multiplayer ghost can reuse it with
 /// `OnMultiplayerGameScreen`.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_vine_toruses<M: Component + Clone>(
     rng: &mut impl rand::Rng,
     commands: &mut Commands,

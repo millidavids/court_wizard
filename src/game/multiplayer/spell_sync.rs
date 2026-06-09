@@ -1127,6 +1127,7 @@ pub fn apply_remote_spell_snapshot(
 /// Each event maps to one of the existing `vfx::systems::spawn_*` helpers;
 /// the spawned entities tag `OnGameplayScreen` so MP cleanup
 /// (`cleanup_game` on `OnExit(AppState::MultiplayerGame)`) catches them.
+#[allow(clippy::too_many_arguments)]
 pub fn apply_remote_cast_events(
     mut commands: Commands,
     latest: Res<LatestSpellSnapshot>,

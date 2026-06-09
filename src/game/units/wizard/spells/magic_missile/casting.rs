@@ -254,7 +254,6 @@ pub fn handle_magic_missile_casting(
 
 /// Ticks the Arcane Barrage concentration entity, periodically firing missile volleys.
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
 pub fn update_arcane_barrage(
     time: Res<Time>,
     mut commands: Commands,

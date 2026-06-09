@@ -67,7 +67,12 @@ impl Plugin for WizardTowerPlugin {
                                 .or(resource_changed::<RightPanelView>)
                                 .or(resource_removed::<
                                     crate::game::game_mode::components::RogueliteRunState,
-                                >),
+                                >)
+                                // Re-render the host's mode-tab so its start button
+                                // flips "Guest Not Ready" ↔ enabled when the guest
+                                // readies (mutates `MultiplayerLobby`) — only on the
+                                // game-mode tabs to avoid churn elsewhere.
+                                .or(resource_changed::<MultiplayerLobby>.and(game_mode_tab_active)),
                         ),
                     ),
                     // Tab switches are handled by `rebuild_panels_on_tab_change`;
@@ -80,8 +85,15 @@ impl Plugin for WizardTowerPlugin {
                             resource_exists::<WizardTowerTab>
                                 .and(multiplayer_tab_active)
                                 .and(
+                                    // CoopHostSelection ORed INSIDE this group so the
+                                    // outer `multiplayer_tab_active` guard (which requires
+                                    // RightPanelView::TabContent) still prevents clobbering
+                                    // an open wizard-card grid when the host's mode arrives.
                                     resource_changed::<MultiplayerLobby>
-                                        .or(resource_changed::<NetworkConnection>),
+                                        .or(resource_changed::<NetworkConnection>)
+                                        .or(resource_changed::<
+                                            super::multiplayer_tab::CoopHostSelection,
+                                        >),
                                 ),
                         ),
                     super::layout::update_tab_active_state
@@ -364,17 +376,33 @@ fn study_tab_active(tab: Option<Res<WizardTowerTab>>) -> bool {
     tab.is_some_and(|t| *t == WizardTowerTab::Study)
 }
 
+/// True when the right panel is showing its normal tab content (not the shared
+/// wizard-card grid). Shared by the per-tab run-condition helpers below.
+fn is_tab_content(view: &Option<Res<RightPanelView>>) -> bool {
+    view.as_ref()
+        .is_some_and(|v| **v == RightPanelView::TabContent)
+}
+
 fn roguelite_tab_active(
     tab: Option<Res<WizardTowerTab>>,
     view: Option<Res<RightPanelView>>,
 ) -> bool {
-    tab.is_some_and(|t| *t == WizardTowerTab::Roguelite)
-        && view.is_some_and(|v| *v == RightPanelView::TabContent)
+    tab.is_some_and(|t| *t == WizardTowerTab::Roguelite) && is_tab_content(&view)
 }
 
 fn endless_tab_active(tab: Option<Res<WizardTowerTab>>, view: Option<Res<RightPanelView>>) -> bool {
-    tab.is_some_and(|t| *t == WizardTowerTab::Endless)
-        && view.is_some_and(|v| *v == RightPanelView::TabContent)
+    tab.is_some_and(|t| *t == WizardTowerTab::Endless) && is_tab_content(&view)
+}
+
+/// True when the host is on a co-op-startable game-mode tab (Endless or Roguelite)
+/// showing normal content. Gates the lobby-change rebuild that flips the host's
+/// start button "Guest Not Ready" ↔ enabled when the guest readies.
+fn game_mode_tab_active(
+    tab: Option<Res<WizardTowerTab>>,
+    view: Option<Res<RightPanelView>>,
+) -> bool {
+    tab.is_some_and(|t| matches!(*t, WizardTowerTab::Endless | WizardTowerTab::Roguelite))
+        && is_tab_content(&view)
 }
 
 /// True only when the Multiplayer tab is showing its normal content — not the
@@ -387,7 +415,7 @@ fn multiplayer_tab_active(
     // Both the connection (Multiplayer) tab and the VS tab render lobby-driven
     // content, so a lobby/connection change must rebuild either one.
     tab.is_some_and(|t| matches!(*t, WizardTowerTab::Multiplayer | WizardTowerTab::Vs))
-        && view.is_some_and(|v| *v == RightPanelView::TabContent)
+        && is_tab_content(&view)
 }
 
 // ---------------------------------------------------------------------------
@@ -408,6 +436,7 @@ fn rebuild_multiplayer_on_lobby_change(
     connection: Res<NetworkConnection>,
     steam_client: Option<Res<bevy_steamworks::Client>>,
     tab: Option<Res<WizardTowerTab>>,
+    host_selection: Option<Res<super::multiplayer_tab::CoopHostSelection>>,
 ) {
     let Ok(left_entity) = left_panel.single() else {
         return;
@@ -428,5 +457,6 @@ fn rebuild_multiplayer_on_lobby_change(
         &connection,
         steam_client.is_some(),
         for_vs_tab,
+        host_selection.as_deref(),
     );
 }

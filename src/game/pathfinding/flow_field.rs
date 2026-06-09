@@ -476,20 +476,23 @@ mod tests {
     fn test_blocked_cells() {
         let mut field = FlowField::new(10, 10);
 
-        // Block a wall from (5, 0) to (5, 9)
-        for z in 0..10 {
+        // Block a wall at x=5 from z=0 to z=8, leaving a GAP at (5, 9) so the
+        // left side can still reach the goal by routing around the bottom. (A
+        // full-height wall would have no path around, making the assertion below
+        // unsatisfiable.)
+        for z in 0..9 {
             field.costs[z * field.width + 5] = f32::INFINITY;
         }
 
         field.generate(7, 5, 0); // Goal on right side of wall
 
-        // Sample from left side (3, 5) - should path around wall
+        // Sample from left side (3, 5) - should path around the wall via the gap
         let world_min = Vec2::new(0.0, 0.0);
         let cell_size = 1.0;
         let direction = field.sample(Vec3::new(3.5, 0.0, 5.5), world_min, cell_size);
 
-        // Should not point directly at goal (blocked), should go around
-        // Direction should point north or south to go around wall
+        // Should not point directly at the goal (blocked); it must steer along z
+        // toward the gap to go around the wall.
         assert!(direction.z.abs() > 0.1);
     }
 

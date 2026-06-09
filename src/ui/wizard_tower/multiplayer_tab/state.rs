@@ -55,6 +55,20 @@ impl Default for MultiplayerLobby {
     }
 }
 
+/// Guest-side mirror of the host's currently-selected game mode in the lobby.
+/// Populated from `NetworkMessage::HostModeSelection` (received in
+/// `process_lobby_messages`) and rendered in the guest's Multiplayer-tab LEFT
+/// panel so the guest sees what the host is about to start. Host-only fields are
+/// pre-formatted into `detail_lines` so the guest needs no game-mode resources.
+#[derive(Resource, Default, PartialEq, Clone)]
+pub(crate) struct CoopHostSelection {
+    pub mode: crate::networking::protocol::HostMode,
+    pub host_wizard: Option<WizardType>,
+    pub level: u32,
+    pub is_continue: bool,
+    pub detail_lines: Vec<String>,
+}
+
 // ---------------------------------------------------------------------------
 // LobbyPhase
 // ---------------------------------------------------------------------------

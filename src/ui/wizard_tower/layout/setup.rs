@@ -550,6 +550,7 @@ pub(crate) struct MultiplayerPanelData<'w> {
     lobby: Res<'w, super::super::multiplayer_tab::MultiplayerLobby>,
     connection: Res<'w, crate::networking::resources::NetworkConnection>,
     steam_client: Option<Res<'w, bevy_steamworks::Client>>,
+    host_selection: Option<Res<'w, super::super::multiplayer_tab::CoopHostSelection>>,
 }
 
 /// When the active tab changes, despawn children of both panels and rebuild
@@ -606,6 +607,11 @@ pub(crate) fn rebuild_panels_on_tab_change(
         return;
     }
 
+    // Whether a co-op guest is connected and (if so) whether they're ready — gates
+    // the host's start buttons ("Guest Not Ready" until the guest readies). `None`
+    // when no guest is present, so solo behaviour is unchanged.
+    let guest_pending = compute_guest_pending(&multiplayer.connection, &multiplayer.lobby);
+
     match *tab {
         WizardTowerTab::Roguelite => {
             if let Some(ref run_state) = roguelite_run {
@@ -613,6 +619,7 @@ pub(crate) fn rebuild_panels_on_tab_change(
                 super::super::roguelite_tab::build_roguelite_active_run_right_panel(
                     &mut commands,
                     right_entity,
+                    guest_pending,
                 );
                 super::super::roguelite_tab::build_roguelite_active_run_left_panel(
                     &mut commands,
@@ -638,6 +645,7 @@ pub(crate) fn rebuild_panels_on_tab_change(
                     &mods,
                     &pt,
                     &seed_text,
+                    guest_pending,
                 );
                 super::super::roguelite_tab::build_roguelite_no_run_left_panel(
                     &mut commands,
@@ -653,6 +661,7 @@ pub(crate) fn rebuild_panels_on_tab_change(
                 &mut commands,
                 right_entity,
                 &config,
+                guest_pending,
             );
             super::super::endless_tab::build_endless_left_panel(
                 &mut commands,
@@ -685,6 +694,7 @@ pub(crate) fn rebuild_panels_on_tab_change(
                 &multiplayer.connection,
                 multiplayer.steam_client.is_some(),
                 false, // connection tab
+                multiplayer.host_selection.as_deref(),
             );
         }
         WizardTowerTab::Vs => {
@@ -698,8 +708,39 @@ pub(crate) fn rebuild_panels_on_tab_change(
                 &multiplayer.connection,
                 multiplayer.steam_client.is_some(),
                 true, // VS tab
+                multiplayer.host_selection.as_deref(),
             );
         }
+    }
+}
+
+/// Whether a co-op guest is connected (and ready) — for gating the host's mode
+/// start buttons. `None` = no guest present → normal solo behaviour;
+/// `Some(false)` = guest connected but not ready → show "Guest Not Ready";
+/// `Some(true)` = guest ready (and has picked a wizard) → enable co-op start.
+fn compute_guest_pending(
+    connection: &crate::networking::resources::NetworkConnection,
+    lobby: &super::super::multiplayer_tab::MultiplayerLobby,
+) -> Option<bool> {
+    use super::super::multiplayer_tab::state::LobbyPhase;
+    use crate::networking::resources::{ConnectionState, PeerRole};
+    if connection.state != ConnectionState::Connected || connection.role != Some(PeerRole::Host) {
+        return None;
+    }
+    match &lobby.phase {
+        LobbyPhase::WizardSelect {
+            opponent_ready,
+            opponent_wizard: Some(_),
+            ..
+        } => Some(*opponent_ready),
+        // A guest is connected but hasn't sent its wizard pick yet (the brief
+        // window right after connecting). Treat it as "present, not ready" so the
+        // host's start button shows "Guest Not Ready" instead of a live solo-start
+        // button — otherwise a click in that window starts a solo game and strands
+        // the guest. (`opponent_ready` can never be true before `opponent_wizard`
+        // is `Some`, so the enabled path is unaffected.)
+        LobbyPhase::WizardSelect { .. } => Some(false),
+        _ => None,
     }
 }
 
@@ -726,31 +767,41 @@ pub(crate) fn update_tab_active_state(
     >,
     mut tab_text: Query<&mut TextColor>,
 ) {
-    let connected = connection.state == crate::networking::resources::ConnectionState::Connected;
+    use crate::networking::resources::{ConnectionState, PeerRole};
+    let connected = connection.state == ConnectionState::Connected;
+    // A connected GUEST is locked to the Multiplayer (+ Study) screen: it does
+    // everything from there, and locking the mode tabs stops it accidentally
+    // starting a solo game. The HOST drives the mode tabs as normal.
+    let is_guest_connected = connected && connection.role == Some(PeerRole::Guest);
+
     for (entity, tab_btn, children, is_disabled, has_active) in &tab_buttons {
-        // The VS tab is enabled only while connected. Keep both the `DisabledTab`
-        // marker and the label color in sync with the live connection EVERY frame
-        // (not just on the transition): a tab-bar rebuild can re-grey the label
-        // without re-adding the marker, which previously left the tab clickable but
-        // still looking disabled. Runs before the active-state early-out below so a
-        // connection change is never missed.
-        if tab_btn.0 == WizardTowerTab::Vs {
-            if connected && is_disabled {
-                commands.entity(entity).remove::<DisabledTab>();
-            } else if !connected && !is_disabled {
-                commands.entity(entity).insert(DisabledTab);
-            }
-            let label_color = if connected {
-                TEXT_COLOR
-            } else {
-                DISABLED_TAB_TEXT
-            };
-            for child in children.iter() {
-                if let Ok(mut text_color) = tab_text.get_mut(child)
-                    && text_color.0 != label_color
-                {
-                    *text_color = TextColor(label_color);
-                }
+        // One coherent desired-enabled state per tab, syncing BOTH the `DisabledTab`
+        // marker and the label colour every frame (a panel rebuild can re-grey a
+        // label without touching the marker). Runs before the active-state early-out
+        // below so a connection/role change is never missed.
+        let desired_enabled = match tab_btn.0 {
+            // VS needs a connection, and is hidden from a connected guest.
+            WizardTowerTab::Vs => connected && !is_guest_connected,
+            // Mode-start tabs lock for a connected guest.
+            WizardTowerTab::Endless | WizardTowerTab::Roguelite => !is_guest_connected,
+            // The guest's home + Study are always reachable.
+            WizardTowerTab::Multiplayer | WizardTowerTab::Study => true,
+        };
+        if desired_enabled && is_disabled {
+            commands.entity(entity).remove::<DisabledTab>();
+        } else if !desired_enabled && !is_disabled {
+            commands.entity(entity).insert(DisabledTab);
+        }
+        let label_color = if desired_enabled {
+            TEXT_COLOR
+        } else {
+            DISABLED_TAB_TEXT
+        };
+        for child in children.iter() {
+            if let Ok(mut text_color) = tab_text.get_mut(child)
+                && text_color.0 != label_color
+            {
+                *text_color = TextColor(label_color);
             }
         }
 

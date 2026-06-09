@@ -240,10 +240,7 @@ pub(crate) fn play_looping_sfx(
 /// Maps a `SpellSoundId` to the corresponding handle in `SpellSfxAssets`.
 /// Used by both the local synced wrappers and `apply_remote_cast_events` on
 /// the receiving peer.
-pub(crate) fn lookup_sfx_handle<'a>(
-    id: SpellSoundId,
-    sfx: &'a SpellSfxAssets,
-) -> &'a Handle<AudioSource> {
+pub(crate) fn lookup_sfx_handle(id: SpellSoundId, sfx: &SpellSfxAssets) -> &Handle<AudioSource> {
     match id {
         SpellSoundId::MagicMissileCast => &sfx.magic_missile_cast,
         SpellSoundId::FireballCast => &sfx.fireball_cast,
