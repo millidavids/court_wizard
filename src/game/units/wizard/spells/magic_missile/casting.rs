@@ -16,11 +16,11 @@ use crate::game::units::components::{Corpse, Team};
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::units::wizard::spells::utils::{get_cursor_world_position, local_player_team};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
-use crate::networking::crdt::PeerId;
+use crate::networking::session::MultiplayerSession;
 use crate::networking::snapshot::SpellSoundId;
 
 /// Talent-modified missile parameters.
@@ -103,7 +103,7 @@ pub fn handle_magic_missile_casting(
     local_origin: Res<LocalSpellOrigin>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
-    peer_id: Option<Res<PeerId>>,
+    session: Option<Res<MultiplayerSession>>,
     (sfx, config, active_talents, mut pending_cast_events): (
         Res<SpellSfxAssets>,
         Res<GameConfig>,
@@ -135,8 +135,11 @@ pub fn handle_magic_missile_casting(
         return;
     }
 
-    // Host/SP wizard targets attackers; guest wizard targets defenders
-    let target_teams = if peer_id.is_some_and(|p| p.0 == PeerId::GUEST) {
+    // Target the team OPPOSING the caster: the versus guest commands Attackers so
+    // it targets Defenders; SP/host/co-op guest command Defenders so they target
+    // Attackers. (Keying off `local_player_team` — not just "am I the guest" — is
+    // what makes the co-op guest hit the enemy wave instead of its own army.)
+    let target_teams = if local_player_team(session.as_deref()) == Team::Attackers {
         TargetTeams::DefendersAndUndead
     } else {
         TargetTeams::AttackersAndUndead

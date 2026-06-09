@@ -144,16 +144,17 @@ pub(super) fn find_random_targets_in_range(
     candidates
 }
 
-/// Returns the hostile team set for whichever peer is running this code.
-/// In MP the guest's enemies are `Defenders` (the host's units); in SP and
-/// for the host the enemies are `Attackers` (the wave). Caller passes
-/// `peer_id.as_deref()` from an `Option<Res<PeerId>>` system parameter.
+/// Returns the hostile team set for whichever peer is running this code, based on
+/// the CASTER'S team (not just "am I the guest"). The versus guest commands
+/// `Attackers`, so its enemies are `Defenders`; SP, the host, and the **co-op
+/// guest** all command `Defenders`, so their enemies are `Attackers` — that's what
+/// keeps a co-op guest's crystal hitting the enemy wave instead of its own army.
 pub(super) fn crystal_target_teams(
-    peer_id: Option<&crate::networking::crdt::PeerId>,
+    session: Option<&MultiplayerSession>,
 ) -> crate::game::units::wizard::spells::magic_missile::components::TargetTeams {
+    use crate::game::units::components::Team;
     use crate::game::units::wizard::spells::magic_missile::components::TargetTeams;
-    use crate::networking::crdt::PeerId;
-    if peer_id.is_some_and(|p| p.0 == PeerId::GUEST) {
+    if local_player_team(session) == Team::Attackers {
         TargetTeams::DefendersAndUndead
     } else {
         TargetTeams::AttackersAndUndead

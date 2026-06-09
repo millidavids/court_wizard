@@ -54,10 +54,9 @@ pub(super) fn auto_cast_remembered_spell(
         &Team,
     )>,
     active_talents: Option<Res<ActiveTalents>>,
-    peer_id: Option<Res<crate::networking::crdt::PeerId>>,
     session: Option<Res<MultiplayerSession>>,
 ) {
-    let target_teams = crystal_target_teams(peer_id.as_deref());
+    let target_teams = crystal_target_teams(session.as_deref());
     let talent_cfg = disintegrate_systems::compute_talent_config(active_talents.as_deref());
     let caster_team = local_player_team(session.as_deref());
     let delta = time.delta_secs();
@@ -789,10 +788,10 @@ pub(super) fn auto_crystal_fire(
     >,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut progress: ResMut<BattleTalentProgress>,
-    peer_id: Option<Res<crate::networking::crdt::PeerId>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     let delta = time.delta_secs();
-    let target_teams = crystal_target_teams(peer_id.as_deref());
+    let target_teams = crystal_target_teams(session.as_deref());
 
     for (crystal, mut timer, mut resonance) in &mut crystals {
         timer.timer += delta;
@@ -866,13 +865,13 @@ pub(super) fn crystal_network_chain(
     targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut progress: ResMut<BattleTalentProgress>,
-    peer_id: Option<Res<crate::networking::crdt::PeerId>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     // Early return if no crystal absorbed this frame
     if !crystals.iter().any(|(_, c)| c.just_absorbed) {
         return;
     }
-    let target_teams = crystal_target_teams(peer_id.as_deref());
+    let target_teams = crystal_target_teams(session.as_deref());
 
     // Collect crystal positions and remembered spells for chaining
     let crystal_data: Vec<(Entity, Vec3, f32, f32, Option<RememberedSpell>, bool)> = crystals

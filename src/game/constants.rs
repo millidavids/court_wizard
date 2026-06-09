@@ -157,9 +157,9 @@ pub const SPELL_2_ORIGIN: Vec3 = Vec3::new(
 /// `+80 Z` (the wall ledge depth), at the host's standing height (`+0 Y`). The
 /// co-op spell origin derives from this, so moving the wizard moves it too.
 pub const WIZARD_COOP_POSITION: Vec3 = Vec3::new(
-    WIZARD_POSITION.x + 110.0,
+    WIZARD_POSITION.x + 125.0,
     WIZARD_POSITION.y,
-    WIZARD_POSITION.z + 80.0,
+    WIZARD_POSITION.z + 110.0,
 );
 
 /// Co-op guest spell origin (the tip of their staff). Uses the SAME offset

@@ -489,9 +489,9 @@ pub(super) fn detect_magic_missile_hits(
     missiles: Query<(Entity, &Transform, &MagicMissile), Without<CrystalSpawn>>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut progress: ResMut<BattleTalentProgress>,
-    peer_id: Option<Res<crate::networking::crdt::PeerId>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
-    let target_teams = super::setup::crystal_target_teams(peer_id.as_deref());
+    let target_teams = super::setup::crystal_target_teams(session.as_deref());
     for (missile_entity, missile_transform, _missile) in &missiles {
         for (mut crystal, mut resonance) in &mut crystals {
             if crystal.permanent {
