@@ -680,16 +680,18 @@ pub(super) fn handle_mp_score_messages(
 ///
 /// Only triggers on `Failed` state — intentional disconnects are handled by button actions.
 pub(super) fn detect_mp_disconnect(
+    mut commands: Commands,
     connection: Res<NetworkConnection>,
     session: Option<Res<MultiplayerSession>>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     mut next_mp_state: ResMut<NextState<MultiplayerGameState>>,
+    mut next_app_state: ResMut<NextState<crate::state::AppState>>,
 ) {
     // Only check if we still have an active session — avoids double-triggering
     // after an intentional disconnect already queued a state transition.
-    if session.is_none() {
+    let Some(session) = session else {
         return;
-    }
+    };
 
     // Don't re-trigger if already on the Disconnected screen
     if mp_state.is_some_and(|s| *s.get() == MultiplayerGameState::Disconnected) {
@@ -701,10 +703,24 @@ pub(super) fn detect_mp_disconnect(
     // `StateChanged(Disconnected)` after the peer closes cleanly, and without
     // this we'd silently leave the player stuck in a live match with a dead
     // socket.
-    if matches!(
+    if !matches!(
         connection.state,
         ConnectionState::Failed | ConnectionState::Disconnected
     ) {
+        return;
+    }
+
+    if session.is_coop() {
+        // Co-op guest: the host keeps playing solo, so there's no "match over"
+        // dead-end for the guest. Drop the per-match co-op state and return to
+        // the wizard tower's Multiplayer tab, where the guest can rejoin (the
+        // host's endpoint stays bound and re-listens — see the transport
+        // re-accept loop). Clearing the session lets a fresh `StartGame` build
+        // a clean one on rejoin.
+        commands.remove_resource::<MultiplayerSession>();
+        commands.remove_resource::<crate::game::multiplayer::coop::CoopGuestLevel>();
+        next_app_state.set(crate::state::AppState::MetaGame);
+    } else {
         next_mp_state.set(MultiplayerGameState::Disconnected);
     }
 }

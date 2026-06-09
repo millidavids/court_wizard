@@ -165,11 +165,18 @@ fn reset_lobby_on_exit(
     steam_client: Option<Res<bevy_steamworks::Client>>,
     mut steam_lobby_state: Option<ResMut<SteamLobbyState>>,
     mut steam_socket: Option<ResMut<SteamP2pSocket>>,
+    coop_pending: Option<Res<crate::game::multiplayer::coop::CoopPendingSession>>,
 ) {
+    // Preserve the connection when leaving the tower INTO a match: versus goes to
+    // MultiplayerLoading/MultiplayerGame; the co-op host goes to the single-player
+    // `AppState::Loading` and is identified by a pending co-op session. Without
+    // the co-op case the host's connection would be torn down the instant a co-op
+    // match starts (and between every endless level, which loops via the tower).
     if matches!(
         app_state.get(),
         AppState::MultiplayerLoading | AppState::MultiplayerGame
-    ) {
+    ) || coop_pending.is_some()
+    {
         return;
     }
 

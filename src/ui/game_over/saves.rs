@@ -221,7 +221,17 @@ pub(crate) fn accumulate_mode_level_stats(
     game_outcome: Res<GameOutcome>,
     active_save: Res<ActiveSave>,
     time_travel: Option<Res<TimeTravelState>>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
+    coop_peer: Option<Res<crate::game::multiplayer::coop::CoopPeerInfo>>,
 ) {
+    // A co-op partner was helping this level (host side: the co-op session is
+    // still present at the score screen).
+    let played_coop = session.is_some_and(|s| s.is_coop());
+    let coop_peer_name = if played_coop {
+        coop_peer.and_then(|p| p.name.clone())
+    } else {
+        None
+    };
     // Defeat = 0% efficiency (king died)
     let efficiency = if game_outcome.is_defeat() {
         0.0
@@ -248,7 +258,12 @@ pub(crate) fn accumulate_mode_level_stats(
         Some(&GameMode::Endless) => {
             // Save best stats for this level (only on victory, not during time travel)
             if *game_outcome == GameOutcome::Victory && time_travel.is_none() {
-                crate::config::save_data::update_endless_best_stats(&active_save, &level_stats);
+                crate::config::save_data::update_endless_best_stats(
+                    &active_save,
+                    &level_stats,
+                    played_coop,
+                    coop_peer_name,
+                );
             }
         }
         None => {}

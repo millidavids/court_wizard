@@ -380,7 +380,11 @@ pub fn attach_king_spell_shield(
     new_kings: Query<Entity, Added<King>>,
 ) {
     use crate::networking::resources::PeerRole;
-    if !session.is_some_and(|s| s.role == PeerRole::Host) {
+    // VERSUS only. The spell shield is a duel mechanic — it must NOT appear in
+    // endless/roguelite, including CO-OP endless/roguelite (where the host holds
+    // a co-op session but plays the single-player battlefield). Single-player has
+    // no session, so it's already excluded.
+    if !session.is_some_and(|s| s.role == PeerRole::Host && !s.is_coop()) {
         return;
     }
 

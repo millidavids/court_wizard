@@ -509,6 +509,12 @@ pub(crate) struct RogueliteRun {
     /// True if accessibility assists (game speed != 1.0 or aim assist) were active.
     #[serde(default)]
     pub(crate) accessibility_assists: bool,
+    /// True if a co-op partner was connected during this run.
+    #[serde(default)]
+    pub(crate) played_coop: bool,
+    /// Co-op partner's Steam display name (if Steam + co-op), else None.
+    #[serde(default)]
+    pub(crate) coop_peer_name: Option<String>,
 }
 
 /// Best stats achieved on a single endless level.
@@ -519,6 +525,12 @@ pub(crate) struct EndlessLevelBest {
     pub(crate) undead_killed: u32,
     pub(crate) defenders_lost: u32,
     pub(crate) elapsed_time: f32,
+    /// True if a co-op partner was connected when this best was set.
+    #[serde(default)]
+    pub(crate) played_coop: bool,
+    /// Co-op partner's Steam display name (if Steam + co-op), else None.
+    #[serde(default)]
+    pub(crate) coop_peer_name: Option<String>,
 }
 
 // Encoding helpers moved to save_encoding.rs (Phase 11)
@@ -1022,9 +1034,14 @@ pub(crate) fn get_endless_best_stats(level: u32) -> Option<EndlessLevelBest> {
 }
 
 /// Update the best stats for an endless level if the current efficiency beats the stored best.
+///
+/// `coop` tags the entry when a co-op partner was connected; `coop_peer_name` is
+/// their Steam display name (if known).
 pub(crate) fn update_endless_best_stats(
     active_save: &ActiveSave,
     stats: &crate::game::game_mode::components::LevelRunStats,
+    coop: bool,
+    coop_peer_name: Option<String>,
 ) {
     let Some(wizard_id) = &active_save.0 else {
         return;
@@ -1048,8 +1065,94 @@ pub(crate) fn update_endless_best_stats(
                     undead_killed: stats.undead_killed,
                     defenders_lost: stats.defenders_lost,
                     elapsed_time: stats.elapsed_time,
+                    played_coop: coop,
+                    coop_peer_name,
                 },
             );
+        }
+    }
+
+    save_unified(&save_file);
+}
+
+/// Records a co-op GUEST's endless result against their OWN wizard's save,
+/// matched BY WIZARD TYPE (not the active save, which after a co-op match points
+/// at a possibly-different wizard). Tags the entry as co-op and applies the
+/// endless CONTIGUITY rule: the guest's frontier advances ONLY when this co-op
+/// level is exactly their next level — joining a higher level and winning records
+/// the result but does NOT skip them ahead. No-op (safe) if the guest has no save
+/// for that wizard type, so it can never create or corrupt an unrelated save.
+/// Records a co-op GUEST's level-end against their OWN save in a SINGLE load+save:
+/// lifetime counters (games played, kill totals, and — on victory — levels
+/// completed) plus, for an endless victory, the per-wizard endless best-stats with
+/// the contiguity rule (frontier advances only when this is exactly their next
+/// level). The per-wizard part is matched BY WIZARD TYPE and is a no-op if the
+/// guest has no save for that wizard, so it can never corrupt an unrelated save.
+/// `efficiency` is clamped to `[0, 1]`: a full wipe also kills the King's Guard,
+/// which can push raw defender losses past the initial army size and make the raw
+/// formula go negative.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn record_coop_guest_level_end(
+    guest_wizard: crate::config::WizardType,
+    is_endless: bool,
+    victory: bool,
+    level: u32,
+    defenders_killed: u32,
+    attackers_killed: u32,
+    undead_killed: u32,
+    efficiency: f32,
+    elapsed_time: f32,
+    coop_peer_name: Option<String>,
+) {
+    let Some(mut save_file) = load_unified_save() else {
+        return;
+    };
+
+    // Lifetime counters (player-wide, every co-op mode, win or lose) — mirrors the
+    // host's `send_battle_ended` accounting so shared activity counts for both.
+    save_file.player.total_games_played += 1;
+    save_file.player.total_defenders_killed += defenders_killed;
+    save_file.player.total_attackers_killed += attackers_killed;
+    save_file.player.total_undead_killed += undead_killed;
+    if victory {
+        save_file.player.total_levels_completed += 1;
+    }
+
+    // Per-wizard endless progression (endless victories only).
+    if is_endless
+        && victory
+        && let Some(wizard) = save_file
+            .wizards
+            .iter_mut()
+            .find(|w| w.wizard_type == guest_wizard)
+    {
+        let efficiency = efficiency.clamp(0.0, 1.0);
+        let key = level.to_string();
+        let should_update = wizard
+            .endless_best_stats
+            .get(&key)
+            .is_none_or(|existing| efficiency > existing.best_efficiency);
+        if should_update {
+            wizard.endless_best_stats.insert(
+                key,
+                EndlessLevelBest {
+                    best_efficiency: efficiency,
+                    attackers_killed,
+                    undead_killed,
+                    defenders_lost: defenders_killed,
+                    elapsed_time,
+                    played_coop: true,
+                    coop_peer_name,
+                },
+            );
+        }
+        // Contiguity: advance the guest's own frontier only if they cleared
+        // their OWN next level.
+        if level == wizard.current_level {
+            wizard.current_level = level + 1;
+            if wizard.highest_level_achieved < wizard.current_level {
+                wizard.highest_level_achieved = wizard.current_level;
+            }
         }
     }
 

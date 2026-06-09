@@ -109,15 +109,7 @@ pub fn is_multiplayer_guest(session: Option<Res<MultiplayerSession>>) -> bool {
 }
 
 /// Returns true when the active session is a co-op (endless/roguelite) match.
-// Wired as a run condition in WS5/WS7 (host networking gate widening + the
-// co-op attacker-effectiveness buff); kept here so both land on one predicate.
-#[allow(dead_code)]
+/// Wired as a run condition for the co-op attacker-effectiveness buff.
 pub fn is_coop_session(session: Option<Res<MultiplayerSession>>) -> bool {
     session.is_some_and(|s| s.is_coop())
-}
-
-/// Returns true when the active session is a versus duel.
-#[allow(dead_code)]
-pub fn is_versus_session(session: Option<Res<MultiplayerSession>>) -> bool {
-    session.is_some_and(|s| !s.is_coop())
 }

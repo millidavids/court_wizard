@@ -162,6 +162,7 @@ pub fn init_mp_loading(
     mut commands: Commands,
     session: Res<MultiplayerSession>,
     game_seed: Res<GameSeed>,
+    coop_level: Option<Res<crate::game::multiplayer::coop::CoopGuestLevel>>,
     mut config: ResMut<GameConfig>,
 ) {
     commands.insert_resource(MpLoadingSync::default());
@@ -172,6 +173,17 @@ pub fn init_mp_loading(
         previous_current_level: config.current_level,
     });
 
+    // Co-op builds the SINGLE-PLAYER battlefield shell (one castle, no armies —
+    // the host streams its army as ghosts), at the HOST's level so the seeded
+    // terrain matches the host's SP loader, and WITHOUT the mirrored forest.
+    // Versus builds the mirrored two-castle arena at a fixed terrain level.
+    let coop = session.is_coop();
+    let terrain_level = if coop {
+        coop_level.map(|l| l.0).unwrap_or(MP_TERRAIN_LEVEL)
+    } else {
+        MP_TERRAIN_LEVEL
+    };
+
     // Seed the deterministic terrain generators with the host-shared seed.
     config.seed = Some(game_seed.0);
     // `generate_flora_positions` reads `config.current_level` for its seed
@@ -180,7 +192,7 @@ pub fn init_mp_loading(
     // clients would generate different flora — which cascades into different
     // boulder/tree/bush/pond placements (those generators consult saved_flora
     // for obstacle avoidance).
-    config.current_level = MP_TERRAIN_LEVEL;
+    config.current_level = terrain_level;
 
     // Wipe any cached terrain (left over from a prior single-player run) so
     // the generators produce fresh content keyed off the MP seed.
@@ -195,16 +207,20 @@ pub fn init_mp_loading(
     crate::game::terrain::flora::systems::generate_flora_positions(&mut config);
     crate::game::loading::terrain_generation::generate_terrain(
         &mut config,
-        MP_TERRAIN_LEVEL,
+        terrain_level,
         1.0,
-        true, // multiplayer: mirror the forest band to the opposite side
+        !coop, // versus mirrors the forest band; co-op uses the SP single-side layout
     );
 
     let mut queue = MpSpawnQueue::new();
 
     // Static world.
     queue.tasks.push(MpSpawnTask::Battlefield);
-    queue.tasks.push(MpSpawnTask::Castle2);
+    // Co-op shares the host's single castle; only versus has the opposite-corner
+    // Castle 2.
+    if !coop {
+        queue.tasks.push(MpSpawnTask::Castle2);
+    }
     queue.tasks.push(MpSpawnTask::PathfindingGrid);
 
     // Terrain — one task per element, mirroring single-player's queue layout.
@@ -406,6 +422,7 @@ pub fn process_mp_spawn_queue(
                     session.host_wizard,
                     session.role,
                     true,
+                    session.is_coop(),
                     assets,
                 );
             }
@@ -414,14 +431,22 @@ pub fn process_mp_spawn_queue(
                     spawn_queue.tasks.insert(0, MpSpawnTask::GuestWizard);
                     break;
                 };
+                // Co-op: the guest stands beside the host (`WIZARD_COOP_POSITION`,
+                // same camera). Versus: the mirrored opposite corner.
+                let guest_pos = if session.is_coop() {
+                    WIZARD_COOP_POSITION
+                } else {
+                    WIZARD_2_POSITION
+                };
                 spawn_mp_wizard(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
-                    WIZARD_2_POSITION,
+                    guest_pos,
                     session.guest_wizard,
                     session.role,
                     false,
+                    session.is_coop(),
                     assets,
                 );
             }
@@ -583,11 +608,15 @@ pub fn process_mp_spawn_queue(
                     spawn_queue.tasks.insert(0, MpSpawnTask::Cauldron);
                     break;
                 };
-                // Place the cauldron beside the LOCAL wizard: host at
-                // CAULDRON_POSITION, guest at the mirrored CAULDRON_2_POSITION
-                // (otherwise the guest's cauldron sits at the host's castle).
+                // Place the cauldron beside the LOCAL wizard. Versus guest: the
+                // mirrored corner (`CAULDRON_2_POSITION`). Co-op guest: beside the
+                // host (`CAULDRON_COOP_POSITION`). Host (versus): `CAULDRON_POSITION`.
                 let cauldron_pos = if session.role == PeerRole::Guest {
-                    crate::game::cauldron::constants::CAULDRON_2_POSITION
+                    if session.is_coop() {
+                        crate::game::cauldron::constants::CAULDRON_COOP_POSITION
+                    } else {
+                        crate::game::cauldron::constants::CAULDRON_2_POSITION
+                    }
                 } else {
                     crate::game::cauldron::constants::CAULDRON_POSITION
                 };

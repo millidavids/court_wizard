@@ -291,7 +291,7 @@ pub(super) fn trigger_wizard_tower_tab_tutorial(
         WizardTowerTab::Roguelite => TutorialId::RogueliteTabIntro,
         WizardTowerTab::Endless => TutorialId::EndlessTabIntro,
         WizardTowerTab::Study => TutorialId::StudyTabIntro,
-        WizardTowerTab::Multiplayer => return,
+        WizardTowerTab::Multiplayer | WizardTowerTab::Vs => return,
     };
     try_start_tutorial(
         &mut commands,

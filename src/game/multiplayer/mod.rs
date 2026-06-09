@@ -5,6 +5,7 @@
 //! its own systems under `AppState::MultiplayerGame`.
 
 pub(crate) mod components;
+pub(crate) mod coop;
 pub(in crate::game) mod crdt_sync;
 pub(in crate::game) mod excremage_theming;
 pub(in crate::game) mod guest_snapshot;

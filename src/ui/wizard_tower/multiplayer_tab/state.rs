@@ -176,3 +176,23 @@ pub(crate) fn load_my_unlocked_content() -> (Vec<WizardType>, Vec<Spell>) {
         .unwrap_or_else(|| vec![WizardType::BoringOleMage]);
     (wizard_types, Spell::all().to_vec())
 }
+
+/// Returns the connected co-op partner's chosen wizard IF this peer is the HOST
+/// and connected (the lobby reached wizard-select). Used by the Endless/Roguelite
+/// tabs to launch a co-op match when the host starts a game with a guest present.
+pub(crate) fn connected_coop_guest_wizard(
+    connection: &crate::networking::resources::NetworkConnection,
+    lobby: Option<&MultiplayerLobby>,
+) -> Option<WizardType> {
+    use crate::networking::resources::{ConnectionState, PeerRole};
+    if connection.state != ConnectionState::Connected || connection.role != Some(PeerRole::Host) {
+        return None;
+    }
+    match lobby?.phase {
+        LobbyPhase::WizardSelect {
+            opponent_wizard: Some(w),
+            ..
+        } => Some(w),
+        _ => None,
+    }
+}

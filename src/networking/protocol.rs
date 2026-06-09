@@ -55,8 +55,8 @@ use crate::game::units::wizard::components::Spell;
 /// - 10: co-op mode. `StartGame` gains `coop_mode: Option<u8>` (None = versus,
 ///   Some(SessionMode ordinal) = co-op) and `level: u32` (the host's endless/
 ///   roguelite level, ignored in versus). Adds the co-op lifecycle messages
-///   `CoopLevelOver` / `CoopNextLevel` / `CoopRunEnded` — appended AFTER
-///   `Forfeit` to keep every prior wire index frozen.
+///   `CoopLevelOver` / `CoopRunEnded` — appended AFTER `Forfeit` to keep every
+///   prior wire index frozen.
 pub const PROTOCOL_VERSION: u32 = 10;
 
 /// Messages sent over the reliable WebRTC data channel between peers.
@@ -290,14 +290,12 @@ pub enum NetworkMessage {
         defenders_killed: u32,
         attackers_killed: u32,
         undead_killed: u32,
+        /// Wall-clock duration of the level, so the guest records a real
+        /// `elapsed_time` in its own endless best-stats instead of 0.
+        elapsed_time: f32,
         host_spell_damage: f32,
         host_spell_healing: f32,
     },
-
-    /// Host → guest: advance to the next co-op level. Carries the next level's
-    /// seed + number so the guest rebuilds matching seeded terrain on re-entry
-    /// to `MultiplayerLoading`.
-    CoopNextLevel { seed: u64, level: u32 },
 
     /// Host → guest: the co-op run/session ended (roguelite run finished, or an
     /// endless defeat). The guest finalizes its own save record and returns to

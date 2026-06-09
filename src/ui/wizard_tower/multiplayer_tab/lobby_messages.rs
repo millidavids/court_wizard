@@ -159,9 +159,13 @@ pub(crate) fn process_lobby_messages(
                         // Seed the shared RNG from the host's seed so both
                         // peers produce identical randomness.
                         insert_game_rng(&mut commands, seed);
-                        // WS4 consumes `_level` for co-op so the guest's seeded
-                        // terrain matches the host's endless/roguelite level.
-                        let _level = level;
+                        // Co-op: remember the host's level so `init_mp_loading`
+                        // generates matching seeded terrain.
+                        if mode != SessionMode::Versus {
+                            commands.insert_resource(
+                                crate::game::multiplayer::coop::CoopGuestLevel(level),
+                            );
+                        }
                         next_app_state.set(AppState::MultiplayerLoading);
                     } else {
                         warn!("[MP Lobby] Ignoring StartGame received outside wizard select");

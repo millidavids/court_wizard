@@ -40,17 +40,23 @@ pub(crate) enum WizardTowerTab {
     #[default]
     Endless,
     Roguelite,
-    Study,
+    /// Peer-to-peer connection screen (host/join + connected status).
     Multiplayer,
+    /// 1v1 duel setup (wizard pick + ready + start). Disabled until connected.
+    Vs,
+    Study,
 }
 
 impl WizardTowerTab {
     pub fn all() -> &'static [WizardTowerTab] {
+        // Study is last so it can be right-justified (separated from the
+        // game-mode tabs) by a flex spacer inserted before it in the tab row.
         &[
             WizardTowerTab::Endless,
             WizardTowerTab::Roguelite,
-            WizardTowerTab::Study,
             WizardTowerTab::Multiplayer,
+            WizardTowerTab::Vs,
+            WizardTowerTab::Study,
         ]
     }
 
@@ -60,12 +66,15 @@ impl WizardTowerTab {
             WizardTowerTab::Endless => "Endless",
             WizardTowerTab::Study => "Study",
             WizardTowerTab::Multiplayer => "Multiplayer",
+            WizardTowerTab::Vs => "VS",
         }
     }
 
-    /// Whether this tab is disabled and cannot be clicked.
+    /// Whether this tab is disabled at spawn time. The VS tab is gated on a live
+    /// connection — `update_tab_active_state` toggles `DisabledTab` on it as the
+    /// connection state changes — but it starts disabled (no connection yet).
     pub fn is_disabled(&self) -> bool {
-        false
+        matches!(self, WizardTowerTab::Vs)
     }
 }
 
@@ -108,18 +117,47 @@ pub(crate) struct DisabledTab;
 // Layout setup
 // ---------------------------------------------------------------------------
 
-/// Spawns the full wizard tower tabbed layout.
-///
-/// ```text
-/// +---------------------------------------------------------------+
-/// | [Endless] [Roguelite] [Study] [Multiplayer*]       [<- Back]  |
-/// +--------------------+------------------------------------------+
-/// |                    |                                            |
-/// |   Left Panel       |       Right Panel                         |
-/// |   (33% width)      |       (67% width)                         |
-/// |                    |                                            |
-/// +--------------------+------------------------------------------+
-/// ```
+/// Marker for the header "<name> connected" badge (shown while a multiplayer
+/// connection is live). Updated by [`update_mp_connected_indicator`].
+#[derive(Component)]
+pub(crate) struct MpConnectedIndicator;
+
+/// Shows/updates the header multiplayer-connected badge: hidden when
+/// disconnected; green "`<steam name>` connected" (or generic "MP connected")
+/// when a connection is live.
+pub(crate) fn update_mp_connected_indicator(
+    connection: Res<crate::networking::resources::NetworkConnection>,
+    peer_info: Option<Res<crate::game::multiplayer::coop::CoopPeerInfo>>,
+    mut query: Query<(&mut Text, &mut Visibility), With<MpConnectedIndicator>>,
+) {
+    let connected = connection.state == crate::networking::resources::ConnectionState::Connected;
+    let want_vis = if connected {
+        Visibility::Inherited
+    } else {
+        Visibility::Hidden
+    };
+    for (mut text, mut visibility) in &mut query {
+        // Write through Bevy change-detection only when the value actually changes,
+        // so this every-frame system doesn't dirty the node (and re-layout) each tick.
+        if *visibility != want_vis {
+            *visibility = want_vis;
+        }
+        if connected {
+            let desired = peer_info
+                .as_ref()
+                .and_then(|p| p.name.clone())
+                .map(|n| format!("{n} connected"))
+                .unwrap_or_else(|| "MP connected".to_string());
+            if text.0 != desired {
+                text.0 = desired;
+            }
+        }
+    }
+}
+
+/// Spawns the full wizard tower tabbed layout. Tab row:
+/// `[Endless] [Roguelite] [Multiplayer] [VS] ........... [Study]   [<- Back]`
+/// (Study is right-justified; VS is disabled until a connection is live).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn setup_wizard_tower_layout(
     mut commands: Commands,
@@ -234,6 +272,21 @@ pub(crate) fn setup_wizard_tower_layout(
                     TITLE_COLOR,
                     Node::default(),
                 );
+                // Small "<name> connected" badge — shown (green) while a
+                // multiplayer connection is live so the host can confirm the
+                // partner is present without opening the Multiplayer tab.
+                header.spawn((
+                    Text::new(""),
+                    TextFont::from_font_size(16.0),
+                    TextColor(crate::ui::constants::SUCCESS_COLOR),
+                    Visibility::Hidden,
+                    Node {
+                        margin: UiRect::left(Val::Px(16.0)),
+                        align_self: AlignSelf::Center,
+                        ..default()
+                    },
+                    MpConnectedIndicator,
+                ));
                 header.spawn(Node {
                     flex_grow: 1.0,
                     ..default()
@@ -309,6 +362,16 @@ pub(crate) fn setup_wizard_tower_layout(
                                 let initial_tab =
                                     existing_tab.as_deref().copied().unwrap_or_default();
                                 for tab in WizardTowerTab::all() {
+                                    // Push Study to the right edge of the row — it
+                                    // isn't a game-mode tab, so it gets visual
+                                    // separation from Endless/Roguelite/Multiplayer.
+                                    if *tab == WizardTowerTab::Study {
+                                        tab_row.spawn(Node {
+                                            flex_grow: 1.0,
+                                            ..default()
+                                        });
+                                    }
+
                                     let is_active = *tab == initial_tab;
                                     let is_disabled = tab.is_disabled();
 
@@ -530,7 +593,11 @@ pub(crate) fn rebuild_panels_on_tab_change(
         commands.init_resource::<super::super::wizard_cards::SelectedWizard>();
         // Hide the (MP-unsupported) Psychopath card when switching wizards from
         // the Multiplayer tab; SP tabs still show it.
-        let exclude_mp_unsupported = *tab == WizardTowerTab::Multiplayer;
+        // Wizard selection for multiplayer happens on the VS tab now; filter the
+        // grid to MP-supported wizards there (and on the connection tab, which
+        // can still open the grid). SP tabs show the full roster.
+        let exclude_mp_unsupported =
+            matches!(*tab, WizardTowerTab::Multiplayer | WizardTowerTab::Vs);
         super::super::wizard_cards::build_wizard_card_grid(
             &mut commands,
             right_entity,
@@ -607,10 +674,9 @@ pub(crate) fn rebuild_panels_on_tab_change(
             );
         }
         WizardTowerTab::Multiplayer => {
-            // Build the panels for the current lobby state. This covers tab
-            // switches and returning from the shared wizard-card grid;
-            // mid-tab lobby changes are handled by
-            // `rebuild_multiplayer_on_lobby_change` in plugin.rs.
+            // Connection screen only (host/join + connected status). The versus
+            // duel setup lives on the VS tab. Mid-tab lobby changes are handled
+            // by `rebuild_multiplayer_on_lobby_change` in plugin.rs.
             super::super::multiplayer_tab::panels::build_multiplayer_panels(
                 &mut commands,
                 left_entity,
@@ -618,6 +684,20 @@ pub(crate) fn rebuild_panels_on_tab_change(
                 &multiplayer.lobby,
                 &multiplayer.connection,
                 multiplayer.steam_client.is_some(),
+                false, // connection tab
+            );
+        }
+        WizardTowerTab::Vs => {
+            // 1v1 duel setup: wizard pick + ready + start (only meaningful once
+            // connected; otherwise it shows a "connect first" hint).
+            super::super::multiplayer_tab::panels::build_multiplayer_panels(
+                &mut commands,
+                left_entity,
+                right_entity,
+                &multiplayer.lobby,
+                &multiplayer.connection,
+                multiplayer.steam_client.is_some(),
+                true, // VS tab
             );
         }
     }
@@ -631,6 +711,7 @@ pub(crate) fn rebuild_panels_on_tab_change(
 pub(crate) fn update_tab_active_state(
     mut commands: Commands,
     tab: Res<WizardTowerTab>,
+    connection: Res<crate::networking::resources::NetworkConnection>,
     tab_buttons: Query<(
         Entity,
         &WizardTowerTabButton,
@@ -643,8 +724,31 @@ pub(crate) fn update_tab_active_state(
         (&mut BackgroundColor, &mut BorderColor),
         (With<ButtonFront>, Without<ButtonColors>),
     >,
+    mut tab_text: Query<&mut TextColor>,
 ) {
-    for (entity, tab_btn, children, _is_disabled, has_active) in &tab_buttons {
+    let connected = connection.state == crate::networking::resources::ConnectionState::Connected;
+    for (entity, tab_btn, children, is_disabled, has_active) in &tab_buttons {
+        // The VS tab is enabled only while connected — toggle `DisabledTab` and
+        // its label color as the connection comes and goes (runs before the
+        // active-state early-out below so a connection change is never missed).
+        if tab_btn.0 == WizardTowerTab::Vs && connected == is_disabled {
+            if connected {
+                commands.entity(entity).remove::<DisabledTab>();
+            } else {
+                commands.entity(entity).insert(DisabledTab);
+            }
+            let label_color = if connected {
+                TEXT_COLOR
+            } else {
+                DISABLED_TAB_TEXT
+            };
+            for child in children.iter() {
+                if let Ok(mut text_color) = tab_text.get_mut(child) {
+                    *text_color = TextColor(label_color);
+                }
+            }
+        }
+
         let is_active = tab_btn.0 == *tab;
 
         // Skip if the active/inactive state already matches

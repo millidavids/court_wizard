@@ -449,12 +449,33 @@ pub(super) fn handle_endless_actions(
     selected_tt_level: Option<Res<SelectedTimeTravelLevel>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
     mut right_panel_view: ResMut<RightPanelView>,
+    // Co-op: when a guest is connected, starting endless brings them along.
+    mut connection: ResMut<crate::networking::resources::NetworkConnection>,
+    lobby: Option<Res<super::multiplayer_tab::state::MultiplayerLobby>>,
     #[cfg(debug_assertions)] mut level_display: Query<&mut Text, With<LevelDisplay>>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = action_query.get(event.button) {
             match action {
                 EndlessAction::ContinuePlay => {
+                    // Co-op: if connected as host with a guest who picked a wizard,
+                    // launch this endless game as co-op — `start_coop_host` inserts
+                    // the pending session, seeds terrain, and pulls the guest in via
+                    // `StartGame`. (Roguelite uses the same helpers.)
+                    if let Some(guest_wizard) =
+                        super::multiplayer_tab::state::connected_coop_guest_wizard(
+                            &connection,
+                            lobby.as_deref(),
+                        )
+                    {
+                        crate::game::multiplayer::coop::start_coop_host(
+                            &mut commands,
+                            &mut connection,
+                            &mut config,
+                            guest_wizard,
+                            crate::networking::session::SessionMode::CoopEndless,
+                        );
+                    }
                     commands.insert_resource(GameMode::Endless);
                     channel_change.write(ChannelChangeMessage);
                     kill_stats.reset();

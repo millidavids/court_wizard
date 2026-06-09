@@ -24,8 +24,7 @@ pub const CAULDRON_2_POSITION: Vec3 = Vec3::new(
 /// Cauldron position for the **co-op guest**, beside `WIZARD_COOP_POSITION`.
 /// Uses the SAME offset direction as the host's `CAULDRON_OFFSET` (not mirrored)
 /// because the co-op guest stands beside the host on the shared battlefield.
-// Referenced by the co-op guest cauldron spawn in WS4 (co-op SP-shell loading).
-#[allow(dead_code)]
+/// Referenced by the co-op guest cauldron spawn (co-op SP-shell loading).
 pub const CAULDRON_COOP_POSITION: Vec3 = Vec3::new(
     WIZARD_COOP_POSITION.x + CAULDRON_OFFSET.x,
     WIZARD_COOP_POSITION.y + CAULDRON_OFFSET.y,

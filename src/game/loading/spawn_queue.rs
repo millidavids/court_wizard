@@ -53,6 +53,11 @@ pub enum SpawnTask {
     Battlefield,
     Castle,
     Wizard,
+    /// Co-op: the guest's wizard proxy, spawned beside the host on the shared
+    /// battlefield (only enqueued when a co-op host session is active).
+    CoopGuestWizard {
+        guest_wizard: crate::config::WizardType,
+    },
     LoadWizardAssets,
     LoadCauldronAssets,
     Cauldron,
@@ -106,6 +111,7 @@ impl SpawnTask {
         matches!(
             self,
             SpawnTask::Wizard
+                | SpawnTask::CoopGuestWizard { .. }
                 | SpawnTask::Cauldron
                 | SpawnTask::SelectInfantryUpgrades
                 | SpawnTask::SelectArcherUpgrades

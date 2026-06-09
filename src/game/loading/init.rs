@@ -23,6 +23,7 @@ pub fn init_loading_progress(
     roguelite_modifiers: Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
     active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
     attrition_state: Option<Res<crate::game::game_mode::components::AttritionState>>,
+    coop_pending: Option<Res<crate::game::multiplayer::coop::CoopPendingSession>>,
 ) {
     // Sync CurrentLevel from GameConfig, but skip during time travel
     // (CurrentLevel was already overridden by the wizard tower hub)
@@ -34,6 +35,30 @@ pub fn init_loading_progress(
     // resets kill_stats, and any stale values get re-accumulated into lifetime totals
     // by send_battle_ended.
     kill_stats.reset();
+
+    // Co-op host: the wizard-tower start flow left a `CoopPendingSession` when
+    // launching this endless/roguelite level with a guest connected. Promote it
+    // to a real host `MultiplayerSession` (before the battlefield is built) so the
+    // networking layer treats this InGame match as co-op, enqueue the guest's
+    // wizard proxy, and stand up the load handshake. Each endless/roguelite level
+    // loops through the tower, so this runs fresh per co-op level.
+    let coop_guest_wizard = coop_pending.as_deref().map(|pending| {
+        commands.insert_resource(crate::networking::session::MultiplayerSession {
+            role: crate::networking::resources::PeerRole::Host,
+            mode: pending.mode,
+            host_wizard: config.wizard_type,
+            guest_wizard: pending.guest_wizard,
+            host_spells: Vec::new(),
+            guest_spells: pending.guest_spells.clone(),
+        });
+        pending.guest_wizard
+    });
+    if coop_guest_wizard.is_some() {
+        commands.remove_resource::<crate::game::multiplayer::coop::CoopPendingSession>();
+        // Stand up the "both peers loaded" handshake so the host (loading on this
+        // single-player path) waits for the guest before entering the match.
+        commands.insert_resource(crate::game::multiplayer::coop::CoopLoadingSync::default());
+    }
 
     let mut queue = SpawnQueue::new();
     let level = current_level.0;
@@ -333,6 +358,13 @@ pub fn init_loading_progress(
 
     // 12. Wizard (controls spells)
     queue.tasks.push_back(SpawnTask::Wizard);
+
+    // 12b. Co-op: the guest's wizard proxy, beside the host on the shared wall.
+    if let Some(guest_wizard) = coop_guest_wizard {
+        queue
+            .tasks
+            .push_back(SpawnTask::CoopGuestWizard { guest_wizard });
+    }
 
     // 13. Load cauldron assets (texture for sprite sheet)
     queue.tasks.push_back(SpawnTask::LoadCauldronAssets);

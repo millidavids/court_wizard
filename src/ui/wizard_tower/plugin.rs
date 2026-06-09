@@ -86,6 +86,7 @@ impl Plugin for WizardTowerPlugin {
                         ),
                     super::layout::update_tab_active_state
                         .run_if(resource_exists::<WizardTowerTab>),
+                    super::layout::update_mp_connected_indicator,
                     handle_scroll::<super::layout::WizardTowerLeftPanel>,
                     handle_scroll::<super::layout::WizardTowerRightPanel>,
                     handle_scroll::<super::wizard_cards::WizardCardScrollContainer>,
@@ -383,7 +384,9 @@ fn multiplayer_tab_active(
     tab: Option<Res<WizardTowerTab>>,
     view: Option<Res<RightPanelView>>,
 ) -> bool {
-    tab.is_some_and(|t| *t == WizardTowerTab::Multiplayer)
+    // Both the connection (Multiplayer) tab and the VS tab render lobby-driven
+    // content, so a lobby/connection change must rebuild either one.
+    tab.is_some_and(|t| matches!(*t, WizardTowerTab::Multiplayer | WizardTowerTab::Vs))
         && view.is_some_and(|v| *v == RightPanelView::TabContent)
 }
 
@@ -404,6 +407,7 @@ fn rebuild_multiplayer_on_lobby_change(
     lobby: Res<MultiplayerLobby>,
     connection: Res<NetworkConnection>,
     steam_client: Option<Res<bevy_steamworks::Client>>,
+    tab: Option<Res<WizardTowerTab>>,
 ) {
     let Ok(left_entity) = left_panel.single() else {
         return;
@@ -415,6 +419,7 @@ fn rebuild_multiplayer_on_lobby_change(
     commands.entity(left_entity).despawn_related::<Children>();
     commands.entity(right_entity).despawn_related::<Children>();
 
+    let for_vs_tab = tab.is_some_and(|t| *t == WizardTowerTab::Vs);
     super::multiplayer_tab::panels::build_multiplayer_panels(
         &mut commands,
         left_entity,
@@ -422,5 +427,6 @@ fn rebuild_multiplayer_on_lobby_change(
         &lobby,
         &connection,
         steam_client.is_some(),
+        for_vs_tab,
     );
 }

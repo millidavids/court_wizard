@@ -24,6 +24,7 @@ use super::state::{LobbyPhase, MultiplayerLobby};
 ///
 /// The caller (`rebuild_panels_on_tab_change` or `rebuild_multiplayer_on_lobby_change`)
 /// has already despawned existing children from both panels.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_multiplayer_panels(
     commands: &mut Commands,
     left_entity: Entity,
@@ -31,6 +32,8 @@ pub(crate) fn build_multiplayer_panels(
     lobby: &MultiplayerLobby,
     connection: &NetworkConnection,
     steam_available: bool,
+    // `false` → the Multiplayer (connection) tab; `true` → the VS (duel-setup) tab.
+    for_vs_tab: bool,
 ) {
     // The right panel node has no padding of its own (unlike the left panel,
     // which is padded in `layout/setup.rs`). Wrap content in a padded column
@@ -47,51 +50,52 @@ pub(crate) fn build_multiplayer_panels(
     commands.entity(right_entity).add_child(right_inner);
     let right_entity = right_inner;
 
-    match &lobby.phase {
-        LobbyPhase::Connect => {
-            build_connect(
-                commands,
-                right_entity,
-                connection,
-                lobby.use_relay,
-                steam_available,
-            );
+    if for_vs_tab {
+        // VS tab: the 1v1 duel setup, meaningful only once connected (the lobby
+        // reaches `WizardSelect`). Otherwise a "connect first" hint (the tab is
+        // normally disabled until connected, so this is just a safety fallback).
+        match &lobby.phase {
+            LobbyPhase::WizardSelect {
+                my_wizard,
+                opponent_wizard,
+                my_ready,
+                opponent_ready,
+                ..
+            } => {
+                build_wizard_select_left(
+                    commands,
+                    left_entity,
+                    *my_wizard,
+                    *opponent_wizard,
+                    *my_ready,
+                    *opponent_ready,
+                    connection,
+                );
+                build_wizard_select_right(commands, right_entity, *my_wizard, *my_ready);
+            }
+            _ => build_not_connected_hint(commands, right_entity),
         }
-        LobbyPhase::Hosting => {
-            build_hosting(commands, right_entity, connection);
-        }
-        LobbyPhase::Joining => {
-            build_joining(commands, right_entity, lobby);
-        }
-        LobbyPhase::SteamHosting => {
-            build_steam_hosting(commands, right_entity);
-        }
-        LobbyPhase::SteamJoining => {
-            build_steam_joining(commands, right_entity);
-        }
-        LobbyPhase::Handshake => {
-            build_handshake(commands, right_entity, connection);
-        }
-        LobbyPhase::WizardSelect {
-            my_wizard,
-            opponent_wizard,
-            my_ready,
-            opponent_ready,
-            ..
-        } => {
-            build_wizard_select_left(
-                commands,
-                left_entity,
-                *my_wizard,
-                *opponent_wizard,
-                *my_ready,
-                *opponent_ready,
-                connection,
-            );
-            build_wizard_select_right(commands, right_entity, *my_wizard, *my_ready);
-        }
-        LobbyPhase::Failed { reason } => {
-            build_failed(commands, right_entity, reason);
+    } else {
+        // Multiplayer (connection) tab.
+        match &lobby.phase {
+            LobbyPhase::Connect => {
+                build_connect(
+                    commands,
+                    right_entity,
+                    connection,
+                    lobby.use_relay,
+                    steam_available,
+                );
+            }
+            LobbyPhase::Hosting => build_hosting(commands, right_entity, connection),
+            LobbyPhase::Joining => build_joining(commands, right_entity, lobby),
+            LobbyPhase::SteamHosting => build_steam_hosting(commands, right_entity),
+            LobbyPhase::SteamJoining => build_steam_joining(commands, right_entity),
+            LobbyPhase::Handshake => build_handshake(commands, right_entity, connection),
+            // Connected — the duel setup moved to the VS tab; co-op starts from
+            // the Endless/Roguelite tabs.
+            LobbyPhase::WizardSelect { .. } => build_connected_info(commands, right_entity),
+            LobbyPhase::Failed { reason } => build_failed(commands, right_entity, reason),
         }
     }
 
@@ -108,6 +112,50 @@ pub(crate) fn build_multiplayer_panels(
             ));
         });
     }
+}
+
+/// Connection tab, while connected: point the player at the VS tab (duels) or
+/// the game-mode tabs (co-op).
+fn build_connected_info(commands: &mut Commands, right_entity: Entity) {
+    commands.entity(right_entity).with_children(|p| {
+        p.spawn((
+            Text::new("Connected!"),
+            TextFont::from_font_size(super::panel_styles::HEADING_FONT_SIZE),
+            TextColor(crate::ui::constants::SUCCESS_COLOR),
+        ));
+        p.spawn((
+            Text::new(
+                "Open the VS tab to start a duel, or pick Endless / Roguelite to play co-op together.",
+            ),
+            TextFont::from_font_size(super::panel_styles::BODY_FONT_SIZE),
+            TextColor(crate::ui::constants::TEXT_MUTED),
+            Node {
+                margin: UiRect::top(Val::Px(8.0)),
+                ..default()
+            },
+        ));
+    });
+}
+
+/// VS tab, when not connected (safety fallback — the tab is normally disabled
+/// until a connection is live).
+fn build_not_connected_hint(commands: &mut Commands, right_entity: Entity) {
+    commands.entity(right_entity).with_children(|p| {
+        p.spawn((
+            Text::new("Not connected"),
+            TextFont::from_font_size(super::panel_styles::HEADING_FONT_SIZE),
+            TextColor(crate::ui::constants::TEXT_MUTED),
+        ));
+        p.spawn((
+            Text::new("Connect to a friend on the Multiplayer tab first, then set up a duel here."),
+            TextFont::from_font_size(super::panel_styles::BODY_FONT_SIZE),
+            TextColor(crate::ui::constants::TEXT_MUTED),
+            Node {
+                margin: UiRect::top(Val::Px(8.0)),
+                ..default()
+            },
+        ));
+    });
 }
 
 pub(super) fn spawn_ping_row(parent: &mut ChildSpawnerCommands, ping_ms: f32) {

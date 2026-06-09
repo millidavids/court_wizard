@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Added
+- **New Co-op mode** — invite a friend to fight alongside you. A second wizard joins your Endless and Roguelite battles on the castle wall, with their own spellbook and brewing cauldron, and you both defend the same king against the same waves. Your potion boosts stack, and the things you do together count toward each of your own progress and achievements.
+- **"Connected" badge in the Wizard Tower** — a small green badge at the top shows when a friend is connected, with their name when you're playing through Steam.
+
+### Changed
+- **Reorganized the Wizard Tower's multiplayer screens** — the Multiplayer tab is now just the connection screen, there's a separate **VS** tab for head-to-head duels that unlocks once you're connected, and the Study button is set off to the side.
+- **Enemies hit a little harder in co-op** — while a partner is helping you in an Endless or Roguelite battle, the attackers fight more effectively. The boost lifts the moment your partner leaves.
+- **Co-op battles keep going if your partner drops** — if your friend disconnects mid-battle, the fight continues on your own and they can rejoin at the next level. (Head-to-head duels still end when someone disconnects.)
+- **Your battles remember when you played with a friend** — Endless levels and Roguelite runs now record whether you played co-op, and who with.
+
 ## [v0.9.2] - 2026-06-04
 
 ### Added

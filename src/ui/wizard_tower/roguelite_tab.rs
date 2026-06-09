@@ -1041,6 +1041,9 @@ pub(super) fn handle_roguelite_action(
     active_toggles: Option<Res<ActiveToggles>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
     mut config_events: MessageWriter<ConfigChanged>,
+    // Co-op: when a guest is connected, starting/continuing a run brings them in.
+    mut connection: ResMut<crate::networking::resources::NetworkConnection>,
+    lobby: Option<Res<super::multiplayer_tab::state::MultiplayerLobby>>,
 ) {
     for event in button_clicked.read() {
         let Ok(action) = button_query.get(event.button) else {
@@ -1082,11 +1085,37 @@ pub(super) fn handle_roguelite_action(
 
                 config_events.write(ConfigChanged);
 
+                // Co-op: bring the connected guest into this roguelite run.
+                if let Some(gw) = super::multiplayer_tab::state::connected_coop_guest_wizard(
+                    &connection,
+                    lobby.as_deref(),
+                ) {
+                    crate::game::multiplayer::coop::start_coop_host(
+                        &mut commands,
+                        &mut connection,
+                        &mut config,
+                        gw,
+                        crate::networking::session::SessionMode::CoopRoguelite,
+                    );
+                }
+
                 // Transition to loading
                 next_app_state.set(AppState::Loading);
             }
             RogueliteAction::ContinueRun => {
                 channel_change.write(ChannelChangeMessage);
+                if let Some(gw) = super::multiplayer_tab::state::connected_coop_guest_wizard(
+                    &connection,
+                    lobby.as_deref(),
+                ) {
+                    crate::game::multiplayer::coop::start_coop_host(
+                        &mut commands,
+                        &mut connection,
+                        &mut config,
+                        gw,
+                        crate::networking::session::SessionMode::CoopRoguelite,
+                    );
+                }
                 next_app_state.set(AppState::Loading);
             }
             RogueliteAction::EndRun => {
@@ -1107,6 +1136,10 @@ pub(super) fn handle_roguelite_action(
                             .map(|t| t.to_ids())
                             .unwrap_or_default(),
                         accessibility_assists: config.has_accessibility_assists(),
+                        // Roguelite co-op tagging lands with multi-level co-op
+                        // continuation (WS6); co-op is single-level today.
+                        played_coop: false,
+                        coop_peer_name: None,
                     };
                     save_data::save_roguelite_run(&active_save, roguelite_run_data);
                 }

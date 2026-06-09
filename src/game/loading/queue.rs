@@ -85,6 +85,12 @@ pub fn process_spawn_queue(
     message_writers: (
         MessageWriter<ChannelChangeMessage>,
         MessageWriter<crate::game::pathfinding::messages::ObstacleChanged>,
+        // Co-op host: drives the "both peers loaded" handshake with the guest
+        // before entering the match (NetworkConnection is inert in SP/versus;
+        // CoopLoadingSync is absent unless this is a co-op host load). Bundled
+        // here to stay within Bevy's system-parameter count limit.
+        ResMut<crate::networking::resources::NetworkConnection>,
+        Option<ResMut<crate::game::multiplayer::coop::CoopLoadingSync>>,
     ),
     mut game_rng: ResMut<GameRng>,
 ) {
@@ -112,7 +118,7 @@ pub fn process_spawn_queue(
         boulder_assets,
         shadow_assets,
     ) = &shared_assets;
-    let (mut channel_change, mut obstacle_events) = message_writers;
+    let (mut channel_change, mut obstacle_events, mut connection, coop_sync) = message_writers;
 
     // Process tasks in bulk, breaking only when the next task needs deferred
     // commands from this frame to be flushed first (e.g., Select* tasks need
@@ -308,6 +314,25 @@ pub fn process_spawn_queue(
                         &mut meshes,
                         &mut materials,
                         &config,
+                        assets,
+                    );
+                }
+            }
+            SpawnTask::CoopGuestWizard { guest_wizard } => {
+                // Co-op: the guest's wizard proxy, beside the host on the shared
+                // battlefield. `role = Host, is_host_wizard = false` inserts the
+                // `GuestWizard` marker so the host processes the guest's spell
+                // commands against it.
+                if let Some(assets) = wizard_assets_opt {
+                    crate::game::multiplayer::spawning::spawn_mp_wizard(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        crate::game::constants::WIZARD_COOP_POSITION,
+                        guest_wizard,
+                        crate::networking::resources::PeerRole::Host,
+                        false,
+                        true, // co-op proxy → SP range
                         assets,
                     );
                 }
@@ -599,10 +624,53 @@ pub fn process_spawn_queue(
         }
     }
 
-    // Transition to InGame when all tasks are complete
+    // Transition to InGame when all tasks are complete.
     if spawn_queue.is_complete() {
-        channel_change.write(ChannelChangeMessage);
-        next_state.set(AppState::InGame);
+        if let Some(mut sync) = coop_sync {
+            // Co-op host: exchange `GameLoaded` with the guest (loading in
+            // MultiplayerLoading) before entering the match, so neither peer
+            // starts simulating/ghosting before both worlds exist.
+            use crate::networking::protocol::NetworkMessage;
+            use crate::networking::resources::ConnectionState;
+            if !sync.my_loaded {
+                sync.my_loaded = true;
+                connection
+                    .outgoing_messages
+                    .push(NetworkMessage::GameLoaded);
+            }
+            if connection
+                .incoming_messages
+                .iter()
+                .any(|m| matches!(m, NetworkMessage::GameLoaded))
+            {
+                connection
+                    .incoming_messages
+                    .retain(|m| !matches!(m, NetworkMessage::GameLoaded));
+                sync.peer_loaded = true;
+            }
+            // Enter the match once both peers have loaded AND the link is live.
+            let both_ready = sync.peer_loaded && connection.state == ConnectionState::Connected;
+            // …but if the guest drops during the handshake (Failed/Disconnected),
+            // DON'T hang forever waiting for a `GameLoaded` that will never come —
+            // the co-op design is "guest drops → host continues solo", and the
+            // host's SP-shell world is already fully built. Proceed into InGame
+            // alone; `init_coop_host` reads the dead connection and leaves
+            // `CoopGuestConnected` false (no +30% buff), and the guest can rejoin
+            // at the next level boundary. (`detect_mp_loading_disconnect` only
+            // covers `MultiplayerLoading`, which the co-op host never enters.)
+            let guest_gone = matches!(
+                connection.state,
+                ConnectionState::Failed | ConnectionState::Disconnected
+            );
+            if sync.my_loaded && (both_ready || guest_gone) {
+                commands.remove_resource::<crate::game::multiplayer::coop::CoopLoadingSync>();
+                channel_change.write(ChannelChangeMessage);
+                next_state.set(AppState::InGame);
+            }
+        } else {
+            channel_change.write(ChannelChangeMessage);
+            next_state.set(AppState::InGame);
+        }
     }
 }
 

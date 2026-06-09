@@ -10,7 +10,7 @@ use super::lobby_state::{SteamLobbyBridge, SteamLobbyState};
 use super::lobby_systems::{
     process_create_lobby_result, process_game_lobby_join_requested,
     process_game_rich_presence_join_requested, process_join_lobby_result,
-    process_lobby_chat_updates,
+    process_lobby_chat_updates, sync_coop_peer_name,
 };
 use super::sockets::{
     SteamP2pSocket, drive_steam_listen_socket, poll_steam_guest_connection_state,
@@ -42,6 +42,9 @@ impl Plugin for SteamMultiplayerPlugin {
                     drive_steam_listen_socket,
                     poll_steam_guest_connection_state,
                     steam_transport_bridge_system,
+                    // Only re-read the Steam persona name when the lobby state
+                    // changes — not every frame across the FFI boundary.
+                    sync_coop_peer_name.run_if(resource_changed::<SteamLobbyState>),
                 ),
             );
     }

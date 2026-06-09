@@ -384,3 +384,21 @@ pub(super) fn discard_stale_lobby(client: &Client, lobby_id: LobbyId) {
     client.matchmaking().leave_lobby(lobby_id);
     client.friends().clear_rich_presence();
 }
+
+/// Mirrors the connected Steam friend's persona name into `CoopPeerInfo` so the
+/// wizard-tower header and co-op save tagging can show "<name> connected".
+/// Cleared to `None` whenever we're not in a lobby (then the UI falls back to a
+/// generic "MP connected").
+pub(super) fn sync_coop_peer_name(
+    client: Res<Client>,
+    lobby_state: Res<SteamLobbyState>,
+    mut peer_info: ResMut<crate::game::multiplayer::coop::CoopPeerInfo>,
+) {
+    let name = match *lobby_state {
+        SteamLobbyState::Joined { peer, .. } => Some(client.friends().get_friend(peer).name()),
+        _ => None,
+    };
+    if peer_info.name != name {
+        peer_info.name = name;
+    }
+}

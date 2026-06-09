@@ -85,8 +85,10 @@ pub(super) fn spawn_castle(
 /// - Host wizard + Host role → `LocalWizard` (host controls this wizard)
 /// - Guest wizard + Guest role → `LocalWizard` (guest controls this wizard)
 /// - Guest wizard + Host role → `GuestWizard` (host simulates guest's spells)
+// `pub(in crate::game)` so the single-player loading queue can spawn the co-op
+// guest wizard proxy beside the host (co-op host runs the SP loading path).
 #[allow(clippy::too_many_arguments)]
-pub(super) fn spawn_mp_wizard(
+pub(in crate::game) fn spawn_mp_wizard(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
@@ -94,6 +96,7 @@ pub(super) fn spawn_mp_wizard(
     wizard_type: crate::config::WizardType,
     role: PeerRole,
     is_host_wizard: bool,
+    coop: bool,
     wizard_assets: &WizardAssets,
 ) {
     let hitbox = Hitbox::new(constants::HITBOX_RADIUS, constants::HITBOX_HEIGHT);
@@ -124,10 +127,16 @@ pub(super) fn spawn_mp_wizard(
     // intentionally omitted in MP to keep matches balanced.
     let mut wizard = Wizard::new(constants::DEFAULT_SPELL_RANGE);
     crate::game::units::wizard::systems::apply_archetype_stat_bonuses(&mut wizard, wizard_type);
-    // Multiplayer-only spell-range buff (+5% reach). Applies to every archetype.
-    // The Arcanorouter recomputes its range each frame in `apply_bonuses_to_wizard_stats`,
-    // which applies the same multiplier, so this spawn-time value is just its first frame.
-    wizard.spell_range *= constants::MP_SPELL_RANGE_MULTIPLIER;
+    // Versus-only spell-range buff (+5% reach). Applies to every archetype. Co-op
+    // plays on the single-player battlefield, so it keeps SP range to match
+    // single-player balance (and stay consistent with the co-op host's own wizard,
+    // which is spawned via the SP `setup_wizard` with no buff). The Arcanorouter
+    // recomputes its range each frame in `apply_bonuses_to_wizard_stats`, which
+    // applies the same versus-only multiplier, so this spawn-time value is just its
+    // first frame.
+    if !coop {
+        wizard.spell_range *= constants::MP_SPELL_RANGE_MULTIPLIER;
+    }
 
     let mut entity_commands = commands.spawn((
         Mesh3d(meshes.add(quad_mesh)),

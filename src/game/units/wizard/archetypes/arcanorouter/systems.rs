@@ -24,7 +24,9 @@ pub(super) fn update_allocations(
     kill_stats: Res<crate::game::resources::KillStats>,
     baseline: Option<Res<ArcanoRouterSetupBaseline>>,
 ) {
-    let in_setup = session.is_some()
+    // The setup-stage Range pin is VERSUS only — co-op (endless/roguelite) has
+    // no setup freeze, so its Range slider must stay adjustable from the start.
+    let in_setup = session.is_some_and(|s| !s.is_coop())
         && kill_stats.elapsed_time < crate::game::run_conditions::MP_SETUP_DURATION;
 
     for message in reader.read() {
@@ -78,9 +80,11 @@ pub(super) fn apply_bonuses_to_wizard_stats(
 ) {
     const BASE_SPELL_RANGE: f32 = 3000.0;
 
-    // Multiplayer grants every wizard +5% spell range. The Arcanorouter fully
-    // owns its range here, so the buff must be re-applied each recompute.
-    let mp_range_mult = if session.is_some() {
+    // Versus multiplayer grants every wizard +5% spell range. The Arcanorouter
+    // fully owns its range here, so the buff must be re-applied each recompute.
+    // Co-op plays on the single-player battlefield, so it keeps SP range (no buff)
+    // to match single-player balance.
+    let mp_range_mult = if session.is_some_and(|s| !s.is_coop()) {
         crate::game::units::wizard::constants::MP_SPELL_RANGE_MULTIPLIER
     } else {
         1.0

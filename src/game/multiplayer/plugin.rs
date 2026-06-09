@@ -8,11 +8,13 @@
 use bevy::prelude::*;
 
 use crate::game::plugin::PostCombatSet;
+use crate::game::run_conditions::is_gameplay_running;
 use crate::game::units::wizard::systems::cancel_active_casts;
-use crate::networking::session::{is_multiplayer_guest, is_multiplayer_host};
-use crate::state::{AppState, MultiplayerGameState};
+use crate::networking::session::{is_coop_session, is_multiplayer_guest, is_multiplayer_host};
+use crate::state::{AppState, InGameState, MultiplayerGameState};
 use crate::ui::plugin::ButtonActionSet;
 
+use super::coop;
 use super::crdt_sync;
 use super::guest_systems;
 use super::host_systems;
@@ -84,6 +86,45 @@ impl Plugin for MultiplayerGamePlugin {
         );
         app.add_systems(OnExit(AppState::MultiplayerGame), cleanup_mp_game);
 
+        // ── Co-op Host (runs in AppState::InGame, not MultiplayerGame) ───────
+        // The co-op host plays a native single-player endless/roguelite game, so
+        // it never enters MultiplayerGame and never runs `init_mp_game`. Stand up
+        // its networking resources on InGame enter, tear them down on exit. Each
+        // co-op level is an independent match (endless/roguelite loop via the
+        // tower); the CONNECTION is preserved across levels (the lobby reset skips
+        // co-op), so the host re-launches the next level from the tower. All
+        // self-gate on the co-op-host session (no-op in SP and for the guest).
+        app.init_resource::<coop::CoopPeerInfo>();
+        app.add_systems(OnEnter(AppState::InGame), coop::init_coop_host);
+        app.add_systems(OnExit(AppState::InGame), coop::cleanup_coop_host);
+        // +30% attacker effectiveness while a co-op guest is connected (cleared
+        // the instant they disconnect). Co-op host only.
+        app.add_systems(
+            Update,
+            coop::apply_coop_difficulty_buff.run_if(is_gameplay_running.and(coop::is_coop_host)),
+        );
+        // Graceful disconnect: if the guest drops, the host keeps playing solo
+        // and the +30% buff lifts (reconnect is a follow-up).
+        app.add_systems(
+            Update,
+            coop::detect_coop_guest_disconnect.run_if(is_gameplay_running.and(coop::is_coop_host)),
+        );
+        // Co-op level-end coordination: the host announces each level's result at
+        // its score screen; the in-place guest waits for the next level (or the
+        // run-ended message) via `receive_coop_lifecycle`.
+        app.add_systems(
+            OnEnter(InGameState::ScoreScreen),
+            coop::send_coop_level_over.run_if(coop::is_coop_host),
+        );
+        app.add_systems(
+            Update,
+            coop::receive_coop_lifecycle.run_if(
+                in_state(AppState::MultiplayerGame)
+                    .and(is_coop_session)
+                    .and(is_multiplayer_guest),
+            ),
+        );
+
         // ── Cancel casts on exit Running ─────────────────────────────
         // Reuses the SP cancel_active_casts system so both wizards'
         // CastingState gets reset when transitioning to ScoreScreen/Paused.
@@ -93,8 +134,21 @@ impl Plugin for MultiplayerGamePlugin {
         // attach_crdt_health: adds CrdtHealth to new entities with Health
         // sync_health_to_crdt: detects local damage/healing, writes to CRDT,
         //   re-derives Health from converged CRDT state
+        // Run-condition vocabulary for the asymmetric co-op topology:
+        // - `mp_running`  : MultiplayerGame running (versus host+guest, co-op guest)
+        // - `both_peers`  : the above OR the co-op host in `AppState::InGame`
+        // - `host_net`    : EITHER host's networking (versus MultiplayerGame OR
+        //                   co-op InGame); excludes SP via `is_multiplayer_host`.
+        // Match-LIFECYCLE host systems (`check_mp_king_death`, `receive_mp_forfeit`)
+        // stay `in_mp_running`-gated — they push `MultiplayerGameState`, which the
+        // co-op host (in InGame) doesn't have. Co-op lifecycle is the SP path.
         let mp_running = in_mp_running;
-        app.add_systems(Update, crdt_sync::attach_crdt_health.run_if(mp_running));
+        let both_peers = in_mp_running.or(is_gameplay_running.and(is_multiplayer_host));
+        let host_net = is_gameplay_running.and(is_multiplayer_host);
+        app.add_systems(
+            Update,
+            crdt_sync::attach_crdt_health.run_if(both_peers.clone()),
+        );
         // `sync_health_to_crdt` records the local Health delta (e.g. damage
         // a guest-cast spell just dealt to a ghost) into the local CRDT
         // slot. It MUST run before `apply_state_snapshot` (which sits in
@@ -109,9 +163,12 @@ impl Plugin for MultiplayerGamePlugin {
             crdt_sync::sync_health_to_crdt
                 .after(PostCombatSet)
                 .before(crate::game::units::GuestSnapshotSet)
-                .run_if(mp_running),
+                .run_if(both_peers.clone()),
         );
-        app.add_systems(Update, crdt_sync::receive_wall_placement.run_if(mp_running));
+        app.add_systems(
+            Update,
+            crdt_sync::receive_wall_placement.run_if(both_peers.clone()),
+        );
 
         // ── Wizard Spell-Stat Tally (both MP peers) ──────────────────
         // Sums the per-frame spell damage/heal tally markers into the local
@@ -122,12 +179,13 @@ impl Plugin for MultiplayerGamePlugin {
         // so single-player pays no per-frame cost.
         app.add_systems(
             Update,
-            super::score_stats::accumulate_wizard_spell_stats.run_if(in_mp_running),
+            super::score_stats::accumulate_wizard_spell_stats.run_if(both_peers.clone()),
         );
 
-        // ── Host: MP King Death Check ────────────────────────────────
-        // Replaces SP's check_win_lose_conditions during multiplayer.
-        // Runs after PostCombatSet so corpses have been created.
+        // ── Host: MP King Death Check (VERSUS only) ──────────────────
+        // Replaces SP's check_win_lose_conditions during a versus match. The
+        // co-op host uses SP's `check_win_lose_conditions` natively (it's in
+        // InGame), so this stays `in_mp_running`-gated and must NOT be widened.
         let mp_host = in_mp_running.and(is_multiplayer_host);
 
         app.add_systems(
@@ -150,7 +208,7 @@ impl Plugin for MultiplayerGamePlugin {
             )
                 .chain()
                 .after(PostCombatSet)
-                .run_if(mp_host),
+                .run_if(host_net.clone()),
         );
 
         // ── Bidirectional Spell Visual Sync ──────────────────────────
@@ -165,7 +223,7 @@ impl Plugin for MultiplayerGamePlugin {
             )
                 .chain()
                 .after(PostCombatSet)
-                .run_if(mp_running),
+                .run_if(both_peers.clone()),
         );
 
         app.add_systems(
@@ -183,7 +241,7 @@ impl Plugin for MultiplayerGamePlugin {
                     .run_if(super::excremage_theming::is_remote_excremage),
             )
                 .chain()
-                .run_if(mp_running),
+                .run_if(both_peers.clone()),
         );
         app.init_resource::<super::excremage_theming::ExcremageGhostMaterials>();
         app.add_systems(
@@ -242,13 +300,13 @@ impl Plugin for MultiplayerGamePlugin {
             host_systems::receive_crdt_snapshot
                 .after(PostCombatSet)
                 .before(crdt_sync::sync_health_to_crdt)
-                .run_if(mp_running.and(is_multiplayer_host)),
+                .run_if(host_net.clone()),
         );
 
         // ── Host: Receive Guest Teleport Messages ────────────────────
         app.add_systems(
             Update,
-            host_systems::receive_teleport_message.run_if(mp_running.and(is_multiplayer_host)),
+            host_systems::receive_teleport_message.run_if(host_net.clone()),
         );
 
         // ── Host: Receive Guest Spell Hits ────────────────────────────
@@ -261,7 +319,7 @@ impl Plugin for MultiplayerGamePlugin {
             Update,
             host_systems::receive_spell_hit_messages
                 .before(crate::game::units::systems::process_pending_damage_effects)
-                .run_if(mp_running.and(is_multiplayer_host)),
+                .run_if(host_net.clone()),
         );
 
         // ── Guest: Forward Local Spell Hits to Host ───────────────────
@@ -322,19 +380,19 @@ impl Plugin for MultiplayerGamePlugin {
         // ── Host: Receive Generic Status Effects ─────────────────────
         app.add_systems(
             Update,
-            host_systems::receive_apply_status_effect.run_if(mp_running.and(is_multiplayer_host)),
+            host_systems::receive_apply_status_effect.run_if(host_net.clone()),
         );
 
         // ── Host: Receive Raise-Corpse Messages ─────────────────────
         app.add_systems(
             Update,
-            host_systems::receive_raise_corpse_messages.run_if(mp_running.and(is_multiplayer_host)),
+            host_systems::receive_raise_corpse_messages.run_if(host_net.clone()),
         );
 
         // ── Host: Receive Dispel Messages ─────────────────────
         app.add_systems(
             Update,
-            host_systems::receive_dispel_messages.run_if(mp_running.and(is_multiplayer_host)),
+            host_systems::receive_dispel_messages.run_if(host_net.clone()),
         );
 
         // ── Guest: Game Over Message ──────────────────────────────────

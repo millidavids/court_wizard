@@ -150,60 +150,77 @@ async fn handle_host(
     let ticket_str = encode_endpoint_addr(&addr);
     send_event(event_tx, TransportEvent::LocalCode(ticket_str));
 
-    // Wait for guest to connect, or a Disconnect command.
-    let accept_handle = tokio::spawn({
-        let ep = ep.clone();
-        async move { ep.accept().await }
-    });
+    // Re-accept loop. The first iteration is the initial connect. If the guest
+    // later drops without an explicit Disconnect (process kill, network loss),
+    // `run_connection_io` returns `Lost` and we loop back to `ep.accept()` so
+    // the same guest can reconnect — the endpoint stays bound the whole time
+    // (it keeps the same ticket code). An explicit `Disconnect` (local leave)
+    // closes the endpoint and ends the host flow.
+    loop {
+        // Wait for guest to connect, or a Disconnect command.
+        let accept_handle = tokio::spawn({
+            let ep = ep.clone();
+            async move { ep.accept().await }
+        });
 
-    let conn = tokio::select! {
-        result = accept_handle => {
-            match result {
-                Ok(Some(incoming)) => match incoming.await {
-                    Ok(conn) => conn,
-                    Err(e) => {
-                        send_error_and_fail(event_tx, format!("Guest connection failed: {e}"));
-                        close_endpoint(&ep).await;
+        let conn = tokio::select! {
+            result = accept_handle => {
+                match result {
+                    Ok(Some(incoming)) => match incoming.await {
+                        Ok(conn) => conn,
+                        Err(e) => {
+                            send_error_and_fail(event_tx, format!("Guest connection failed: {e}"));
+                            close_endpoint(&ep).await;
+                            return;
+                        }
+                    },
+                    Ok(None) => {
+                        send_error_and_fail(event_tx, "Endpoint closed before guest connected".into());
                         return;
                     }
-                },
-                Ok(None) => {
-                    send_error_and_fail(event_tx, "Endpoint closed before guest connected".into());
-                    return;
-                }
-                Err(e) => {
-                    send_error_and_fail(event_tx, format!("Accept task panicked: {e}"));
-                    return;
+                    Err(e) => {
+                        send_error_and_fail(event_tx, format!("Accept task panicked: {e}"));
+                        return;
+                    }
                 }
             }
+            _ = wait_for_disconnect(command_rx) => {
+                close_endpoint(&ep).await;
+                send_event(event_tx, TransportEvent::StateChanged(ConnectionState::Disconnected));
+                return;
+            }
+        };
+
+        send_event(
+            event_tx,
+            TransportEvent::StateChanged(ConnectionState::Connected),
+        );
+
+        // Host opens the bidirectional stream.
+        let reason = run_connection_io(
+            conn,
+            &ep,
+            true,
+            command_rx,
+            event_tx,
+            reliable_rx,
+            unreliable_rx,
+            reliable_notify,
+            unreliable_notify,
+        )
+        .await;
+
+        match reason {
+            // Local peer is leaving for good — shut the endpoint down.
+            ConnectionExitReason::Disconnect => {
+                close_endpoint(&ep).await;
+                return;
+            }
+            // Guest vanished — keep the endpoint bound and re-listen so it can
+            // reconnect at a level boundary (or sooner).
+            ConnectionExitReason::Lost => continue,
         }
-        _ = wait_for_disconnect(command_rx) => {
-            close_endpoint(&ep).await;
-            send_event(event_tx, TransportEvent::StateChanged(ConnectionState::Disconnected));
-            return;
-        }
-    };
-
-    send_event(
-        event_tx,
-        TransportEvent::StateChanged(ConnectionState::Connected),
-    );
-
-    // Host opens the bidirectional stream.
-    run_connection_io(
-        conn,
-        &ep,
-        true,
-        command_rx,
-        event_tx,
-        reliable_rx,
-        unreliable_rx,
-        reliable_notify,
-        unreliable_notify,
-    )
-    .await;
-
-    close_endpoint(&ep).await;
+    }
 }
 
 /// Guest flow: parse connection code, connect to host, run I/O.
@@ -255,8 +272,10 @@ async fn handle_guest(
         TransportEvent::StateChanged(ConnectionState::Connected),
     );
 
-    // Guest accepts the bidirectional stream opened by host.
-    run_connection_io(
+    // Guest accepts the bidirectional stream opened by host. The guest does not
+    // re-listen on its own — reconnection is driven by the host re-issuing the
+    // invite / the user re-joining from the lobby — so the exit reason is moot.
+    let _ = run_connection_io(
         conn,
         &ep,
         false,
@@ -270,6 +289,18 @@ async fn handle_guest(
     .await;
 
     close_endpoint(&ep).await;
+}
+
+/// Why `run_connection_io` returned. The host uses this to decide whether to
+/// re-listen for a reconnection (`Lost`) or shut the endpoint down (`Disconnect`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ConnectionExitReason {
+    /// An explicit `TransportCommand::Disconnect` arrived — the local peer is
+    /// leaving for good. Never re-listen.
+    Disconnect,
+    /// The connection dropped without an explicit leave (peer vanished). The
+    /// co-op host re-listens so the same guest can reconnect.
+    Lost,
 }
 
 /// Run the send/recv I/O loops for an established connection.
@@ -286,14 +317,14 @@ async fn run_connection_io(
     unreliable_rx: &Receiver<Vec<u8>>,
     reliable_notify: &Arc<Notify>,
     unreliable_notify: &Arc<Notify>,
-) {
+) -> ConnectionExitReason {
     // Deterministic stream setup: host opens, guest accepts.
     let (send_stream, recv_stream) = if is_host {
         match conn.open_bi().await {
             Ok(streams) => streams,
             Err(e) => {
                 send_error_and_fail(event_tx, format!("Failed to open stream: {e}"));
-                return;
+                return ConnectionExitReason::Lost;
             }
         }
     } else {
@@ -301,7 +332,7 @@ async fn run_connection_io(
             Ok(streams) => streams,
             Err(e) => {
                 send_error_and_fail(event_tx, format!("Failed to accept stream: {e}"));
-                return;
+                return ConnectionExitReason::Lost;
             }
         }
     };
@@ -335,14 +366,16 @@ async fn run_connection_io(
     ));
 
     // Wait for disconnect command or connection close.
-    tokio::select! {
+    let reason = tokio::select! {
         _ = wait_for_disconnect(command_rx) => {
             conn.close(0u8.into(), b"disconnect");
+            ConnectionExitReason::Disconnect
         }
         _ = conn.closed() => {
             send_event(event_tx, TransportEvent::Error("Connection lost".into()));
+            ConnectionExitReason::Lost
         }
-    }
+    };
 
     shutdown.notify_waiters();
 
@@ -358,6 +391,8 @@ async fn run_connection_io(
         event_tx,
         TransportEvent::StateChanged(ConnectionState::Disconnected),
     );
+
+    reason
 }
 
 // ── Reliable I/O ─────────────────────────────────────────────────────────────

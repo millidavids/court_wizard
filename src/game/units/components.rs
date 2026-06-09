@@ -793,6 +793,10 @@ pub struct Effectiveness {
     /// the poison status effect's additive bookkeeping — which is what lets the
     /// cauldron effectiveness buff replicate to a guest's army in multiplayer.
     pub cauldron_spell_bonus: f32,
+    /// Co-op difficulty bonus: a flat boost applied to ATTACKERS while a co-op
+    /// guest is connected (own field so it composes with the others and clears
+    /// the instant the guest disconnects). Always 0 in single-player and versus.
+    pub coop_difficulty_bonus: f32,
 }
 
 impl Effectiveness {
@@ -803,6 +807,7 @@ impl Effectiveness {
             base: 1.0,
             spell_bonus: 0.0,
             cauldron_spell_bonus: 0.0,
+            coop_difficulty_bonus: 0.0,
         }
     }
 
@@ -822,9 +827,12 @@ impl Effectiveness {
         let proximity_modifier = (ally_count as f32 * EFFECTIVENESS_ALLY_BONUS_PER_UNIT)
             + (enemy_count as f32 * EFFECTIVENESS_ENEMY_PENALTY_PER_UNIT);
 
-        self.current =
-            (self.base + proximity_modifier + self.spell_bonus + self.cauldron_spell_bonus)
-                .clamp(EFFECTIVENESS_MIN, EFFECTIVENESS_MAX);
+        self.current = (self.base
+            + proximity_modifier
+            + self.spell_bonus
+            + self.cauldron_spell_bonus
+            + self.coop_difficulty_bonus)
+            .clamp(EFFECTIVENESS_MIN, EFFECTIVENESS_MAX);
     }
 
     /// Returns the current effectiveness multiplier.

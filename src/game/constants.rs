@@ -327,6 +327,11 @@ pub const EFFECTIVENESS_MIN: f32 = 0.1;
 /// Maximum effectiveness cap (200% of base).
 pub const EFFECTIVENESS_MAX: f32 = 2.0;
 
+/// Flat effectiveness boost applied to attackers while a co-op guest is helping
+/// the host defend (endless/roguelite co-op only). Removed the instant the guest
+/// disconnects.
+pub const COOP_ATTACKER_EFFECTIVENESS_BONUS: f32 = 0.30;
+
 // ===== Spawn Grid Constants (Shared) =====
 
 /// Angular spacing between columns (radians). ~0.1 rad ≈ 274 units at range 2736.

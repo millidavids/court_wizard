@@ -525,6 +525,10 @@ pub(super) fn handle_button_actions(
                                 .map(|t| t.to_ids())
                                 .unwrap_or_default(),
                             accessibility_assists: config.has_accessibility_assists(),
+                            // Roguelite co-op tagging lands with multi-level co-op
+                            // continuation (WS6); co-op is single-level today.
+                            played_coop: false,
+                            coop_peer_name: None,
                         };
                         crate::config::save_data::save_roguelite_run(
                             &active_save,
