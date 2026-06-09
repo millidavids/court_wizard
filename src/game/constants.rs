@@ -151,14 +151,14 @@ pub const SPELL_2_ORIGIN: Vec3 = Vec3::new(
 /// mirrors the guest to the opposite corner), the co-op guest stands beside the
 /// host on the single-player battlefield.
 ///
-/// The +220 X / +140 Z delta is tuned so the second wizard sits beside the host
-/// behind the action-bar UI, unobstructed, at the single-player camera angle.
-/// The co-op spell origin and the shared cauldron position derive from this, so
-/// moving the wizard moves them too.
+/// The guest stands on the SAME wall line as the host (`+0 Z`, so it isn't pushed
+/// forward off the wall onto the grass) and to the host's right (`+160 X`, past the
+/// cauldron but still on the castle platform). The co-op spell origin derives from
+/// this, so moving the wizard moves it too.
 pub const WIZARD_COOP_POSITION: Vec3 = Vec3::new(
-    WIZARD_POSITION.x + 220.0,
+    WIZARD_POSITION.x + 160.0,
     WIZARD_POSITION.y,
-    WIZARD_POSITION.z + 140.0,
+    WIZARD_POSITION.z,
 );
 
 /// Co-op guest spell origin (the tip of their staff). Uses the SAME offset

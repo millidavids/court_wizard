@@ -112,8 +112,15 @@ pub(in crate::game) fn spawn_mp_wizard(
     let frame_scale = 1.0 / grid_size;
     let uv_transform = bevy::math::Affine2::from_scale(Vec2::splat(frame_scale));
 
+    // The co-op GUEST wizard uses a distinct idle sheet so the two players are
+    // visually distinguishable; everyone else (host, versus) uses the default.
+    let sprite_texture = if coop && !is_host_wizard {
+        wizard_assets.guest_sprite_texture.clone()
+    } else {
+        wizard_assets.sprite_texture.clone()
+    };
     let material = materials.add(StandardMaterial {
-        base_color_texture: Some(wizard_assets.sprite_texture.clone()),
+        base_color_texture: Some(sprite_texture),
         base_color: Color::WHITE,
         alpha_mode: AlphaMode::Blend,
         unlit: true,

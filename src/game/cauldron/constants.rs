@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{WIZARD_2_POSITION, WIZARD_COOP_POSITION, WIZARD_POSITION};
+use crate::game::constants::{WIZARD_2_POSITION, WIZARD_POSITION};
 
 /// Offset from wizard position to place the cauldron beside the wizard on the castle wall.
 const CAULDRON_OFFSET: Vec3 = Vec3::new(60.0, -64.0, 90.0);
@@ -21,16 +21,14 @@ pub const CAULDRON_2_POSITION: Vec3 = Vec3::new(
     WIZARD_2_POSITION.z - CAULDRON_OFFSET.z,
 );
 
-/// Shared cauldron position for **co-op** — fixed BETWEEN the two wizards so it
-/// renders in the same spot on both screens (host and guest stand on either side
-/// of it). Horizontally centered between `WIZARD_POSITION` and
-/// `WIZARD_COOP_POSITION`, dropped to the cauldron's wall ledge, and nudged the
-/// same amount forward as the host's single-player cauldron. Used by BOTH the
-/// co-op host (SP loading path) and the co-op guest so neither peer sees it move.
+/// Shared cauldron position for **co-op** — right next to the MAIN (host) wizard,
+/// on its wall ledge (the same spot as the host's single-player cauldron). Used by
+/// BOTH the co-op host (SP loading path) and the co-op guest so neither peer sees
+/// it move; the guest stands further along the wall to its right.
 pub const CAULDRON_COOP_POSITION: Vec3 = Vec3::new(
-    (WIZARD_POSITION.x + WIZARD_COOP_POSITION.x) * 0.5,
+    WIZARD_POSITION.x + CAULDRON_OFFSET.x,
     WIZARD_POSITION.y + CAULDRON_OFFSET.y,
-    (WIZARD_POSITION.z + WIZARD_COOP_POSITION.z) * 0.5 + CAULDRON_OFFSET.z,
+    WIZARD_POSITION.z + CAULDRON_OFFSET.z,
 );
 
 /// Total duration of the brew bubble effect (seconds).

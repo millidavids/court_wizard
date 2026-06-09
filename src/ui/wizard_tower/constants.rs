@@ -34,6 +34,10 @@ pub(super) use crate::ui::constants::{
     TAB_PADDING_H,
 };
 pub(super) const DISABLED_TAB_TEXT: Color = Color::hsla(0.0, 0.0, 0.45, 0.6);
+/// Greyed background + border for a disabled tab (guest-locked Endless/Roguelite,
+/// or VS before a connection), so it reads as unavailable, not just dim text.
+pub(super) const DISABLED_TAB_BG: Color = Color::hsla(0.0, 0.0, 0.12, 0.6);
+pub(super) const DISABLED_TAB_BORDER: Color = Color::hsla(0.0, 0.0, 0.28, 0.7);
 
 // ---------------------------------------------------------------------------
 // Dual-panel layout

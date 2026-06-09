@@ -407,10 +407,14 @@ impl WizardAnimation {
     }
 }
 
-/// Stores the wizard sprite sheet texture handle.
+/// Stores the wizard sprite sheet texture handles.
 #[derive(Resource)]
 pub struct WizardAssets {
+    /// Default wizard idle sheet (host / single-player).
     pub sprite_texture: Handle<Image>,
+    /// Distinct idle sheet for the co-op GUEST wizard so the two players are
+    /// visually distinguishable on the shared wall.
+    pub guest_sprite_texture: Handle<Image>,
 }
 
 /// Marker for the guest's wizard entity on the host.

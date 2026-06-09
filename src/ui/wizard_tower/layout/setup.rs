@@ -54,8 +54,8 @@ impl WizardTowerTab {
         &[
             WizardTowerTab::Endless,
             WizardTowerTab::Roguelite,
-            WizardTowerTab::Multiplayer,
             WizardTowerTab::Vs,
+            WizardTowerTab::Multiplayer,
             WizardTowerTab::Study,
         ]
     }
@@ -156,7 +156,7 @@ pub(crate) fn update_mp_connected_indicator(
 }
 
 /// Spawns the full wizard tower tabbed layout. Tab row:
-/// `[Endless] [Roguelite] [Multiplayer] [VS] ........... [Study]   [<- Back]`
+/// `[Endless] [Roguelite] [VS] [Multiplayer] ........... [Study]   [<- Back]`
 /// (Study is right-justified; VS is disabled until a connection is live).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn setup_wizard_tower_layout(
@@ -792,46 +792,53 @@ pub(crate) fn update_tab_active_state(
         } else if !desired_enabled && !is_disabled {
             commands.entity(entity).insert(DisabledTab);
         }
-        let label_color = if desired_enabled {
-            TEXT_COLOR
+
+        let is_active = tab_btn.0 == *tab;
+        // Keep the `ButtonActive` marker in sync (queried by other systems).
+        if is_active && !has_active {
+            commands.entity(entity).insert(ButtonActive);
+        } else if !is_active && has_active {
+            commands.entity(entity).remove::<ButtonActive>();
+        }
+
+        // Desired visuals, priority: disabled (greyed) > active > inactive. A
+        // disabled tab now greys its background/border too, not just its label, so
+        // it clearly reads as unavailable; an enabled tab (e.g. VS once a host
+        // connects) gets the normal active/inactive styling.
+        let (bg, border, label_color) = if !desired_enabled {
+            (DISABLED_TAB_BG, DISABLED_TAB_BORDER, DISABLED_TAB_TEXT)
+        } else if is_active {
+            (ACTIVE_TAB_BG, ACTIVE_TAB_BORDER, TEXT_COLOR)
         } else {
-            DISABLED_TAB_TEXT
+            (INACTIVE_TAB_BG, TAB_BORDER, TEXT_COLOR)
         };
+
+        // Apply bg/border only when they actually change (every-frame system).
+        let bg_changed =
+            if let Ok((mut bg_color, mut border_color, mut colors)) = tab_bg.get_mut(entity) {
+                let changed = colors.background != bg || colors.border != border;
+                if changed {
+                    *bg_color = bg.into();
+                    *border_color = BorderColor::all(border);
+                    colors.background = bg;
+                    colors.border = border;
+                }
+                changed
+            } else {
+                false
+            };
+
         for child in children.iter() {
+            if bg_changed
+                && let Ok((mut front_bg_color, mut front_border_color)) = front_bg.get_mut(child)
+            {
+                *front_bg_color = crate::ui::systems::opaque(bg).into();
+                *front_border_color = BorderColor::all(border);
+            }
             if let Ok(mut text_color) = tab_text.get_mut(child)
                 && text_color.0 != label_color
             {
                 *text_color = TextColor(label_color);
-            }
-        }
-
-        let is_active = tab_btn.0 == *tab;
-
-        // Skip if the active/inactive state already matches
-        if is_active == has_active && !tab.is_changed() {
-            continue;
-        }
-
-        let (bg, border) = if is_active {
-            commands.entity(entity).insert(ButtonActive);
-            (ACTIVE_TAB_BG, ACTIVE_TAB_BORDER)
-        } else {
-            commands.entity(entity).remove::<ButtonActive>();
-            (INACTIVE_TAB_BG, TAB_BORDER)
-        };
-
-        if let Ok((mut bg_color, mut border_color, mut colors)) = tab_bg.get_mut(entity) {
-            *bg_color = bg.into();
-            *border_color = BorderColor::all(border);
-            colors.background = bg;
-            colors.border = border;
-        }
-
-        // Update the 3D front face child
-        for child in children.iter() {
-            if let Ok((mut front_bg_color, mut front_border_color)) = front_bg.get_mut(child) {
-                *front_bg_color = crate::ui::systems::opaque(bg).into();
-                *front_border_color = BorderColor::all(border);
             }
         }
     }
