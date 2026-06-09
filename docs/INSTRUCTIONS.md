@@ -52,6 +52,20 @@ Defeating enemies earns Arcane Insight, which you spend at the Wizard's Tower to
 
 Different wizard types offer unique playstyles. Unlock new wizard types by completing achievements.
 
+## Multiplayer & Co-op
+
+You can team up with a friend or duel them. Open the **Multiplayer** tab in the Wizard's Tower and either send a Steam invite or share a connection code to link up.
+
+Once you're connected, the **host** chooses what to play by switching tabs in the Wizard's Tower:
+
+- **VS tab** — a head-to-head duel: two wizards on a mirrored battlefield, last king standing wins.
+- **Endless tab** — play **co-op** together: a second wizard joins you on the castle wall to defend the same king through the endless waves.
+- **Roguelite tab** — play **co-op** through a roguelite run, with your shared modifiers.
+
+The **guest** stays on the Multiplayer screen the whole time. It mirrors the mode the host has chosen, and from there the guest just picks a wizard and clicks **Ready**. The host's start button waits ("Guest Not Ready") until the guest is ready, then the host starts the game — only the guest readies up.
+
+In co-op, both wizards get their own spellbook and brewing cauldron, your potion boosts stack, and your shared battles count toward each player's own progress. Enemies hit a little harder while a co-op partner is helping. If your friend drops out of an Endless or Roguelite battle, the fight continues on your own and they can rejoin at the next level.
+
 ## Tips
 
 - Position walls and fire strategically to funnel enemies into kill zones

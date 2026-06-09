@@ -140,20 +140,53 @@ pub(crate) fn build_multiplayer_panels(
 /// Connection tab, while connected: point the player at the VS tab (duels) or
 /// the game-mode tabs (co-op).
 fn build_connected_info(commands: &mut Commands, right_entity: Entity) {
+    use super::panel_styles::{BODY_FONT_SIZE, HEADING_FONT_SIZE};
+    use crate::ui::constants::{SUCCESS_COLOR, TEXT_MUTED, TEXT_PRIMARY};
+
     commands.entity(right_entity).with_children(|p| {
         p.spawn((
             Text::new("Connected!"),
-            TextFont::from_font_size(super::panel_styles::HEADING_FONT_SIZE),
-            TextColor(crate::ui::constants::SUCCESS_COLOR),
+            TextFont::from_font_size(HEADING_FONT_SIZE),
+            TextColor(SUCCESS_COLOR),
         ));
         p.spawn((
-            Text::new(
-                "Open the VS tab to start a duel, or pick Endless / Roguelite to play co-op together.",
-            ),
-            TextFont::from_font_size(super::panel_styles::BODY_FONT_SIZE),
-            TextColor(crate::ui::constants::TEXT_MUTED),
+            Text::new("You're the host — switch tabs up top to pick how to play:"),
+            TextFont::from_font_size(BODY_FONT_SIZE),
+            TextColor(TEXT_MUTED),
             Node {
                 margin: UiRect::top(Val::Px(8.0)),
+                ..default()
+            },
+        ));
+        // Each line: a bolder mode label + a muted description.
+        let mode_line = |p: &mut ChildSpawnerCommands, label: &str, desc: &str| {
+            p.spawn((
+                Text::new(label.to_string()),
+                TextFont::from_font_size(BODY_FONT_SIZE),
+                TextColor(TEXT_PRIMARY),
+                Node {
+                    margin: UiRect::top(Val::Px(6.0)),
+                    ..default()
+                },
+            ));
+            p.spawn((
+                Text::new(desc.to_string()),
+                TextFont::from_font_size(BODY_FONT_SIZE),
+                TextColor(TEXT_MUTED),
+            ));
+        };
+        mode_line(p, "• VS tab", "Duel your friend head-to-head.");
+        mode_line(p, "• Endless tab", "Team up in co-op through the endless waves.");
+        mode_line(p, "• Roguelite tab", "Team up in co-op through a roguelite run.");
+
+        p.spawn((
+            Text::new(
+                "Your friend stays on this Multiplayer screen — they pick a wizard and hit Ready, then you start the game.",
+            ),
+            TextFont::from_font_size(BODY_FONT_SIZE),
+            TextColor(TEXT_MUTED),
+            Node {
+                margin: UiRect::top(Val::Px(10.0)),
                 ..default()
             },
         ));

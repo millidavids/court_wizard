@@ -759,10 +759,11 @@ pub(crate) fn update_tab_active_state(
         &Children,
         Has<DisabledTab>,
         Has<ButtonActive>,
+        Has<crate::ui::focus::GamepadFocused>,
     )>,
-    mut tab_bg: Query<(&mut BackgroundColor, &mut BorderColor, &mut ButtonColors)>,
-    mut front_bg: Query<
-        (&mut BackgroundColor, &mut BorderColor),
+    mut button_colors: Query<&mut ButtonColors>,
+    mut front_q: Query<
+        (&mut BackgroundColor, &Children),
         (With<ButtonFront>, Without<ButtonColors>),
     >,
     mut tab_text: Query<&mut TextColor>,
@@ -774,11 +775,8 @@ pub(crate) fn update_tab_active_state(
     // starting a solo game. The HOST drives the mode tabs as normal.
     let is_guest_connected = connected && connection.role == Some(PeerRole::Guest);
 
-    for (entity, tab_btn, children, is_disabled, has_active) in &tab_buttons {
-        // One coherent desired-enabled state per tab, syncing BOTH the `DisabledTab`
-        // marker and the label colour every frame (a panel rebuild can re-grey a
-        // label without touching the marker). Runs before the active-state early-out
-        // below so a connection/role change is never missed.
+    for (entity, tab_btn, children, is_disabled, has_active, focused) in &tab_buttons {
+        // One coherent desired-enabled state per tab.
         let desired_enabled = match tab_btn.0 {
             // VS needs a connection, and is hidden from a connected guest.
             WizardTowerTab::Vs => connected && !is_guest_connected,
@@ -802,9 +800,9 @@ pub(crate) fn update_tab_active_state(
         }
 
         // Desired visuals, priority: disabled (greyed) > active > inactive. A
-        // disabled tab now greys its background/border too, not just its label, so
-        // it clearly reads as unavailable; an enabled tab (e.g. VS once a host
-        // connects) gets the normal active/inactive styling.
+        // disabled tab greys its background too, not just its label, so it clearly
+        // reads as unavailable; an enabled tab (e.g. VS once a host connects) gets
+        // the normal active/inactive styling.
         let (bg, border, label_color) = if !desired_enabled {
             (DISABLED_TAB_BG, DISABLED_TAB_BORDER, DISABLED_TAB_TEXT)
         } else if is_active {
@@ -813,32 +811,41 @@ pub(crate) fn update_tab_active_state(
             (INACTIVE_TAB_BG, TAB_BORDER, TEXT_COLOR)
         };
 
-        // Apply bg/border only when they actually change (every-frame system).
-        let bg_changed =
-            if let Ok((mut bg_color, mut border_color, mut colors)) = tab_bg.get_mut(entity) {
-                let changed = colors.background != bg || colors.border != border;
-                if changed {
-                    *bg_color = bg.into();
-                    *border_color = BorderColor::all(border);
-                    colors.background = bg;
-                    colors.border = border;
-                }
-                changed
-            } else {
-                false
-            };
-
-        for child in children.iter() {
-            if bg_changed
-                && let Ok((mut front_bg_color, mut front_border_color)) = front_bg.get_mut(child)
-            {
-                *front_bg_color = crate::ui::systems::opaque(bg).into();
-                *front_border_color = BorderColor::all(border);
+        // Update the wrapper's `ButtonColors` — the source the 3D-button systems
+        // (`sync_front_face_colors`) read to repaint the visible front face.
+        if let Ok(mut colors) = button_colors.get_mut(entity) {
+            if colors.background != bg {
+                colors.background = bg;
             }
+            if colors.border != border {
+                colors.border = border;
+            }
+        }
+
+        // The visible surface is the 3D `ButtonFront` child, and the label is
+        // reparented into it. Paint the front-face background directly so it updates
+        // immediately and for the active tab (which `sync_front_face_colors` skips) —
+        // except when gamepad-focused, where the focus tint owns the background — and
+        // recolour the (now nested) label text. All writes are change-guarded.
+        let want_bg = crate::ui::systems::opaque(bg);
+        for child in children.iter() {
+            // Pre-3D-conversion frame: the text is still a direct child.
             if let Ok(mut text_color) = tab_text.get_mut(child)
                 && text_color.0 != label_color
             {
                 *text_color = TextColor(label_color);
+            }
+            if let Ok((mut front_bg, front_children)) = front_q.get_mut(child) {
+                if !focused && front_bg.0 != want_bg {
+                    *front_bg = BackgroundColor(want_bg);
+                }
+                for grandchild in front_children.iter() {
+                    if let Ok(mut text_color) = tab_text.get_mut(grandchild)
+                        && text_color.0 != label_color
+                    {
+                        *text_color = TextColor(label_color);
+                    }
+                }
             }
         }
     }
