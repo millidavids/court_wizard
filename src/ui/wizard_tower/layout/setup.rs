@@ -728,13 +728,16 @@ pub(crate) fn update_tab_active_state(
 ) {
     let connected = connection.state == crate::networking::resources::ConnectionState::Connected;
     for (entity, tab_btn, children, is_disabled, has_active) in &tab_buttons {
-        // The VS tab is enabled only while connected — toggle `DisabledTab` and
-        // its label color as the connection comes and goes (runs before the
-        // active-state early-out below so a connection change is never missed).
-        if tab_btn.0 == WizardTowerTab::Vs && connected == is_disabled {
-            if connected {
+        // The VS tab is enabled only while connected. Keep both the `DisabledTab`
+        // marker and the label color in sync with the live connection EVERY frame
+        // (not just on the transition): a tab-bar rebuild can re-grey the label
+        // without re-adding the marker, which previously left the tab clickable but
+        // still looking disabled. Runs before the active-state early-out below so a
+        // connection change is never missed.
+        if tab_btn.0 == WizardTowerTab::Vs {
+            if connected && is_disabled {
                 commands.entity(entity).remove::<DisabledTab>();
-            } else {
+            } else if !connected && !is_disabled {
                 commands.entity(entity).insert(DisabledTab);
             }
             let label_color = if connected {
@@ -743,7 +746,9 @@ pub(crate) fn update_tab_active_state(
                 DISABLED_TAB_TEXT
             };
             for child in children.iter() {
-                if let Ok(mut text_color) = tab_text.get_mut(child) {
+                if let Ok(mut text_color) = tab_text.get_mut(child)
+                    && text_color.0 != label_color
+                {
                     *text_color = TextColor(label_color);
                 }
             }

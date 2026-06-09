@@ -81,7 +81,11 @@ fn route_pending_rematch_from_menu(
 fn multiplayer_tab_active(
     tab: Option<Res<crate::ui::wizard_tower::layout::WizardTowerTab>>,
 ) -> bool {
-    tab.is_some_and(|t| *t == crate::ui::wizard_tower::layout::WizardTowerTab::Multiplayer)
+    use crate::ui::wizard_tower::layout::WizardTowerTab;
+    // The lobby interaction (wizard select, ready-up, disconnect, start) lives on
+    // BOTH the Multiplayer connection tab and the VS duel tab, so its handlers must
+    // run for either — otherwise the VS tab's buttons are inert.
+    tab.is_some_and(|t| matches!(*t, WizardTowerTab::Multiplayer | WizardTowerTab::Vs))
 }
 
 /// When returning to WizardTower with a `PendingRematch`, set the Multiplayer

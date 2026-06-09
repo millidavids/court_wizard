@@ -21,14 +21,16 @@ pub const CAULDRON_2_POSITION: Vec3 = Vec3::new(
     WIZARD_2_POSITION.z - CAULDRON_OFFSET.z,
 );
 
-/// Cauldron position for the **co-op guest**, beside `WIZARD_COOP_POSITION`.
-/// Uses the SAME offset direction as the host's `CAULDRON_OFFSET` (not mirrored)
-/// because the co-op guest stands beside the host on the shared battlefield.
-/// Referenced by the co-op guest cauldron spawn (co-op SP-shell loading).
+/// Shared cauldron position for **co-op** — fixed BETWEEN the two wizards so it
+/// renders in the same spot on both screens (host and guest stand on either side
+/// of it). Horizontally centered between `WIZARD_POSITION` and
+/// `WIZARD_COOP_POSITION`, dropped to the cauldron's wall ledge, and nudged the
+/// same amount forward as the host's single-player cauldron. Used by BOTH the
+/// co-op host (SP loading path) and the co-op guest so neither peer sees it move.
 pub const CAULDRON_COOP_POSITION: Vec3 = Vec3::new(
-    WIZARD_COOP_POSITION.x + CAULDRON_OFFSET.x,
-    WIZARD_COOP_POSITION.y + CAULDRON_OFFSET.y,
-    WIZARD_COOP_POSITION.z + CAULDRON_OFFSET.z,
+    (WIZARD_POSITION.x + WIZARD_COOP_POSITION.x) * 0.5,
+    WIZARD_POSITION.y + CAULDRON_OFFSET.y,
+    (WIZARD_POSITION.z + WIZARD_COOP_POSITION.z) * 0.5 + CAULDRON_OFFSET.z,
 );
 
 /// Total duration of the brew bubble effect (seconds).

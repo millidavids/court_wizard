@@ -178,7 +178,9 @@ pub fn handle_brew_complete(
         }
 
         // Spawn the expanding bubble visual effect at the cauldron's real
-        // position (host: CAULDRON_POSITION; guest: CAULDRON_2_POSITION).
+        // position (read from the entity's Transform — single-player/versus host:
+        // CAULDRON_POSITION; versus guest: CAULDRON_2_POSITION; co-op: the shared
+        // CAULDRON_COOP_POSITION between the wizards).
         let bubble_color = message.recipe.color();
         let spawn_pos = cauldron_query
             .single()

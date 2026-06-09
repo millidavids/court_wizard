@@ -119,6 +119,9 @@ pub fn process_spawn_queue(
         shadow_assets,
     ) = &shared_assets;
     let (mut channel_change, mut obstacle_events, mut connection, coop_sync) = message_writers;
+    // `CoopLoadingSync` is present only while a co-op HOST is loading on this SP
+    // path — use it to place the host's cauldron at the shared between-wizards spot.
+    let coop_host_load = coop_sync.is_some();
 
     // Process tasks in bulk, breaking only when the next task needs deferred
     // commands from this frame to be flushed first (e.g., Select* tasks need
@@ -345,12 +348,19 @@ pub fn process_spawn_queue(
             }
             SpawnTask::Cauldron => {
                 if let Some(assets) = cauldron_assets_opt {
+                    // Co-op host: shared cauldron between the two wizards (same spot
+                    // the guest spawns it). Single-player: beside the lone wizard.
+                    let cauldron_pos = if coop_host_load {
+                        crate::game::cauldron::constants::CAULDRON_COOP_POSITION
+                    } else {
+                        crate::game::cauldron::constants::CAULDRON_POSITION
+                    };
                     crate::game::cauldron::systems::spawn_cauldron(
                         &mut commands,
                         &mut meshes,
                         &mut materials,
                         assets,
-                        crate::game::cauldron::constants::CAULDRON_POSITION,
+                        cauldron_pos,
                     );
                 }
             }
