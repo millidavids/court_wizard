@@ -56,13 +56,21 @@ impl Plugin for InGamePlugin {
             .add_systems(
                 Update,
                 (
-                    systems::keyboard_input,
                     systems::update_level_display,
                     systems::update_past_victory_display,
                     systems::spawn_retreat_flash,
                     systems::update_timed_flash::<RetreatFlash>,
                 )
                     .run_if(is_gameplay_running),
+            )
+            // Pause input. In a co-op (non-Urgent) match the synchronized
+            // `coop_pause_input` owns the Running↔Paused toggle, so the local
+            // handler steps aside there; it still runs in SP and in co-op+Urgent.
+            .add_systems(
+                Update,
+                systems::keyboard_input.run_if(is_gameplay_running.and(not(
+                    crate::game::multiplayer::coop_pause::coop_sync_pause_enabled,
+                ))),
             )
             // Gamepad HUD shortcuts (X = spell book, Y = cauldron) must run for
             // BOTH peers in MP — the guest opens its spell book too — so gate on

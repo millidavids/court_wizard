@@ -80,6 +80,7 @@ pub fn start_coop_host(
     config: &mut crate::config::GameConfig,
     guest_wizard: WizardType,
     mode: SessionMode,
+    urgent: bool,
 ) {
     use crate::networking::protocol::NetworkMessage;
     let seed = rand::random::<u64>();
@@ -95,6 +96,7 @@ pub fn start_coop_host(
             seed,
             coop_mode: mode.to_coop_wire(),
             level: config.current_level,
+            urgent,
         });
 }
 
@@ -203,6 +205,9 @@ pub(in crate::game) fn send_coop_level_over(
 pub(in crate::game) fn detect_coop_guest_disconnect(
     connection: Res<crate::networking::resources::NetworkConnection>,
     coop_connected: Option<ResMut<CoopGuestConnected>>,
+    mut coop_pause: ResMut<super::coop_pause::CoopPauseState>,
+    in_game_state: Option<Res<State<crate::state::InGameState>>>,
+    mut next_in_game: ResMut<NextState<crate::state::InGameState>>,
 ) {
     use crate::networking::resources::ConnectionState;
     if let Some(mut cc) = coop_connected
@@ -214,6 +219,16 @@ pub(in crate::game) fn detect_coop_guest_disconnect(
     {
         cc.0 = false;
         info!("[Co-op] Guest disconnected — host continues solo; +30% attacker buff removed.");
+        // Don't strand the now-solo host on a sync-pause: whoever initiated it,
+        // the resume can never arrive (a host-initiated resume goes to no one; a
+        // guest-initiated pause's initiator just left), so force-resume.
+        if coop_pause.active {
+            coop_pause.active = false;
+            coop_pause.initiator = None;
+            if in_game_state.is_some_and(|s| *s.get() == crate::state::InGameState::Paused) {
+                next_in_game.set(crate::state::InGameState::Running);
+            }
+        }
     }
 }
 

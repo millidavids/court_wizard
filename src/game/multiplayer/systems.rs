@@ -810,6 +810,7 @@ pub(super) fn mp_escape_key_handler(
     gamepads: Query<&Gamepad>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     mut next_mp_state: ResMut<NextState<MultiplayerGameState>>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
     // The gamepad Start button toggles the pause menu, same as Escape (mirrors the
     // single-player `keyboard_input` handler).
@@ -823,17 +824,23 @@ pub(super) fn mp_escape_key_handler(
 
     let Some(state) = mp_state else { return };
 
+    // This handler only runs in Running or Paused (its run condition is
+    // `in_mp_running.or(in_mp_paused)`); the SpellBook/CauldronMenu/Settings
+    // overlays each close themselves back to Running/Paused via their own plugins'
+    // escape handlers (`escape_to_running`, `mp_escape_to_paused`). In a co-op
+    // (non-Urgent) match the synchronized `coop_pause_input` owns this toggle
+    // instead, so step aside there.
+    let coop_sync = session.as_ref().is_some_and(|s| s.coop_pause_synced());
+    if coop_sync {
+        return;
+    }
+
     match *state.get() {
         MultiplayerGameState::Running => {
             next_mp_state.set(MultiplayerGameState::Paused);
         }
-        MultiplayerGameState::Paused
-        | MultiplayerGameState::SpellBook
-        | MultiplayerGameState::CauldronMenu => {
+        MultiplayerGameState::Paused => {
             next_mp_state.set(MultiplayerGameState::Running);
-        }
-        MultiplayerGameState::Settings => {
-            next_mp_state.set(MultiplayerGameState::Paused);
         }
         _ => {}
     }
@@ -935,11 +942,20 @@ pub(super) fn handle_mp_pause_buttons(
     mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
     mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
     mut lobby: ResMut<MultiplayerLobby>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
+    coop_pause: Option<Res<super::coop_pause::CoopPauseState>>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
                 MpPauseButtonAction::Resume => {
+                    // In a co-op sync-pause only the initiator may resume.
+                    if !super::coop_pause::local_can_resume(
+                        session.as_deref(),
+                        coop_pause.as_deref(),
+                    ) {
+                        continue;
+                    }
                     next_mp_state.set(MultiplayerGameState::Running);
                 }
                 MpPauseButtonAction::Settings => {
@@ -961,6 +977,32 @@ pub(super) fn handle_mp_pause_buttons(
                     );
                 }
             }
+        }
+    }
+}
+
+/// `OnEnter(MultiplayerGameState::Paused)` after `setup_mp_pause_menu`: if the
+/// guest is the NON-initiator of an active co-op sync-pause, relabel the Resume
+/// button to "Waiting for other player" and mute it (the resume itself is blocked
+/// in `handle_mp_pause_buttons` / `mp_escape_key_handler`).
+pub(super) fn relabel_mp_resume_for_coop(
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
+    pause: Option<Res<super::coop_pause::CoopPauseState>>,
+    buttons: Query<(&MpPauseButtonAction, &Children)>,
+    front_q: Query<&Children, With<crate::ui::components::ButtonFront>>,
+    mut texts: Query<(&mut Text, &mut TextColor)>,
+) {
+    let Some(session) = session else { return };
+    let Some(pause) = pause else { return };
+    if !session.coop_pause_synced() || !pause.active {
+        return;
+    }
+    if pause.initiator == Some(session.role) {
+        return;
+    }
+    for (action, children) in &buttons {
+        if matches!(action, MpPauseButtonAction::Resume) {
+            super::coop_pause::set_waiting_label(children, &front_q, &mut texts);
         }
     }
 }

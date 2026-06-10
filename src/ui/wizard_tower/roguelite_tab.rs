@@ -1076,6 +1076,7 @@ pub(super) fn handle_roguelite_action(
                     .as_ref()
                     .map(|p| ActiveToggles::new(p.enabled.clone()))
                     .unwrap_or_default();
+                let urgent_active = toggles.is_active(ToggleModifier::Urgent);
                 commands.insert_resource(toggles);
 
                 save_data::load_or_create_wizard(config.wizard_type, &mut config, &mut active_save);
@@ -1110,6 +1111,7 @@ pub(super) fn handle_roguelite_action(
                         &mut config,
                         gw,
                         crate::networking::session::SessionMode::CoopRoguelite,
+                        urgent_active,
                     );
                 }
 
@@ -1118,6 +1120,9 @@ pub(super) fn handle_roguelite_action(
             }
             RogueliteAction::ContinueRun => {
                 channel_change.write(ChannelChangeMessage);
+                let urgent_active = active_toggles
+                    .as_ref()
+                    .is_some_and(|t| t.is_active(ToggleModifier::Urgent));
                 if let Some(gw) = super::multiplayer_tab::state::connected_coop_guest_wizard(
                     &connection,
                     lobby.as_deref(),
@@ -1128,6 +1133,7 @@ pub(super) fn handle_roguelite_action(
                         &mut config,
                         gw,
                         crate::networking::session::SessionMode::CoopRoguelite,
+                        urgent_active,
                     );
                 }
                 next_app_state.set(AppState::Loading);

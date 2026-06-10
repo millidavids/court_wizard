@@ -8,7 +8,7 @@
 use bevy::prelude::*;
 
 use crate::game::plugin::PostCombatSet;
-use crate::game::run_conditions::is_gameplay_running;
+use crate::game::run_conditions::{is_gameplay_active, is_gameplay_running};
 use crate::game::units::wizard::systems::cancel_active_casts;
 use crate::networking::session::{is_coop_session, is_multiplayer_guest, is_multiplayer_host};
 use crate::state::{AppState, InGameState, MultiplayerGameState};
@@ -104,10 +104,14 @@ impl Plugin for MultiplayerGamePlugin {
             coop::apply_coop_difficulty_buff.run_if(is_gameplay_running.and(coop::is_coop_host)),
         );
         // Graceful disconnect: if the guest drops, the host keeps playing solo
-        // and the +30% buff lifts (reconnect is a follow-up).
+        // and the +30% buff lifts (reconnect is a follow-up). Gated on
+        // `is_gameplay_active` (NOT `is_gameplay_running`) so it still fires while
+        // the host is in a sync-pause (`InGameState::Paused`, where the simulation
+        // is frozen) — otherwise a guest dropping mid-pause would strand the host
+        // paused forever, since the auto-resume lives in this system.
         app.add_systems(
             Update,
-            coop::detect_coop_guest_disconnect.run_if(is_gameplay_running.and(coop::is_coop_host)),
+            coop::detect_coop_guest_disconnect.run_if(is_gameplay_active.and(coop::is_coop_host)),
         );
         // Co-op level-end coordination: the host announces each level's result at
         // its score screen; the in-place guest waits for the next level (or the
@@ -123,6 +127,49 @@ impl Plugin for MultiplayerGamePlugin {
                     .and(is_coop_session)
                     .and(is_multiplayer_guest),
             ),
+        );
+
+        // ── Synchronized Co-op Pause ─────────────────────────────────
+        // Either peer pausing pauses both; only the initiator resumes; the
+        // initiator heartbeats the authoritative state so a dropped packet can't
+        // strand the other player. All gated on a co-op, non-Urgent session.
+        use super::coop_pause;
+        app.init_resource::<coop_pause::CoopPauseState>();
+        app.add_systems(
+            OnEnter(AppState::InGame),
+            coop_pause::reset_coop_pause_state.run_if(coop::is_coop_host),
+        );
+        app.add_systems(
+            OnEnter(AppState::MultiplayerGame),
+            coop_pause::reset_coop_pause_state.run_if(is_multiplayer_guest),
+        );
+        // Local pause input (both peers — branches on role internally).
+        app.add_systems(
+            Update,
+            coop_pause::coop_pause_input.run_if(coop_pause::coop_sync_pause_enabled),
+        );
+        // Host applies incoming pause state to InGameState.
+        app.add_systems(
+            Update,
+            coop_pause::coop_pause_receive_host.run_if(
+                in_state(AppState::InGame)
+                    .and(coop_pause::coop_sync_pause_enabled)
+                    .and(is_multiplayer_host),
+            ),
+        );
+        // Guest applies incoming pause state to MultiplayerGameState.
+        app.add_systems(
+            Update,
+            coop_pause::coop_pause_receive_guest.run_if(
+                in_state(AppState::MultiplayerGame)
+                    .and(coop_pause::coop_sync_pause_enabled)
+                    .and(is_multiplayer_guest),
+            ),
+        );
+        // Initiator re-broadcasts the authoritative state (self-healing).
+        app.add_systems(
+            Update,
+            coop_pause::coop_pause_heartbeat.run_if(coop_pause::coop_sync_pause_enabled),
         );
 
         // ── Cancel casts on exit Running ─────────────────────────────
@@ -413,7 +460,16 @@ impl Plugin for MultiplayerGamePlugin {
         );
 
         // ── Escape Menu (Paused overlay) ──────────────────────────────
-        app.add_systems(OnEnter(MultiplayerGameState::Paused), setup_mp_pause_menu);
+        app.add_systems(
+            OnEnter(MultiplayerGameState::Paused),
+            // In a co-op sync-pause a NON-initiator guest gets a relabeled,
+            // disabled-looking Resume button ("Waiting for other player").
+            (
+                setup_mp_pause_menu,
+                super::systems::relabel_mp_resume_for_coop,
+            )
+                .chain(),
+        );
         app.add_systems(OnExit(MultiplayerGameState::Paused), cleanup_mp_pause_menu);
         app.add_systems(
             Update,

@@ -60,7 +60,12 @@ use crate::game::units::wizard::components::Spell;
 /// - 11: co-op lobby restructure. Adds `HostModeSelection` (host→guest live
 ///   broadcast of the selected game-mode/level so the guest's Multiplayer-tab
 ///   left panel mirrors what's about to start). Appended after `CoopRunEnded`.
-pub const PROTOCOL_VERSION: u32 = 11;
+/// - 12: synchronized co-op pause. `StartGame` gains `urgent: bool` (whether the
+///   co-op roguelite Urgent toggle is active, so the guest — which has no
+///   `ActiveToggles` — knows to disable pause-sync). Adds `CoopPauseSync`
+///   (either peer broadcasts the authoritative pause state; the initiator
+///   re-sends it as a self-healing heartbeat). Appended after `HostModeSelection`.
+pub const PROTOCOL_VERSION: u32 = 12;
 
 /// Messages sent over the reliable WebRTC data channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,6 +105,13 @@ pub enum NetworkMessage {
         seed: u64,
         coop_mode: Option<u8>,
         level: u32,
+        /// True when this is a co-op roguelite match with the Urgent toggle
+        /// active. The guest has no `ActiveToggles`, so it learns the flag here
+        /// and stores it on its `MultiplayerSession.coop_urgent`. Ignored in
+        /// versus and co-op endless. (Wire-layout change to an existing variant,
+        /// made safe by the v12 bump — the handshake rejects a v11↔v12 pairing
+        /// before any `StartGame` is exchanged.)
+        urgent: bool,
     },
 
     /// Player has finished loading.
@@ -316,6 +328,17 @@ pub enum NetworkMessage {
         level: u32,
         is_continue: bool,
         detail_lines: Vec<String>,
+    },
+
+    /// Either peer → other (v12): the authoritative co-op pause state. Sent when a
+    /// peer pauses or resumes, and re-sent by the initiator as a low-rate heartbeat
+    /// (and for a short grace after resuming) so a dropped packet can't leave the
+    /// other player stuck paused. `initiator_is_host` identifies who owns the
+    /// pause (only that peer can resume); it also breaks a simultaneous-pause tie
+    /// deterministically in the host's favor. Co-op + non-Urgent only.
+    CoopPauseSync {
+        paused: bool,
+        initiator_is_host: bool,
     },
 }
 

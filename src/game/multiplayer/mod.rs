@@ -6,6 +6,7 @@
 
 pub(crate) mod components;
 pub(crate) mod coop;
+pub(crate) mod coop_pause;
 pub(in crate::game) mod crdt_sync;
 pub(in crate::game) mod excremage_theming;
 pub(in crate::game) mod guest_snapshot;

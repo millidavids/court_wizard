@@ -15,9 +15,11 @@ All notable changes to this project will be documented in this file.
 - **Co-op battles keep going if your partner drops** — if your friend disconnects mid-battle, the fight continues on your own and they can rejoin at the next level. (Head-to-head duels still end when someone disconnects.)
 - **Your battles remember when you played with a friend** — Endless levels and Roguelite runs now record whether you played co-op, and who with.
 - **The partner wizard stands in a clearer spot** — in co-op, the joining player's wizard now stands further back along the wall so both wizards and the shared cauldron read cleanly.
+- **Pausing in co-op now pauses for both players** — when either player opens the pause menu, the game stops for both and the other player sees the menu pop up too. Only the player who paused can resume; the other sees a grayed-out button that says "Waiting for other player." Opening your spell book or brewing cauldron does not pause a co-op game, and if the Urgent run modifier is on, the game keeps running for everyone.
 
 ### Fixed
 - **Finger of Death looks right in multiplayer** — on the other player's screen it now grows into its proper cone shape as it charges, instead of appearing as a static tube.
+- **Backing out of hosting cleans up properly** — if you choose Host Game and then leave the multiplayer screens before a friend joins, the connection is now fully closed and reset. A fresh connection code is only created when you choose Host Game again, so there are no leftover open connections.
 
 ## [v0.9.2] - 2026-06-04
 

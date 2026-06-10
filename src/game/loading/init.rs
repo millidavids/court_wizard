@@ -42,6 +42,9 @@ pub fn init_loading_progress(
     // networking layer treats this InGame match as co-op, enqueue the guest's
     // wizard proxy, and stand up the load handshake. Each endless/roguelite level
     // loops through the tower, so this runs fresh per co-op level.
+    let coop_urgent = active_toggles
+        .as_ref()
+        .is_some_and(|t| t.is_active(crate::game::game_mode::components::ToggleModifier::Urgent));
     let coop_guest_wizard = coop_pending.as_deref().map(|pending| {
         commands.insert_resource(crate::networking::session::MultiplayerSession {
             role: crate::networking::resources::PeerRole::Host,
@@ -50,6 +53,9 @@ pub fn init_loading_progress(
             guest_wizard: pending.guest_wizard,
             host_spells: Vec::new(),
             guest_spells: pending.guest_spells.clone(),
+            // Co-op roguelite Urgent disables pause-sync (game keeps running).
+            coop_urgent: coop_urgent
+                && pending.mode == crate::networking::session::SessionMode::CoopRoguelite,
         });
         pending.guest_wizard
     });

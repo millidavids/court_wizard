@@ -14,7 +14,7 @@ use crate::ui::plugin::ButtonActionSet;
 
 use crate::ui::wizard_tower::wizard_cards::SelectedWizard;
 
-use super::interaction::handle_mp_tab_actions;
+use super::interaction::{cancel_host_on_tab_leave, handle_mp_tab_actions};
 use super::lobby_messages::process_lobby_messages;
 use super::state::{CoopHostSelection, LobbyPhase, MultiplayerLobby};
 use super::sync::{
@@ -51,6 +51,14 @@ impl Plugin for MultiplayerTabPlugin {
             .add_systems(
                 Update,
                 broadcast_host_mode_to_guest
+                    .run_if(in_state(MetaGameState::WizardTower))
+                    .run_if(resource_exists::<crate::ui::wizard_tower::layout::WizardTowerTab>),
+            )
+            // Cancels a still-waiting host attempt when the host leaves the
+            // multiplayer tabs (runs on any tower tab to observe the transition).
+            .add_systems(
+                Update,
+                cancel_host_on_tab_leave
                     .run_if(in_state(MetaGameState::WizardTower))
                     .run_if(resource_exists::<crate::ui::wizard_tower::layout::WizardTowerTab>),
             )

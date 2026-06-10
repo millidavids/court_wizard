@@ -16,21 +16,47 @@ pub fn any_exist<T: Component>() -> impl Fn(Query<(), With<T>>) -> bool {
     |query: Query<(), With<T>>| !query.is_empty()
 }
 
-/// Returns true if single-player simulation should be active.
+/// Returns true if the single-player / co-op-host simulation should be active in
+/// the given `InGameState`.
 ///
-/// True when `InGameState::Running`, or when the Urgent toggle modifier is
-/// active and the player is browsing the SpellBook or CauldronMenu.
+/// `Running` is always active. Past that, single-player and the co-op host follow
+/// distinct rules (kept in separate branches so neither silently entangles the
+/// other), evaluated by [`sp_menu_keeps_running`] and [`coop_host_keeps_running`].
+/// The versus host runs in `MultiplayerGameState` and is handled by
+/// `is_gameplay_running`'s separate `mp_state` branch — untouched here.
 fn is_sp_simulation_active(
     state: &InGameState,
     active_toggles: &Option<Res<ActiveToggles>>,
+    session: &Option<Res<MultiplayerSession>>,
 ) -> bool {
     if *state == InGameState::Running {
         return true;
     }
-    matches!(state, InGameState::SpellBook | InGameState::CauldronMenu)
-        && active_toggles
-            .as_ref()
-            .is_some_and(|t| t.is_active(ToggleModifier::Urgent))
+    let urgent = active_toggles
+        .as_ref()
+        .is_some_and(|t| t.is_active(ToggleModifier::Urgent));
+    if session.as_ref().is_some_and(|s| s.is_coop()) {
+        coop_host_keeps_running(state, urgent)
+    } else {
+        sp_menu_keeps_running(state, urgent)
+    }
+}
+
+/// Single-player non-Running gate: only the spell/cauldron menus keep the sim
+/// alive, and only with the Urgent toggle. A normal pause always freezes.
+fn sp_menu_keeps_running(state: &InGameState, urgent: bool) -> bool {
+    matches!(state, InGameState::SpellBook | InGameState::CauldronMenu) && urgent
+}
+
+/// Co-op-host non-Running gate: the spell/cauldron menus must NEVER pause the
+/// shared match, so they always keep running; a pause freezes the host unless
+/// Urgent is on (Urgent keeps the co-op game running through the pause).
+fn coop_host_keeps_running(state: &InGameState, urgent: bool) -> bool {
+    match state {
+        InGameState::SpellBook | InGameState::CauldronMenu => true,
+        InGameState::Paused => urgent,
+        _ => false,
+    }
 }
 
 /// Returns true when gameplay simulation should be running.
@@ -49,9 +75,9 @@ pub fn is_gameplay_running(
     session: Option<Res<MultiplayerSession>>,
     active_toggles: Option<Res<ActiveToggles>>,
 ) -> bool {
-    // Single-player
+    // Single-player / co-op host
     if let Some(ref state) = sp_state
-        && is_sp_simulation_active(state.get(), &active_toggles)
+        && is_sp_simulation_active(state.get(), &active_toggles, &session)
     {
         return true;
     }
@@ -131,10 +157,11 @@ pub fn is_spell_effects_active(
     sp_state: Option<Res<State<InGameState>>>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     active_toggles: Option<Res<ActiveToggles>>,
+    session: Option<Res<MultiplayerSession>>,
 ) -> bool {
-    // Single-player
+    // Single-player / co-op host
     if let Some(ref state) = sp_state
-        && is_sp_simulation_active(state.get(), &active_toggles)
+        && is_sp_simulation_active(state.get(), &active_toggles, &session)
     {
         return true;
     }

@@ -478,6 +478,7 @@ pub(super) fn handle_endless_actions(
                             &mut config,
                             guest_wizard,
                             crate::networking::session::SessionMode::CoopEndless,
+                            false,
                         );
                     }
                     commands.insert_resource(GameMode::Endless);

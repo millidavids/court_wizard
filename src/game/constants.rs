@@ -159,7 +159,7 @@ pub const SPELL_2_ORIGIN: Vec3 = Vec3::new(
 /// this, so moving the wizard moves it too.
 pub const WIZARD_COOP_POSITION: Vec3 = Vec3::new(
     WIZARD_POSITION.x + 120.0,
-    WIZARD_POSITION.y - 128.0,
+    WIZARD_POSITION.y,
     WIZARD_POSITION.z + 180.0,
 );
 

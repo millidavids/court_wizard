@@ -145,6 +145,7 @@ pub(crate) fn process_lobby_messages(
                     seed,
                     coop_mode,
                     level,
+                    urgent,
                 } => {
                     let mode = SessionMode::from_coop_wire(coop_mode);
                     info!("[MP Lobby] Received StartGame from host (seed {seed}, mode {mode:?})");
@@ -165,6 +166,9 @@ pub(crate) fn process_lobby_messages(
                             guest_wizard: mp_safe_wizard(*my_wiz),
                             host_spells: Vec::new(),
                             guest_spells: my_spells,
+                            // Co-op roguelite Urgent disables pause-sync; the guest
+                            // has no `ActiveToggles`, so it learns the flag here.
+                            coop_urgent: urgent && mode == SessionMode::CoopRoguelite,
                         };
                         commands.insert_resource(session);
                         // Seed the shared RNG from the host's seed so both
@@ -245,6 +249,7 @@ pub(super) fn commit_host_start(
             guest_wizard: mp_safe_wizard(*opp_wiz),
             host_spells: my_spells,
             guest_spells: Vec::new(),
+            coop_urgent: false,
         };
         commands.insert_resource(session);
 
@@ -257,6 +262,7 @@ pub(super) fn commit_host_start(
                 seed,
                 coop_mode: SessionMode::Versus.to_coop_wire(),
                 level: 0,
+                urgent: false,
             });
         next_app_state.set(AppState::MultiplayerLoading);
     }

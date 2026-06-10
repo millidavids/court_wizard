@@ -70,6 +70,13 @@ pub struct MultiplayerSession {
     /// Spells available to the guest (from their unlocked spells).
     #[allow(dead_code)]
     pub guest_spells: Vec<Spell>,
+
+    /// True for a co-op roguelite match with the Urgent toggle active. Disables
+    /// synchronized pause (each peer pauses locally without freezing the sim or
+    /// the other player), matching Urgent's "game keeps running" semantics. Set
+    /// from `ActiveToggles` on the host and from `StartGame.urgent` on the guest;
+    /// always `false` in versus and co-op endless.
+    pub coop_urgent: bool,
 }
 
 impl MultiplayerSession {
@@ -95,6 +102,12 @@ impl MultiplayerSession {
             self.mode,
             SessionMode::CoopEndless | SessionMode::CoopRoguelite
         )
+    }
+
+    /// True when synchronized pause applies: a co-op match without the Urgent
+    /// toggle (Urgent keeps the game running, so pause stays local there).
+    pub fn coop_pause_synced(&self) -> bool {
+        self.is_coop() && !self.coop_urgent
     }
 }
 
