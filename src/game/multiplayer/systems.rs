@@ -686,6 +686,7 @@ pub(super) fn detect_mp_disconnect(
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     mut next_mp_state: ResMut<NextState<MultiplayerGameState>>,
     mut next_app_state: ResMut<NextState<crate::state::AppState>>,
+    mut notifications: ResMut<crate::ui::notification::NotificationQueue>,
 ) {
     // Only check if we still have an active session — avoids double-triggering
     // after an intentional disconnect already queued a state transition.
@@ -719,6 +720,11 @@ pub(super) fn detect_mp_disconnect(
         // a clean one on rejoin.
         commands.remove_resource::<MultiplayerSession>();
         commands.remove_resource::<crate::game::multiplayer::coop::CoopGuestLevel>();
+        // The co-op guest returns silently to the tower, so flag the reason with a
+        // toast — otherwise it's not obvious the host dropped the game.
+        notifications.push(crate::ui::notification::NotificationEntry::Toast {
+            message: "The host disconnected.",
+        });
         next_app_state.set(crate::state::AppState::MetaGame);
     } else {
         next_mp_state.set(MultiplayerGameState::Disconnected);

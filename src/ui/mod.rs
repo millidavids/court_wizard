@@ -22,7 +22,7 @@ mod loading;
 pub(crate) mod main_menu;
 pub(crate) mod manual;
 pub(crate) mod markdown;
-mod notification;
+pub(crate) mod notification;
 mod pause_menu;
 pub(crate) mod plugin;
 pub(crate) mod roulette_display;

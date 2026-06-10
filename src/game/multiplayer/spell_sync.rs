@@ -602,7 +602,17 @@ pub fn collect_spell_projectile_snapshots(
     // duplicate kind=6 arc is emitted here.
 
     for beam in &fod_beams {
-        let end = beam.origin + beam.direction * beam.length;
+        // Grow with the cast like single-player: send the CURRENT visual length
+        // (logical length + overshoot, scaled by cast progress) so the guest's cone
+        // grows during the channel instead of popping in at full length.
+        use crate::game::units::wizard::spells::finger_of_death::constants as fod;
+        let progress_scale = if beam.has_fired {
+            1.0
+        } else {
+            beam.cast_progress
+        };
+        let visual_len = (beam.length + fod::BEAM_VISUAL_OVERSHOOT) * progress_scale;
+        let end = beam.origin + beam.direction * visual_len;
         spell_data.spell_arcs.push(SpellArcSnapshot {
             kind: 4,
             ox: beam.origin.x,
@@ -986,24 +996,29 @@ pub fn apply_remote_spell_snapshot(
             _ => 6.0,
         };
 
-        // Beam-type arcs (finger of death=4) use the cross-plane cylinder mesh.
-        // (Disintegrate now ships via the dedicated `BeamSnapshot` path, not an arc.)
+        // Finger of Death (kind=4) is the growing CONE: the cross-plane triangle
+        // mesh, tip anchored at the beam ORIGIN (the caster's staff) and widening
+        // out along the beam — matching the SP `spawn_beam` visual. Other beam-type
+        // arcs are flat quads centred on the midpoint.
         let is_beam = arc.kind == 4;
-        let mesh = if is_beam {
-            assets.cross_plane_cylinder.clone()
+        let (mesh, translation, scale) = if is_beam {
+            (
+                assets.cross_plane_triangle.clone(),
+                origin,
+                Vec3::new(width, length, width),
+            )
         } else {
-            assets.unit_rect.clone()
-        };
-        let scale = if is_beam {
-            Vec3::new(width, length, width)
-        } else {
-            Vec3::new(width, length, 1.0)
+            (
+                assets.unit_rect.clone(),
+                midpoint,
+                Vec3::new(width, length, 1.0),
+            )
         };
 
         commands.spawn((
             Mesh3d(mesh),
             MeshMaterial3d(material),
-            Transform::from_translation(midpoint)
+            Transform::from_translation(translation)
                 .with_rotation(rotation)
                 .with_scale(scale),
             GhostSpellArc,
@@ -1020,9 +1035,9 @@ pub fn apply_remote_spell_snapshot(
             use crate::game::units::wizard::spells::finger_of_death::constants as fod;
             let glow_width = width * fod::GLOW_WIDTH_MULTIPLIER;
             commands.spawn((
-                Mesh3d(assets.cross_plane_cylinder.clone()),
+                Mesh3d(assets.cross_plane_triangle.clone()),
                 MeshMaterial3d(assets.finger_of_death_glow.clone()),
-                Transform::from_translation(midpoint)
+                Transform::from_translation(origin)
                     .with_rotation(rotation)
                     .with_scale(Vec3::new(glow_width, length, glow_width)),
                 GhostSpellArc,

@@ -159,7 +159,7 @@ pub const SPELL_2_ORIGIN: Vec3 = Vec3::new(
 pub const WIZARD_COOP_POSITION: Vec3 = Vec3::new(
     WIZARD_POSITION.x + 125.0,
     WIZARD_POSITION.y,
-    WIZARD_POSITION.z + 110.0,
+    WIZARD_POSITION.z + 85.0,
 );
 
 /// Co-op guest spell origin (the tip of their staff). Uses the SAME offset

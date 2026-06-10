@@ -34,7 +34,9 @@ pub const POST_FIRE_DURATION: f32 = 0.3; // Beam persists for 0.3s after firing,
 pub(super) const BEAM_PULSE_FREQUENCY: f32 = 10.0;
 pub(super) const BEAM_PULSE_AMPLITUDE: f32 = 0.15;
 pub(super) const COLOR_CYCLE_SPEED: f32 = 3.0;
-pub(super) const BEAM_VISUAL_OVERSHOOT: f32 = 50.0;
+/// `pub(crate)` so the multiplayer spell-sync can grow the guest's ghost cone to
+/// the same visual length the caster sees.
+pub(crate) const BEAM_VISUAL_OVERSHOOT: f32 = 50.0;
 
 // Glow shimmer
 pub(super) const SHIMMER_FREQ_A: f32 = 41.0;

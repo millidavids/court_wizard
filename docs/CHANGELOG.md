@@ -15,6 +15,9 @@ All notable changes to this project will be documented in this file.
 - **Co-op battles keep going if your partner drops** — if your friend disconnects mid-battle, the fight continues on your own and they can rejoin at the next level. (Head-to-head duels still end when someone disconnects.)
 - **Your battles remember when you played with a friend** — Endless levels and Roguelite runs now record whether you played co-op, and who with.
 
+### Fixed
+- **Finger of Death looks right in multiplayer** — on the other player's screen it now grows into its proper cone shape as it charges, instead of appearing as a static tube.
+
 ## [v0.9.2] - 2026-06-04
 
 ### Added
