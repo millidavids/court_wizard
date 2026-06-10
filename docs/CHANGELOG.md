@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - **Enemies hit a little harder in co-op** — while a partner is helping you in an Endless or Roguelite battle, the attackers fight more effectively. The boost lifts the moment your partner leaves.
 - **Co-op battles keep going if your partner drops** — if your friend disconnects mid-battle, the fight continues on your own and they can rejoin at the next level. (Head-to-head duels still end when someone disconnects.)
 - **Your battles remember when you played with a friend** — Endless levels and Roguelite runs now record whether you played co-op, and who with.
+- **The partner wizard stands in a clearer spot** — in co-op, the joining player's wizard now stands further back along the wall so both wizards and the shared cauldron read cleanly.
 
 ### Fixed
 - **Finger of Death looks right in multiplayer** — on the other player's screen it now grows into its proper cone shape as it charges, instead of appearing as a static tube.
