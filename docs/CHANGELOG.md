@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.10.10] - 2026-06-10
 
 ### Added
 - **New Co-op mode** — invite a friend to fight alongside you. A second wizard joins your Endless and Roguelite battles on the castle wall, with their own spellbook and brewing cauldron, and you both defend the same king against the same waves. Your potion boosts stack, and the things you do together count toward each of your own progress and achievements.
