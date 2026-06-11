@@ -1,6 +1,63 @@
 ## networking
 
-**Scope:** `src/networking/` — P2P transport, wire protocol, snapshots, CRDT, session state.
+**Scope:** `src/networking/` — P2P transport layer, protocol definitions, snapshot format, CRDT health, entity mapping, and multiplayer session state.
+
+---
+
+### Mental Model
+
+The networking module is a self-contained P2P layer sitting between Bevy's ECS and an iroh/QUIC backend. A `TransportBridgePlugin` spawns a tokio runtime on a background thread; `transport_bridge_system` (PreUpdate) shuttles bytes between Bevy's `NetworkConnection` resource and that runtime via crossbeam channels each frame. Game messages ride a reliable QUIC stream (length-prefixed, bincode-serialized `NetworkMessage`); state snapshots ride an unreliable datagram path with a multi-slot fragment reassembler.
+
+The protocol is deliberately append-only: bincode 1.x encodes enum variants by positional index, so `HandshakeVersion` is frozen at wire index 18, and all new variants go after it. A 2-peer CRDT (element-wise max on `[f32; 2]` damage/healing slots) handles distributed HP convergence. `snapshot.rs` is a wire-format registry: every serializable struct and every discriminating enum lives here, making it the single file a developer must touch to add a new visual effect kind.
+
+The module is architecturally clean, well-commented, and has no `.unwrap()` in production paths. The main issues are stale WebRTC docs throughout, a fragment-count truncation edge case in the codec, dead receiver arms for arc kinds 2/3 in the ghost spawn system, and a high-arity helper function that would benefit from a flags struct.
+
+---
+
+### Findings
+
+| ID | Category | File:Line | Severity | Effort | Description | Recommendation |
+|----|----------|-----------|----------|--------|-------------|----------------|
+| N-01 | DocDrift | `src/networking/mod.rs:1-4` | Medium | S | Module-level doc still says "P2P WebRTC communication" and "WebRTC with copy-paste SDP signaling". The transport was replaced with iroh/QUIC; there is no WebRTC or SDP in the current code. | Replace with "P2P QUIC communication using iroh" and remove the SDP sentence. |
+| N-02 | DocDrift | `src/networking/resources.rs:32,61` | Medium | S | `ConnectionState::WaitingForSignaling` doc says "SDP exchange complete"; `local_code` field doc says "Base64-encoded SDP+ICE code". Both reference the old WebRTC signaling model. iroh uses a direct endpoint-address ticket, not SDP/ICE. | Update to "Waiting for the user to exchange connection codes" / "Base64-encoded iroh endpoint address". |
+| N-03 | DocDrift | `src/networking/protocol.rs:3,70` | Low | S | File doc header and `NetworkMessage` doc say "WebRTC data channels". | Update to "QUIC streams". |
+| N-04 | DocDrift | `src/networking/snapshot.rs:4,33-34,481-482` | Low | S | Three stale items: (1) file header says "unreliable WebRTC data channel"; (2) `UnitSnapshot` has an orphan leading line `/// Per-unit state with CRDT health data (~37 bytes).` on line 33, immediately followed by the real doc paragraph on line 34 — a leftover from a previous edit; (3) `SpellArcSnapshot::kind` doc lists `6=Disintegrate` which the collector comment confirms is no longer emitted (Disintegrate ships via `BeamSnapshot` now). | Fix header; remove orphan line 33; drop `6=Disintegrate` from arc kind doc (or annotate as legacy-receive-only). |
+| N-05 | TypeContract | `src/networking/transport/codec.rs:73,76-86` | Medium | S | `fragment_datagram` caps `fragment_count` at 255 via `.min(255) as u8`, but then iterates **all** chunks. If the payload ever requires more than 255 fragments (~305 KB at default 1200-byte datagrams), fragments at index ≥255 have `i as u8 == 255` which is out-of-bounds in the 255-slot `fragments` array — the receiver's bounds check silently drops them, truncating the payload with no error. At current snapshot sizes (~24 KB max, 21 fragments) this never triggers, but the code is a latent silent-corruption trap. | Truncate the iterator to `fragment_count` items (`chunks.into_iter().take(fragment_count as usize)...`), and add a `warn!` if `chunks.len() > 255` so the limit surfaces clearly if payloads grow. |
+| N-06 | TypeContract | `src/networking/snapshot.rs:146-168` | Low | M | `build_unit_snapshot` takes 21 parameters, 14 of which are plain `bool`. A caller swap (e.g. `has_fire` and `has_frost`) is invisible to the compiler. | Introduce a `UnitFlagSources { is_corpse: bool, is_king: bool, ... }` struct so the call site is self-documenting and positional swaps become compile errors. |
+| N-07 | ConsistencyRot | `src/networking/transport/connection.rs:11` | Low | S | `connection.rs` imports `tracing::warn` directly; all other networking files and the entire game codebase use `bevy::log` macros from `bevy::prelude::*`. `bevy::log` macros are thin wrappers over `tracing`, so they work fine inside the tokio background thread. | Replace `use tracing::warn;` with `use bevy::prelude::*;` to unify the logging API surface. |
+| N-08 | ArchitecturalDecay | `src/networking/snapshot.rs:480-495` | Low | S | `SpellArcSnapshot::kind` doc lists kinds 0,1,4,5,6. Kinds 2 (crystal_beam) and 3 (crystal_arc) are handled by the receiver in `ghost_spawn.rs:192-193` but are never emitted by the current sender — `projectile_collect.rs` migrated them to other snapshot paths and left a comment explaining this. The receiver arms are dead code, and the doc is inconsistent with both the sender and the receiver. | Update the kind doc to enumerate all 6 variants (0-5, drop 6) and annotate 2 and 3 as "receiver-only legacy arms, not currently emitted". Optionally add a `_ => continue` with a comment to make the dead-arm intent explicit. |
+| N-09 | Performance | `src/networking/transport/bridge.rs:76` | Low | S | `transport_bridge_system` runs in `PreUpdate` unconditionally with no `run_if` guard. The system does an internal early-out but is still scheduled every frame including in menus and single-player. The project convention requires all Update-schedule systems to have a `run_if` guard. | Add `run_if(resource_exists::<TransportHandle>)` (or a connection-active condition). The internal guard already handles correctness; this is a style-conformance issue. |
+| N-10 | Performance | `src/networking/snapshot.rs:68-70` | Low | M | `UnitSnapshot.max_hp` ships on every frame for every unit (the comment on line 69 notes "could be thinned later via a separate one-shot spawn message"). At 200 units this is ~800 extra bytes/frame on the unreliable channel. | Defer as a known optimization. When snapshot size becomes a concern, introduce a unit-spawn reliable message that carries max_hp once, and remove it from `UnitSnapshot`. |
+
+---
+
+### Oversized Files
+
+| File | LOC | Exempt | Reason / Proposed Split |
+|------|-----|--------|------------------------|
+| `src/networking/snapshot.rs` | 832 | true | Single wire-format registry: every serializable snapshot struct and every discriminating enum lives here so developers update the wire format in one place. No system logic, no behavioral branching. Exempt as an asset-registry analog. |
+| `src/networking/transport/connection.rs` | 558 | true | Five async I/O functions (host flow, guest flow, 4 I/O loops) plus encoding helpers. Each function is a complete named async task; splitting would require cross-file channel-type threading. Large but coherent. Exempt. |
+| `src/networking/protocol.rs` | 480 | true | Single wire-protocol definition: one append-only enum + supporting types + bitflag module. The entire file is the protocol contract. Exempt as a single large match-on-enum equivalent. |
+
+---
+
+### Looks Bad But Is Actually Fine
+
+- **`HandshakeVersion` at wire index 18 but sent "first" in protocol order**: Intentional design — old binaries decode index 18 as unknown, return an error, drop the message, and the new binary detects the missing handshake. Well-documented in the variant's doc block.
+- **`bincode::serialize(addr).expect("EndpointAddr serialization should not fail")`**: `EndpointAddr` is a known-serializable iroh type; the `expect` message is descriptive and this is a legitimate invariant.
+- **`ConnectionState::Connecting` not set by the host code path**: Correct by design — the host is already listening and immediately accepts; only the guest goes through a connecting phase.
+- **`PeerId(usize)` with magic constants 0/1**: The 2-peer CRDT design structurally fixes the peer count at 2. The constants are named and public; no raw integers appear at call sites.
+- **`#[allow(dead_code)]` on `host_spells`/`guest_spells` in `MultiplayerSession`**: Explicitly documented as reserved session state for future use, not accidental rot.
+- **`status_flags` module entirely `#[allow(dead_code)]`**: Module doc explains these are "deliberately ahead of their senders" for self-documenting wire protocol. Intentional forward-reservation.
+- **`tracing::warn` inside send_unreliable_loop using a rate-limit guard**: Rate-limiting log spam from a hot send loop is correct practice; `Instant::now().checked_sub(...).unwrap_or_else(Instant::now)` on line 468 is a safe fallback for the rate-limit init.
+
+---
+
+### Open Questions
+
+1. The `status_flags` module documents bit constants "ahead of their senders" (e.g. `ROOT_THORNY_VINES`, `MC_TRAITORS_MARK`). Is there a backlog tracking which talent flags still need sender-side wiring, or could these silently become permanently dead as spells evolve?
+2. `ConnectionMode::Steam` causes the bridge system to drain and discard all iroh events. Where is the Steam transport's equivalent bridge system registered? Is Steam mode a complete implementation or still a stub?
+3. `conn.max_datagram_size().unwrap_or(DEFAULT_MAX_DATAGRAM)` — what does iroh actually report at runtime? If reported size is significantly below 1200, the fragment count per snapshot could approach the 255 limit sooner than expected.
 
 ---
 

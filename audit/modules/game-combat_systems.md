@@ -1,6 +1,6 @@
 ## game-combat_systems
 
-**Scope:** `src/game/combat_systems/` (3 files, 851 LOC)
+**Scope:** `src/game/combat_systems/` (6 files, 862 LOC)
 
 ---
 

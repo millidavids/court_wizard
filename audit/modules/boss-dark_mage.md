@@ -1,14 +1,12 @@
 ## boss-dark_mage
 
-**Scope:** `src/game/units/boss/dark_mage/` — 9 files, ~2 054 LOC total.
+**Scope:** `src/game/units/boss/dark_mage/`
 
 ---
 
 ### Mental model
 
-The Dark Mage is a telegraphed-AoE spellcaster boss with three spells (Dark Meteor, Shadow Lightning, Plague Cloud) and a reactive teleport. It uses an explicit state machine (`DarkMageState`) rather than the timer-driven approach of the Lich. Spell cooldowns, enrage multipliers, and telegraph indicators are all component-driven. Animation is a simple sprite-sheet that swaps material between a floating sheet and a casting sheet when state changes. The module is logically structured — `ai.rs` holds spawn + movement + AI state machine, `spells.rs` holds all spell systems and helper spawn functions, `animation.rs` handles visuals, `components.rs` holds all ECS types, `constants.rs` holds tuning values, and `resources.rs` loads assets at startup. A thin `systems.rs` re-export hub keeps the public surface clean.
-
-Two architectural quirks stand out: the `spawn_dark_mage` function lives in `ai.rs` (other bosses isolate spawn in `spawn.rs`), and `spells.rs` is 811 LOC with genuinely mixed concerns (update systems + helper spawn functions + targeting logic + `PlagueHazardBroadcast` component).
+The Dark Mage is a tier-3 boss with a three-spell kit (Dark Meteor, Shadow Lightning, Plague Cloud) governed by a state-machine component (`DarkMageState`). On each frame the module ticks spell cooldowns and enqueues ready spells (`dark_mage_spell_queue`), then the AI pops the queue, transitions through Idle → Telegraphing → Casting (`dark_mage_ai`), and fires the appropriate spawn helper. A separate teleport system repositions the boss when enemies enter melee range. The module is cleanly feature-sliced: `ai/` holds movement, spell-queue logic, spawn, and teleport; `spells/` holds spawn helpers, per-spell update systems, VFX, and targeting. All Update systems carry `run_if(is_gameplay_running).run_if(any_with_component::<DarkMage>)` guards. No files exceed 300 LOC.
 
 ---
 
@@ -16,42 +14,41 @@ Two architectural quirks stand out: the `spawn_dark_mage` function lives in `ai.
 
 | ID | Category | File:Line | Severity | Effort | Description | Recommendation |
 |----|----------|-----------|----------|--------|-------------|----------------|
-| DM-01 | ArchitecturalDecay | `spells.rs:1` | High | M | `spells.rs` (811 LOC) mixes four distinct concerns: update systems (`update_meteor_explosions`, `update_lightning_strikes`, `update_plague_clouds`, `update_plague_particles`, `update_meteor_projectiles`, `update_lightning_bolts`, `update_visual_effects`), helper spawn functions (`spawn_meteor_explosion`, `spawn_lightning_strike`, `spawn_plague_cloud`, `spawn_telegraph_indicators`), targeting logic (`find_spell_target`), and a component definition (`PlagueHazardBroadcast`). The project convention mandates files ≤300 LOC unless a single cohesive match/registry. This file is none of those. | Split into: `spell_updates.rs` (the 7 update systems), `spell_spawn.rs` (spawn helpers + `spawn_telegraph_indicators`), `targeting.rs` (`find_spell_target`). Move `PlagueHazardBroadcast` to `components.rs`. Keep `telegraph_duration`/`spell_cooldown` helpers alongside their callers in `spell_spawn.rs`. |
-| DM-02 | ArchitecturalDecay | `ai.rs:36` | Medium | S | `spawn_dark_mage` lives in `ai.rs`. Every other boss (lich, ogre) isolates spawn logic in a dedicated `spawn.rs`. This makes `ai.rs` 587 LOC and violates the consistent pattern the project has established. | Extract `spawn_dark_mage` and its direct imports into a new `spawn.rs` sibling. `ai.rs` drops to ~470 LOC. |
-| DM-03 | ConsistencyRot | `ai.rs:156, 274, 478` | Medium | S | `crate::game::units::systems::calculate_weighted_movement` and `crate::game::units::systems::is_cc_immobilized` are called with full crate-path qualifiers three times each rather than being imported at the top of `ai.rs`. Other boss files (e.g. `lich/combat.rs`) prefer `use` imports. The two inline paths for `Stunned` and `Petrified` at lines 245–246 and 444–445 are the same issue. | Add `use crate::game::units::systems::{calculate_weighted_movement, is_cc_immobilized};` and `use crate::game::units::components::{MeleeDamageReduction, Stunned, Petrified};` to `ai.rs`'s import block. |
-| DM-04 | ConsistencyRot | `spells.rs:811` | Low | S | The `use crate::game::units::boss::utils::indicator_rotation;` import appears at the very bottom of `spells.rs` (line 811), after all function bodies. Rust permits this, but it violates the universal convention of grouping all `use` statements at the top of the file. | Move the import to the top-of-file `use` block alongside the other imports. |
-| DM-05 | ConsistencyRot | `spells.rs:474–533` | Low | S | The circle indicator spawning code for `DarkMeteor` (lines 476–487) and `PlagueCloud` (lines 515–527) are near-identical: same mesh, same rotation, same component bundle — differing only in the radius scale. A 12-line duplication inside the same `match` arm. | Extract `spawn_circle_indicator(commands, assets, fill_material, center, radius)` returning `Entity`. Call it for both arms. |
-| DM-06 | ConsistencyRot | `components.rs:63` | Low | S | `DarkMageSpellQueue::new()` and `DarkMageEnrage::new()` implement zero-argument constructors whose bodies are trivially `Self { field: default_value }`. The idiomatic Bevy/Rust pattern for this is `#[derive(Default)]`; `new()` is only meaningful when it accepts arguments (as `DarkMageSpellCooldowns::new` does). | Replace the no-arg `new()` impls with `#[derive(Default)]` on `DarkMageSpellQueue` and `DarkMageEnrage`, or keep `new()` for callsite clarity but also derive `Default`. |
-| DM-07 | ArchitecturalDecay | `spells.rs:721` | Low | S | `PlagueHazardBroadcast` (a marker `Component`) is defined at the bottom of `spells.rs` (line 721) rather than in `components.rs` where all other Dark Mage components live. | Move `PlagueHazardBroadcast` to `components.rs`. |
-| DM-08 | TypeContract | `constants.rs:51` | Low | S | `DARK_MAGE_DAMAGE_MULTIPLIER` is `-0.3` with the comment "Negative damage multiplier = takes less melee damage (like ogre)." The boss also has `DARK_MAGE_MELEE_DAMAGE_REDUCTION = 0.4` applied via `MeleeDamageReduction`. Two separate mechanisms both affecting the same damage pathway are active simultaneously with no comment explaining their interaction or whether both are intentional. | Add an explicit comment documenting that `DamageMultiplier` affects spell damage and `MeleeDamageReduction` specifically reduces melee damage, and both are intentional. Alternatively, verify in the damage pipeline that they do not stack unintentionally, and remove whichever is redundant. |
-| DM-09 | Performance | `spells.rs:334–345` | Low | S | `find_spell_target` calls `.collect()` into a `Vec<Vec3>` (line 334) on every call — which happens every frame the mage is in `Idle` state while a spell is queued. The collected vec is then iterated again for O(n²) cluster scoring. | Pre-filter within the scoring loop without the intermediate allocation, or keep `collect` only when the set needs multiple passes. Given the low enemy count the actual impact is minor, but the allocation is avoidable. |
+| DM-01 | ConsistencyRot | `ai/ai_core.rs:48-49`, `ai/teleport.rs:44-45` | Low | S | `Stunned` and `Petrified` are referenced inline as `crate::game::units::components::Stunned` / `::Petrified` inside query tuple types rather than being added to the existing `use crate::game::units::components::{...}` import block. Every other status-effect component in the same file is imported at the top. | Add `Stunned, Petrified` to the grouped `use crate::game::units::components::{...}` import. |
+| DM-02 | ConsistencyRot | `spells/spell_spawn.rs:39,123,187,240` | Low | S | Spawn-helper functions (`spawn_telegraph_indicators`, `spawn_meteor_explosion`, `spawn_lightning_strike`, `spawn_plague_cloud`) are declared `pub(crate)` but are only consumed within the `dark_mage` module tree and re-exported as `pub(super)` by `spells/mod.rs`. The function-level visibility is broader than necessary. | Change the four spawn-helper declarations from `pub(crate)` to `pub(super)`. The re-exports in `spells/mod.rs` already enforce the intended visibility boundary. |
+| DM-03 | ArchitecturalDecay | `systems.rs:1` | Low | S | The stale comment `//! Re-export hub for dark_mage systems split (Phase 15).` references an internal refactoring phase number that is meaningless to future readers. | Remove the `(Phase 15)` label. Rename to `//! Re-exports all dark_mage gameplay systems.` |
+| DM-04 | ArchitecturalDecay | `spells/vfx_updates.rs:73,80,86,88` and `spells/spell_spawn.rs:180,270,276` | Low | M | VFX sizing and timing values are scattered inline as magic literals: plague particle interval (`0.4` s), puff Y range (`15.0–45.0`), puff scale range (`30.0–55.0`), puff lifetime range (`2.0–3.5`), meteor fall time (`0.3` s), plague initial puff Y range (`20.0–60.0`), initial puff scale (`40.0–70.0`). No matching constants exist in `constants.rs`, making them invisible to tuning passes. | Add named constants (`PLAGUE_PARTICLE_SPAWN_INTERVAL`, `PLAGUE_PUFF_Y_MIN/MAX`, `PLAGUE_PUFF_SCALE_MIN/MAX`, `PLAGUE_PUFF_LIFETIME_MIN/MAX`, `METEOR_FALL_DURATION`) to `constants.rs` and replace the inline literals. |
+| DM-05 | ArchitecturalDecay | `spells/spell_spawn.rs:220` | Low | S | `let bolt_count = 3` is a local magic number with no corresponding constant. The bolt-spacing formula depends on it. | Extract to `pub(super) const LIGHTNING_BOLT_COUNT: usize = 3;` in `constants.rs`. |
+| DM-06 | TypeContract | `components.rs:62-68`, `components.rs:139-145` | Low | S | `DarkMageSpellQueue` and `DarkMageEnrage` both provide `new()` constructors for trivially-constructible zero-state values but do not implement `Default`. Bevy convention is to use `Default` for no-arg constructors and `new()` for constructors with arguments. | Add `impl Default for DarkMageSpellQueue` and `impl Default for DarkMageEnrage` (delegating to `new()`), or replace `new()` with `#[derive(Default)]`. |
 
 ---
 
 ### Oversized files
 
-| File | LOC | Exempt | Reason / Proposed split |
-|------|-----|--------|------------------------|
-| `spells.rs` | 811 | No | Mixed update systems, spawn helpers, targeting logic, and a component. Split into: `spell_updates.rs`, `spell_spawn.rs`, `targeting.rs`. |
-| `ai.rs` | 587 | No | Mixes spawn, movement, spell-queue, AI state machine, and teleport. Extract `spawn_dark_mage` → `spawn.rs`; consider extracting `dark_mage_teleport` → `teleport.rs` to reach ~300 LOC each. |
-| `components.rs` | 210 | Yes | All entries are ECS component types — genuinely cohesive, no logic. No split needed. |
-| `constants.rs` | 174 | Yes | All entries are named constants. Below 200-line split threshold and no mixed concerns. |
+No files in scope exceed 300 LOC. The two largest approach the threshold but are cohesive.
+
+| File | LOC | Exempt | Reason |
+|------|-----|--------|--------|
+| `spells/spell_updates.rs` | 289 | true | Three spell-update systems with related query types; splitting would create three trivial single-function files. |
+| `spells/spell_spawn.rs` | 283 | true | Three spawn helpers and one broadcast system sharing the same indicator infrastructure; cohesive. |
 
 ---
 
 ### Looks bad but is actually fine
 
-- **`partial_cmp(...).unwrap_or(std::cmp::Ordering::Equal)` at `spells.rs:441`** — looks like a `.unwrap()` smell, but this is the standard Rust idiom for sorting floats where NaN cannot arise in practice (both are length-squared values of finite positions). The `unwrap_or` fallback makes it safe regardless.
-- **`run_if(any_with_component::<DarkMage>)` double-guard on every system set** — looks redundant with `run_if(is_gameplay_running)`, but `any_with_component` additionally short-circuits when no DarkMage is alive (i.e. non-dark-mage waves), which is a meaningful performance guard.
-- **`Dark_mage_enrage` using `PostCombatSet` ordering** — `dark_mage_enrage` runs after `PostCombatSet` so HP changes from the combat tick are visible before the enrage threshold is checked. Looks like an ordering quirk but is intentional.
-- **`dark_mage_movement` calling `calculate_weighted_movement` with 7 `None` parameters** — the helper has many optional modifier slots that don't apply to the Dark Mage. This is idiomatic Bevy "pass None for features this unit doesn't use" — not a bug.
-- **`spawn_dark_mage` doing two `.insert()` calls** after `.spawn()`** — Bevy allows split inserts; this is a deliberate pattern used across the codebase when the bundle exceeds tuple-size limits.
-- **`systems.rs` being a 4-line re-export hub** — matches the pattern from `lich/systems.rs` and `hags/systems.rs`. Pure convention, not a violation.
+- **`super::super::` import paths** throughout `ai/` and `spells/` — standard Rust for sub-module reaching two levels up; `crate::game::units::boss::dark_mage::*` would be noisier.
+- **`VecDeque::contains()` in `dark_mage_spell_queue` (movement.rs:107)** — O(n) but the queue has at most 3 elements.
+- **`find_spell_target` allocates a `Vec` (targeting.rs:54)** — called only on the single frame when `DarkMageState::Idle` pops a spell (an infrequent state transition), not every frame.
+- **No `GhostEntity`/`GhostSpellEffect` gating** — `GhostEntity` is only added to opponent-army snapshots (infantry/archer/king) in co-op mode. The Dark Mage and its spell effect entities are never ghost entities. No gating needed.
+- **Three `.insert()` calls with ~30 components on spawn (spawn.rs:36–92)** — idiomatic Bevy for a complex boss entity; works around tuple size limits in component bundles.
+- **`dark_mage_enrage` has no additional run_if** — it is in its own `add_systems` block with `run_if(is_gameplay_running).run_if(any_with_component::<DarkMage>)` at plugin.rs:40–43.
+- **`preload_dark_mage_assets` on `Startup` without `run_if`** — `Startup` runs exactly once at app start; a `run_if` guard would be meaningless, and unconditional asset preload is intentional.
+- **`pub(in crate::game) mod constants`** — constants are consumed by `loading/init/world_setup.rs` (outside `dark_mage` but inside `game`), so the wider visibility is justified.
 
 ---
 
 ### Open questions
 
-1. Does the Dark Mage appear in multiplayer (co-op) sessions? None of the AI/damage/movement systems are gated `Without<GhostEntity>`. If it is possible for a ghost snapshot of a DarkMage to exist on the guest side, systems like `dark_mage_movement` and `dark_mage_spell_queue` would incorrectly run on ghost entities.
-2. The `DARK_MAGE_DAMAGE_MULTIPLIER = -0.3` and `DARK_MAGE_MELEE_DAMAGE_REDUCTION = 0.4` (DM-08) — are these two mechanisms stacking, or does the pipeline apply only one? The lich uses only `DamageMultiplier(-0.5)`, not both.
-3. `update_meteor_projectiles` (line 725) spawns with no `DarkMageFloatBase` or owner reference; is there a scenario where a pending projectile survives a wave reset and hits on the next wave?
+1. **Plague hazard removal on premature despawn:** if the boss is killed while a plague cloud is active, is `ObstacleChanged::Removed` still guaranteed to fire (i.e., does cleanup always run `update_plague_clouds` to `lifetime <= 0.0`)? If `try_despawn` is called externally first, the hazard cost leaks into the flow field permanently for the rest of the fight.
+2. **Silent teleport failure:** when all 30 random candidates are rejected, `chosen_dest` is `None` and the teleport is skipped silently with no log message and no timer reset. Should the timer be reset to a short retry interval rather than waiting the full `TELEPORT_COOLDOWN`?
+3. **CC cancels telegraph but not the cooldown:** when CC interrupts a `Telegraphing` state, the cooldown was already reset at `ai_core.rs:133`. The cancelled spell must wait the full cooldown before re-queuing. Is this the intended balance behaviour?

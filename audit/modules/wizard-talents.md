@@ -1,6 +1,6 @@
 ## wizard-talents
 
-**Scope:** `src/game/units/wizard/talents/` — resource management, progression logic, tier thresholds, and talent content definitions for all 31 spells.
+**Scope:** `src/game/units/wizard/talents/` — resource management, progression logic, tier thresholds, and talent content definitions for all 31 spells (updated audit).
 
 ---
 

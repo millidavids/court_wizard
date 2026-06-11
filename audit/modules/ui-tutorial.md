@@ -1,6 +1,6 @@
 ## ui-tutorial
 
-**Scope:** `src/ui/tutorial/` — all `.rs` files (10 files, ~2090 LOC total)
+**Scope:** `src/ui/tutorial/` — all `.rs` files (15 files, ~1309 LOC total)
 
 ---
 

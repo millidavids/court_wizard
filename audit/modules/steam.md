@@ -1,12 +1,21 @@
 ## steam
 
-**Scope:** `src/steam/` — Steam SDK integration (achievements, cloud saves, leaderboards, multiplayer lobby + P2P sockets).
+**Scope:** `src/steam/` — Steam integration: achievements, cloud saves, leaderboards, and Steam-backed P2P multiplayer (SteamNetworkingSockets + SteamMatchmaking lobby).
 
 ---
 
-### Mental model
+### Mental Model
 
-The module is a thin integration layer over `bevy_steamworks`. It splits cleanly into four concerns: achievement forwarding (`achievements.rs`), cloud-save sync (`cloud_save.rs`), leaderboards (`leaderboards/`), and Steam Matchmaking + SteamNetworkingSockets multiplayer (`multiplayer/`). `SteamPlugin::build` wraps the entire surface in a single `match SteamworksPlugin::init_app(...)` — Steam absent ⇒ nothing is registered, so every downstream resource and system is inherently optional, which explains the pervasive `Option<Res<Client>>` parameters in lobby systems. The `.unwrap()` calls flagged in the scope note live exclusively in test code (`leaderboards/systems.rs:283,287`, `join_requests.rs:111`), not in production paths — this is the graceful-degradation boundary working correctly. The main structural concern is that several `Update` systems in `SteamMultiplayerPlugin` have no state-based `run_if` guards, plus two files exceed 300 LOC with mixed concerns.
+The `steam` module is a graceful-degradation wrapper: `SteamPlugin::build` branches on `SteamworksPlugin::init_app` success and only registers sub-plugins/systems inside the `Ok` arm. This means the `Client` resource is guaranteed present for every system registered here — the `resource_exists::<Client>` guards in `LeaderboardsPlugin` are therefore redundant defense-in-depth, not load-bearing.
+
+The module splits cleanly into four sub-concerns:
+
+1. **Achievements** (`achievements.rs`) — message-driven, one system, very clean.
+2. **Cloud save** (`cloud_save.rs`) — startup restore + checkpoint sync; uses `bevy_steamworks` remote storage API.
+3. **Leaderboards** (`leaderboards/`) — async handle pre-warming via `crossbeam_channel` + score submission with a well-commented scoring formula.
+4. **Multiplayer** (`multiplayer/`) — lobby signalling (SteamMatchmaking) feeds into SteamNetworkingSockets P2P; bridges the async Steam callback model onto the Bevy main thread via per-channel `crossbeam_channel` pairs. Plugs into the existing `NetworkConnection` resource so the rest of the game is transport-agnostic.
+
+The only `.unwrap()` calls in the entire module are in `#[cfg(test)]` blocks — all production paths use `match`/`if let`/`unwrap_or`. This is the codebase's clean graceful-degradation boundary: Steam failures are warnings, never panics.
 
 ---
 
@@ -14,40 +23,37 @@ The module is a thin integration layer over `bevy_steamworks`. It splits cleanly
 
 | ID | Category | File:Line | Severity | Effort | Description | Recommendation |
 |----|----------|-----------|----------|--------|-------------|----------------|
-| S1 | Performance | `multiplayer/plugin.rs:34–49` | High | S | Nine `Update` systems (`process_create_lobby_result`, `process_join_lobby_result`, `process_lobby_chat_updates`, `process_game_lobby_join_requested`, `process_game_rich_presence_join_requested`, `consume_pending_join_in_main_menu`, `drive_steam_listen_socket`, `poll_steam_guest_connection_state`, `steam_transport_bridge_system`) run unconditionally every frame with no state guard. During a solo run, all nine cross the FFI boundary or drain channels on every tick for no reason. | Chain the group with `.run_if(in_state(ConnectionMode::Steam).or(resource_changed::<SteamLobbyState>))`, or at minimum `.run_if(resource_exists::<SteamLobbyBridge>)` so they no-op during solo play. |
-| S2 | Performance | `plugin.rs:33` | Medium | S | `sync_achievements_to_steam` runs unconditionally in `Update` with no `run_if` guard. The comment says "runs in all states because some achievements fire in menus" — that justifies the state coverage but not the frame-every-tick cost. Even with an empty `MessageReader` the system still schedules, acquires the `Client` borrow, and calls `client.user_stats()` every frame. | Add `.run_if(on_event::<AchievementUnlockedMessage>())` or the message-based equivalent so the system only runs when there is actually a message to process. |
-| S3 | ErrorObservability | `cloud_save.rs:82–84` | Medium | S | `sync_save_to_steam_cloud` silently swallows `std::fs::read` failures with `Err(_) => return`. If the local save path exists (returned by `cloud_save_path`) but the file fails to open (permissions, lock, corruption), the cloud is silently left stale with no log entry. | Replace `Err(_) => return` with `Err(e) => { warn!("Steam Cloud: failed to read local save for upload: {e}"); return; }`. |
-| S4 | ArchitecturalDecay | `multiplayer/lobby_systems.rs:1–404` | Medium | M | 404 LOC mixing three distinct concerns: create-lobby flow (`process_create_lobby_result`, `discard_stale_lobby`), join-lobby flow (`process_join_lobby_result`, `accept_incoming_join`), and chat/presence updates (`process_lobby_chat_updates`, `process_game_lobby_join_requested`, `process_game_rich_presence_join_requested`, `sync_coop_peer_name`). The 300-LOC rule applies; this is not a single match-on-enum or asset registry. | Split into `create_lobby.rs` (host-side create + discard), `join_lobby.rs` (guest-side join + accept), and keep `lobby_systems.rs` for the chat/presence drains. |
-| S5 | ErrorObservability | `multiplayer/sockets.rs:36–38` | Low | S | In `tear_down_socket`, a poisoned-Mutex branch (`if let Ok(...) = socket.listener.lock()`) silently skips taking the listener. A Mutex poison only occurs if a previous lock-holder panicked — unlikely but not impossible in tests or future refactors. | Add an `else` arm: `} else { warn!("[Steam MP] ListenSocket Mutex poisoned — listener not dropped"); }`. Same pattern at line 57. |
-| S6 | TypeContract | `multiplayer/lobby_state.rs:30–34` | Low | S | The `peer` field in `SteamLobbyState::Joined` is suppressed with `#[allow(dead_code)]`. The doc comment says "future code can render 'Connected to \<friend name\>'" but `sync_coop_peer_name` in `lobby_systems.rs` already reads `peer` via `client.friends().get_friend(peer).name()`. The `allow(dead_code)` is now stale. | Remove `#[allow(dead_code)]`. The field is live; the attribute is doc drift. |
-| S7 | TypeContract | `leaderboards/systems.rs:159` | Low | S | `stats.total_time as i32` is cast without a guard when submitting to the clear-time leaderboard. `total_time` is `f32` (sum of per-level elapsed seconds). A very long run (>2.1 × 10⁹ seconds) would overflow, but more practically a run of >2,147,483 seconds (~25 days) would give a negative rank. The base-score path at line 130 correctly applies `.min(9_999.0)` for the penalty term but that different bound doesn't apply here. | Cap with `.min(i32::MAX as f32) as i32` or document the implicit upper bound. |
-| S8 | DocDrift | `multiplayer/sockets.rs:238–239` | Low | S | The comment on `steam_transport_bridge_system` says `NetworkingMessage::send_flags()` "doesn't reliably distinguish unreliable variants on the receive side (see `networking_types.rs:1879`)". That line reference points into the upstream `bevy_steamworks` crate source which may change with any crate version bump, making the reference immediately stale. | Replace the line-number reference with a prose explanation of the invariant ("the Steam API merges all send-flag variants into a single flag word on receive, so we prefix our own tag byte instead"). |
+| S-01 | Performance | `src/steam/plugin.rs:33` | Medium | S | `sync_achievements_to_steam` is registered to `Update` with no `run_if` guard. Project convention requires every `Update` system to have one. The system calls `client.user_stats()` — a non-trivial FFI call — every frame even when no messages are pending. | Add `.run_if(on_event::<AchievementUnlockedMessage>())` or an equivalent message-based condition to avoid the per-frame FFI call when idle. |
+| S-02 | Performance | `src/steam/multiplayer/plugin.rs:33-48` | Medium | S | Eight `Update` systems (`process_create_lobby_result`, `process_join_lobby_result`, `process_lobby_chat_updates`, `process_game_lobby_join_requested`, `process_game_rich_presence_join_requested`, `consume_pending_join_in_main_menu`, `drive_steam_listen_socket`, `poll_steam_guest_connection_state`) run every frame with no `run_if` guard, violating project convention. Each has an inline early-return so they are cheap-when-idle, but function-call + borrow overhead adds up. | Wrap the entire block with `.run_if(resource_exists::<SteamLobbyBridge>)` as a proxy for "Steam MP initialized". `steam_transport_bridge_system` self-gates on `ConnectionMode::Steam` but still needs an outer `run_if`. |
+| S-03 | ErrorObservability | `src/steam/cloud_save.rs:83-85` | Low | S | `sync_save_to_steam_cloud` silently discards `std::fs::read` failure with bare `Err(_) => return`. When no local save exists this is correct (nothing to sync), but any other error (permissions, path issue) is swallowed with no log line. | Use `Err(e) if e.kind() == std::io::ErrorKind::NotFound => return` for the expected case, and add a `warn!` for all other errors before returning. |
+| S-04 | TypeContract | `src/steam/multiplayer/lobby_state.rs:41` | Low | S | `join_lobby_rx: Receiver<Result<LobbyId, ()>>` uses `()` as the error type because the upstream `bevy_steamworks` `join_lobby` callback uses `Result<LobbyId, ()>`. The loss of the concrete error means `process_join_lobby_result` can only log a generic "join_lobby failed" message. | Add a comment explaining that `()` mirrors the upstream API shape so future readers don't try to enrich the type and discover the constraint. If `bevy_steamworks` exposes an error type in a future version, update the channel at that point. |
+| S-05 | ArchitecturalDecay | `src/steam/multiplayer/lobby_systems.rs:25-35` | Low | S | Two Startup-phase system bodies (`init_steam_lobby_bridge`, `init_relay_network_access`) live in a file named `lobby_systems.rs`, which readers expect to contain Update-phase systems. This breaks the implicit naming contract. | Move the two Startup system bodies to a new `startup.rs` sibling file, consistent with the project's feature-sliced convention. |
 
 ---
 
-### Oversized files
+### Oversized Files
 
-| File | LOC | Exempt | Reason / Split proposal |
-|------|-----|--------|--------------------------|
-| `multiplayer/lobby_systems.rs` | 404 | No | Split into: `create_lobby.rs` (host-side create + discard_stale), `join_lobby.rs` (guest accept + accept_incoming_join), `lobby_systems.rs` (chat updates + rich presence + sync_coop_peer_name) |
-| `multiplayer/sockets.rs` | 332 | Yes | Single concern: all functions are tightly coupled to `SteamP2pSocket` lifecycle (open, close, send, receive). Extracting send/recv into a separate file would add indirection with no cohesion gain. |
-
----
-
-### Looks bad but is actually fine
-
-- **`.unwrap()` at `leaderboards/systems.rs:283,287` and `join_requests.rs:111`** — both are inside `#[cfg(test)]` test bodies. The scope note flags these as the "only `.unwrap()`s in the codebase" but they are test assertions, not production paths. This is the correct pattern.
-- **`Option<Res<Client>>` everywhere in `lobby_systems.rs`** — looks like defensive paranoia but is load-bearing: `SteamMultiplayerPlugin` is registered inside the `Ok` arm of `SteamPlugin`, yet Bevy's scheduler evaluates system parameters at run time, not plugin-build time. If Steam drops mid-session the resource can disappear. `Option<Res<>>` is the correct Bevy idiom here.
-- **`crossbeam_channel::unbounded()` in `LeaderboardHandles` and `SteamLobbyBridge`** — unbounded channels could theoretically grow without bound, but the consumers drain on every frame and the producers fire only on user-initiated Steam callbacks (not per-frame), so this is fine in practice.
-- **`Mutex<Option<ListenSocket>>` in `SteamP2pSocket`** — wrapping a `!Sync` type in `Mutex` to satisfy Bevy's `Resource: Send + Sync` bound is the correct pattern when `unsafe impl Sync` is not warranted. The all-single-threaded access pattern means the Mutex is never contended at runtime.
-- **`discard_stale_lobby` at `lobby_systems.rs:383`** — calling `leave_lobby` on a lobby we just created (after Cancel) and also `clear_rich_presence` looks aggressive, but both are idempotent and necessary to avoid ghost lobbies visible in the Steam friends list.
-- **`sync_coop_peer_name` is not guarded by in-game state** — it runs whenever `SteamLobbyState` changes, which only happens from Bevy's change detection. Since `SteamLobbyState` is only mutated by lobby systems (not every frame), this is a correct and cheap use of `resource_changed`.
+| File | LOC | Exempt | Reason / Proposed Split |
+|------|-----|--------|-------------------------|
+| `src/steam/multiplayer/lobby_systems.rs` | 418 | No | Contains two concerns: Startup-phase init (`init_steam_lobby_bridge`, `init_relay_network_access`) and Update-phase lobby state machine. Proposed split: `startup.rs` (init bodies), `lobby_systems.rs` (Update state machine + helpers). |
+| `src/steam/multiplayer/sockets.rs` | 332 | Yes | All lines are one tightly-coupled concern: SteamNetworkingSockets lifecycle (`start_listening`, `start_connecting`, `drive_*`, `poll_*`, `tear_down_socket`) plus the transport bridge that depends on those primitives. Splitting would require passing the socket reference across a module boundary for no benefit. |
 
 ---
 
-### Open questions
+### Looks Bad But Is Actually Fine
 
-1. `VIRTUAL_PORT = 0` in `multiplayer/constants.rs` — Steam allows any non-negative i32, but port 0 is the documented default. If the game ever needs two simultaneous P2P sessions (e.g., spectator mode), both would clash on port 0. Is a reserved second port documented anywhere?
-2. `prewarm_leaderboard_handles` is called `OnEnter(AppState::MainMenu)` but `handles_incomplete` guards the drain system until all 5 handles are resolved. If the player launches directly into a match (via `+connect_lobby`), the prewarming never fires and `submit_run_scores_to_steam` will log "handle not ready" silently. Is that acceptable?
-3. `build_roguelite_details` returns a `Vec<i32>` with 9 entries. Steam leaderboard details are capped at 64 `i32`s, so there's headroom, but there's no assertion or comment documenting the cap. Worth adding a `const` assertion before the vector grows.
-4. The `#[allow(dead_code)]` on `SteamLobbyState::Joined::peer` (finding S6) — was this field read by an old system that got replaced by `sync_coop_peer_name`? If so, the attribute is a leftover; if the field is truly unused, remove it entirely rather than suppressing the lint.
+- **`unwrap_or(false)` in `achievements.rs:18`** — `user_stats.achievement(api_name).get()` returns `Result<bool, ()>`. The `unwrap_or(false)` default means "assume not yet unlocked if Steam can't confirm" — causes a redundant `.set()` call at worst, never a panic. Correct behavior.
+- **All three `.unwrap()` calls in the module are inside `#[cfg(test)]` blocks** — `join_requests.rs:111`, `leaderboards/systems.rs:283,287`. None are production code. The scope note's concern is fully resolved.
+- **`resource_exists::<Client>` guards in `LeaderboardsPlugin`** — redundant given the `Ok`-arm registration guarantee, but cheap and make the invariant self-documenting. Not a violation.
+- **`SteamLobbyState::Joined { peer, .. }` field `peer` not read by any active system** — the comment at `lobby_state.rs:29-30` explicitly marks it as reserved for "Connected to \<name\>" UI without an extra Steam round-trip. Not dead code.
+- **`Mutex<Option<ListenSocket>>` on `SteamP2pSocket`** — `ListenSocket` is `!Sync` due to an internal `mpsc::Receiver`. `Mutex` is the correct and documented solution. The code comment explains this.
+- **`let _ = tx.send(...)` throughout** — sending on a crossbeam unbounded channel fails only if all receivers are dropped. Since the `Receiver` lives inside the `SteamLobbyBridge` resource for the session lifetime, this is unreachable in practice. Correct to ignore.
+- **`discard_stale_lobby` helper called in exactly one place** — the two-step operation (leave lobby + clear rich presence) plus its "why" comment justifies a named function over inlining.
+
+---
+
+### Open Questions
+
+1. **`drive_steam_listen_socket` acquires the `Mutex` lock every frame** even when no listener is open. The early-return after `slot.as_ref()` is `None` keeps this cheap, but a `run_if` gated on `SteamLobbyState::Hosting | Joined` would eliminate the lock acquisition entirely on non-host frames. Is that worth adding alongside S-02?
+2. **`total_time as i32` for clear-time leaderboard submission (`systems.rs:159`)** — `total_time` is an `f32` truncated to integer seconds. `DisplayType::TimeSeconds` shows whole seconds anyway, but truncation (e.g., 1h59m59.9s submits as 7199 rather than 7200) differs from rounding. Should this be `total_time.round() as i32`?
+3. **Protocol version comparison is string-based (`lobby_systems.rs:147`)** — `u32 PROTOCOL_VERSION` is stringified and compared against a lobby metadata string. Parsing the remote value back to `u32` would enable "host is newer" vs "host is older" distinction in the error message. Worth considering for UX, but the current approach is functionally correct.

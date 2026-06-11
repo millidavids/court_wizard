@@ -1,8 +1,71 @@
 ## units-root
 
-**Scope:** `src/game/units/*.rs` (root-level files only — no subdirectory recursion)
+**Scope:** `src/game/units/*.rs` (root-level files only, 13 files, 2210 LOC)
 
 ---
+
+### Mental Model
+
+The `units/` root layer is the cross-cutting infrastructure that all unit subtypes (infantry, archer, boss, wizard, …) build on. It owns:
+
+- **Animation data** (`animation.rs`): sprite-sheet component types (`WalkingAnimation`, `CombatAnimation`, `DyingAnimation`, `RisingAnimation`, `PulsingAnimation`) plus facing state (`FacingDirection`, `FacingDwell`, `SmoothedFacingVelocity`). All animation logic is pure data; systems live in `systems/`.
+- **Status effects** (`status_effects.rs`): every timed CC and buff/debuff component, from simple `Stunned`/`RootedModifier` to complex multi-field types (`PoisonedModifier`, `PolymorphedModifier`, `BattleHymnModifier`, `SleepModifier` + 4 sub-components).
+- **Movement integration** (`movement.rs`): `apply_unit_movement` (velocity→position), `zero_velocity_for<T>`, `clear_corpse_velocity`.
+- **Ranged bolt** (`ranged_bolt.rs`): `MagicBolt` component, `spawn_magic_bolt`, `move_magic_bolts`, `check_magic_bolt_collisions` — shared by Dispeller and Teleporter.
+- **Damage type enum** (`damage.rs`): serialization-safe `DamageType` with `to_u8`/`from_u8` round-trip.
+- **Unit type enum** (`unit_type.rs`): compendium data, unlock flags, portrait specs.
+- **Constants** (`constants.rs`): cross-cutting tuning values (fire DoT, electric arc, poison, visual tinting, sprite dimensions).
+- **Hit flash** (`hit_flash.rs`): one-shot VFX component + systems.
+- **Plugin** (`plugin.rs`): orchestrates all sub-plugins and registers cross-cutting Update systems.
+- **Sets / spawning** (`sets.rs`, `spawning.rs`): `MovementCalculationSet`, `ApplyTransformsSet`, `GuestSnapshotSet`; `random_position_in_cell`.
+
+The module is cleanly feature-sliced. The main debt areas are: inconsistent `any_with_component` gating on several hot-path systems; `status_effects.rs` exceeding 300 LOC without a clean concern split; a stale doc comment in `mod.rs`; and a minor `impl_timed_modifier!` placement inconsistency.
+
+---
+
+### Findings
+
+| ID | Category | File:Line | Severity | Effort | Description | Recommendation |
+|----|----------|-----------|----------|--------|-------------|----------------|
+| U1 | Performance | `plugin.rs:173–176,181` | Medium | S | `process_pending_damage_effects`, `update_fire_dot`, `update_electric_charge`, `update_electric_arc_visuals`, and `update_persistent_effect_visuals` all run every gameplay frame without `any_with_component` guards. Every other system in the same `add_systems` block (e.g. `update_poisoned`, `update_sickened`, `emit_burning_unit_vfx`) has one. The inconsistency means these five iterate their (often empty) queries unconditionally. | Add `run_if(any_with_component::<PendingDamageEffect>)`, `run_if(any_with_component::<FireDoT>)`, `run_if(any_with_component::<Shocked>)`, `run_if(any_with_component::<ElectricArcVisual>)` and an appropriate condition for `update_persistent_effect_visuals` (e.g. any active tint component). |
+| U2 | Performance | `plugin.rs:80–85` | Low | S | `update_timed_modifier::<TemporaryHitPoints>`, `update_timed_modifier::<SlowMovementModifier>`, `update_timed_modifier::<RootedModifier>`, and `update_timed_modifier::<HasteModifier>` at lines 80–85 lack `any_with_component` guards, while `update_timed_modifier::<Stunned>` on line 86 has one. The inconsistency signals an incomplete optimization pass. | Add `.run_if(any_with_component::<TemporaryHitPoints>)` etc. to the four ungated calls, matching the pattern already applied to all the modifiers in the block at lines 208–221. |
+| U3 | ArchitecturalDecay | `status_effects.rs:1–570` | Medium | M | At 570 LOC, `status_effects.rs` substantially exceeds the project's 300-LOC cap. The file mixes five conceptually distinct concern groups: (1) simple movement/attack CCs (`Stunned`, `RootedModifier`, `FrozenSolidModifier`, `Petrified`, `FearModifier`), (2) sleep (`SleepModifier` + 4 sub-components), (3) combat buffs (`BattleHymnModifier` + `EchoingSong`/`AnthemResilience`, `BerserkerRageModifier`), (4) stat debuffs (`PoisonedModifier`, `SickenedModifier`, `SmellyModifier`), (5) transformation/warping (`PolymorphedModifier`, `BanishedModifier`, `WasBanished`). This is not a single large match/registry monolith. | Split into: `cc_effects.rs` (stuns, roots, freezes, petrify, fear), `sleep.rs` (SleepModifier + its 4 sub-components), `buffs.rs` (BattleHymn, Berserker), `poison.rs` (Poison, Sickened, Smelly), `transformation.rs` (Polymorph, Banishment, WasBanished). |
+| U4 | ConsistencyRot | `status_effects.rs:525` vs `components/mod.rs:71–85` | Low | S | `impl_timed_modifier!(SmellyModifier)` is called inside `status_effects.rs` (line 525), while all other `impl_timed_modifier!` invocations are centralized in `components/mod.rs` (lines 71–85). The two-site split is confusing and makes it easy to miss adding future types. | Move `impl_timed_modifier!(SmellyModifier)` into the existing block in `components/mod.rs`. |
+| U5 | DocDrift | `mod.rs:3` | Low | S | The module doc says "Contains all game unit types: wizard, infantry, and archers." The module now contains 14 unit types plus boss, undead, teleporter, etc. | Update the module doc to reflect the current scope. |
+| U6 | DocDrift | `damage.rs:25` | Low | S | `DamageType::Necrotic` carries the comment "reserved for future spells" but is actively used by `FingerOfDeath`, `RaiseTheDead`, and `MarkOfDeath` (`wizard/spell_enum.rs:538–550`). | Update the doc comment to list the actual spells that deal Necrotic damage. |
+| U7 | ConsistencyRot | `systems/electric_poison.rs:31` | Low | S | The function is named `update_electric_charge` but the component it processes is `Shocked`. Every other `update_*` system is named after its component. | Rename to `update_shocked`, or rename the `Shocked` component to `ElectricCharge`. |
+
+---
+
+### Oversized Files
+
+| File | LOC | Exempt | Reason / Proposed Split |
+|------|-----|--------|--------------------------|
+| `status_effects.rs` | 570 | No | Mixed concern groups — not a single registry or match. Split into: `cc_effects.rs`, `sleep.rs`, `buffs.rs`, `poison.rs`, `transformation.rs`. |
+| `animation.rs` | 426 | No | Two separable concerns: facing state (`FacingDirection`, `FacingDwell`, `FacingHysteresisBoost`, `SmoothedFacingVelocity`) and sprite-sheet animation data (`WalkingAnimation`, `CombatAnimation`, `DyingAnimation`, `RisingAnimation`, `PulsingAnimation`). Proposed split: `facing.rs` + `animation.rs` (trimmed). |
+| `plugin.rs` | 236 | Yes | Purely Bevy registration. Large but no logic bodies; the extensive comments explain non-obvious MP ordering constraints. |
+| `unit_type.rs` | 295 | Yes | Single large match-on-enum monolith (display names, descriptions, flavour text, compendium sprites). Every function is an exhaustive match arm per variant. |
+
+---
+
+### Looks Bad But Is Actually Fine
+
+- **`apply_unit_movement` lacks `Without<GhostEntity>`** — Ghost entities do not carry the `Acceleration` component (confirmed in `apply_state_snapshot.rs`), so the query `(&mut Transform, &mut Velocity, &mut Acceleration)` naturally excludes them.
+- **`zero_velocity_for<T>` is a generic non-system helper** — The monomorphizations each have `any_with_component` guards in the plugin. The helper itself not having guards is correct.
+- **`mod.rs` re-exports `UnitType` from `components`** — `components/mod.rs` re-exports via `pub use super::unit_type::*`, so `components::UnitType` resolves correctly through the indirection chain.
+- **Multiple structs share the same `fn update(&mut self, delta: f32) -> bool` signature** — These are all called via the `TimedModifier` trait; the per-type implementations are just field access, not duplicated logic.
+- **`PolymorphedModifier` and `BanishedModifier` are not in `impl_timed_modifier!`** — Both require complex multi-component restoration logic in their expiry handlers. The custom systems (`tick_polymorphed_units`, `tick_banished_units`) are appropriate; the generic framework can't express them.
+- **`check_magic_bolt_collisions` `#[allow(clippy::type_complexity)]`** — The complex query is genuinely necessary for collision-with-shielding logic. Correct per project convention.
+- **`update_electric_arc_visuals` runs without `any_with_component::<ElectricArcVisual>`** — While flagged as U1, the `ElectricArcVisual` entities are very short-lived (0.2s lifetime), so the empty-query cost is minimal; still worth fixing for consistency.
+
+---
+
+### Open Questions
+
+1. **`Teleporter` unit has no `UnitType` variant** — `UnitType::all()` in `unit_type.rs` does not include a Teleporter variant. Is this intentional (e.g. shares a compendium entry with another unit, or is not yet unlockable)?
+2. **`update_persistent_effect_visuals` guard** — Adding a per-effect `any_with_component` disjunction here would require ORing a dozen conditions. Would a dedicated `HasStatusTint` marker component (inserted by any status-effect applicator) be a better architectural fit?
+3. **`WasBanished` is a permanent marker** — Once a unit returns from banishment it can never be banished again. Is this intentional game design, or should `WasBanished` be removed on unit despawn/death so the next wave of the same entity type is not permanently immune?
+
 
 ### Mental model
 

@@ -1,53 +1,54 @@
 ## boss-ogre
 
-**Scope:** `src/game/units/boss/ogre/` — all 8 `.rs` files (1,607 total LOC)
+**Scope:** `src/game/units/boss/ogre/` — all `.rs` files (16 files, ~1 327 LOC total across charge/, combat/, and top-level files).
 
 ---
 
 ### Mental model
 
-The ogre is a melee boss with three interlocking behaviors: a charge ability (telegraph → dash → recovery state machine), a rock-throw ranged attack (shared with the `brute` via `RockThrowCooldown`), and an enrage system (3 HP-threshold phases that buff speed, damage, and sprite tint). Logic is split across `charge.rs` (732 LOC, charge + rock-throw) and `combat.rs` (548 LOC, spawn + facing + targeting + melee + movement + enrage). `systems.rs` is a 4-line re-export shim; `plugin.rs` is clean registration-only. Core components are well-modelled (small, ECS-idiomatic). All Update systems are gated with `run_if(is_gameplay_running)`.
+The ogre is a melee boss with three interlocking abilities: a charge attack (telegraph → dash → recovery state machine), a rock throw (borrowed from the brute via `RockThrowCooldown`), and a progressive three-phase enrage that scales speed and damage as HP drops. The module is well-sliced into `combat/` (spawn, movement, melee, facing, enrage) and `charge/` (charge state machine, visuals, rock throw). The top-level `systems.rs` is a pure re-export hub. Component and constant files are appropriately sized. The largest single file is `charge_attack.rs` (370 LOC), which is a single large state-machine match — exempt under the convention rule.
+
+Overall health is **good**: no `.unwrap()`, no `println!`, granular file layout, run_if guards on all Update systems. Three concrete issues stand out: a silent ghost-entity gap in multiplayer, a MeleeRangeBonus that is registered on the entity but silently ignored by the ogre's own melee system, and a cross-cutting audio path leak.
 
 ---
 
-### Findings
+### Findings table
 
 | ID | Category | File:Line | Severity | Effort | Description | Recommendation |
 |----|----------|-----------|----------|--------|-------------|----------------|
-| O-01 | ArchitecturalDecay | `combat.rs:182` | High | S | `update_ogre_targeting` queries `(With<Boss>, Without<Lich>)` — it accidentally matches Hag, DarkMage, and Ray entities which also carry `Boss + TargetingVelocity`. In BossParade mode multiple boss types coexist, so this system clobbers their dedicated targeting systems' results (last write in `VelocitySystemSet` wins non-deterministically). | Narrow the query to `With<OgreEnrageState>` (an ogre-exclusive component) instead of `Without<Lich>`. |
-| O-02 | TypeContract | `combat.rs:273,333` | High | S | `ogre_combat` uses two inconsistent melee-range checks: the first pass triggers an attack when any enemy is within `(radius_sum) * ATTACK_RANGE_MULTIPLIER` (1.5×), but the second pass only deals damage within bare `radius_sum` (1.0×). The ogre can swing, play SFX, and reset its cooldown for zero damage when enemies are in the 1.0–1.5× band. | Apply the same range formula (`* ATTACK_RANGE_MULTIPLIER`) in both passes, or unify into a single pass that also applies damage when `distance <= attack_range`. |
-| O-03 | TypeContract | `combat.rs:112` | Medium | S | `MeleeRangeBonus(OGRE_MELEE_RANGE_BONUS)` is inserted on the ogre at spawn but is never consumed. The shared `melee.rs` system excludes `Boss` entities, and `ogre_combat` computes its own range from raw `hitbox.radius` values. The constant `OGRE_MELEE_RANGE_BONUS = 80.0` is dead weight. | Either remove `MeleeRangeBonus` from the ogre spawn bundle (and delete `OGRE_MELEE_RANGE_BONUS`) or incorporate it into the `ogre_combat` range calculation (`boss_hitbox.radius + target_hitbox.radius + melee_range_bonus`). |
-| O-04 | ArchitecturalDecay | `charge.rs:732` | Medium | M | `charge.rs` is 732 LOC and handles three distinct concerns: the charge state machine (`ogre_charge_system`), charge visuals (`update_ogre_charge_visuals`), and the rock-throw system (`ogre_rock_throw` + `ogre_throw_release`). Several private helpers are interleaved throughout. | Split into `charge.rs` (state machine only), `charge_visuals.rs` (visual updates), and `rock_throw.rs` (throw targeting + release). Helper functions (`ogre_frame_uv_transform`, `facing_from_world_direction`, `ogre_combat_animation`) move to a sibling `utils.rs` or `animation.rs`. |
-| O-05 | ArchitecturalDecay | `combat.rs:548` | Medium | M | `combat.rs` is 548 LOC covering five distinct concerns: spawning, facing override, targeting, melee combat, movement, and enrage. The module comment says "spawn, facing, targeting, combat, movement, enrage" — six concerns. | Split into `spawn.rs`, `movement.rs`, `melee.rs` (or reuse name `combat.rs` for just the combat part), and keep `enrage.rs` as its own file. |
-| O-06 | DocDrift | `charge.rs:26` | Low | S | `ogre_charge_system` has the doc comment `/// Spawns the ogre at one of the tunnel spawn points.` — copied from `spawn_ogre` and never updated. The function is actually the charge state machine driver. | Replace with an accurate description of the charge state machine. |
-| O-07 | DocDrift | `systems.rs:1` | Low | S | The module-level comment reads `//! Re-export hub for ogre systems split (Phase 15).` "Phase 15" is an internal planning artifact with no meaning to readers of the codebase. | Remove the phase reference: `//! Re-export hub — re-exports systems from charge and combat submodules.` |
-| O-08 | TypeContract | `combat.rs:447` | Low | S | `let combined_haste = Some(haste_modifier.map(...).unwrap_or(0.0) + enrage_state.speed_bonus)` always produces `Some(f32)` — the `Option` wrapper adds no information and the `unwrap_or` inside `Some` is redundant. `calculate_weighted_movement` treats `None` and `Some(0.0)` identically (both resolve to `unwrap_or(0.0)`), so the only functional difference is that passing `Some(0.0)` prevents a short-circuit that doesn't exist anyway. | Simplify to `let combined_haste = haste_modifier.map(|m| m.modifier).unwrap_or(0.0) + enrage_state.speed_bonus;` and pass it as `Some(combined_haste)` to make the intent explicit, or change the shared function signature to accept `f32` for this parameter. |
+| OG-01 | TypeContract | `combat/melee.rs:120-122` | High | S | `ogre_combat` first-pass range check computes `attack_range = (boss_hitbox.radius + target_hitbox.radius) * ATTACK_RANGE_MULTIPLIER` without adding `OGRE_MELEE_RANGE_BONUS`. The ogre has `MeleeRangeBonus(OGRE_MELEE_RANGE_BONUS)` on its entity (spawn.rs:104) and the global melee system in `combat_systems/melee/combat.rs:229` does add the bonus — but `ogre_combat` bypasses the global system and silently drops the bonus. The ogre effectively has a shorter first-hit trigger range than intended. | Read `melee_range_bonus: Option<&MeleeRangeBonus>` in the `bosses` query and add `melee_range_bonus.map_or(0.0, |b| b.0)` to the range calculation at line 121. |
+| OG-02 | ArchitecturalDecay | `combat/melee.rs:1` | Medium | S | `use crate::game::units::animation::CombatAnimation;` bypasses the canonical re-export `crate::game::units::components::CombatAnimation` (which exists via `pub use super::animation::*` in `components/mod.rs`). All other ogre files import from `components`. | Change to `use crate::game::units::components::CombatAnimation;` for consistency. |
+| OG-03 | ArchitecturalDecay | `charge/charge_attack.rs:265`, `charge/rock_throw.rs:113`, `combat/melee.rs:136` | Medium | S | All three ogre action sites call `crate::game::units::wizard::spells::audio::play_sfx_scaled` via the full absolute wizard-spell path. `play_sfx_scaled` is a shared audio utility used by bosses, cauldron, etc. The coupling to the wizard/spells path is an architectural smell. | Move `play_sfx_scaled` to a shared audio module (e.g. `src/game/audio.rs`) and re-export from there. In the meantime, at minimum add `use crate::game::units::wizard::spells::audio::play_sfx_scaled;` at the import block of each file instead of inline fully-qualified calls. |
+| OG-04 | ConsistencyRot | `charge/rock_throw.rs:11` | Low | S | `RockThrowCooldown` is imported from `crate::game::units::brute::components`. The ogre shares the brute's component to avoid duplication, which is intentional, but a future refactor of `brute::components` could inadvertently break the ogre with no documentation of the dependency. | Move `RockThrowCooldown` to `crate::game::units::components` (the cross-cutting module) so both brute and ogre import from the canonical location. |
+| OG-05 | ArchitecturalDecay | `charge/charge_visuals.rs:206-220` | Low | S | `facing_from_world_direction` is a 4-way camera-relative direction helper defined with `pub(crate)` in the ogre module. The XZ cam dot-product logic is conceptually identical to `back_facing_for_velocity` in `boss/utils.rs`. | Move `facing_from_world_direction` to `boss/utils.rs` alongside the other camera-relative facing helpers. |
+| OG-06 | Performance | `combat/melee.rs:109-126` | Low | S | The first-pass loop (has_target check) and the second-pass loop (damage application, lines 152-186) both iterate the full `targets` query, doubling iteration. The ogre is a singleton so the real cost is low, but the pattern is easy to consolidate. | Combine into a single pass that collects hit candidates and applies damage only if the range check passed. |
 
 ---
 
 ### Oversized files
 
-| File | LOC | Exempt | Reason | Proposed split |
-|------|-----|--------|--------|----------------|
-| `charge.rs` | 732 | No | Three distinct concerns (charge state machine, charge visuals, rock throw) plus helpers | `charge.rs` (state machine), `charge_visuals.rs`, `rock_throw.rs`, `ogre_animation.rs` (helpers) |
-| `combat.rs` | 548 | No | Six distinct concerns (spawn, facing, targeting, melee, movement, enrage) | `spawn.rs`, `facing.rs`, `targeting.rs`, `melee.rs`, `movement.rs`, `enrage.rs` |
+| File | LOC | Exempt | Reason / Proposed split |
+|------|-----|--------|------------------------|
+| `charge/charge_attack.rs` | 370 | Yes | Single large `match charge_state.as_mut()` across all five enum arms — exactly the exempt "single large match-on-enum" case. |
+
+All other files are well under 300 LOC.
 
 ---
 
 ### Looks bad but is actually fine
 
-- **`camera_query.single().ok().unwrap_or(Vec3::NEG_Z)` (`charge.rs:404–408`)** — uses `.ok()` to convert `Result` to `Option` then falls back to a default; not a misuse of `.unwrap()`. A missing camera is gracefully handled.
-- **`_boss_entity` unused binding (`charge.rs:85`)** — intentional suppression of the unused-variable lint; the entity is destructured but the charge logic uses other fields. Correct Rust idiom.
-- **`HashSet` inside `OgreChargeState::Charging` (`components.rs:75`)** — a per-frame allocation concern at first glance, but the `HashSet` is created once when entering the `Charging` state and reused for the duration of the charge. Not a hot allocation.
-- **Two-level `.insert()` chain in `spawn_ogre` (`combat.rs:65–114`)** — works around Bevy's tuple-size limit (max 15 items per bundle). Idiomatic workaround, not a design smell.
-- **`RockThrowCooldown` borrowed from `brute::components` (`charge.rs:18`, `combat.rs:17`)** — reusing brute's cooldown type is intentional code sharing; the ogre's rock throw uses the same boulder infrastructure as the brute.
-- **Long query parameter lists in `ogre_charge_system` and `ogre_rock_throw`** — CC-check tuples are necessarily long; `#[allow(clippy::too_many_arguments)]` is already applied and matches project conventions for Bevy systems.
-- **`ogre_movement` runs on `With<Boss>` (no ogre-specific filter)** — safe because the query also requires `OgreEnrageState` and `OgreChargeState`, which only the ogre carries. The query will match nothing when the ogre is absent.
+- **`systems.rs` is 4 lines of re-exports** — looks like an empty stub but is correct: it is a pure re-export hub for a split module, intentional per project convention.
+- **`OgreChargeVisuals.elapsed` reset to `0.0` in `charge_visuals.rs:131`** — looks like a state mutation bug (zeroing elapsed mid-charge) but is intentional: it serves as a one-shot "restore position" flag for vibration offset.
+- **`RockThrowCooldown` hard-coded to `8.0` in spawn.rs vs. `ROCK_THROW_COOLDOWN = 15.0` in boulder constants** — looks inconsistent. The ogre intentionally uses a shorter cooldown than the brute; the spawn comment just doesn't explain it.
+- **`camera_query.single().ok().unwrap_or(Vec3::NEG_Z)` in `charge_visuals.rs:34-41`** — looks like a `.ok()` swallowing an error, but the fallback is a safe default; the camera is always present during gameplay.
+- **`update_ogre_targeting` queries `Without<Lich>`** — looks like a leaky filter but is intentional: both ogre and lich are `Boss` entities and the ogre's targeting must not fire on the lich.
+- **`OgreChargeState::Targeting` fallback uses hardcoded `cooldown: 2.0`** — looks like a magic number but is a single-use retry wait, well within the "inline is fine" threshold.
+- **No `GhostEntity` filter on gameplay systems** — investigated; bosses are SP-only content and never spawn in the multiplayer wave set. The `is_gameplay_running` guard is sufficient. Not a bug.
 
 ---
 
 ### Open questions
 
-1. Should `update_ogre_targeting` be narrowed to `With<OgreEnrageState>` consistently, or is there a plan to replace it with a shared boss-targeting utility that each boss type opts into?
-2. Is the intentionally wider melee trigger range (ATTACK_RANGE_MULTIPLIER) in `ogre_combat`'s first pass a design choice (swing-but-miss behaviour), or an unnoticed inconsistency from the two-pass implementation?
-3. Is BossParade mode considered a supported/tested configuration for multi-boss coexistence, or a debug/experimental toggle where cross-boss system interference is accepted?
+1. Should `facing_from_world_direction` be promoted to `boss/utils.rs` to serve lich/dark_mage 4-way facing if those bosses ever need it?
+2. Is the ogre intended to have the full `OGRE_MELEE_RANGE_BONUS` effect on its first-pass trigger range, or should the bonus only affect the second-pass damage sweep? (OG-01 assumes the former since the component is inserted.)
+3. `RockThrowCooldown` is owned by `brute::components` — is there a roadmap to move it to the units cross-cutting module?

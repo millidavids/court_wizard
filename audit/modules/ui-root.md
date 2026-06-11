@@ -1,6 +1,6 @@
 ## ui-root
 
-**Scope:** `src/ui/*.rs` (root-level files only — layout_helpers.rs, button_systems.rs, markdown.rs, components.rs, constants.rs, color_utils.rs, link_button.rs, systems.rs, mod.rs, plugin.rs)
+**Scope:** `src/ui/*.rs` (root-level files only — `layout_helpers.rs`, `markdown.rs`, `components.rs`, `constants.rs`, `color_utils.rs`, `link_button.rs`, `systems.rs`, `scale.rs`, `mod.rs`, `plugin.rs`)
 
 ---
 

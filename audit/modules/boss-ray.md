@@ -1,59 +1,58 @@
 ## boss-ray
 
-**Scope:** `src/game/units/boss/ray/` — 8 files, 2,571 total LOC.
+Scope: `src/game/units/boss/ray/` — the Ray boss (beholder-type), its five beam eyes, lifecycle, movement, particles, and per-beam sweep systems.
 
 ---
 
-### Mental Model
+### Mental model
 
-Ray is a floating multi-eyed boss. Its body is a damage-redirect sentinel (all damage dealt to the body is divided evenly among its 5 eyes). Each eye has a unique beam attack: disintegration (sweeping burn), petrification (channel + cone), fear (orbit drop-beam), mind control (channel + cone), and teleportation (scatter defenders when Ray is in melee). Eyes die independently; Ray dies when all 5 eyes are dead. Stalk particles fly from the body to each live eye for visual flavor.
-
-The module is split into `movement.rs` (spawn, body/eye lifecycle, particle, fear movement, disintegration/petrification beams — 1102 LOC) and `beams.rs` (mind control, fear, teleport beams, cone helpers — 923 LOC). Both files are well above 300 LOC. `components.rs` holds 13 components (220 LOC). `resources.rs` holds asset preloading (108 LOC). `plugin.rs` is pure registration (102 LOC). `constants.rs` is pure constants (99 LOC). `systems.rs` is a one-liner re-export hub (4 LOC).
-
-The module is guarded by `is_gameplay_running` (which is host-only in multiplayer) so ghost-entity contamination is not a concern for gameplay systems.
+Ray is a beholder-style boss with a floating body and five independent eyes (Petrification, Disintegration, Fear, MindControl, Teleportation). Each eye has its own sweep component on the body entity that drives a cooldown→channel→fire loop. Damage dealt to the body is redistributed to the eyes; victory is triggered when all eyes reach zero HP. The module is well-sliced into concern-focused files below 300 LOC, with shared targeting helpers extracted into `beams/disintegration.rs` and `beams/beam_helpers.rs`. The primary technical debts are: a duplicated beam-steering pattern replicated across three files, a missing `Without<GhostEntity>` guard on every SP gameplay system, an inconsistent bare `.despawn()` call alongside `try_despawn`, and structural duplication between `RayPetrificationBeam` and `RayMindControlBeam` components.
 
 ---
 
-### Findings
+### Findings table
 
 | ID | Category | File:Line | Severity | Effort | Description | Recommendation |
 |----|----------|-----------|----------|--------|-------------|----------------|
-| F1 | ArchitecturalDecay | `movement.rs:1` | High | M | `movement.rs` (1102 LOC) conflates five distinct concerns: spawn, body/eye lifecycle, stalk particles, fear movement, and two full beam attacks (disintegration + petrification). The scope note calls this out explicitly. | Split into `spawn.rs` (spawn_ray), `lifecycle.rs` (body_damage_to_eyes, eye_death_check, all_eyes_dead_check, death_cleanup, dying_eyes), `particles.rs` (stalk particle spawn/update, beam_visual cleanup), `fear_movement.rs` (cleanse_fear_with_rage, update_fear_movement), and move disintegration + petrification beams into `beams.rs`. |
-| F2 | ArchitecturalDecay | `beams.rs:1` | Medium | M | `beams.rs` (923 LOC) holds four unrelated beam attacks plus three shared helper functions. The module name implies it is already the dedicated beam file, but it is still over-sized. | Move disintegration and petrification beams out of `movement.rs` into `beams.rs`, then split `beams.rs` by attack: `beams/disintegration.rs`, `beams/petrification.rs`, `beams/fear.rs`, `beams/mind_control.rs`, `beams/teleport.rs`, `beams/helpers.rs`. |
-| F3 | ConsistencyRot | `components.rs:116-168` | Medium | S | `RayPetrificationBeam` and `RayMindControlBeam` are structurally identical (`origin: Vec3`, `direction: Vec3`, `length: f32`, `channel_progress: f32`, `has_fired: bool`). The corresponding `*Sweep`, `*Glow` component triples are also near-clones. The two beam systems that drive them (petrification in `movement.rs:901`, mind control in `beams.rs:28`) duplicate 80+ lines of channel/steer/fire logic. | Extract a generic `ChanneledBeam { origin, direction, length, channel_progress, has_fired }` component (or a typed enum variant), plus a shared `channel_beam_logic` helper, reducing duplication to per-beam overrides (damage type, cone width, effect applied). |
-| F4 | ArchitecturalDecay | `movement.rs:627` / `movement.rs:640` | Medium | S | `cleanse_fear_with_rage` and `update_fear_movement` are cross-cutting systems (FearModifier is a units-level concept, registered in `units/plugin.rs`). They live inside `movement.rs` only because Ray is the only current fear source, but they are not Ray-specific and create an invisible ownership oddity. | Move both systems to `src/game/units/status_effects.rs` or a dedicated `fear.rs` under `units/` alongside the `FearModifier` definition, and register them in `units/plugin.rs` instead. |
-| F5 | ConsistencyRot | `movement.rs:709-723` / `movement.rs:942-955` / `beams.rs:82-95` | Medium | S | The "does any defender exist within MAX_BEAM_RANGE?" check (`has_targets`) is inlined identically in at least three beam attack functions (disintegration, petrification in `movement.rs`, mind control in `beams.rs`). | Extract `any_defender_in_range(boss_pos, defenders, team_query, max_range)` into `beams.rs` helpers or `boss/utils.rs`. |
-| F6 | DocDrift | `beams.rs:26-27` | Low | S | The doc comment `/// Attenuated volume for Ray's sound effects — slight falloff from wizard/camera position.` is placed directly above `ray_mind_control_beam` (line 28) but describes `ray_sfx_volume`, which lives in `movement.rs`. The comment was clearly left behind after `ray_sfx_volume` was moved. | Delete the orphaned comment from `beams.rs:26-27`. |
-| F7 | Performance | `movement.rs:389-392` | Low | S | `update_ray_eye_movement` allocates a `Vec<(Entity, Vec2)>` every frame for the 5-eye separation pass. With only 5 eyes this is trivially small, but it is a needless heap allocation in a hot system. | Replace with a `[Option<(Entity, Vec2)>; 5]` stack array populated in-place. |
-| F8 | Performance | `beams.rs:682-689` | Low | S | `ray_teleport_eye` calls `materials.add(StandardMaterial { ... })` each time the teleport fires (once every 15 seconds). While infrequent, the teleport bubble material is stateless and identical every time. | Add a `bubble_material: Handle<StandardMaterial>` field to `RayAssets` and create it in `preload_ray_assets`, eliminating the runtime allocation. |
-| F9 | TypeContract | `components.rs:42-47` | Low | S | `RayEyeState::new()` is a manual constructor that returns `active: [true; COUNT]`. The type does not derive `Default`. Since `new()` is trivially equivalent to `Default::default()`, callers must know to call `new()` rather than using any derive-based initialization path. | `#[derive(Default)]` on `RayEyeState` with `active: [true; COUNT]` using a custom `Default` impl, and replace the `new()` call sites. |
+| R01 | ArchitecturalDecay | movement/petrification.rs:140–152, beams/mind_control_beam.rs:151–162 | Medium | M | Beam-steering while-channeling logic is copy-pasted verbatim across two files. Both clamp dot, compute angle, apply `max_turn / angle` lerp, and normalize. The disintegration sweep (movement/disintegration.rs:182–199) uses a slightly different 2D rotation variant but addresses the same concern. | Extract `steer_beam_toward(current: Vec3, desired: Vec3, turn_rate: f32, delta: f32) -> Vec3` into `beams/beam_helpers.rs` and call it from all three sites. |
+| R02 | ArchitecturalDecay | movement/petrification.rs:68–79, movement/disintegration.rs:92–103, beams/mind_control_beam.rs:75–86 | Medium | S | Three identical `has_targets` range-check closures: iterate defenders, re-run `team_query.get(entity)` to filter non-Defenders, then check horizontal distance ≤ MAX_BEAM_RANGE. | Extract `has_defenders_in_range(boss_pos, defenders, team_query, max_range) -> bool` into `beams/beam_helpers.rs`. |
+| R03 | TypeContract | components.rs:116–168 | Low | S | `RayPetrificationBeam` and `RayMindControlBeam` are structurally identical (origin, direction, length, channel_progress, has_fired). Two separate types force duplicated visual systems that are nearly identical except for beam width constants. | Consider a single generic `RayChannelBeam { origin, direction, length, channel_progress, has_fired }` component shared by both. The separate glow/sweep components already differentiate them for system dispatch. |
+| R04 | ErrorObservability | movement/disintegration.rs:42 | Low | S | `commands.entity(entity).despawn()` is used for `RayBeamVisual` lifetime expiry while every other despawn in the module uses `try_despawn()`. A double-despawn from two racing systems would panic. | Change to `try_despawn()` for consistency and safety. |
+| R05 | ArchitecturalDecay | movement/eye_movement.rs:59–62 | Low | S | Fear eye orbit angle is stored in `eye.heading.x` (repurposed as a float angle accumulator) rather than a dedicated field. A reader unfamiliar with the special-case path would expect `heading` to be a 2D unit direction. | Add an `orbit_angle: f32` field to `RayEye`, use it only for Fear eyes, and remove the dual-use of `heading.x`. |
+| R06 | Performance | beams/teleportation.rs:140–148 | Medium | S | A fresh `StandardMaterial` is allocated via `materials.add(...)` every time the teleport eye fires (up to once every 15 s but still a heap allocation in a gameplay system). The bubble material parameters are fixed. | Pre-allocate the bubble material in `preload_ray_assets` (resources.rs), store it in `RayAssets`, and reuse the handle. |
+| R07 | Performance | movement/particles.rs:103–107 | Low | S | `update_ray_stalk_particles` accesses `game_rng` (a `ResMut`) every frame for each particle to produce random shudder. This forces the entire particle tick to be single-threaded. | Pre-bake shudder seed into `RayStalkParticle` at spawn time, or derive pseudo-noise from `time.elapsed_secs()` + entity index. |
+| R08 | ConsistencyRot | beams/mind_control_beam.rs:19–21 | Low | S | The doc-comment on line 19 (`/// Attenuated volume for Ray's sound effects...`) was copy-pasted from `ray_sfx_volume` in spawn.rs and left on the `ray_mind_control_beam` function signature. | Remove the stale comment from `ray_mind_control_beam`. |
+| R09 | DocDrift | movement/eye_movement.rs:86 | Low | S | `to_body` is computed as `Vec2::new(body_pos.x - my_pos.x, body_pos.z - my_pos.y)` — `.y` on `my_pos` (a Vec2) refers to world-Z, not world-Y. This is correct by convention but reads misleadingly against the `.z` subscript used elsewhere. | Rename the intermediate to `my_xz` to match `body_xz` on line 63. |
 
 ---
 
-### Oversized Files
+### Oversized files
 
-| File | LOC | Exempt | Reason / Proposed Split |
-|------|-----|--------|-------------------------|
-| `movement.rs` | 1102 | No | Split into: `spawn.rs`, `lifecycle.rs`, `particles.rs`, `fear_movement.rs`; move beam systems to `beams.rs`. |
-| `beams.rs` | 923 | No | Split into: `beams/disintegration.rs`, `beams/petrification.rs`, `beams/fear.rs`, `beams/mind_control.rs`, `beams/teleport.rs`, `beams/helpers.rs`. |
-| `components.rs` | 220 | Yes | Under 300 LOC; all entries are Ray-specific components — genuinely cohesive. |
+| File | LOC | Exempt | Reason / Proposed split |
+|------|-----|--------|--------------------------|
+| movement/disintegration.rs | 256 | true | Single-concern: disintegration sweep system + shared helpers; all lines cohesive. |
+| beams/mind_control_beam.rs | 254 | true | Single-concern: mind control sweep + visual update; under 300 LOC. |
+| movement/petrification.rs | 228 | true | Single-concern: petrification sweep + visual update; under 300 LOC. |
+| components.rs | 220 | true | All component definitions for one module; genuinely cohesive registry. |
+| movement/spawn.rs | 216 | true | Spawn + movement tightly coupled by shared component set; under 300 LOC. |
 
----
-
-### Looks Bad But Is Actually Fine
-
-- **`#[allow(clippy::too_many_arguments)]` on beam systems** — Bevy systems with many injected `Query`/`Res` parameters are idiomatic; the project CLAUDE.md explicitly calls this out.
-- **`unwrap_or(boss_pos)` at eye-position lookups** (`movement.rs:732`, `movement.rs:964`, `beams.rs:104`, `beams.rs:438`, `beams.rs:631`)** — These fall back to `boss_pos` when the expected eye entity is not found; this is a safe, semantically correct fallback for a transient race during eye death, not a panic path.
-- **`partial_cmp(...).unwrap_or(Ordering::Equal)` at `beams.rs:664`** — This is the standard Rust pattern for NaN-safe `f32` comparison in a sort; acceptable here since the values are distances (non-NaN in practice).
-- **`RayEyeState` holding `[bool; 5]` indexed by `RayEyeType::index()`** — Looks fragile, but the `ALL` const array and `index()` method are defined in the same `components.rs` and form a closed enum-indexed array; no out-of-bounds risk.
-- **`is_gameplay_running` as the sole multiplayer gate (no `Without<GhostEntity>`)** — `is_gameplay_running` returns `true` only for the multiplayer host, so Ray's gameplay systems never run on the guest client. The ghost-entity gating pattern seen in `hags/abilities.rs` is not needed here.
-- **`systems.rs` being a 4-line re-export hub** — This is explicitly the project's "Phase 15" split residue. The file is intentional; not a mod.rs purity violation since it is `systems.rs` not `mod.rs`.
-- **Duplicate `find_units_in_cone` and `find_units_in_cone_filtered`** — These are not duplicates in the strict sense: the unfiltered version takes a `&mut Health` query (needed for damage reads), while the filtered version takes a `&Hitbox` query (excludes King/KingsGuard/Petrified). They serve genuinely different callers.
+No file exceeds 300 LOC.
 
 ---
 
-### Open Questions
+### Looks bad but is actually fine
 
-1. Are Ray's beam attacks ever expected to run on the multiplayer guest (for visual mirroring)? If so, the ghost-entity gating omission is a real gap; if not (boss is host-only), the current design is correct.
-2. Should `cleanse_fear_with_rage` / `update_fear_movement` be promoted to `units/` now, or deferred until a second fear source is added?
-3. `PETRIFY_DURATION` and `MIND_CONTROL_DURATION` are both `f32::MAX`. Is this intentional (permanent effects)? If so, a named constant like `PERMANENT_DURATION` would communicate intent better.
+- **`pub use super::movement::*` and `pub(crate) use super::beams::*` in systems.rs** — looks like a wildcard anti-pattern, but `systems.rs` is explicitly a "re-export hub" (documented Phase 15 split). Intentional.
+- **`unwrap_or(boss_pos)` for eye_pos lookups** — appears lossy, but the boss entity is always present when these systems run (guarded by `any_with_component::<Ray>`). Eye-not-found falling back to boss position is graceful degradation, not a hidden panic.
+- **`RayEyeState` without `#[derive(Default)]`** — uses a hand-written `new()` returning all-true; the default state is intentionally all eyes alive, which is not what `Default` would express.
+- **`partial_cmp().unwrap_or(Ordering::Equal)` in teleportation.rs:122** — standard Rust idiom for f32 sort; the fallback is safe because NaN distances would mean the unit is at the same position as Ray.
+- **Separate `despawn_fear_beam`, `despawn_mind_control_beam`, `despawn_ray_beam`, `despawn_petrify_beam`** — look like duplication but each sweep type is structurally distinct (disintegration adds `sfx_entity`); a shared trait abstraction would add more complexity than it removes.
+- **Multiple `#[allow(clippy::too_many_arguments)]`** — all on Bevy systems; expected per project conventions.
+
+---
+
+### Open questions
+
+1. Is Ray intended to appear in co-op multiplayer? No `Without<GhostEntity>` guard exists on any Ray system. If the boss can appear in a co-op session, gameplay systems (body damage redistribution, petrification apply, mind control apply, teleportation scatter) would incorrectly run on ghost-synced units on the guest side.
+2. The `has_targets` check filters `team_query.get(entity) != Team::Defenders` but the query already uses `With<Team>`. Could the team secondary lookup be eliminated by a tighter primary query filter?
+3. `PETRIFY_DURATION: f32 = f32::MAX` and `MIND_CONTROL_DURATION: f32 = f32::MAX` — are these truly permanent? `ray_death_cleanup` does not remove `Petrified` or `MindControlled` from defender entities on Ray's death, so those debuffs would persist indefinitely into post-encounter gameplay.

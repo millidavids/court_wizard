@@ -1,16 +1,14 @@
 ## game-terrain
 
-**Scope:** `src/game/terrain/` — static/dynamic terrain objects: boulders, ponds, bushes, trees, flora, wind-sway shader.
+**Scope:** `src/game/terrain/` — all .rs files (50 files, 3 222 LOC)
 
 ---
 
-### Mental model
+### Mental Model
 
-The terrain module is a well-structured feature-sliced hierarchy. Each terrain type (boulder, bush, flora, pond, tree, wind\_sway) lives in its own sub-module with a plugin, components, constants, resources, and systems file. Cross-cutting concerns are cleanly hoisted: `TerrainDamageMessage` is the unified fan-out bus for reactive effects (fire→evaporation, frost→freeze, electric→shock), `utils.rs` holds shared ignition detection (`should_ignite_from_fire`) and VFX emission (`emit_burning_vfx`) helpers, and `systems.rs` owns the cross-cutting dam-application fan-out to ponds and boulders.
+The terrain module is a self-contained cluster of destructible and interactive battlefield objects: boulders (thrown by brutes/ogres, explodable by fire), ponds (freeze/electrify/evaporate reactively), trees and bushes (flammable, provide rough terrain), and cosmetic flora (trampleable). A cross-cutting `TerrainDamageMessage` bus lets spell systems broadcast damage events that the terrain then reacts to, keeping spell code decoupled from terrain internals.
 
-All Update systems carry `run_if` guards (either `is_gameplay_running`, `is_spell_effects_active`, or a cheap `any_with_component` short-circuit), so idle frames incur minimal cost. The module is multiplayer-aware: host-authoritative gameplay systems are gated with `is_gameplay_running` (which returns false for the guest), while pure-visual systems run under `is_spell_effects_active` on both peers.
-
-Main pain points: (1) `boulder/systems.rs` and `pond/systems.rs` both exceed 300 LOC with multiple distinct concerns; (2) `Tree::line_segment_intersects` / `push_out` and `Boulder::line_segment_intersects` / `push_out` are byte-for-byte copies; (3) `apply_spell_damage_to_rocks` in boulder uses a local closure for `xz_distance` instead of the shared helper from `spells/utils.rs`; (4) `ignite_trees_from_fire` uses full `crate::…` paths inline rather than `use` imports, unlike `ignite_bushes_from_fire`; (5) `Pond::obstacle_bounds` and `Tree::obstacle_bounds` are suppressed with `#[allow(dead_code)]` indicating unused methods.
+The module is well-structured: every sub-feature gets its own folder with the project's prescribed `plugin.rs` / `components.rs` / `constants.rs` / `systems.rs` decomposition. All Update systems carry `run_if` guards. No `.unwrap()` calls. No `println!` / debug prints. All messages use `#[derive(Message)]` with `Message` suffixes. The multiplayer host-vs-guest split is clearly documented in comments. This is one of the cleaner modules in the codebase.
 
 ---
 
@@ -18,41 +16,44 @@ Main pain points: (1) `boulder/systems.rs` and `pond/systems.rs` both exceed 300
 
 | ID | Category | File:Line | Severity | Effort | Description | Recommendation |
 |----|----------|-----------|----------|--------|-------------|----------------|
-| T-01 | ArchitecturalDecay | `boulder/systems.rs:1–524` | High | M | File has 524 LOC and mixes 6 distinct concerns: projectile spawn, projectile animation & landing, lifetime/sinking, attack interaction, damage-tint, spell-damage application. The CLAUDE.md limit is ~300 LOC for non-cohesive files. | Split into `projectile.rs` (spawn + animate + land), `lifetime.rs` (tick, sink, cleanup), `combat.rs` (units attack, spell damage), `tint.rs` (damage tint), keeping only the thin `spawn_terrain_boulder` helper in `systems.rs` or a new `spawn.rs`. |
-| T-02 | ArchitecturalDecay | `pond/systems.rs:1–454` | High | M | File has 454 LOC across 9 systems covering 4 independent state machines (wet, evaporation/fog, freeze, shock). Pond module has no splitting precedent for systems. | Split into `wet.rs` (apply_pond_wet, tick_wet_timer), `freeze.rs` (apply_frozen_pond_slow, tick_pond_frozen, update_frozen_pond_tint, restore_pond_material_on_thaw), `evaporation.rs` (tick_pond_evaporation, emit_pond_fog_particles), `shock.rs` (tick_pond_shocked), `ripples.rs` (emit_pond_ripples, spawn_single_pond). |
-| T-03 | ConsistencyRot | `tree/components.rs:34–62` / `boulder/components.rs:46–74` | Medium | S | `line_segment_intersects` implementation is byte-for-byte identical in `Tree` and `Boulder`. The only difference is the comment on the "entirely inside" branch in boulder. Same duplication for `push_out` (tree:76–96, boulder:79–100). | Extract a free function `circle_segment_intersect(center: Vec2, radius: f32, start: Vec3, end: Vec3) -> Option<f32>` and `circle_push_out(center: Vec2, radius: f32, point: Vec3, unit_radius: f32) -> Option<Vec3>` into `terrain/utils.rs`, then delegate from both impls. |
-| T-04 | ConsistencyRot | `boulder/systems.rs:362–365` | Low | S | `apply_spell_damage_to_rocks` defines a local closure `let xz_distance = |a, b| …` instead of importing the shared `xz_distance` from `crate::game::units::wizard::spells::utils` that `terrain/utils.rs` already imports and uses. | Replace the closure with `use crate::game::units::wizard::spells::utils::xz_distance;` at the top of the file. |
-| T-05 | ConsistencyRot | `tree/systems.rs:65–72` | Low | S | `ignite_trees_from_fire` uses raw `crate::game::units::wizard::spells::…::ComponentName` paths inline in the Query type parameters. The sibling `ignite_bushes_from_fire` in `bush/systems.rs` does the same, but this inconsistency with files that use top-level `use` imports makes the signatures hard to read. | Add `use` imports for the five spell-component types to the top of both files (or simply pull them in via the existing `utils.rs` re-export). |
-| T-06 | TypeContract | `pond/components.rs:16–18` / `tree/components.rs:65–66` | Low | S | `Pond::obstacle_bounds` and `Tree::obstacle_bounds` are annotated `#[allow(dead_code)]`. The code compiles them but no site inside the terrain module (or project-wide, confirmed by grep) calls them. Dead methods with suppressed warnings are a maintenance trap. | Remove the methods if nothing needs them. If they are intended as public geometry helpers, make them `pub` and remove the `#[allow(dead_code)]`. |
-| T-07 | Performance | `pond/systems.rs:409–427` | Low | S | `tick_pond_shocked` does a heap `Vec::collect()` to gather and sort targets on each arc pulse (up to every 0.8 s). Given `POND_SHOCK_MAX_TARGETS = 4` and the infrequent interval this is borderline acceptable, but the collect + sort could be replaced with an in-place partial sort (e.g. `select_nth_unstable`) over a stack `SmallVec<[_; 8]>`. | Either leave as-is (runs ~1/0.8 s = 1.25/s and the world has at most a handful of shocked ponds) or replace with a `SmallVec` + `select_nth_unstable` to avoid heap allocation. |
-| T-08 | Performance | `flora/systems.rs:111–128` | Low | S | `trample_flora` allocates `Vec<u32>` every frame when flora exists (up to 80 items). The inner double-loop is O(flora × units) — up to 80 × 200 = 16 000 distance checks per frame. | Change the outer loop to iterate flora, inner to iterate units (same complexity), but collect trampled `Entity` values into a `SmallVec` or use `Commands::entity().try_despawn()` directly inside the inner loop with an early-break, removing the post-loop retain loop and the allocation. |
-| T-09 | ArchitecturalDecay | `boulder/systems.rs:51–55` | Low | S | `crate::game::multiplayer::components::NetworkedSpellEffect` and `crate::networking::snapshot::SpellEffectKind::BoulderProjectileEffect` are referenced three times in the file with fully qualified paths (lines 51–55, 137–140, 507–510). This breaks the "imports at top" convention visible everywhere else. | Add `use` aliases for `NetworkedSpellEffect` and `SpellEffectKind` at the top of `boulder/systems.rs`. |
-| T-10 | Performance | `bush/systems.rs:59–73` | Low | S | `apply_bush_slow` runs every gameplay frame and is O(units × bushes). In a worst-case battle with ~200 units and 12 bushes that is 2 400 point-in-circle tests per frame. No spatial indexing — acceptable for this scale but worth noting if unit counts rise. | Acceptable at current scale. If future unit counts grow, pre-collect bush positions/radii into a stack array once per frame, rather than iterating the query repeatedly with `.iter().any()`. |
+| T-01 | ConsistencyRot | `boulder/systems/combat.rs:78` | Medium | S | `xz_distance` is re-defined as a local closure in `apply_spell_damage_to_rocks`, duplicating the free function of the same name already imported via `crate::game::units::wizard::spells::utils::xz_distance` (used in `terrain/utils.rs`). | Remove the local closure and `use crate::game::units::wizard::spells::utils::xz_distance;` at the top of the file. |
+| T-02 | ConsistencyRot | `bush/systems.rs:129` + `tree/systems.rs:105` | Medium | M | `apply_burning_bush_damage` and `apply_burning_tree_damage` are structural clones — identical loop shape, timer tick, heat-radius and `apply_heat_zone_fire_dot` call. Only component type and three constants differ. | Extract a `apply_burning_vegetation_damage` helper into `terrain/utils.rs` that takes `center: Vec3`, `radius: f32`, `tick_interval: f32`, `heat_radius_mult: f32`, `spell_damage: f32` and the unit query. Both functions reduce to a 3-line wrapper. |
+| T-03 | ConsistencyRot | `bush/systems.rs:164` + `tree/systems.rs:140` | Medium | M | `emit_burning_bush_vfx` and `emit_burning_tree_vfx` are near-identical. The only substantive differences are `smoke_count`/`spark_count` (2 vs 3) and using `BUSH_SPRITE_HEIGHT` as height (bush is fixed) vs `tree.height` (per-entity). | Extract `emit_burning_vegetation_vfx` into `terrain/utils.rs` accepting `center_x`, `center_z`, `height`, `radius`, `smoke_count`, `spark_count`, and smoke/spark interval constants. The two systems become thin wrappers. |
+| T-04 | ArchitecturalDecay | `pond/systems/fish.rs` + `pond/systems/lily.rs` | Low | S | File names are misleading. `fish.rs` contains `tick_pond_shocked` (electrical arc damage — nothing to do with fish). `lily.rs` contains `apply_pond_wet`, `tick_wet_timer`, and `apply_frozen_pond_slow` (wet/slow logic — nothing to do with lily pads). New readers have to open both files to understand pond behavior. | Rename `fish.rs` → `shocked.rs` and `lily.rs` → `wet_slow.rs`. Update `pond/systems/mod.rs` accordingly. |
+| T-05 | ArchitecturalDecay | `boulder/components.rs`, `tree/components.rs` | Low | L | Circle-geometry methods (`contains_point_xz`, `line_segment_intersects`, `push_out`, `any_blocks_los`) are fully duplicated between `Boulder` and `Tree`. A third copy exists in `wall_of_stone/components.rs` (outside this scope). Three independent implementations of the same circle-intersection algorithm. | Introduce a `CircleObstacle { center: Vec3, radius: f32 }` newtype (or trait) in `terrain/utils.rs` with these methods. `Boulder` and `Tree` can embed or `Deref` to it. This would also allow `wall_of_stone` to reuse the same code. |
+| T-06 | TypeContract | `boulder/systems/projectile.rs:20` | Low | S | `let start_y = 20.0;` is a magic number representing the vertical launch height from a thrower. There is no named constant and no explanation of where 20.0 comes from relative to unit sprite heights. | Extract `pub(super) const BOULDER_LAUNCH_Y: f32 = 20.0;` into `boulder/constants.rs` with a comment explaining the value (e.g., approximate brute/ogre sprite center height). |
+| T-07 | ArchitecturalDecay | `pond/components.rs:10` | Low | S | `Pond` carries `ripple_timer: f32`, a purely visual emission timer, inside the same component that holds gameplay-authoritative data (`center`, `radius`). This means the `Pond` component is marked `Changed` every ripple-emission interval, potentially triggering unnecessary change-detection in any system querying `Pond` without filtering. | Move `ripple_timer` to a separate `PondRippleTimer` component, or store it in a `Local<HashMap<Entity, f32>>` in the `emit_pond_ripples` system, keeping `Pond` clean for change-detection purposes. |
 
 ---
 
-### Oversized files
+### Oversized Files
 
-| File | LOC | Exempt | Reason / Proposed Split |
-|------|-----|--------|------------------------|
-| `boulder/systems.rs` | 524 | false | Six concerns. Proposed split: `projectile.rs`, `lifetime.rs`, `combat.rs`, `tint.rs`, keep `spawn.rs` + `sync.rs` for terrain-spawner and teleport sync. |
-| `pond/systems.rs` | 454 | false | Four independent state machines. Proposed split: `wet.rs`, `freeze.rs`, `evaporation.rs`, `shock.rs`, `ripples.rs`, `spawn.rs`. |
+No .rs files in this scope exceed 300 LOC. The largest file is `pond/systems/ripple.rs` at 243 lines.
 
----
-
-### Looks bad but is actually fine
-
-- **`emit_pond_ripples` calls `materials.add()` each ripple.** Each pond spawns one ripple every 1.5 s and the ripple entity is despawned after ~3 s. The `MeshMaterial3d` strong handle on the entity is the only reference, so the asset is freed on despawn. No leak. Matches the established pattern in `battlefield/systems.rs` `emit_water_ripples`.
-- **Missing `Without<GhostEntity>` in terrain damage systems (`apply_burning_tree_damage`, `apply_burning_bush_damage`, `apply_pond_wet`, etc.).** These all run under `is_gameplay_running` which returns `false` for the guest. `GhostEntity` units only exist on the guest side. The host never spawns `GhostEntity` for guest units, so the missing filter is not a bug.
-- **`trample_flora` uses `config.saved_flora.retain(|f| trampled_ids.contains(&f.id))`.** The `Vec::contains` call is O(n) but `trampled_ids` is at most a handful of items per frame (one trample per flora, and flora disappear on contact), so this is negligible.
-- **`boulder/systems.rs:265` — `_health` and `_temp_hp` fields unused in `units_attack_blocking_rocks`.** These fields are part of a destructuring pattern to get `AttackTiming`; the compiler would warn if they were actually unused without the underscore prefix. This is idiomatic Bevy partial destructuring.
-- **`ignite_trees_from_fire` does not send `ObstacleChanged` when a tree ignites** (unlike `ignite_bushes_from_fire` which bumps flow cost to 15.0). Trees are already `ObstacleType::Blocked` (impassable), so a burning tree doesn't need a flow-cost upgrade — this asymmetry is intentional.
-- **`BoulderPlugin` comment says "host-only in MP … no-op on guest"** for `update_rock_damage_tint`. The system is registered unconditionally but gated by `is_gameplay_running`. This means the system body is never scheduled on the guest. The comment is accurate.
+| File | LOC | Exempt | Reason |
+|------|-----|--------|--------|
+| `pond/systems/ripple.rs` | 243 | true | Under 300 LOC; all content is cohesive pond-visual/state logic. |
+| `terrain/utils.rs` | 214 | true | Under 300 LOC; shared helpers used across the module. |
+| `bush/systems.rs` | 203 | true | Under 300 LOC. |
+| `terrain/systems.rs` | 191 | true | Under 300 LOC. |
+| `boulder/systems/projectile.rs` | 182 | true | Under 300 LOC. |
+| `tree/systems.rs` | 179 | true | Under 300 LOC. |
 
 ---
 
-### Open questions
+### Looks Bad But Is Actually Fine
 
-1. Should `Pond::obstacle_bounds` and `Tree::obstacle_bounds` be kept as future API (e.g., for upcoming dispel/physics interactions) or removed? The `#[allow(dead_code)]` implies the methods were written speculatively.
-2. `tick_pond_shocked` calls `chain_lightning::systems::spawn_arc` directly via full path. Is that intended to bypass any future chain-lightning gating logic, or should it go through a shared VFX helper?
-3. `apply_burning_bush_damage` inserts `FireDoT` on units, and so does `apply_burning_tree_damage`. Currently there is no cap on how many terrain fire sources can stack DoTs simultaneously. Is this intentional (stackable friendly fire) or should there be a DoT-source cap?
+- **`update_wind_sway_time` iterates all `Assets<WindSwayMaterial>` without an entity guard**: Wind-sway materials are a tiny fixed set created at startup (one per sprite variant). Iterating ~15 asset entries per frame is negligible, and `is_spell_effects_active` prevents it from running during loading.
+- **Per-ripple `StandardMaterial` allocation in `emit_pond_ripples`**: Each ripple spawns a fresh material. This runs at most once per 1.5 s per pond. Bevy's asset GC reclaims handles when the entity despawns — no persistent leak.
+- **`tick_pond_shocked` allocates a `Vec<(Entity, Vec3, f32)>` per arc pulse**: Arc pulses are gated by `POND_SHOCK_ARC_COOLDOWN = 0.8s` and the shocked state is rare. The allocation is acceptable.
+- **`trample_flora` uses `Vec<u32>::contains` inside `retain`**: With at most 80 flora and rarely more than 1–2 tramples per frame, this O(n) inner call is not a hotspot.
+- **`ignite_bushes_from_fire` / `ignite_trees_from_fire` structural similarity**: They appear similar but differ meaningfully — bush ignition upgrades the flow cost via `ObstacleChanged` (`BURNING_BUSH_FLOW_COST`) whereas tree ignition does not, because trees are already full `Blocked` obstacles. Merging them would require special-casing that one difference.
+- **`Boulder::line_segment_intersects` vs `Tree::line_segment_intersects` tiny comment difference**: Both implementations are algorithmically identical and correct. The difference is that Boulder has an inline `// Segment entirely inside circle` comment. This is not a functional divergence.
+
+---
+
+### Open Questions
+
+1. Should `Pond::ripple_timer` be moved to a separate `PondRippleTimer` component? Currently no system queries `Changed<Pond>`, so the timer churn is harmless, but future refactors could introduce change-detection sensitivity.
+2. Is there an architectural plan to extract circle-geometry methods into a shared `terrain/geometry.rs`? Three copies now exist (boulder, tree, wall_of_stone) — past the project's 3-site threshold. The scope boundary means this must be coordinated with the spell-wall_of_stone auditor.
+3. The `start_y = 20.0` boulder launch height — is this intentionally set to approximately the brute/ogre sprite center? At `UNIT_SCALE = 4.0` a 32px-tall sprite has a world height of 128 units, so a center Y of ~64 units. The value 20.0 is much lower and may reflect a deliberate visual choice (launch from near the ground) rather than a calculation error.

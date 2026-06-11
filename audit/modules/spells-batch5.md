@@ -1,8 +1,68 @@
 ## spells-batch5
 
-**Scope:** `fog_cloud/`, `mark_of_death/`, `banishment/`, `guardian_circle/`
+**Scope:** `src/game/units/wizard/spells/fog_cloud/`, `mark_of_death/`, `banishment/`, `guardian_circle/`
 
 ---
+
+## Mental model
+
+Four self-contained area/targeting spells that each follow the project's casting boilerplate pattern:
+
+- **fog_cloud** — places a lingering zone that grants evasion; six talent markers (BlindingMist, ConcealingVeil, DisorientingVapors, PhantomFog, ChokingFog, RollingFog) each add a component and a matching system gated by `any_exist`. Zone entity is replicated to the guest via `NetworkedSpellEffect`/`SpellEffectKind::FogCloudZone`. Ghost zone on guest carries the same talent markers with stub values (dps=0, speed=0).
+- **mark_of_death** — single-target or AoE (Mass Marking) debuff that amplifies damage taken. Death triggers talent effects (Spreading Blight, Swift Hex mana refund, Death's Ledger AoE explosion, Doom escalating amp). Uses `Without<GhostEntity>` consistently on every gameplay system; guest only runs visual indicator systems.
+- **banishment** — temporarily removes a unit from the battlefield (hidden + `BanishedModifier`). Talent flags are stored as optional components (`PainfulReturn`, `Displacement`, `DimensionalShunt`, `OneWayTrip`) on the banished entity and processed on return. `tick_banished_units` runs under `is_gameplay_running` (host-only). **Does not call `local_player_team()`**.
+- **guardian_circle** — grants temporary HP to all units in radius; talent reaction systems fire after `PostCombatSet` under `is_gameplay_running`. Uses full 3D `Vec3::distance()` for range checks rather than the `xz_distance` used by the other three spells.
+
+---
+
+## Findings
+
+| ID | Category | File:Line | Severity | Effort | Description | Recommendation |
+|----|----------|-----------|----------|--------|-------------|----------------|
+| B5-01 | TypeContract | `banishment/systems/cast_logic.rs:106,185` | High | S | `Team::Defenders.is_enemy(team)` is hardcoded as the caster's perspective. In **versus-guest** mode the local wizard is `Team::Attackers`, so their enemies are `Team::Defenders`. The current filter treats Defenders as non-enemies from the Defenders POV, meaning the guest finds *zero* valid targets and can never land a banishment. `local_player_team(session)` is the correct call as used by `mark_of_death`, `disintegrate`, and every other session-aware spell. | Inject `Option<Res<MultiplayerSession>>` into `handle_banishment_casting`, call `local_player_team(session.as_deref())`, pass the result into `cast_single_banishment` and `cast_mass_banishment`, and replace the two hardcoded calls. |
+| B5-02 | Multiplayer | `fog_cloud/systems/phantoms.rs:10-70` | High | S | `spawn_phantom_units` iterates all `PhantomFogZone` entities without excluding ghost zones. Ghost `FogCloudZone` entities on the **guest** are spawned with `PhantomFogZone { spawn_timer: 0.0 }` (see `ghost_effect_spawn.rs:180`). The plugin runs under `is_spell_effects_active` (guest-inclusive), so after ~3 s the guest's ghost zone triggers a second wave of local phantom units — real `Team::Defenders` entities that exist only on the guest machine, are not networked, and pollute all-unit queries. | Add `Without<crate::game::multiplayer::components::GhostSpellEffect>` to the `zones` query in `spawn_phantom_units`, matching the "host-only" intent stated in the ghost spawn comment. |
+| B5-03 | Multiplayer | `fog_cloud/systems/effects.rs:15,44` | Medium | S | `apply_fog_cloud_evasion` and `apply_blinding_mist` both iterate all non-corpse units without excluding `GhostEntity`. Ghost units on the guest have `Health` and `Team` but their state is managed by the host-side CRDT. Inserting `FogEvasionModifier` or `BlindingMistDebuff` onto ghosts is harmless for combat (runs host-only) but the `update_timed_modifier::<FogEvasionModifier>` system in `units/plugin.rs` runs on all units on the guest — creating per-frame ECS churn as it ticks and removes ghost evasion modifiers. | Add `Without<crate::game::multiplayer::components::GhostEntity>` to the `targets` queries in both systems. |
+| B5-04 | ConsistencyRot | `guardian_circle/systems/buff.rs:95,156` | Medium | S | `apply_guardian_circle_buff` and `deal_aoe_force_damage` both use `transform.translation.distance(origin)` (3D Euclidean). The other three spells in this batch and most of the codebase use `xz_distance` which ignores the Y axis — correct for a top-down battlefield where units stand at varied heights. The 3D distance makes Guardian Circle's effective radius slightly smaller for taller units (behemoths, king) and can cause buff misses for units visually inside the circle. | Replace `.distance()` calls on lines 95 and 156 with `crate::game::units::wizard::spells::utils::xz_distance(transform.translation, origin)`. Same fix in `talent_reactions.rs:120`. |
+| B5-05 | ErrorObservability | `mark_of_death/systems/deaths_ledger.rs:27-29` | Low | S | `materials.get(&visual_assets.necrotic_pulse).cloned().unwrap_or_default()` silently falls back to a white `StandardMaterial` if the asset handle is invalid. The explosion still spawns but renders incorrectly with no log entry. `SpellVisualAssets` is always loaded before gameplay so this should never fail in practice — but the silent fallback hides future asset-pipeline regressions. | Replace with `let Some(pulse_material) = materials.get(&visual_assets.necrotic_pulse).cloned() else { warn!("necrotic_pulse material not loaded"); return; };` |
+| B5-06 | ConsistencyRot | `mark_of_death/systems/talent_effects.rs:115-116` | Low | S | `handle_marked_corpses` uses 3D `distance_squared` for Spreading Blight nearest-enemy search, while `focal_point_retarget` in the same file uses manual XZ-only distance (line 193). Inconsistency within the same file. For correctness the spreading blight nearest-enemy search should also ignore Y. | Replace `distance_squared` on lines 115-116 with an XZ-only comparison: `(a.1.translation.x - t.x).powi(2) + (a.1.translation.z - t.z).powi(2)`. |
+| B5-07 | ArchitecturalDecay | `guardian_circle/components.rs:8-43` | Low | M | `GuardianCircleShielded` is a monolithic struct bundling nine fields for four distinct talent effects (Retaliating Wards, Fortified Resolve, Sanctuary, Martyrdom, Chain Ward). The project convention prefers small focused components queryable with `With<T>`. All four talent-reaction systems run an `if field > 0` check to determine applicability rather than a clean component presence query. | Consider splitting into `RetaliatingWardsShield`, `FortifiedResolveShield`, `SanctuaryShield`, `MartyrdomShield`, `ChainWardShield` components. Not a blocker, but worth tracking. |
+
+---
+
+## Oversized files
+
+| File | LOC | Exempt | Reason / Split proposal |
+|------|-----|--------|--------------------------|
+| `fog_cloud/systems/casting.rs` | 253 | true | Cohesive: single casting function + inner `fog_cloud_casting_logic` + `compute_talent_params`. All three serve the same cast flow. |
+| `mark_of_death/systems/casting.rs` | 266 | true | Cohesive: single casting function wrapping `mark_of_death_casting_logic`. |
+| `banishment/systems/casting.rs` | 245 | true | Cohesive: single casting function + `banishment_casting_logic` + `compute_talent_params`. |
+| `guardian_circle/systems/casting.rs` | 241 | true | Cohesive: single casting function + inner `guardian_circle_casting_logic`. |
+| `banishment/systems/cast_logic.rs` | 215 | true | Cohesive: two closely related cast helpers (`cast_single_banishment`, `cast_mass_banishment`) plus shared `banish_target` and `is_in_spell_range`. |
+| `mark_of_death/systems/talent_effects.rs` | 195 | true | Cohesive: four talent-effect systems sharing the same query types and death-cleanup loop. |
+| `guardian_circle/systems/buff.rs` | 168 | true | Cohesive: `apply_guardian_circle_buff` + `deal_aoe_force_damage` + `cleanup_guardian_circle_shielded`. |
+
+No files exceed 300 LOC.
+
+---
+
+## Looks bad but is actually fine
+
+- **`fog_cloud/systems/casting.rs:168-183` — manual sphere-circle intersection for cursor clamping.** Bespoke but correct: wizard hovers above ground level, so a true 3D sphere radius must be projected onto the XZ plane. Well commented.
+- **`banishment/systems/tick.rs` uses `is_gameplay_running` while VFX uses `is_spell_effects_active`.** Intentional: damage/expiry is host-authoritative; VFX should play on both peers.
+- **`mark_of_death/systems/casting.rs:127-131` — manual `if input.just_released` instead of `handle_spell_release`.** `handle_spell_release` also cleans up `SpellCaster`/indicator entities, which Mark of Death does not use. The manual cancel is correct.
+- **`fog_cloud/systems/effects.rs:83` — `is_setup_immune()` in `apply_choking_fog_damage`.** Consistent with how `health.rs:183,268` uses the same global atomic. Not a one-off hack.
+- **`spawn_phantom_units` uses non-random seeded noise from `time.elapsed_secs()`.** The pseudo-random positioning is deterministic and based on time, which is fine for cosmetic scatter of decoy units.
+- **`deaths_ledger.rs` spawns explosion with `damage_applied: false` and a separate system applies damage.** This is the correct two-system pattern for deferred AoE (spawn → damage next frame avoids mutable-query conflicts).
+- **`phantom_units` spawned with `Stunned { time_remaining: f32::MAX }`.** Intentional: prevents phantoms from ever attacking, matching their role as harmless decoys.
+- **`guardian_circle/plugin.rs` docblock listing all registered systems.** Accurate and helpful; no rule against per-plugin documentation.
+
+---
+
+## Open questions
+
+1. **Versus-mode coverage for fog_cloud:** Fog Cloud does not call `local_player_team()`. `apply_fog_cloud_evasion` and `apply_blinding_mist` grant evasion/blindness to *all* non-corpse units in range, including the opposing team. Is this intentional friendly-fire-style gameplay in versus mode, or should evasion only apply to the caster's own army?
+2. **Ghost zone self-ticking:** `apply_fog_cloud_evasion` increments `zone.time_since_last_tick` and `zone.time_alive` on every zone including ghost zones. Ghost zone lifetime is thus controlled by the guest's own clock rather than the host snapshot. If the clocks diverge, the ghost zone could expire at a different time than the host's. Is independent self-ticking for ghost zones intentional?
+3. **PhantomFogZone on ghost zones:** The comment in `ghost_effect_spawn.rs:169` says phantom spawning is "host-only," but `PhantomFogZone` is still inserted on guest ghost zones (line 180). Was this intentional (to keep `any_exist::<PhantomFogZone>()` true on the guest for some other reason), or is the flag insertion a mistake that B5-02 covers?
 
 ### Mental model
 

@@ -1,18 +1,12 @@
 ## music
 
-**Scope:** `src/music/` — background music crossfading system (4 files, 221 LOC total)
+**Scope:** `src/music/` — background music crossfade system (4 files, 221 LOC total)
 
 ---
 
 ### Mental model
 
-The music module is a self-contained background-music manager. On startup it loads two `AudioSource` handles (menu track and gameplay track) into a `MusicAssets` resource. A `track_for_state` mapping function converts the current `AppState` to one of two `MusicTrack` variants. Three Update systems drive the runtime loop:
-
-1. `check_music_transition` — fires when `AppState` or `MusicAssets` changes; fades out any non-fading `MusicEntity` entities and spawns the new track (at volume 0 with a `MusicFade` component, or at full volume for the very first track).
-2. `process_music_fade` — ticks timers on `MusicFade` entities, interpolates `AudioSink` volume linearly, then removes the component (fade-in) or despawns the entity (fade-out).
-3. `sync_music_volume` — reacts to `GameConfig` changes and snaps non-fading music to the new target volume.
-
-All three Update systems have correct `run_if` guards. The module is small, clean, and architecturally sound. The only genuine issues are a minor implicit contract risk with `AudioSink` availability, a leaked first-play volume jump when `previous_track` resets across hot-restarts, and the fact that `process_music_fade` reads `GameConfig` every tick to determine the fade target volume rather than snapshotting it at transition time.
+The music module is a lean, self-contained crossfade manager. It loads two audio tracks at `Startup` (menu and gameplay), then watches `AppState` transitions to decide which track should be playing. Transitions trigger a fade-out on the old entity and a fade-in on a freshly-spawned entity. Volume is driven by `GameConfig` (master × music slider). Three `Update` systems handle the runtime loop, all correctly guarded with `run_if`. All files are well under 300 LOC and the module has no external dependents besides `main.rs`.
 
 ---
 
@@ -20,18 +14,14 @@ All three Update systems have correct `run_if` guards. The module is small, clea
 
 | ID | Category | File:Line | Severity | Effort | Description | Recommendation |
 |----|----------|-----------|----------|--------|-------------|----------------|
-| M1 | TypeContract | `systems.rs:108` | Medium | S | `process_music_fade` queries `AudioSink` directly, but Bevy may not add `AudioSink` to an `AudioPlayer` entity until the audio backend processes it (next frame or later). If `process_music_fade` runs in the same frame the entity is spawned, the entity will be silently skipped (not in the query) and the first tick of fade progress is lost. For a 1.5 s fade this is imperceptible, but it is an implicit timing assumption with no comment. | Add a comment documenting the one-frame delay assumption, or filter the spawn + fade to `PostUpdate` so the sink is guaranteed present. |
-| M2 | Performance | `systems.rs:104-134` | Low | S | `process_music_fade` re-reads `game_config.effective_music_volume()` on every tick for every fading entity. `effective_music_volume` is a multiply of two floats (trivial), but the pattern means the fade target can silently change mid-fade if the user scrubs the volume slider during a transition. This produces a correct but potentially jarring volume jump mid-crossfade. | Snapshot `target_volume` into `MusicFade` at spawn time (add a `target_volume: f32` field) so the fade is stable regardless of concurrent volume changes. |
-| M3 | ArchitecturalDecay | `systems.rs:21-28` | Low | S | `track_for_state` is a plain free function but is not `pub(super)` — it is implicitly private to the file (no visibility modifier). This is fine Rust, but the project convention uses explicit `pub(super)` for module-internal helpers to make intent explicit. | Add `pub(super)` to `track_for_state`. |
-| M4 | ErrorObservability | `systems.rs:75` | Low | S | `game_config.effective_music_volume()` is called inside `check_music_transition` via `Option<Res<GameConfig>>`. If `GameConfig` is missing at transition time (i.e., during the very first `resource_added::<MusicAssets>` trigger before config loads), the function silently returns without spawning any music. There is no log warning to aid debugging. | Add `warn!("check_music_transition: GameConfig not yet available, skipping")` before the early return so this silent skip is observable. |
+| M1 | TypeContract | `systems.rs:108` | Medium | S | `process_music_fade` queries `&mut AudioSink` directly. Bevy adds `AudioSink` to an `AudioPlayer` entity one frame after spawn (the audio backend processes it asynchronously). If `process_music_fade` runs in the same frame the entity is spawned, the entity is silently skipped (missing from the query) and the first timer tick is lost with no volume set. For a 1.5 s fade this is visually imperceptible, but the implicit timing assumption is undocumented. | Add a comment explaining the one-frame delay. Optionally use `Option<&mut AudioSink>` and `continue` explicitly so the skip is visible in code. |
+| M2 | Performance | `systems.rs:104-134` | Low | S | `process_music_fade` re-reads `game_config.effective_music_volume()` every tick per fading entity. The multiply is trivial, but if the user scrubs the volume slider during a 1.5 s crossfade the fade target silently shifts mid-interpolation. A fade-out could become louder before quieter if volume is raised. | Add a `target_volume: f32` field to `MusicFade`, snapshot it at spawn time in `check_music_transition`, and use that value in `process_music_fade` so the fade arc is stable. |
+| M3 | ConsistencyRot | `systems.rs:21` | Low | S | `track_for_state` has no explicit visibility modifier (defaults to `pub(self)`). The rest of the module explicitly marks internal helpers `pub(super)`. | Change to `fn track_for_state` → `pub(super) fn track_for_state` to match the module's explicit-visibility convention. |
+| M4 | ErrorObservability | `systems.rs:46-48` | Low | S | When `GameConfig` is `None` inside `check_music_transition`, the function silently returns early with no log output. This can cause music to not start if timing between the `Startup` config load and the first `MusicAssets` resource-added trigger is unexpectedly off. | Add `warn!("check_music_transition: GameConfig not yet available")` before the early return. |
 
 ---
 
 ### Oversized files
-
-| File | LOC | Exempt | Reason |
-|------|-----|--------|--------|
-| `systems.rs` | 146 | — | Well under the 300-LOC threshold; no split needed. |
 
 _(No files in scope exceed 300 LOC.)_
 
@@ -39,16 +29,17 @@ _(No files in scope exceed 300 LOC.)_
 
 ### Looks bad but is actually fine
 
-- **`resource_changed::<State<AppState>>` used as run condition (plugin.rs:22):** This looks like it might miss the initial state, but the `.or(resource_added::<MusicAssets>)` clause covers the boot case — on first availability of assets the transition fires regardless of state change. Intentional and correct.
-- **`try_despawn` instead of `despawn` (systems.rs:130):** Looks defensive/sloppy at first glance, but `try_despawn` is correct here because a fade-out entity could theoretically be despawned by another system (e.g., a scene teardown) between scheduling and execution. Using `try_despawn` avoids a panic with no behavioral downside.
-- **`Local<Option<MusicTrack>>` as previous-track state (systems.rs:40):** Using a `Local` instead of a component or resource looks unconventional, but it is the right choice here — there is exactly one music manager, it needs no persistence across save/load, and a `Local` prevents resource proliferation. Intentional and idiomatic Bevy.
-- **`Option<Res<MusicAssets>>` and `Option<Res<GameConfig>>` (systems.rs:38-39):** Making resources optional in a system that could be called before they exist is the correct pattern for startup sequencing in Bevy. Not a design smell.
-- **`AudioPlayer::new(handle)` bundle with no `SpatialAudioSink` (systems.rs:81-95):** Music does not need spatial audio. This is correct.
+- **`resource_changed::<State<AppState>>.or(resource_added::<MusicAssets>)` run condition (plugin.rs:21-23):** The `.or(resource_added)` clause looks redundant since `AppState` changes during startup, but it is the safety net for the case where state is already `Splash` (default) when assets load — `resource_changed` would not fire in that case. Intentional and correct.
+- **`try_despawn` instead of `despawn` (systems.rs:130):** Defensive, but correct — the entity could theoretically be removed by a scene teardown between scheduling and execution, making `try_despawn` panic-safe.
+- **`Local<Option<MusicTrack>>` for previous track (systems.rs:40):** Using a `Local` instead of a `Resource` is the right call here — single-manager state, no persistence needed, avoids resource proliferation. Idiomatic Bevy.
+- **`Option<Res<MusicAssets>>` and `Option<Res<GameConfig>>` (systems.rs:38-39):** Both are inserted via deferred `commands.insert_resource` in `Startup` systems, so they may not be present on the first schedule tick. The `Option` guards are required, not defensive noise.
+- **`AudioPlayer::new(handle)` with no spatial sink (systems.rs:81-95):** Background music does not need spatial audio. Correct.
+- **`sync_music_volume` fires on any `GameConfig` change (plugin.rs:27):** Every settings change (display mode, key bindings, etc.) triggers this. The system iterates at most a handful of `AudioSink` components with a trivial `set_volume` call — cost is negligible in practice.
 
 ---
 
 ### Open questions
 
-1. When the game eventually adds a third music zone (e.g., a boss arena or credits screen), the `track_for_state` match and `MusicTrack` enum both need updating. Is there a plan to extend `MusicTrack` to more than two variants, and if so, would a `Handle<AudioSource>` map keyed on `MusicTrack` (or on `AppState`) be cleaner than the current match arms?
-2. If the volume slider is changed during a crossfade, the fading-out entity's volume is driven to `target * fraction` (finding M2), but `target` is the *new* target. This means the fade-out could get louder before it gets quieter if the user raises volume mid-transition. Is this acceptable UX?
-3. `MusicEntity` is currently a zero-size marker component. If multiplayer "ghost" tracks or preview snippets are ever added, will they share the same marker and accidentally be caught by `check_music_transition`'s fade-out loop?
+1. If a third music zone is added (boss fight stinger, credits), the `MusicTrack` enum and `track_for_state` match both need updating — and `MusicAssets` needs a third `Handle`. Is there a scalability plan, or will two-track remain the ceiling?
+2. Should `FADE_DURATION_SECS` be exposed in `GameConfig` for accessibility (players who want instant transitions)?
+3. `MusicEntity` is a zero-size marker. If multiplayer preview snippets or UI sound-beds are ever added using the same bundle pattern, will they accidentally be caught by `check_music_transition`'s fade-out loop?

@@ -6,13 +6,9 @@
 
 ### Mental model
 
-Three small, focused subsystems that are each self-contained:
+Three small, independent utility modules. **drops/** is the ingredient pickup system: enemies emit `SpawnIngredientDropMessage` on death, a bobbing billboard quad spawns, and the Telekinesis spell can fling it to the wizard where it unlocks and saves an ingredient. A `LockedIngredients` resource weights the pool toward ingredients the player does not yet own. **benchmarking/** is a `#[cfg(feature = "benchmarking")]`-gated perf overlay: F4 toggles a sampled logger that emits `BENCH …` lines every 2 s via Bevy's standard diagnostic plugins. **seeded_rng/** is the deterministic RNG foundation: one seed per run (from config or random), one `StdRng` resource, and `derive_seed()` helpers for terrain, flora, and staging to pull independent streams without order-dependency.
 
-- **drops/** — Manages ingredient-drop pickups. Enemy deaths fire a `SpawnIngredientDropMessage`; the plugin spawns bobbing billboard quads, ticks their lifetime for animation, and lets the telekinesis spell convert them to `FlyingToWizard` entities that arc toward the wizard and unlock/persist the ingredient on arrival. A `LockedIngredients` resource caches which ingredients still need to be unlocked so the pool stays weighted toward unowned drops.
-- **benchmarking/** — A `#[cfg(feature = "benchmarking")]`-gated module that attaches Bevy's standard diagnostic plugins and an F4-toggled sampled logger that dumps FPS, frame-time, entity count, and CPU/memory once every two seconds.
-- **seeded_rng/** — Provides a global `GameRng` (`StdRng` under a seed) and a small `derive_seed` utility for producing independent per-system RNG streams. All gameplay randomness draws from the shared resource; terrain/flora/staging systems derive sub-seeds rather than pulling from `GameRng` directly to stay order-independent.
-
-The modules are clean and appropriately scoped. The most notable issue is a stale doc-string in the benchmarking plugin (says F3, code uses F4) and a misleading comment in the drops component about fade/despawn that was never implemented.
+All three modules are small, correctly factored, and lightly coupled. Issues are shallow.
 
 ---
 
@@ -20,36 +16,37 @@ The modules are clean and appropriately scoped. The most notable issue is a stal
 
 | ID | Category | File:Line | Severity | Effort | Description | Recommendation |
 |----|----------|-----------|----------|--------|-------------|----------------|
-| GM-01 | DocDrift | `benchmarking/plugin.rs:9` | Medium | S | Plugin doc comment says "the F3 toggle" but the system binds `KeyCode::F4` (`systems.rs:14`). Wrong key will confuse anyone using benchmarking builds. | Change the doc comment to say "F4 toggle". |
-| GM-02 | DocDrift | `drops/components.rs:10` | Low | S | `IngredientDrop::time_alive` is documented as "for despawn and fade" but no fade or timeout-despawn logic exists anywhere in the drops module; `time_alive` is used only for animation math. | Update the field doc to "for animation (bobbing and pulse)". If a fade/despawn on timeout is desired, add a `DROP_MAX_LIFETIME` constant and despawn branch to `tick_drop_lifetimes`. |
-| GM-03 | ArchitecturalDecay | `drops/systems.rs:20–34` | Low | S | `init_locked_ingredients` calls `load_unified_save()` (a synchronous disk read) inside an `OnEnter(AppState::Loading)` system, on the main thread, every run. The drop pool is a pure cache derived from save data that the loading queue already reads elsewhere. | Not critical at current scale, but worth noting. Could be folded into the existing save-load pass during loading to avoid a redundant disk read. |
-| GM-04 | Performance | `benchmarking/plugin.rs:26–28` | Low | S | `toggle_diagnostics` runs every `Update` frame unconditionally (no `run_if` guard). It is gated by the `benchmarking` feature flag so it never ships in production, but it still polls keyboard input every frame even when diagnostics are already off. | Add `.run_if(not(diagnostics_enabled))` to `toggle_diagnostics` and a second branch `.run_if(diagnostics_enabled)` for the "turn off" case, or simply add a state-based guard. Alternatively, the early-return on `just_pressed` is cheap enough to be acceptable given the feature-flag gating — see lookBadButFine. |
-| GM-05 | ArchitecturalDecay | `seeded_rng/resources.rs:28–33` | Low | S | `derive_seed` uses a hand-rolled LCG-style hash mixing `wrapping_mul` with fixed magic constants. This is not obviously correct (e.g., passing `purpose = 0` collapses the output to 0). | Document the mixing strategy and add a guard/assert that none of the `SEED_PURPOSE_*` constants are zero. Alternatively, use a proper hash function (`FxHasher`, `AHash`, or even `u64::rotate_left` mixing) to avoid degenerate cases. |
+| GM-01 | DocDrift | `benchmarking/plugin.rs:9` | Medium | S | Plugin doc comment says "the F3 toggle" but `systems.rs:14` binds `KeyCode::F4`. Wrong key in docs misleads anyone using benchmarking builds. | Change doc comment to "F4 toggle". |
+| GM-02 | DocDrift | `drops/components.rs:10` | Low | S | `IngredientDrop::time_alive` says "for despawn and fade" but no fade or timeout-despawn logic exists; `time_alive` is used only for bobbing/pulse animation. | Update field doc to "for bobbing and pulse animation". If a timeout-despawn is desired, add `DROP_MAX_LIFETIME` constant and a despawn branch to `tick_drop_lifetimes`. |
+| GM-03 | Performance | `benchmarking/plugin.rs:27` | Low | S | `toggle_diagnostics` registers unconditionally (no `run_if`). Per project conventions every Update system needs a guard. Only relevant in benchmarking builds (feature-gated), so impact is zero in shipping code. | Add `.run_if(not(diagnostics_enabled))` or at minimum a state guard so the convention is not broken in the special build. |
+| GM-04 | ArchitecturalDecay | `seeded_rng/systems.rs:8` | Low | S | `init_game_seed` is declared `pub` but is only ever called from the sibling `plugin.rs`. `pub(super)` is the correct visibility per project conventions. | Change `pub fn init_game_seed` to `pub(super) fn init_game_seed`. |
+| GM-05 | ArchitecturalDecay | `seeded_rng/resources.rs:28–33` | Low | S | `derive_seed` multiplies by `purpose` as the last step, so `purpose = 0` collapses the entire output to 0 regardless of master seed or level. All three current constants are prime and non-zero, but there is no guard preventing a future zero constant from silently producing a degenerate seed. | Add a `debug_assert_ne!(purpose, 0, "derive_seed: purpose constant must be non-zero")` or reorder the multiply so purpose is not the final factor. |
 
 ---
 
 ### Oversized files
 
-No files in scope exceed 300 LOC. Largest is `drops/systems.rs` at 159 lines.
+No file in scope exceeds 300 LOC. Largest is `drops/systems.rs` at 159 lines.
 
 | File | LOC | Exempt | Reason |
 |------|-----|--------|--------|
-| (none) | — | — | — |
+| (none over threshold) | — | — | — |
 
 ---
 
 ### Looks bad but is actually fine
 
-- **`toggle_diagnostics` unconditional Update with keyboard poll** — The function is (a) only compiled under the `benchmarking` feature, (b) returns immediately unless `F4` is `just_pressed`, and (c) has zero heap allocation. The cost is negligible. Flagged as Low anyway because the pattern violates the project's run_if convention, but it is not a real performance risk.
-- **`FlyingToWizard.ingredient` duplicating info from `IngredientDrop`** — The comment on `FlyingToWizard` explains why: `IngredientDrop` is *removed* when `FlyingToWizard` is inserted (telekinesis `systems.rs:391`). The ingredient field must be carried over because the source component is gone. Not redundant.
-- **`drop_events` read in `spawn_ingredient_drops` without a `run_if(any_messages::<…>())` guard** — Messages accumulate and the inner `for event in …` loop simply does nothing if the reader is empty. The outer `is_gameplay_running` guard is sufficient; adding a messages-exist guard would be premature.
-- **`unlock_ingredient` called inside an Update system `fly_drops_to_wizard`** — This is a synchronous disk write per collected drop. Given the 0.5% drop chance and infrequent collection events, this is intentional and acceptable. The project does this pattern elsewhere for achievements.
-- **`GameRng` accessed as `crate::game::seeded_rng::resources::GameRng`** in `drops/systems.rs:39` — Using the full path instead of a `use` import looks messy, but it is correct and the module is accessible. No functional issue.
+- **`toggle_diagnostics` polls keyboard every frame with no run_if** — Feature-gated to `benchmarking` builds only; the function returns immediately unless `F4` is `just_pressed` and has no heap allocation. Zero production impact.
+- **`FlyingToWizard` has its own `ingredient` field, duplicating `IngredientDrop`** — `drop_ops.rs:21` removes `IngredientDrop` before inserting `FlyingToWizard`, so the flying entity has no other way to know which ingredient to unlock. The field is necessary, not redundant.
+- **`spawn_ingredient_drops` calls `materials.add()` and `meshes.add()` inside the message loop** — Only fires on enemy death events (0.5% chance each), not every frame. Not a hot-path allocation.
+- **`unlock_ingredient` called inside Update system `fly_drops_to_wizard`** — Synchronous disk write per collected drop. Given the rarity of collection events, this is intentional and consistent with the achievement write pattern.
+- **`GameRng` referenced by full path `crate::game::seeded_rng::resources::GameRng` in `drops/systems.rs:39`** — Uses full path instead of a `use` import. Style inconsistency only; no functional issue.
+- **`init_locked_ingredients` calls `load_unified_save()` on every `OnEnter(Loading)`** — A redundant disk read relative to the main save load pass, but disk reads at game start are acceptable; this is not a hot path.
 
 ---
 
 ### Open questions
 
-1. **Drop timeout:** Were fade-out and timed despawn intentionally deferred or silently forgotten? The component doc references both but neither is implemented. If drops that aren't picked up by telekinesis persist indefinitely (only cleaned up by `OnGameplayScreen` despawn on game exit), that seems intentional but should be documented explicitly.
-2. **`derive_seed` edge case with `purpose = 0`:** If a future purpose constant is ever set to 0 (or `level` wraps in a way that produces 0 mid-formula), the entire seed collapses. Is this a known acceptable risk or should a compile-time assert be added?
-3. **`GameRng` contention in multiplayer:** Several MP-gated systems reference `GameRng`, but the meteorologist archetype comment (`visuals.rs:157`) notes it must NOT draw from the shared stream to avoid desyncing. Is there a lint or doc convention preventing accidental `GameRng` usage in visual-only systems?
+1. **Drop timeout:** Were fade-out and timed despawn for uncollected drops intentionally deferred or silently forgotten? The component doc referenced both, but neither was implemented. If drops persist indefinitely until `OnGameplayScreen` cleanup, that should be documented.
+2. **`derive_seed` purpose-zero edge case:** Is a compile-time or debug assert appropriate, or are the prime constants considered a sufficient invariant by convention?
+3. **`GameRng` in MP context:** Multiplayer visual-only systems must not draw from `GameRng` to avoid desyncing. Is there a convention or lint preventing accidental draws from the shared stream in visual systems?

@@ -1,16 +1,21 @@
 ## spell-teleport
 
-**Scope:** `src/game/units/wizard/spells/teleport/` (10 files, 1730 LOC total)
+**Scope:** `src/game/units/wizard/spells/teleport/` — all `.rs` files (15 files, ~1770 LOC).
 
 ---
 
 ### Mental model
 
-The Teleport spell is a two-phase cast: Phase 1 places a destination marker (crosshair), Phase 2 grows a source circle that captures all `Teleportable` units and sends them to the destination. A rich talent tree adds nine variants: Wide Aperture, Hasty Translocation, Lingering Gate (Tier 1), Disorienting Arrival, Swap, Emergency Recall (Tier 2), Dimensional Rift, Gravitational Surge (Up), and Scatterport (Tier 3).
+Teleport is the most complex spell in the codebase: a two-phase channelled cast (destination circle → source circle → execute), extended by nine talent variants (Wide Aperture, Hasty Translocation, Lingering Gate, Disorienting Arrival, Swap, Emergency Recall, Dimensional Rift, Teleport Up, Scatterport).
 
-The module is well-factored into concern files (`casting.rs`, `arrival.rs`, `vfx_systems.rs`, `vfx_components.rs`, `vfx_constants.rs`, `components.rs`, `constants.rs`). The `systems.rs` is purely a re-export hub. Ghost-entity safety is achieved implicitly: ghost units never receive the `Teleportable` component, so all gameplay queries (`With<Teleportable>`) naturally exclude them. All Update systems carry `run_if` guards.
+The module is split into four concern groups:
 
-The main tech-debt centres are: `arrival.rs` hosts three functions (`update_circle_animations`, `cleanup_teleport_on_spell_switch`, `random_position_in_circle`) that are not about *arrival* at all, making it a mixed-concern file; `casting.rs` has two near-identical teleport-completion branches that diverge in one VFX call; and two `pulse_scale` methods are copy-pasted between `TeleportDestinationCircle` and `TeleportSourceCircle`.
+- **`casting/`** — local input state-machine (`cast_input.rs`) delegating to a pure logic function (`finalize.rs`).
+- **`arrival/`** — execution engines for the five teleport variants (`teleport_logic.rs`), post-effect application (`cleanup.rs`), and persistent portal tick (`rift.rs`).
+- **`vfx_components.rs` / `vfx_constants.rs` / `vfx_systems.rs`** — screen-space distortion ripple effects.
+- **`components.rs` / `constants.rs`** — shared data and tuning.
+
+`systems.rs` is a thin re-export hub used by `plugin.rs` to access systems through one namespace. Ghost-gating is implicitly safe: ghost entities spawned on the guest never receive `Teleportable`, so every units query in this module is naturally filtered. All Update systems carry `run_if` guards.
 
 ---
 
@@ -18,38 +23,41 @@ The main tech-debt centres are: `arrival.rs` hosts three functions (`update_circ
 
 | ID | Category | File:Line | Severity | Effort | Description | Recommendation |
 |----|----------|-----------|----------|--------|-------------|----------------|
-| T-01 | ArchitecturalDecay | `arrival.rs:389–475` | High | M | `arrival.rs` owns three functions unrelated to teleport arrival: `update_circle_animations` (animation), `cleanup_teleport_on_spell_switch` (cleanup), and `random_position_in_circle` (geometry helper). The 475-line file violates "group by concern." | Move `update_circle_animations` and `cleanup_teleport_on_spell_switch` to a new `indicators.rs`; move `random_position_in_circle` to a `geometry.rs` or inline it into `arrival.rs` at the call sites. |
-| T-02 | ArchitecturalDecay | `casting.rs:530–603` vs `casting.rs:635–695` | Medium | S | Two teleport-completion branches (early-release and timer-complete) duplicate ~40 lines each: `execute_teleport`, result field assignment, and Lingering Gate bookkeeping. They differ in only two ways: which radius expression is used and whether the source gets a contracting vs non-contracting aura bubble. | Extract a `fn finalize_teleport(...)` helper that takes `source_pos`, `dest_pos`, `radius`, `contracting: bool` and fills the `TeleportCastResult`. The 4-parameter difference is small enough to unify. |
-| T-03 | ConsistencyRot | `components.rs:60–64` and `components.rs:89–93` | Medium | S | `TeleportDestinationCircle::pulse_scale` and `TeleportSourceCircle::pulse_scale` are byte-for-byte identical (same constants, same formula). | Extract `fn pulse_scale_for(time_alive: f32) -> f32` as a module-private helper or a shared free function, and call it from both `impl` blocks. |
-| T-04 | DocDrift | `components.rs:108` | Medium | S | `TeleportTalentParams.disorienting_arrival` is documented as "stun enemies, haste allies on arrival." The implementation in `arrival.rs:279–288` inserts `Stunned` on ALL teleported entities — allies and enemies alike — with no team filter. The `constants.rs:42` doc also says "stun enemies." | Either fix the doc to say "stun all teleported units (friendly-fire applies)" to match the actual behaviour, or add a team filter to the `Stunned` insertion if selective stun was intended. Given the project's friendly-fire design, fixing the doc is likely the right call. |
-| T-05 | ArchitecturalDecay | `casting.rs:454` | Low | S | `teleport_casting_logic` accepts `_primed_spell: &PrimedSpell` (prefixed with underscore indicating unused) as its 5th argument. The outer system passes `primed_spell` but the inner function never reads it — `empowerment` is accessed only in the outer wrapper. | Remove the dead parameter from `teleport_casting_logic`. The caller already has `primed_spell` in scope; it does not need forwarding. |
-| T-06 | ConsistencyRot | `casting.rs:649–668` | Low | S | The timer-complete branch spawns `spawn_aura_bubble_synced` for the **source** position (non-contracting), while the early-release branch (line 548) spawns `spawn_aura_bubble_contracting_synced` for the source. This means the visual effect differs depending on whether the player releases early or waits for the timer — an unintentional inconsistency or an undocumented design choice. | If intentional, add a comment explaining why; if not, make both paths use `spawn_aura_bubble_contracting_synced` for the source to match the "circle shrinks away" metaphor. |
-| T-07 | ConsistencyRot | `arrival.rs:312` | Low | S | `tick_dimensional_rift` is a full Bevy system defined in `arrival.rs`, but it has no arrival-phase responsibility — it ticks an ongoing portal. The plugin (correctly) guards it with `any_with_component::<DimensionalRift>` but it still lives in the wrong file. | Move to a new `rift.rs` or to `systems.rs` as a re-exported concern. |
+| T01 | ArchitecturalDecay | `casting/finalize.rs:132–205` and `:237–298` | High | M | The second-phase teleport completion logic is duplicated verbatim between the "early release" path and the "timer complete" path. Both paths call `execute_teleport`, populate the same result fields, and handle Lingering Gate — ~60 lines of near-identical code each. The only real difference is that early release uses `spawn_aura_bubble_contracting_synced` for the source bubble while timer-complete uses `spawn_aura_bubble_synced`. | Extract a `fn complete_second_phase(…, contracting: bool)` helper in `finalize.rs` that takes source/dest positions, radius, and the contraction flag, and call it from both sites. |
+| T02 | TypeContract | `casting/finalize.rs:248` | High | S | The timer-complete Phase 2 path calls `mana.consume(effective_mana_cost)` at line 248 without re-checking `can_afford`. The guard at line 230 only runs when entering `CastingState::Resting`; if mana is drained between pressing and cast completion the game over-consumes into negative values. The early-release path (line 145) correctly re-checks `can_afford` before consuming. | Add `if !mana.can_afford(effective_mana_cost) { casting_state.cancel(); return result; }` before line 248, matching the early-release guard. |
+| T03 | ArchitecturalDecay | `arrival/cleanup.rs:16,57,91` | Medium | S | `cleanup.rs` is misnamed: it contains `apply_post_teleport_effects` (post-cast talent application) and `update_circle_animations` (animation tick), neither of which are cleanup. Only `cleanup_teleport_on_spell_switch` belongs here. The wrong file name misleads navigation. | Rename `cleanup.rs` to `post_effects.rs` (housing `apply_post_teleport_effects` + `update_circle_animations`). Move `cleanup_teleport_on_spell_switch` to a short `cleanup.rs` or inline into `cast_input.rs`. |
+| T04 | ConsistencyRot | `components.rs:60–64` and `:89–93` | Medium | S | `TeleportDestinationCircle::pulse_scale` and `TeleportSourceCircle::pulse_scale` are byte-for-byte identical (same formula, same inline magic numbers `pulse_freq = 2.0`, `pulse_amplitude = 0.05`). | Extract a free function `fn pulse_scale(time_alive: f32) -> f32` in `components.rs` and delegate both `impl` blocks to it. Promote the two magic numbers to named constants in `constants.rs`. |
+| T05 | DocDrift | `constants.rs:42–46` | Medium | S | Constant docs say "stun enemies on arrival" (line 42) and "attack speed bonus for allies on arrival" (line 44), but `arrival/cleanup.rs:24–33` applies both `Stunned` and `DisorientingHaste` to **all** teleported entities regardless of team. | Clarify design intent: if all-entities is correct (consistent with friendly-fire philosophy), update the constant docs to say "all teleported units." If selective stun is the target, add team-based filtering in `apply_post_teleport_effects`. |
+| T06 | ConsistencyRot | `arrival/rift.rs:25–30` | Low | S | `LingeringGateMarker` and `DimensionalRift` manually decrement `time_remaining` in their own systems, while `DisorientingHaste` and `RiftCooldown` (same module) correctly implement `TimedModifier` and use the shared `update_timed_modifier` generic. Two patterns for the same job in the same module. | Implement `TimedModifier` for `LingeringGateMarker` (the rift expiry side-effect — resetting `TeleportCaster` — can stay in `tick_lingering_gate` with a check). For `DimensionalRift` the custom logic is larger so the manual tick is acceptable, but consider a comment explaining why it diverges. |
+| T07 | ArchitecturalDecay | `casting/finalize.rs:52` | Low | S | `teleport_casting_logic` accepts `_primed_spell: &PrimedSpell` (underscore-suppressed, never read). Empowerment is accessed from `source_circle.empowerment` instead. | Remove the dead parameter from the function signature. |
+| T08 | DocDrift | `systems.rs:1` | Low | S | The module-level doc comment reads "Re-export hub for teleport systems split (Phase 14)". "Phase 14" is a stale internal refactoring ticket reference with no meaning to a future reader. The same comment pattern exists across many spell `systems.rs` files. | Replace with a plain description, e.g. `//! Re-export hub: arrival and casting system functions.` |
 
 ---
 
 ### Oversized files
 
-| File | LOC | Exempt | Reason / Split proposal |
-|------|-----|--------|------------------------|
-| `casting.rs` | 703 | No | Split into: `casting.rs` (phase-1/2 state machine + outer system, ~400 LOC), `finalize.rs` (extraction of the two completion branches + helper, ~150 LOC) |
-| `arrival.rs` | 475 | No | Split into: `arrival.rs` (execute_teleport + per-mode helpers + apply_post_teleport_effects + tick_dimensional_rift, ~350 LOC), `indicators.rs` (update_circle_animations + cleanup_teleport_on_spell_switch + random_position_in_circle, ~125 LOC) |
+| File | LOC | Exempt | Reason / Proposed split |
+|------|-----|--------|-------------------------|
+| `casting/cast_input.rs` | 413 | No | Contains three separate concerns: `compute_talent_params` (talent parsing), `handle_teleport_cancel`, and `handle_teleport_casting` (the main system, ~200 lines). Split into: `talents.rs` (compute_talent_params), `cancel.rs` (handle_teleport_cancel), `cast_input.rs` (handle_teleport_casting only). |
+| `casting/finalize.rs` | 305 | Yes | Single function `teleport_casting_logic` + result struct. Genuinely cohesive state machine. After T01 extraction the file drops under 250 LOC. Exempt as-is. |
+| `arrival/teleport_logic.rs` | 278 | Yes | Five teleport execution variants plus one helper. Each function is small and they form a logical match-on-variant group. Under 300 LOC; no split needed. |
 
 ---
 
 ### Looks bad but is actually fine
 
-- **`systems.rs` is only 4 lines** — a pure `pub use` re-export hub referencing `arrival::*` and `casting::*`. This matches the project convention for re-export hubs. Not a violation.
-- **Ghost-entity safety has no explicit `Without<GhostEntity>` guards** on teleport queries. This is safe because ghost units spawned via `guest_snapshot.rs` never receive `Teleportable`. The `With<Teleportable>` filter on all gameplay queries implicitly excludes ghosts. The pattern is consistent with multiplayer spawning code.
-- **`tick_lingering_gate` implements its own tick loop** instead of using `update_timed_modifier<LingeringGateMarker>`. This is justified because expiry must also reset `TeleportCaster` state on the wizard entity — the generic `update_timed_modifier` only removes the component. The custom system is the right tool here.
-- **`handle_teleport_cancel` and `handle_teleport_casting` are split into two separate systems** despite sharing caster-state logic. This is intentional: right-click must always cancel even when other `run_if` conditions on the main casting system would block it. The plugin registers them independently with different guard sets.
-- **`vfx_constants.rs` is accessed from `crt_effect/distortion.rs` and `crt_effect/components.rs` directly** via full module path. This cross-module coupling is necessary because the CRT distortion shader needs the same wave-shape constants that drive the spawned VFX, ensuring visual consistency. It is not a layering violation.
-- **`TeleportCastResult` is a crate-private struct** only used within `casting.rs`. It does not need to be a public type.
+- **No explicit `Without<GhostEntity>` guards on teleport unit queries** — ghost entities on the guest never receive the `Teleportable` component (confirmed in `guest_snapshot/apply_state_snapshot.rs:607`). The `With<Teleportable>` filter implicitly excludes all ghost units. Safe and intentional.
+- **`systems.rs` is only 4 lines** — this is the project's established re-export hub pattern for Phase 14 spell splits. Not a violation.
+- **`tick_lingering_gate` implements its own tick loop** rather than using `update_timed_modifier` — on expiry, it must also reset `TeleportCaster` state on the wizard entity. The generic helper only removes the component; the custom system is justified for this side effect.
+- **`handle_teleport_cancel` and `handle_teleport_casting` are two separate systems** — intentional. Right-click must always cancel even when the `run_if` conditions on the main casting system would block it. The plugin registers them with different guard sets on purpose.
+- **`vfx_constants.rs` is imported by `crt_effect/distortion.rs` via full path** — the CRT shader needs the same wave-shape constants as the spawned VFX to keep visual parameters in sync. Not a layering violation.
+- **`RIPPLE_STRENGTH`, `RIPPLE_FREQUENCY`, `RIPPLE_SPEED`, `RIFT_LENSING_RADIUS`, `RIPPLE_INFLUENCE_MULT` appear unreferenced within the teleport module** — all are used externally by `crt_effect/components/effect_settings.rs` and `crt_effect/distortion.rs`. Not dead code.
+- **Large `handle_teleport_casting` parameter list** — `#[allow(clippy::too_many_arguments)]` is present; idiomatic per project convention for Bevy systems.
 
 ---
 
 ### Open questions
 
-1. Was Disorienting Arrival's stun intentionally applied to all teleported units (including allies), or should it stun only enemies and haste only allies as the doc suggests? The "friendly fire is fundamental" project philosophy makes the current behaviour plausible, but the mismatched doc string is a trap for future maintainers.
-2. The early-release path uses a contracting source-bubble VFX while the timer-complete path uses a non-contracting one. Is this a deliberate feel difference ("snap" vs "bloom") or an accidental divergence?
-3. `casting.rs` is 703 LOC. The project's 300-LOC guideline allows exemptions for "single large match-on-enum." The two-phase state machine here is close but not a single match — it contains multiple conditional branches. Is a `finalize.rs` extraction in scope for the next refactor pass?
+1. **Disorienting Arrival team filtering (T05):** Is the current all-entities behaviour (stun+haste applied to every teleported unit) intentional gameplay, or is the original "stun enemies / haste allies" design still the target? The friendly-fire philosophy makes all-entities plausible, but the mismatched constants doc is a trap.
+2. **Early-release vs timer-complete VFX difference (T01):** Early release uses `spawn_aura_bubble_contracting_synced` for the source bubble, but timer-complete uses the expanding variant. Is this a deliberate "snap vs bloom" feel difference, or an accidental divergence?
+3. **Multiplayer replication of Dimensional Rift and DisorientingHaste:** `apply_post_teleport_effects` is only called from `handle_teleport_casting` (gated to `LocalWizard`). On the guest, rift entities and haste components are never spawned when the host fires Teleport. Is there a network path that replicates these effects to the guest, or is the guest expected to not see them?

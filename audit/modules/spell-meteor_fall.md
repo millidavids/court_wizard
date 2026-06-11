@@ -1,12 +1,28 @@
 ## spell-meteor_fall
 
-**Scope:** `src/game/units/wizard/spells/meteor_fall/`
+**Scope:** `src/game/units/wizard/spells/meteor_fall/` — all `.rs` files (12 files, 1 644 LOC)
 
 ---
 
 ### Mental model
 
-Meteor Fall is a concentration spell (or fixed-duration Extinction Event) that rains falling meteors on a targeted area. The module follows a three-stage pipeline: (1) `MeteorFallStorm` marker entity periodically spawns `MeteorProjectile` entities, (2) projectiles fall under gravity and optional tracking force until they hit Y≤0 where they explode and leave `MeteorGroundFire` hazards, (3) ground fires tick periodic damage and fade out. All three stages are gated on `any_exist` run conditions in the plugin. Ghost (MP guest-side) separation is correct: explosion damage and ground-fire damage/cleanup are `Without<GhostSpellEffect>`; visual systems run on both real and ghost entities. Ghost meteors are bare `GhostSpellProjectile` entities without a `MeteorProjectile` component, so the physics/collision systems naturally skip them.
+Meteor Fall is a concentration spell that creates a `MeteorFallStorm` marker entity at a
+targeted position. Each frame the storm ticks its `time_since_spawn` timer; when it fires,
+`spawn_meteor_projectiles` creates `MeteorProjectile` entities that fall under gravity and
+(optionally) track enemies. On ground collision, `check_meteor_collisions` spawns a
+`MeteorExplosion` (visual + one-shot AoE damage) and a `MeteorGroundFire` (persistent DoT
+zone that also marks the pathfinding grid as costly terrain).
+
+Three Tier-3 talents substantially change the spell: *Extinction Event* overrides the storm
+with a fixed-duration self-destructing path that fires a single massive meteor; *Volcanic
+Eruption* detonates nearby ground fires when a meteor lands; *Meteor Shower* triples spawn
+rate at lower per-meteor power.
+
+All talent parameters are computed once at cast time into `MeteorTalentConfig`, then copied
+onto the `MeteorFallStorm` component, and again into each `MeteorProjectile` at spawn time
+via `MeteorProjectileTalentFlags`. `MeteorExplosion` and `MeteorGroundFire` carry
+`NetworkedSpellEffect` (ghost-replicated on the guest); the storm and projectiles are
+host-authoritative only.
 
 ---
 
@@ -14,35 +30,38 @@ Meteor Fall is a concentration spell (or fixed-duration Extinction Event) that r
 
 | ID | Category | File:Line | Severity | Effort | Description | Recommendation |
 |----|----------|-----------|----------|--------|-------------|----------------|
-| F1 | TypeContract | casting.rs:320 | High | S | `ConcentrationSpell.mana_cost` is hardcoded to `MANA_COST` (50.0) instead of the talent-adjusted `effective_mana_cost`. The Meteor Shower talent halves the cast cost to 25.0, but the reservation field stays at 50.0, so the mana bar over-reserves 25 mana for the lifetime of the storm — reducing the wizard's effective mana pool by 25 more than intended. | Change `mana_cost: MANA_COST` to `mana_cost: effective_mana_cost` (already computed on line 240). |
-| F2 | ArchitecturalDecay | meteor.rs:1–636 | Medium | M | `meteor.rs` is 636 LOC and hosts four distinct concerns: projectile physics + smoke trail (lines 33–147), collision/impact including Aftershock and Volcanic Eruption (148–352), explosion animation + damage (396–505), and ground fire lifecycle—particles, damage, fade, cleanup (507–636). The project rule requires splitting files >300 LOC unless they are a single match-on-enum or asset registry; this file is neither. | Split into `projectile.rs` (movement, smoke trail, collision/impact), `explosion.rs` (animate + damage systems), and `ground_fire.rs` (particles, damage, fade, cleanup). Update `systems.rs` re-exports and `mod.rs` declarations accordingly. |
-| F3 | ConsistencyRot | meteor.rs:235,269,471,573 | Low | S | XZ-plane distance is computed four different ways in the same file: manual `(dx*dx+dz*dz).sqrt()` twice (Aftershock line 235, Volcanic Eruption line 269), `xz_distance()` utility once (explosion damage line 471), and `Vec3::new(x,0,z).length()` once (ground fire damage line 573). All four are semantically identical; having four representations is inconsistent and makes future refactors more error-prone. | Standardize to `xz_distance(a, b)` from `crate::game::units::wizard::spells::utils`. The utility is already imported in meteor.rs at line 19 via `crate::game::units::wizard::spells::utils`. |
-| F4 | ArchitecturalDecay | casting.rs:1–532 | Low | M | `casting.rs` is 532 LOC and bundles four concerns: talent config computation (lines 32–134), local wizard casting input system (135–202), storm spawning logic (203–352), projectile factory `spawn_meteor_projectile_entity` (476–506), and explosion entity factory `spawn_explosion_entity` (508–532). The projectile/explosion factory functions belong more naturally alongside the entities they create than alongside casting input. | Extract `spawn_meteor_projectile_entity`, `MeteorProjectileTalentFlags`, and `spawn_explosion_entity` into `projectile.rs` (created as part of F2 split). This reduces `casting.rs` to ~350 LOC and places factory functions next to the projectile systems. |
+| F01 | ArchitecturalDecay | `meteor/projectile.rs:1-389` | Medium | M | File holds five unrelated concerns: projectile physics (`update_meteor_projectiles`), an enemy-search helper (`find_nearest_non_defender_xz`), smoke-trail VFX (`spawn_meteor_smoke_trail`), ground-collision/damage/pathfinding (`check_meteor_collisions`), and Extinction Event logic (`process_extinction_event`). At 389 LOC it exceeds the 300-line threshold and is not a single match/registry monolith. | Split into `movement.rs` (physics + find_nearest helper), `trail.rs` (smoke/glow VFX), and `collision.rs` (collision + pathfinding + extinction). |
+| F02 | ArchitecturalDecay | `casting/input_casting.rs:1-343` | Low | S | File contains two distinct concerns: talent-config resolution (`MeteorTalentConfig` + `compute_meteor_talent_config`, ~125 LOC) and the casting state machine (`handle_meteor_fall_casting` + `meteor_fall_casting_logic`, ~218 LOC). | Extract `MeteorTalentConfig` and `compute_meteor_talent_config` to a sibling `casting/talents.rs`, leaving `input_casting.rs` purely for casting input. |
+| F03 | ConsistencyRot | `meteor/projectile.rs:230,264` vs `meteor/explosion.rs:94` vs `meteor/ground_fire.rs:88` | Low | S | Three different idioms for XZ-plane distance within the same module: `(dx*dx + dz*dz).sqrt()` (projectile.rs:230, 264), `Vec3::new(..., 0.0, ...).length()` (ground_fire.rs:88), and the shared `xz_distance()` helper from `spells::utils` (explosion.rs:94). | Normalise all distance calculations to use the existing `xz_distance()` helper. |
+| F04 | TypeContract | `casting/input_casting.rs:23` and `casting/projectile_spawn.rs:16` | Low | S | `MeteorTalentConfig` (private, casting) and `MeteorProjectileTalentFlags` (pub(crate)) are parallel structs with seven overlapping fields (`aftershock`, `volcanic_eruption`, `ground_fire_*_mult`, `tracking`, `is_extinction`). Talent values are manually transcribed config → storm → projectile at two call sites. | Unify to a single `MeteorTalentParams` type, or add a `From<&MeteorTalentConfig>` impl for `MeteorProjectileTalentFlags`, so field additions only require one edit. |
+| F05 | ArchitecturalDecay | `casting/input_casting.rs:290-300` | Low | S | Ten manual field assignments from `MeteorTalentConfig` → `MeteorFallStorm`. If a new talent field is added to the config struct it must also be added in this copy block with no compile-time enforcement. | Add an `apply_talents(&mut self, cfg: &MeteorTalentConfig)` method to `MeteorFallStorm`, or resolve via the F04 type consolidation. |
+| F06 | ArchitecturalDecay | `casting/projectile_spawn.rs:105-127` | Low | S | When tracking bias is active, a second `commands.entity(entity).insert(Transform {...})` overwrites the `Transform` from the spawn bundle. Both commands are deferred and apply correctly today, but the pattern is fragile: the spawn-bundle `Transform` is wasted and a future refactor could silently drop the override. | Compute the biased position before calling `spawn_meteor_projectile_entity` and pass the final position directly. |
+| F07 | DocDrift | `systems.rs:1` | Low | S | Module-doc reads `"Re-export hub for meteor_fall systems split (Phase 14)."` — the internal refactor phase number is a stale artefact with no reader value. | Replace with a plain description: `"Re-export hub for meteor_fall sub-module symbols."` |
 
 ---
 
 ### Oversized files
 
 | File | LOC | Exempt | Reason / Proposed split |
-|------|-----|--------|--------------------------|
-| meteor.rs | 636 | No | Four distinct concerns; split into `projectile.rs`, `explosion.rs`, `ground_fire.rs` |
-| casting.rs | 532 | No | Factory functions (projectile/explosion entity spawners) should move to `projectile.rs` once created; remaining casting logic is ~350 LOC |
+|------|-----|--------|-------------------------|
+| `meteor/projectile.rs` | 389 | false | Five separate concerns. Propose: `meteor/movement.rs`, `meteor/trail.rs`, `meteor/collision.rs` |
+| `casting/input_casting.rs` | 343 | false | Two concerns (talent config + casting state machine). Propose: `casting/talents.rs` + slimmed `casting/input_casting.rs` |
 
 ---
 
 ### Looks bad but is actually fine
 
-- **`spawn_meteor_smoke_trail` iterates `projectiles` twice (lines 99–111 and 122–146).** The first pass mutates `has_glow` flag on each projectile; the second is an immutable read for smoke VFX. Rust forces the first loop to end before a shared borrow can start, so this is a valid two-pass pattern. No data races, and the overhead is negligible (typically <10 in-flight meteors).
-- **`spawn_meteor_projectiles` and `check_meteor_collisions` don't filter out ghost entities.** Ghost meteors are spawned as bare `GhostSpellProjectile` entities without a `MeteorProjectile` component; `spawn_meteor_projectiles` queries `MeteorFallStorm` (host-only, never ghost-synced); `check_meteor_collisions` queries `MeteorProjectile`. Ghost meteors are therefore correctly excluded from both systems with no explicit `Without` filter needed.
-- **`spawn_ground_fire_particles` and `fade_ground_fire` run on ghost `MeteorGroundFire` entities.** These are purely visual systems. Ghost fires have `time_alive=0` (only `apply_ground_fire_damage` ticks it, and that excludes ghosts), so `fade_ground_fire` will never scale them down (remaining = duration > GROUND_FIRE_FADE_DURATION always), and `spawn_ground_fire_particles` will emit particles during the full virtual duration — correct behaviour since the fire is still alive from the guest's perspective.
-- **`systems.rs` is a re-export hub, not a systems module.** This pattern ("Phase 14") is used consistently across 6+ spells (fireball, entangle, chain_lightning, finger_of_death, black_hole). It predates the current style guide and is codified project-wide; not a per-module violation.
-- **`ConcentrationSpell` is not spawned for Extinction Event** (line 312–324). The Extinction Event path uses `duration: Some(EXTINCTION_STORM_DURATION)` and self-despawns after a fixed time, bypassing the concentration system entirely. This is intentional design, not a missing component.
-- **`meteor_fall_casting_logic` is a large private helper (lines 206–351).** Its 145 lines are a single linear state machine (Resting→Casting→complete). Splitting a single match on `CastingState` into smaller functions would add indirection without clarity benefit.
+- **Missing `Without<GhostEntity>` on unit query in `check_meteor_collisions`** — Ghost entities have `GhostEntity` but no `Health` component. The unit query at line 161 requires `&mut Health`, so ghost entities are structurally excluded from the result set. No damage is accidentally applied to cosmetic ghost units.
+- **`MeteorProjectile` and `MeteorFallStorm` lack `NetworkedSpellEffect`** — These are intentionally host-authoritative. Only `MeteorExplosion` and `MeteorGroundFire` are networked, which is the correct authority split.
+- **`spawn_explosion_entity` is `pub(crate)` from `casting/mod.rs` but only used internally** — `meteor/projectile.rs` imports it from the `casting/` sub-module so the wider visibility is required by the intra-module import path.
+- **`update_meteor_projectiles` tracking query includes ghost entities (which carry `Team`)** — Ghost unit positions are authoritative replicas of host positions; using them as tracking targets on the guest is functionally equivalent to targeting real units.
+- **`t = pos.x * 0.01 + pos.z * 0.01` pseudo-time (projectile.rs:179)** — A deterministic per-position seed passed to particle VFX helpers that accept an elapsed-time argument for animation offset. Avoids requiring `Res<Time>` at that call site and prevents all impact particles spawning with identical animation phase.
+- **`systems.rs` asymmetric visibility** — `pub(crate)` for `spawn_meteor_projectile_entity` (consumed by `arcane_crystal`) and `pub(super)` for everything else is the correct, minimal-exposure design.
 
 ---
 
 ### Open questions
 
-1. **Volcanic Eruption `break` on first fire zone hit (line 301):** The comment says "Only trigger eruption on the first matching fire zone." Is this a game design choice (one eruption per meteor) or an oversight? If the intent is to trigger eruptions on *all* overlapping fire zones, the `break` needs to be removed and the query order should be made deterministic (sorted by distance).
-2. **Ghost ground fires emitting double particles:** On the MP guest, *both* a ghost `MeteorGroundFire` entity (spawned by `guest_visuals`) and the local fire effects from the snapshot would coexist. Are ghost ground fires intended to also emit VFX particles via `spawn_ground_fire_particles`, or does this cause visual doubling compared to singleplayer?
-3. **`find_nearest_non_defender_xz` is `pub(super)` in `meteor.rs` but imported into `casting.rs` via a direct `use super::meteor::` path.** This works today, but if `meteor.rs` is split (F2), this helper needs a new home (`projectile.rs` or `utils.rs`).
+1. `cleanup_ground_fire` (ground_fire.rs:121) resets pathfinding terrain cost to `1.0` at expiry. If two overlapping fire zones expire at different times, the first cleanup could reset cells still covered by the second fire. Is overlapping fire handled at the pathfinding layer?
+2. The Aftershock damage loop (projectile.rs:219–257) iterates all units inside the outer `for ... in projectiles.iter()` loop. At high meteor density this is O(meteors × units). Worth profiling under Meteor Shower talent.
+3. The Volcanic Eruption `break` (projectile.rs:299) means a meteor near multiple overlapping fire zones only erupts the first one found. Is single-eruption-per-impact intentional, or should all fires within radius erupt?

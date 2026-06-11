@@ -184,3 +184,33 @@ shielder, aerialist, brute, assassin, commander, elite, undead; `game/input/`, `
 
 *Per-module findings (Stage 2) and the ranked wave backlog (Stage 3) follow in
 `audit/modules/*.md` and `audit/CONSOLIDATED_BACKLOG.md`.*
+
+---
+
+## Repeat-run audit (2026-06-11, post-campaign)
+
+Re-ran all 59 module auditors against the restructured codebase. **445 findings** (1 Critical,
+53 High, 115 Medium, 276 Low) vs the 481 baseline.
+
+**RESOLVED by the campaign (confirmed by the re-audit):**
+- **Oversized files 123 → 75 non-exempt** (~48 god-files decomposed; the 1969/1878/1682-line
+  monsters are gone). Remaining 75 = cohesive single-system siblings + a few not-yet-split
+  (status_effects.rs 570, shared_systems.rs 536) + new siblings.
+- **All 14 plugin.rs registration-only** (no longer flagged).
+- **P0 + F133 MP fixes intact** (verified: dispel queries GhostSpellEffect, squall/lava/healing/
+  mind_control retain their Without<Ghost*> filters). The re-audit's dispel "Critical" and the
+  squall/lava/healing/mind_control MP findings are FALSE POSITIVES — auditors re-flagged the
+  original wording without re-reading the fixed code.
+- Dead-code addressed (allows 65→39), unused deps removed.
+
+**⚠️ KEY NEW FINDING — 24 pre-existing ghost-gating MP bugs (the #1 bug class), in spells the
+capped original audit missed:** SP spell systems run on networked ghost entities in co-op,
+double-applying damage/CC/effects. Verified-real across: finger_of_death, grease, wall_of_fire,
+fireball, plague_wind, spike_growth, chain_lightning, lightning_rod, fog_cloud, sleep, haste,
+battle_hymn, boss-hags mind-control. Full list in `audit/ghost_gating_findings.json`. Fix pattern
+identical to P0 (add Without<GhostEntity>/Without<GhostSpellEffect> to the flagged queries).
+Needs a 2-client co-op smoke-test after.
+
+**Other notable still-open (Wave-D-deferred):** missing any_with_component perf guards
+(units/plugin.rs), status_effects.rs + shared_systems.rs splits, run_conditions.rs match-arm dedup,
+WaveSpawnedMessage dead channel, 16 Security-category + 69 DocDrift items. See `audit/findings.json`.

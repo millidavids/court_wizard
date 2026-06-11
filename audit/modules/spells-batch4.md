@@ -1,8 +1,65 @@
-# spells-batch4
+## spells-batch4
 
 **Scope:** `src/game/units/wizard/spells/{entangle,polymorph,telekinesis,berserker_rage}/`
 
 ---
+
+### Mental model
+
+Four thematically distinct spells, each using a similar feature-sliced layout (constants, components, plugin, systems subdir). **Entangle** has the most complex structure: a nested `casting/` subdir with three files plus `vines.rs` and a forwarding `systems.rs` proxy. **Polymorph** is well-layered across `core` / `livestock` / `behaviors` / `shared` / `casting`. **Telekinesis** is SP-only (explicitly early-returns in MP), uses a `TelekinesisConfig` struct to avoid re-reading talent state, and handles VFX/behavior all in one `vfx_systems.rs`. **BerserkerRage** is a buff-AoE with five distinct talent components; its `undying_fury_trigger` is intentionally registered in the game-root plugin for PostCombatSet ordering rather than in its own plugin.
+
+All four spells make correct use of the `spells/utils.rs` shared casting helpers. Multiplayer ghost-gating is generally correct: gameplay systems are behind `is_gameplay_running` (host-only), visual systems behind `is_spell_effects_active` (both peers). One medium gap exists in the entangle zone overgrowth pathway.
+
+---
+
+### Findings
+
+| ID | Category | File:Line | Severity | Effort | Description | Recommendation |
+|----|----------|-----------|----------|--------|-------------|----------------|
+| F1 | ArchitecturalDecay | `entangle/systems.rs:1-4` | Medium | S | `systems.rs` is a pure forwarding proxy that re-exports from both `casting::*` and `vines::*`. This adds an indirection layer — the plugin reads `systems::tick_entangle_ground_effect` but that function physically lives in `casting/ground_effect.rs`. The file's own comment admits it is a "re-export hub (Phase 14)", a temporary migration artifact never cleaned up. | Remove `systems.rs` and have `plugin.rs` import directly from `super::casting::*` and `super::vines::*`, mirroring the pattern used by telekinesis and berserker. |
+| F2 | ArchitecturalDecay | `entangle/vines.rs:1` | Low | S | `vines.rs` contains both the pure VFX helper `spawn_vine_toruses` and the gameplay-affecting `apply_entangle` (which roots units, spawns ground effect entity, sends pathfinding messages). The file docstring ("vine effects") understates its scope. | Rename to `entangle_effect.rs` or extract `apply_entangle` into a separate `apply.rs` alongside `root_effects.rs`. |
+| F3 | Performance | `entangle/casting/root_effects.rs:135-154` | Medium | S | `nourishing_roots_mana_regen` counts rooted enemies by iterating all `EntangleRooted` entities and filtering on `talent_params.nourishing_roots` each frame. All `EntangleRooted` entities store identical `talent_params` (they come from a single cast), so the filter will be all-or-nothing. The system fires whenever `any_exist::<EntangleRooted>()` — even if the active talent is not Nourishing Roots, the query still runs. | Gate with a `has_entangle_talent(1, 2)` run condition (matching the pattern in telekinesis `run_conditions.rs`) so the system only runs when that talent tier/choice is selected. |
+| F4 | ConsistencyRot | `entangle/casting/cast_input.rs:30` / `polymorph/systems/casting.rs:25` / `berserker_rage/systems/buff_application.rs:11` | Low | S | All three spells define a function named `compute_talent_params` with the same signature shape `(Option<&ActiveTalents>) -> TalentParams`. There is no shared abstraction but the naming convention is consistent — flag for awareness in case a future trait or macro is desired. Telekinesis uses `compute_telekinesis_config` which returns a named struct with `pub(super)` fields, a slightly better approach. | No immediate change needed, but consider a `ComputeTalentParams` trait in `spells/utils.rs` for future spells. Low priority. |
+| F5 | ErrorObservability | `telekinesis/systems/drop_ops.rs:43` | Low | S | `nearest.as_ref().expect("checked")` is technically safe (short-circuit guards it), but violates the project convention that `.expect()` should be reserved for invariants expressed with a descriptive message, not logic proofs. | Replace with `nearest.as_ref().is_some_and(\|n\| distance < n.3)` to make the short-circuit intent explicit without the expect. |
+| F6 | Performance | `telekinesis/systems/vfx_systems.rs:84,89,111` | Low | S | Three numeric literals are hardcoded in spawn functions: flash Y position `2.0`, flash scale `20.0`, and shockwave Y `1.0`. These tuning values live next to named constants for all other tunable parameters in `constants.rs`. | Extract `HARVEST_FLASH_Y`, `HARVEST_FLASH_SCALE`, and `SHOCKWAVE_Y` constants into `telekinesis/constants.rs`. |
+| F7 | ArchitecturalDecay | `berserker_rage/systems/casting.rs:215` | Low | S | `berserker_rage_casting_logic` receives `_clamped_cursor: Option<Vec3>` as a parameter but never uses it (leading underscore suppresses the warning). It was presumably added for potential future use or was previously used in the Resting transition. | Remove the dead parameter. The caller already has `clamped_cursor` in scope and can pass it at the call site if needed later. |
+| F8 | ConsistencyRot | `berserker_rage/systems/mod.rs:1,5-8` | Low | S | `systems/mod.rs` uses `pub(crate) mod` for submodules and `pub use` for re-exports, making several items reachable from outside the module. Telekinesis uses tighter `pub(super)` for the same pattern. Only `undying_fury_trigger` legitimately needs wider visibility (accessed from `game/plugin.rs`). | Restrict most `pub use` items in `berserker_rage/systems/mod.rs` to `pub(super)` except `undying_fury_trigger` which needs `pub`. |
+| F9 | TypeContract | `polymorph/components.rs:62-71` | Low | S | `DireSheep` has a `new()` constructor but does not implement `Default`, while the project convention for small marker structs is to use `Default` or `new()` consistently. The `new()` only sets `attack_timer` to a constant — the same as what `Default` would return. | Implement `Default` for `DireSheep` (trivially via `attack_timer: DIRE_SHEEP_ATTACK_INTERVAL`) and use `DireSheep::default()` at the call site. |
+
+---
+
+### Oversized files
+
+| File | LOC | Exempt | Reason / Proposed split |
+|------|-----|--------|------------------------|
+| `entangle/casting/cast_input.rs` | 262 | true | Single system plus one helper — long but cohesive; all lines serve the casting pipeline. |
+| `telekinesis/systems/casting.rs` | 269 | true | Single casting system plus its private inner helper (`telekinesis_casting_logic`) — cohesive, no split needed. |
+| `telekinesis/systems/vfx_systems.rs` | 251 | true | All VFX/visual helpers for telekinesis — five tightly coupled functions, none large enough to split independently. |
+| `polymorph/systems/core.rs` | 233 | true | Two functions: `apply_polymorph_to_target` + `polymorph_casting_logic`. Genuinely cohesive (core polymorph application logic). |
+| `polymorph/systems/livestock.rs` | 235 | true | Two functions: `tick_polymorphed_units` + `check_explosive_sheep_deaths` — sequential lifecycle, cohesive. |
+| `berserker_rage/systems/talent_effects.rs` | 286 | true | Six distinct but all berserker-talent-effect functions — at 286 lines it is near the 300-line limit but each function is small and focused; the grouping is intentional and coherent. |
+| `berserker_rage/systems/casting.rs` | 245 | true | Single casting system + private core logic helper — cohesive, same pattern as other spells. |
+
+---
+
+### Looks bad but is actually fine
+
+- **`contagious_rage_spread` has no `Without<GhostEntity>`** — safe because the system is gated `is_gameplay_running`, which returns `false` for the MP guest. GhostEntity units only exist on the guest peer.
+- **`handle_pig_movement` / `tick_dire_sheep` in `behaviors.rs` have no `Without<GhostEntity>`** — same reasoning: both gated `is_gameplay_running`, host-only.
+- **`nourishing_roots_mana_regen` queries all `EntangleRooted` without ghost guard** — the mana target is locked to `With<LocalWizard>` so there is no cross-peer contamination; the count inflation concern is moot because roots are applied by the casting wizard's system.
+- **`unwrap_or_default()` in `vines.rs:133`** — this is `unwrap_or_default()` on a material lookup, returning an empty `StandardMaterial` as a safe fallback. Not the same as `.unwrap()`.
+- **`undying_fury_trigger` registered in `game/plugin.rs` not `berserker_rage/plugin.rs`** — intentional for PostCombatSet ordering; the berserker plugin cannot safely express the `before(convert_dead_to_corpses)` constraint from inside the spell module.
+- **`KEEN_SENSES_DROP_CHANCE_MULT` and `TRANSMUTATION_POTENCY_PER_STACK` exported from telekinesis constants to drops and cauldron** — intentional cross-cutting configs owned by the telekinesis feature, legitimately used by other modules that implement the talent effect.
+- **`compute_talent_params` pattern repeated in entangle, polymorph, berserker** — each operates on a different `TalentParams` type; no generic abstraction is possible without a trait. This is a naming convention, not duplicated logic.
+- **Polymorph casting gated `is_spell_effects_active` not `is_gameplay_running`** — intentional: the guest's local wizard can cast polymorph in coop. The target query excludes `PolymorphedModifier` and `Corpse` but not `GhostEntity`, however the guest's real units (not ghosts) are the intended targets in a coop session.
+
+---
+
+### Open questions
+
+1. **F3 nourishing roots performance**: Is iterating `EntangleRooted` every frame (when rooted units exist but Nourishing Roots talent is not selected) a visible cost at high enemy counts, or profiled as negligible?
+2. **entangle/systems.rs longevity**: Was the re-export proxy left intentionally post-Phase 14 split, or is it recognized as cleanup debt?
+3. **Polymorph guest casting**: Is there a design intent to allow the guest wizard to polymorph enemy units in coop, and if so does the current lack of `Without<GhostEntity>` on the `targets_query` need guarding?
 
 ## Mental model
 

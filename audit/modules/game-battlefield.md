@@ -1,12 +1,16 @@
 ## game-battlefield
 
-**Scope:** `src/game/battlefield/` — battlefield ground, castle wall, environmental effects (lava, water, motes), trampling mud-overlay system.
+**Scope:** `src/game/battlefield/` — battlefield setup, ground tiles, environmental VFX, terrain hazards, and the trampling overlay system.
 
 ---
 
-### Mental model
+### Mental Model
 
-The module owns two concerns: (1) **one-shot visual setup** (`setup_battlefield`, `spawn_castle_wall`) called from the loading queue and multiplayer spawning code, which builds the ground-tile grid, wall backdrops, floor plane, and stone/sand noise underlays; and (2) **per-frame environmental systems** — lava damage, water slow, ambient particle effects (fire smoke, sparks, ripples, floating motes), and the trampling mud overlay. The trampling sub-module (`trampling/`) is well-isolated: it maintains a sparse f32 grid, serialises it into save data (base-64 packed binary), and periodically rebuilds a runtime GPU texture. Custom materials (`GroundMaterial`, `StoneNoiseMaterial`) are thin `AsBindGroup` wrappers that delegate work to WGSL shaders. The module is small and mostly clean; the one critical bug is a missing `Without<GhostEntity>` guard on `apply_lava_damage`.
+The battlefield module is responsible for two distinct phases of work: *spawn-time setup* (ground tiles, walls, castle, underlays, lava/water markers) and *per-frame runtime systems* (ripple/mote/lava VFX, terrain hazards, trampling overlay). Setup is called imperatively from the loading spawn queue and from the multiplayer loading path, not from an `OnEnter` hook. Runtime systems are gated behind `is_gameplay_running`, which correctly covers both SP and MP host roles, so the guest never runs hazard or mote logic.
+
+The trampling subsystem is a well-factored sub-module: `TramplingGrid` is a sparse-saved resource that persists across levels, syncs to a runtime-generated texture at a throttled interval, and handles time-travel replay isolation correctly.
+
+Overall the module is clean. The primary issues are an oversized `systems.rs` that mixes three distinct concerns (spawn/setup helpers, environmental VFX, terrain hazards), a handful of undocumented magic number offsets, a trivial dead alias, and the absence of any unit tests for the non-trivial coordinate math in `TramplingGrid::world_to_index`.
 
 ---
 
@@ -14,40 +18,39 @@ The module owns two concerns: (1) **one-shot visual setup** (`setup_battlefield`
 
 | ID | Category | File:Line | Severity | Effort | Description | Recommendation |
 |----|----------|-----------|----------|--------|-------------|----------------|
-| BF-01 | TypeContract | `systems.rs:544` | Critical | S | `apply_lava_damage` queries `(&Transform, &mut Health)` without `Without<GhostEntity>`. Ghost units intentionally carry `Health` for CRDT damage propagation (see `guest_snapshot.rs:1151`). A ghost standing in the lava pool on the guest side will have `health.take_damage()` called, which pushes through the CRDT channel and silently reduces the host's authoritative unit HP. | Add `Without<crate::game::multiplayer::components::GhostEntity>` to the query filter tuple alongside the existing `Without<Corpse>` exclusions. |
-| BF-02 | ArchitecturalDecay | `plugin.rs:45` | Medium | S | `load_battlefield_assets` has its full system body defined in `plugin.rs`. Per project convention, `plugin.rs` must contain Bevy registration only; system bodies belong in sibling files. | Move `load_battlefield_assets` to `systems.rs` (or a new `assets.rs` if preferred) and reference it from `plugin.rs` via `systems::load_battlefield_assets`. The `pub(crate) use plugin::load_battlefield_assets` re-export in `mod.rs` should then become `pub(crate) use systems::load_battlefield_assets`. |
-| BF-03 | Performance | `systems.rs:478` | Medium | M | `emit_water_ripples` calls `materials.add(StandardMaterial { … })` every time a ripple is spawned (every `WATER_RIPPLE_INTERVAL = 1.2s`). Each call allocates a new asset slot and registers it with the GPU. Ripples are then individually mutated in `update_water_ripples` to fade alpha. This pattern leaks a new material handle per live ripple (typically 3–4 alive simultaneously). | Encode alpha as part of a custom thin material or drive alpha via a `WaterRipple`-specific uniform rather than per-entity `StandardMaterial` clone. A simpler fix: pre-allocate a small pool of `StandardMaterial` handles in `WaterRippleAssets` (e.g. 8 slots) and recycle them — avoids continuous GPU registration pressure. |
-| BF-04 | Performance | `trampling/systems.rs:145` | Low | M | `sync_trampling_texture` rebuilds a fresh 360,000-cell (1.44 MB) pixel buffer on every dirty sync (up to 4× per second). The `Vec::with_capacity(pixel_count * 4)` allocation + per-cell push loop + `Image::new` + `images.remove` + `images.add` is an avoidable hot path given that the grid is sparsely dirty in practice. | Maintain a persistent reusable `Vec<u8>` (e.g. stored in `TramplingGrid` or `TramplingGrid`'s texture resources) and write into it in-place, then update the existing `Image`'s data directly. Pair with a dirty-rectangle tracking approach so only changed cells need repacking. If in-place `Image` mutation still doesn't reliably upload to GPU in Bevy 0.17, the comment on line 109 explains the workaround; that's acceptable, but the buffer should at least be pre-allocated and reused. |
-| BF-05 | DocDrift | `systems.rs:467` | Low | S | Comment says "random position within the pool" but the position is deterministically derived from `time.elapsed_secs()`. The sequence is not random — it is a deterministic pseudo-random walk driven by elapsed time. It appears visually varied, but restarts with the same pattern each session start. | Change comment to "pseudo-random position derived from elapsed time" to avoid misleading future readers. |
+| BF-01 | ArchitecturalDecay | `systems.rs:1` | Medium | M | `systems.rs` (640 LOC) mixes three unrelated concerns: spawn/setup helpers (lines 1–396), environmental VFX emitters (lines 398–640), and terrain hazard gameplay systems. The project convention requires splitting any file >300 LOC that contains multiple concerns. | Split into `spawn.rs` (setup_battlefield, spawn helpers, ground tiles), `vfx.rs` (lava smoke/sparks, water ripples, ambient motes), and `hazards.rs` (apply_lava_damage, apply_water_slow). Update `mod.rs` and `plugin.rs` imports accordingly. |
+| BF-02 | Performance | `systems.rs:489` | Medium | M | `emit_water_ripples` allocates a brand-new `StandardMaterial` asset on every ripple spawn (every `WATER_RIPPLE_INTERVAL` = 1.2 s). Because Bevy's asset store is reference-counted and despawning the ripple entity drops the handle, the material is eventually freed—but this causes repeated GPU-side material registration/deallocation cycles. A fixed pool of pre-allocated ripple materials would eliminate churn. | Pre-allocate a small `Vec<Handle<StandardMaterial>>` of blank ripple materials in `WaterRippleAssets` at startup; recycle them by updating alpha via `materials.get_mut` instead of creating new assets per ripple. |
+| BF-03 | Performance | `trampling/systems.rs:144` | Low | S | `sync_trampling_texture` allocates a fresh `Vec<u8>` (up to ~256 KB for a 256x256 grid) every sync interval (~0.25 s) even when only a few cells changed. The vec is discarded after one use. | Pre-allocate the pixel buffer once as a `Local<Vec<u8>>` in the system and reuse it each sync. |
+| BF-04 | DocDrift | `systems.rs:468` | Low | S | `let assets = ripple_assets;` inside `emit_water_ripples` is a stale no-op alias. It appears to be a leftover rename artefact; `ripple_assets` is used directly elsewhere. | Remove the alias; replace the downstream use (`assets.mesh.clone()`) with `ripple_assets.mesh.clone()`. |
+| BF-05 | TypeContract | `systems.rs:113` | Low | S | Three magic-number offsets (`+ 100.0`, `- 100.0`, `-1500.0`) are used inline in `setup_battlefield` when positioning the sand and stone noise underlay meshes. They relate to visual alignment but are completely undocumented. | Extract named constants (e.g. `SAND_UNDERLAY_OFFSET_X`, `SAND_UNDERLAY_OFFSET_Z`, `STONE_UNDERLAY_Z`) to `constants.rs` with short comments explaining what they align to. |
+| BF-06 | TestDebt | `trampling/resources.rs:34` | Low | S | `TramplingGrid::world_to_index` is non-trivial coordinate math (boundary clamping, row-major index calculation) with no unit tests. The analogous pathfinding grid coordinate math has historically been a source of off-by-one bugs. | Add an inline `#[cfg(test)]` module testing boundary cases: coords at -half, +half, 0, and outside-bounds inputs. |
+| BF-07 | Performance | `trampling/systems.rs:103` | Low | S | The 120-frame entity-cleanup path in `track_unit_trampling` allocates a fresh `HashSet<Entity>` every 120 frames unconditionally, even in stable battles where no entity has recently despawned. | Guard the HashSet allocation behind a cheap check (e.g. compare `last_cells.len()` against `units.iter().count()`) or use a despawn-event driven path. |
 
 ---
 
-### Oversized files
+### Oversized Files
 
-| File | LOC | Exempt | Reason / Proposed split |
+| File | LOC | Exempt | Reason / Proposed Split |
 |------|-----|--------|--------------------------|
-| `systems.rs` | 626 | No | Two distinct concerns: (1) one-shot battlefield setup/spawn helpers (lines 1–385), (2) per-frame environmental effect systems (lines 387–626). Proposed split: `spawn.rs` (setup_battlefield, spawn_castle_wall, spawn_wall_backdrop, spawn_right_wall_backdrop, spawn_ground_tiles, create_tile_mesh, pick_weighted_tile) and `effects.rs` (emit_lava_fire_smoke, emit_lava_sparks, emit_water_ripples, update_water_ripples, apply_lava_damage, apply_water_slow, emit_ambient_motes). |
+| `systems.rs` | 640 | No | Three distinct concern groups. Split into: `spawn.rs` (setup + wall/tile helpers), `vfx.rs` (lava smoke, water ripples, ambient motes), `hazards.rs` (lava damage, water slow) |
+| `trampling/systems.rs` | 221 | Yes | All systems share the `TramplingGrid` resource and form a tight pipeline (track → sync → clear → save/restore). Cohesive single concern. |
+| `trampling/resources.rs` | 108 | Yes | Single resource with its methods. Well within limit. |
 
 ---
 
-### Looks bad but is actually fine
+### Looks Bad But Is Actually Fine
 
-- **`StoneNoiseMaterial` with four `#[uniform(0)]` fields** (`ground_material.rs:36–51`): looks like a binding collision but Bevy's `AsBindGroup` macro packs all fields with the same binding number into a single packed uniform struct. The shader at `assets/shaders/stone_noise.wgsl` confirms a matching `StoneUniforms` struct with four `vec4<f32>` fields in order. This is the same pattern used across many other materials in this codebase and is correct.
-
-- **`spawn_castle_wall` being `pub`** (`systems.rs:258`): called from `src/game/multiplayer/spawning.rs` and `src/game/loading/queue.rs` — two different callers need the generic `<M: Component + Clone>` version. The public API is intentional.
-
-- **`trampling/systems.rs:103` allocating a `HashSet` every 120 frames** for entity cleanup: this is a periodic O(n) dead-entity purge on the `last_cells` `Local<HashMap>`. The interval is explicit (120 frames ≈ 2 seconds), the allocation is proportional to live unit count (not per-frame), and the pattern prevents unbounded HashMap growth. Reasonable trade-off.
-
-- **`emit_ambient_motes` using `vfx::systems::spawn_floating_motes`** with tight coupling to `SpellVisualAssets`: the battlefield reuses spell VFX assets for motes rather than owning its own asset registry. This is intentional shared-asset design, not a hidden coupling violation.
-
-- **`systems.rs:95–150` hardcoded world-space constants** (sand underlay at `WATER_POOL_POSITION.x + 100.0`, stone underlay at Z=-1500): these offsets are render-layer Z-sorting tricks specific to the single piece of setup code that reads them. Inlining them here rather than in `constants.rs` is correct per the project rule that constants used by exactly one site should be inlined.
+- **`apply_water_slow` has no `Without<GhostEntity>` guard (systems.rs:587).** Ghost entities are spawned without a `RoughTerrainModifier` component (confirmed in `apply_state_snapshot.rs`), so they will never appear in the `Query<(&Transform, &mut RoughTerrainModifier), Without<Corpse>>`. The system is safe as-is.
+- **`apply_lava_damage` calls `is_setup_immune()` inside the system body instead of as a `run_if` condition (systems.rs:570).** The global `AtomicBool` pattern is intentionally used here (and in two other spell systems) to handle a narrow MP loading-phase race. It is not a `run_if` guard because the immunity window is very short and checked inside the hot path by design.
+- **`emit_lava_fire_smoke`, `emit_lava_sparks`, `emit_ambient_motes` depend on `Res<SpellVisualAssets>` without a `resource_exists::<SpellVisualAssets>` guard.** `SpellVisualAssets` is inserted at `Startup` (before any game state runs), and all three systems are additionally gated by `is_gameplay_running`. The resource is always present when these systems execute.
+- **`sync_trampling_texture` removes the old image handle before adding the new one (trampling/systems.rs:138).** This is the correct explicit cleanup to avoid leaking orphaned GPU textures; Bevy does not auto-drop replaced material texture handles.
+- **Two wildcard imports (`use super::constants::*` and `use crate::game::constants::*`) in `systems.rs`.** Consistent with the rest of the codebase and acceptable for well-named constants files.
+- **`spawn_castle_wall` has inline local constants `IMAGE_WIDTH` and `IMAGE_HEIGHT` (systems.rs:281–282).** These are used only inside this one function body and refer to a specific texture's pixel dimensions. Inlining is correct per project convention ("constants used by exactly one feature file should be inlined").
 
 ---
 
-### Open questions
+### Open Questions
 
-1. Does `is_setup_immune()` (called in `apply_lava_damage`) cover the multiplayer guest scenario where ghost entities are live but the game has not yet fully started? If so, BF-01 might be latent rather than immediately exploitable — but the guard should still be added as a safety net because `is_setup_immune` is a global flag, not a per-entity filter.
-
-2. The `sync_trampling_texture` comment (line 109) says "Direct mutation of `image.data` doesn't reliably trigger GPU re-upload in Bevy 0.17." Is this still true after any recent Bevy patch, or has `image.mark_as_changed()` / `ImagePlugin` configuration changed this? If in-place mutation now works, the full asset-replace-and-remove cycle can be simplified significantly.
-
-3. `spawn_castle_wall` takes a generic `<M: Component + Clone>` marker. The `Clone` bound is unused by the body (only one entity is spawned). Consider removing the `Clone` bound if nothing else requires it — it currently restricts callers to `Clone` marker types unnecessarily.
+1. Water ripple material pool: at `WATER_RIPPLE_LIFETIME = 4.0 s` and `WATER_RIPPLE_INTERVAL = 1.2 s`, there are at most ~3–4 ripples alive at once. Would a pool of 4 pre-allocated materials be a correct upper bound, or can multiple ripples be spawned in a burst?
+2. The sand underlay offsets `+100.0` and `-100.0` (relative to `WATER_POOL_POSITION`) appear to center the sand quad on the visually-correct center of the pond art. Are these derived from a pixel-to-world calculation that should be documented, or are they empirically tuned?
+3. `TramplingGrid::world_to_index` shares the same cell-size constant (`TRAMPLING_CELL_SIZE = 10.0`) as the pathfinding grid. Are these intentionally kept in sync? If the pathfinding grid cell size changes, the trampling overlay will silently misalign.
