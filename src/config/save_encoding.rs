@@ -7,7 +7,7 @@ use super::progress::keyed_hash;
 // ---------------------------------------------------------------------------
 
 /// Simple XOR cipher for obfuscating save data.
-pub(super) fn obfuscate(data: &[u8]) -> Vec<u8> {
+pub(crate) fn obfuscate(data: &[u8]) -> Vec<u8> {
     let seed = b"unified_save_v2";
     let key_hash = keyed_hash(seed);
     let key_bytes = key_hash.to_le_bytes();
@@ -19,7 +19,7 @@ pub(super) fn obfuscate(data: &[u8]) -> Vec<u8> {
 }
 
 /// Deobfuscate is the same as obfuscate (XOR is symmetric).
-pub(super) fn deobfuscate(data: &[u8]) -> Vec<u8> {
+pub(crate) fn deobfuscate(data: &[u8]) -> Vec<u8> {
     obfuscate(data)
 }
 
@@ -96,7 +96,7 @@ pub(crate) fn from_base64(s: &str) -> Option<Vec<u8>> {
 
 /// Generate a simple unique identifier.
 /// Format: "{timestamp}-{random_hex}" (e.g., "1704067200-a3f9c2")
-pub(super) fn generate_id() -> String {
+pub(crate) fn generate_id() -> String {
     use rand::Rng;
     let mut rng = rand::rng();
     let timestamp = current_timestamp();

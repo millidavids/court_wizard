@@ -1,16 +1,14 @@
-//! Melee combat resolution system.
-
 use std::cmp::Ordering;
 
 use bevy::prelude::*;
 use rand::Rng;
 
-use super::super::attack_cycle::GlobalAttackCycle;
-use super::super::cauldron::components::{CauldronDamageBonus, CauldronDamageResistance};
-use super::super::cauldron::resources::CauldronBuffs;
-use super::super::constants::*;
-use super::super::units::boss::components::Boss;
-use super::super::units::components::{
+use super::super::super::attack_cycle::GlobalAttackCycle;
+use super::super::super::cauldron::components::{CauldronDamageBonus, CauldronDamageResistance};
+use super::super::super::cauldron::resources::CauldronBuffs;
+use super::super::super::constants::*;
+use super::super::super::units::boss::components::Boss;
+use super::super::super::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, EliteAttackSpeedBonus, EliteDamageBonus,
     Flying, Health, Hitbox, RetaliationTarget, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
@@ -33,33 +31,33 @@ pub fn combat(
             Option<&CauldronDamageBonus>,
             Option<&EliteDamageBonus>,
             // Spell modifiers on attacker side
-            Has<super::super::units::components::SleepModifier>,
-            Option<&super::super::units::components::BanishedModifier>,
-            Option<&super::super::units::components::BattleHymnModifier>,
-            Option<&super::super::units::components::BerserkerRageModifier>,
-            Option<&super::super::units::components::FrozenSolidModifier>,
+            Has<super::super::super::units::components::SleepModifier>,
+            Option<&super::super::super::units::components::BanishedModifier>,
+            Option<&super::super::super::units::components::BattleHymnModifier>,
+            Option<&super::super::super::units::components::BerserkerRageModifier>,
+            Option<&super::super::super::units::components::FrozenSolidModifier>,
             (
                 Option<&RetaliationTarget>,
-                Option<&super::super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
-                Has<super::super::units::infantry::components::Retreating>,
-                Has<super::super::units::wizard::spells::mind_control::components::MassHysteriaTarget>,
-                Option<&super::super::units::components::HasteModifier>,
-                Option<&super::super::units::wizard::spells::haste::components::MomentumBuff>,
-                Option<&super::super::units::components::Stunned>,
-                Option<&super::super::units::wizard::spells::teleport::components::DisorientingHaste>,
-                Option<&super::super::units::wizard::spells::fog_cloud::components::BlindingMistDebuff>,
-                Option<&super::super::units::wizard::spells::berserker_rage::components::Frenzy>,
-                Has<super::super::units::wizard::spells::berserker_rage::components::FrenzyActive>,
-                Option<&super::super::units::wizard::spells::berserker_rage::components::Bloodlust>,
-                Has<super::super::units::wizard::spells::berserker_rage::components::ContagiousRage>,
+                Option<&super::super::super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
+                Has<super::super::super::units::infantry::components::Retreating>,
+                Has<super::super::super::units::wizard::spells::mind_control::components::MassHysteriaTarget>,
+                Option<&super::super::super::units::components::HasteModifier>,
+                Option<&super::super::super::units::wizard::spells::haste::components::MomentumBuff>,
+                Option<&super::super::super::units::components::Stunned>,
+                Option<&super::super::super::units::wizard::spells::teleport::components::DisorientingHaste>,
+                Option<&super::super::super::units::wizard::spells::fog_cloud::components::BlindingMistDebuff>,
+                Option<&super::super::super::units::wizard::spells::berserker_rage::components::Frenzy>,
+                Has<super::super::super::units::wizard::spells::berserker_rage::components::FrenzyActive>,
+                Option<&super::super::super::units::wizard::spells::berserker_rage::components::Bloodlust>,
+                Has<super::super::super::units::wizard::spells::berserker_rage::components::ContagiousRage>,
                 Option<&EliteAttackSpeedBonus>,
                 (
-                    Has<super::super::units::archer::Archer>,
-                    Has<super::super::units::infantry::Infantry>,
-                    Has<super::super::units::assassin::Assassin>,
-                    Option<&super::super::units::components::MeleeRangeBonus>,
-                    Option<&super::super::units::components::Petrified>,
-                    Has<super::super::units::components::FearModifier>,
+                    Has<super::super::super::units::archer::Archer>,
+                    Has<super::super::super::units::infantry::Infantry>,
+                    Has<super::super::super::units::assassin::Assassin>,
+                    Option<&super::super::super::units::components::MeleeRangeBonus>,
+                    Option<&super::super::super::units::components::Petrified>,
+                    Has<super::super::super::units::components::FearModifier>,
                 ),
             ),
         ),
@@ -67,7 +65,7 @@ pub fn combat(
             Without<Corpse>,
             Without<Boss>,
             Without<Flying>,
-            Without<super::super::units::components::MindControlled>,
+            Without<super::super::super::units::components::MindControlled>,
         ),
     >,
     boss_units: Query<(Entity, &Transform, &Hitbox, &Team), (With<Boss>, Without<Corpse>)>,
@@ -77,37 +75,37 @@ pub fn combat(
         Option<&mut TemporaryHitPoints>,
         Option<&CauldronDamageResistance>,
         // New spell modifiers on target side
-        Option<&super::super::units::components::FogEvasionModifier>,
-        Option<&super::super::units::components::MarkedForDeathModifier>,
-        Option<&super::super::units::wizard::spells::mind_control::components::Demoralized>,
-        Option<&super::super::units::components::BerserkerRageModifier>,
-        Option<&mut super::super::units::components::SleepModifier>,
-        Option<&super::super::units::components::Comatose>,
-        Option<&super::super::units::components::AnthemResilience>,
-        Option<&super::super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
-        Option<&super::super::units::wizard::spells::haste::components::FleetFeet>,
-        Has<super::super::units::shielder::components::ShielderDamageReduction>,
+        Option<&super::super::super::units::components::FogEvasionModifier>,
+        Option<&super::super::super::units::components::MarkedForDeathModifier>,
+        Option<&super::super::super::units::wizard::spells::mind_control::components::Demoralized>,
+        Option<&super::super::super::units::components::BerserkerRageModifier>,
+        Option<&mut super::super::super::units::components::SleepModifier>,
+        Option<&super::super::super::units::components::Comatose>,
+        Option<&super::super::super::units::components::AnthemResilience>,
+        Option<&super::super::super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
+        Option<&super::super::super::units::wizard::spells::haste::components::FleetFeet>,
+        Has<super::super::super::units::shielder::components::ShielderDamageReduction>,
         (
-            Has<super::super::units::assassin::Assassin>,
-            Has<super::super::units::archer::Archer>,
-            Option<&super::super::units::components::MeleeDamageReduction>,
+            Has<super::super::super::units::assassin::Assassin>,
+            Has<super::super::super::units::archer::Archer>,
+            Option<&super::super::super::units::components::MeleeDamageReduction>,
         ),
     )>,
     // Fog Cloud talent zones
     disorienting_zones: Query<
-        &super::super::units::wizard::spells::fog_cloud::components::FogCloudZone,
-        With<super::super::units::wizard::spells::fog_cloud::components::DisorientingVaporsZone>,
+        &super::super::super::units::wizard::spells::fog_cloud::components::FogCloudZone,
+        With<super::super::super::units::wizard::spells::fog_cloud::components::DisorientingVaporsZone>,
     >,
     mut talent_progress: Option<
-        ResMut<super::super::units::wizard::talents::resources::BattleTalentProgress>,
+        ResMut<super::super::super::units::wizard::talents::resources::BattleTalentProgress>,
     >,
     mut contagious_rage_events: MessageWriter<
-        super::super::units::wizard::spells::berserker_rage::messages::ContagiousRageKillMessage,
+        super::super::super::units::wizard::spells::berserker_rage::messages::ContagiousRageKillMessage,
     >,
     combat_anim_assets: (
-        Res<super::super::units::infantry::resources::InfantryAssets>,
-        Res<super::super::units::assassin::resources::AssassinAssets>,
-        Res<super::super::units::undead::resources::UndeadAssets>,
+        Res<super::super::super::units::infantry::resources::InfantryAssets>,
+        Res<super::super::super::units::assassin::resources::AssassinAssets>,
+        Res<super::super::super::units::undead::resources::UndeadAssets>,
     ),
 ) {
     let (combat_infantry_assets, combat_assassin_assets, combat_undead_assets) =
@@ -275,10 +273,10 @@ pub fn combat(
                 // 20% chance to redirect the attack to a same-team ally
                 let mut actual_target = *target_entity;
                 if !disorienting_snapshot.is_empty() {
-                    use super::super::units::wizard::spells::fog_cloud::systems::is_in_fog_zone;
+                    use super::super::super::units::wizard::spells::fog_cloud::systems::is_in_fog_zone;
                     let attacker_pos = attacker_transform.translation;
                     if is_in_fog_zone(attacker_pos, &disorienting_snapshot)
-                        && game_rng.0.random::<f32>() < super::super::units::wizard::spells::fog_cloud::constants::DISORIENTING_VAPORS_CHANCE
+                        && game_rng.0.random::<f32>() < super::super::super::units::wizard::spells::fog_cloud::constants::DISORIENTING_VAPORS_CHANCE
                     {
                         // Find a random same-team unit to attack instead
                         let count = units_snapshot
@@ -324,7 +322,7 @@ pub fn combat(
                             // Track talent progress
                             if let Some(ref mut progress) = talent_progress {
                                 progress.increment(
-                                    super::super::units::wizard::components::Spell::FogCloud,
+                                    super::super::super::units::wizard::components::Spell::FogCloud,
                                     1,
                                 );
                             }
@@ -445,7 +443,7 @@ pub fn combat(
                     // Contagious Rage: track kills by enraged units
                     if has_contagious_rage && target_health.is_dead() {
                         contagious_rage_events.write(
-                        super::super::units::wizard::spells::berserker_rage::messages::ContagiousRageKillMessage {
+                        super::super::super::units::wizard::spells::berserker_rage::messages::ContagiousRageKillMessage {
                             killer: attacker_entity,
                         },
                     );
@@ -477,7 +475,7 @@ pub fn combat(
                     };
                     if let Some((attack_tex, walk_tex)) = attack_textures {
                         commands.entity(attacker_entity).insert(
-                            super::super::units::components::CombatAnimation::new_attack(
+                            super::super::super::units::components::CombatAnimation::new_attack(
                                 attack_tex, walk_tex,
                             ),
                         );
@@ -499,18 +497,18 @@ pub fn combat(
         match action {
             PostCombatAction::RemoveSleep => {
                 commands.entity(entity).remove::<(
-                    super::super::units::components::SleepModifier,
-                    super::super::units::components::NightTerrors,
-                    super::super::units::components::Comatose,
-                    super::super::units::components::NarcolepticWave,
-                    super::super::units::components::Sleepwalking,
+                    super::super::super::units::components::SleepModifier,
+                    super::super::super::units::components::NightTerrors,
+                    super::super::super::units::components::Comatose,
+                    super::super::super::units::components::NarcolepticWave,
+                    super::super::super::units::components::Sleepwalking,
                 )>();
             }
             PostCombatAction::ConsumeFleetFeetDodge => {
                 // Remove FleetFeet — single dodge consumed
                 commands
                     .entity(entity)
-                    .remove::<super::super::units::wizard::spells::haste::components::FleetFeet>();
+                    .remove::<super::super::super::units::wizard::spells::haste::components::FleetFeet>();
             }
         }
     }
