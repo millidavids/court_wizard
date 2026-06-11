@@ -31,15 +31,18 @@ pub fn apply_plague_wind_damage(
         (&mut PlagueWindCloud, &mut UniqueHitTracker),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
-    mut units: Query<(
-        Entity,
-        &Transform,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-        Has<SpellShield>,
-        Has<InsidePlagueCloud>,
-        &Team,
-    )>,
+    mut units: Query<
+        (
+            Entity,
+            &Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+            Has<InsidePlagueCloud>,
+            &Team,
+        ),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     session: Option<Res<MultiplayerSession>>,
 ) {
@@ -129,10 +132,17 @@ pub fn apply_plague_wind_damage(
 }
 
 /// Removes Toxic Weakness vulnerability from units no longer in any cloud with the talent.
+#[allow(clippy::type_complexity)]
 pub fn cleanup_toxic_weakness(
     mut commands: Commands,
-    clouds: Query<&PlagueWindCloud>,
-    mut debuffed_units: Query<(Entity, &Transform, &ToxicWeaknessDebuff, &mut Health)>,
+    clouds: Query<
+        &PlagueWindCloud,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
+    mut debuffed_units: Query<
+        (Entity, &Transform, &ToxicWeaknessDebuff, &mut Health),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
 ) {
     for (entity, transform, debuff, mut health) in &mut debuffed_units {
         let still_inside = clouds.iter().any(|cloud| {
@@ -149,10 +159,20 @@ pub fn cleanup_toxic_weakness(
 
 /// Removes InsidePlagueCloud marker from units no longer in any cloud,
 /// and applies Plague Carrier lingering DoT when they leave.
+#[allow(clippy::type_complexity)]
 pub fn track_plague_carrier(
     mut commands: Commands,
-    clouds: Query<&PlagueWindCloud>,
-    marked_units: Query<(Entity, &Transform), With<InsidePlagueCloud>>,
+    clouds: Query<
+        &PlagueWindCloud,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
+    marked_units: Query<
+        (Entity, &Transform),
+        (
+            With<InsidePlagueCloud>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
+    >,
 ) {
     for (entity, transform) in &marked_units {
         let mut still_inside = false;
@@ -187,17 +207,21 @@ pub fn track_plague_carrier(
 }
 
 /// Applies lingering Plague Carrier DoT damage and cleans up expired DoTs.
+#[allow(clippy::type_complexity)]
 pub fn apply_plague_carrier_dot(
     mut commands: Commands,
     time: Res<Time>,
-    mut dot_units: Query<(
-        Entity,
-        &mut PlagueCarrierDoT,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-        Has<SpellShield>,
-        &Team,
-    )>,
+    mut dot_units: Query<
+        (
+            Entity,
+            &mut PlagueCarrierDoT,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+            &Team,
+        ),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
     session: Option<Res<MultiplayerSession>>,
 ) {
     let caster_team = local_player_team(session.as_deref());

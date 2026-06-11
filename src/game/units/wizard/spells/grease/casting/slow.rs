@@ -11,18 +11,21 @@ use rand::Rng;
 
 /// Applies slow to units inside grease zones, ticks time_alive for non-ignited zones,
 /// and handles Slip and Fall / Oil Slick talent effects.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn apply_grease_slow(
     mut commands: Commands,
     time: Res<Time>,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
-    mut zones: Query<(
-        Entity,
-        &mut GreaseZone,
-        Has<GreaseIgnited>,
-        Has<GreaseRegenerating>,
-    )>,
-    mut targets: Query<
+    mut zones: Query<
+        (
+            Entity,
+            &mut GreaseZone,
+            Has<GreaseIgnited>,
+            Has<GreaseRegenerating>,
+        ),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
+    #[allow(clippy::type_complexity)] mut targets: Query<
         (
             Entity,
             &Transform,
@@ -31,7 +34,10 @@ pub fn apply_grease_slow(
             Option<&GreaseOilSlickDebuff>,
             Option<&mut Health>,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {

@@ -38,6 +38,7 @@ pub fn josephina_leap(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     defenders: Query<
@@ -48,6 +49,7 @@ pub fn josephina_leap(
             Without<MindControlled>,
             Without<Wizard>,
             Without<BanishedModifier>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
 ) {
@@ -181,6 +183,7 @@ pub fn josephina_leap(
 }
 
 /// Apply knockback on Josephina's leap landing.
+#[allow(clippy::type_complexity)]
 pub fn josephina_leap_knockback(
     mut commands: Commands,
     mut josephina_query: Query<
@@ -190,6 +193,7 @@ pub fn josephina_leap_knockback(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     targets: Query<
@@ -199,6 +203,7 @@ pub fn josephina_leap_knockback(
             Without<Corpse>,
             Without<Wizard>,
             Without<BanishedModifier>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
 ) {

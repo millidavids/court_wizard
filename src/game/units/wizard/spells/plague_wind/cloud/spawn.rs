@@ -57,10 +57,21 @@ pub(crate) fn spawn_plague_cloud(
 
 /// Pandemic: when an enemy dies inside a cloud, spawn a smaller child cloud at their position.
 /// Only triggers once per death (uses PandemicProcessed marker) and only from non-child clouds.
+#[allow(clippy::type_complexity)]
 pub fn spawn_pandemic_clouds(
     mut commands: Commands,
-    clouds: Query<&PlagueWindCloud>,
-    dead_units: Query<(Entity, &Transform, &Health), (Without<Corpse>, Without<PandemicProcessed>)>,
+    clouds: Query<
+        &PlagueWindCloud,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
+    dead_units: Query<
+        (Entity, &Transform, &Health),
+        (
+            Without<Corpse>,
+            Without<PandemicProcessed>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
+    >,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (entity, transform, health) in &dead_units {

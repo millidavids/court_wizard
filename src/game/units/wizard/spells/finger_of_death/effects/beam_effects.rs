@@ -22,8 +22,17 @@ use bevy::prelude::*;
 pub fn update_deathmark_debuffs(
     mut commands: Commands,
     time: Res<Time>,
-    mut marked_targets: Query<(Entity, &Transform, &Health, &mut DeathmarkDebuff)>,
-    all_enemies: Query<(Entity, &Transform, &Health), Without<Wizard>>,
+    mut marked_targets: Query<
+        (Entity, &Transform, &Health, &mut DeathmarkDebuff),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
+    #[allow(clippy::type_complexity)] all_enemies: Query<
+        (Entity, &Transform, &Health),
+        (
+            Without<Wizard>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
+    >,
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -87,8 +96,11 @@ pub fn update_deathmark_debuffs(
 pub fn update_reapers_scythe(
     mut commands: Commands,
     time: Res<Time>,
-    mut sweeps: Query<(Entity, &mut ReapersScytheSweep)>,
-    mut targets: Query<
+    mut sweeps: Query<
+        (Entity, &mut ReapersScytheSweep),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
+    #[allow(clippy::type_complexity)] mut targets: Query<
         (
             Entity,
             &Transform,
@@ -97,7 +109,10 @@ pub fn update_reapers_scythe(
             Has<SpellShield>,
             &Team,
         ),
-        Without<Wizard>,
+        (
+            Without<Wizard>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
     walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
     rocks_query: Query<&crate::game::terrain::boulder::components::Boulder>,
@@ -251,7 +266,10 @@ pub fn update_reapers_scythe(
 /// Cleans up Finger of Death beams after firing or cancellation.
 pub fn cleanup_finger_of_death_beams(
     mut commands: Commands,
-    beams: Query<(Entity, &FingerOfDeathBeam)>,
+    beams: Query<
+        (Entity, &FingerOfDeathBeam),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     wizard_query: Query<&CastingState, With<LocalWizard>>,
 ) {
     let resting = wizard_query

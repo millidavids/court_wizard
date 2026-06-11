@@ -14,6 +14,7 @@ use crate::game::units::wizard::components::Wizard;
 
 /// Updates hag targeting velocity toward nearest enemy.
 /// Blind hags skip normal targeting (handled by blind_hag_wandering).
+#[allow(clippy::type_complexity)]
 pub fn update_hag_targeting(
     mut commands: Commands,
     mut hags: Query<
@@ -29,6 +30,7 @@ pub fn update_hag_targeting(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     all_units: Query<
@@ -39,6 +41,7 @@ pub fn update_hag_targeting(
             Without<Wizard>,
             Without<BanishedModifier>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
 ) {
@@ -85,6 +88,7 @@ pub fn hag_combat(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     mut targets: Query<
@@ -102,6 +106,7 @@ pub fn hag_combat(
             Without<MindControlled>,
             Without<Wizard>,
             Without<BanishedModifier>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
 ) {

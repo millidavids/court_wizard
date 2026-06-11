@@ -51,9 +51,13 @@ pub(crate) fn spawn_necrotic_explosion(
 }
 
 /// Applies necrotic explosion AoE damage to enemies near explosion positions (one-shot).
+#[allow(clippy::type_complexity)]
 pub fn apply_necrotic_explosion_damage(
     mut commands: Commands,
-    mut explosions: Query<(&Transform, &mut NecroticExplosionBurst)>,
+    mut explosions: Query<
+        (&Transform, &mut NecroticExplosionBurst),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut targets: Query<
         (
             Entity,
@@ -63,7 +67,10 @@ pub fn apply_necrotic_explosion_damage(
             Has<SpellShield>,
             &Team,
         ),
-        Without<Wizard>,
+        (
+            Without<Wizard>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
     session: Option<Res<MultiplayerSession>>,
 ) {

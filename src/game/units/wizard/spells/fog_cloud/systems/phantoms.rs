@@ -1,6 +1,7 @@
 use super::super::components::{FogCloudZone, PhantomFogZone, PhantomUnit};
 use super::super::constants;
 use crate::game::components::{Billboard, OnGameplayScreen};
+use crate::game::multiplayer::components::{GhostEntity, GhostSpellEffect};
 use crate::game::units::components::{AttackTiming, Effectiveness, Health, Hitbox, Stunned, Team};
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::systems::create_default_sprite_material;
@@ -10,7 +11,7 @@ use bevy::prelude::*;
 pub fn spawn_phantom_units(
     time: Res<Time>,
     mut commands: Commands,
-    mut zones: Query<(Entity, &FogCloudZone, &mut PhantomFogZone)>,
+    mut zones: Query<(Entity, &FogCloudZone, &mut PhantomFogZone), Without<GhostSpellEffect>>,
     existing_phantoms: Query<&PhantomUnit>,
     infantry_assets: Res<InfantryAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -70,10 +71,11 @@ pub fn spawn_phantom_units(
 }
 
 /// Despawns phantom units when they die or when no phantom fog zones remain.
+#[allow(clippy::type_complexity)]
 pub fn cleanup_phantom_units(
     mut commands: Commands,
-    phantoms: Query<(Entity, &Health), With<PhantomUnit>>,
-    zones: Query<&PhantomFogZone>,
+    phantoms: Query<(Entity, &Health), (With<PhantomUnit>, Without<GhostEntity>)>,
+    zones: Query<&PhantomFogZone, Without<GhostSpellEffect>>,
 ) {
     let zones_exist = !zones.is_empty();
     for (entity, health) in &phantoms {

@@ -5,6 +5,7 @@ use super::super::components::{
 use super::super::constants;
 use super::super::constants::TICK_INTERVAL;
 use crate::game::components::OnGameplayScreen;
+use crate::game::multiplayer::components::{GhostEntity, GhostSpellEffect};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, Health, ResidualFireDamaged, SlowMovementModifier, Team, TemporaryHitPoints,
@@ -25,9 +26,10 @@ use bevy::prelude::*;
 /// - Removes InsideWallOfFire marker
 /// - Restores healing_reduction from Searing Heat debuff
 /// - Applies Spreading Flames lingering DoT
+#[allow(clippy::type_complexity)]
 pub fn track_wall_of_fire_exit(
     mut commands: Commands,
-    walls: Query<&WallOfFireEffect>,
+    walls: Query<&WallOfFireEffect, Without<GhostSpellEffect>>,
     mut marked_units: Query<
         (
             Entity,
@@ -35,7 +37,7 @@ pub fn track_wall_of_fire_exit(
             Option<&SearingHeatDebuff>,
             Option<&mut Health>,
         ),
-        With<InsideWallOfFire>,
+        (With<InsideWallOfFire>, Without<GhostEntity>),
     >,
 ) {
     for (entity, transform, searing, health) in &mut marked_units {
@@ -80,17 +82,21 @@ pub fn track_wall_of_fire_exit(
 }
 
 /// Applies lingering fire DoT from the Spreading Flames talent.
+#[allow(clippy::type_complexity)]
 pub fn apply_spreading_flames_dot(
     mut commands: Commands,
     time: Res<Time>,
-    mut dots: Query<(
-        Entity,
-        &mut SpreadingFlamesDoT,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-        Has<SpellShield>,
-        &Team,
-    )>,
+    mut dots: Query<
+        (
+            Entity,
+            &mut SpreadingFlamesDoT,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+            &Team,
+        ),
+        Without<GhostEntity>,
+    >,
     session: Option<Res<MultiplayerSession>>,
 ) {
     let delta = time.delta_secs();
@@ -123,11 +129,12 @@ pub fn apply_spreading_flames_dot(
 }
 
 /// Applies Scorched Earth slow to units inside burnt zones.
+#[allow(clippy::type_complexity)]
 pub fn apply_scorched_earth_slow(
     mut commands: Commands,
     time: Res<Time>,
-    mut zones: Query<(Entity, &mut ScorchedEarthZone)>,
-    targets: Query<(Entity, &Transform), Without<Corpse>>,
+    mut zones: Query<(Entity, &mut ScorchedEarthZone), Without<GhostSpellEffect>>,
+    targets: Query<(Entity, &Transform), (Without<Corpse>, Without<GhostEntity>)>,
 ) {
     let delta = time.delta_secs();
 
@@ -156,6 +163,7 @@ pub fn apply_scorched_earth_slow(
 }
 
 /// Firestorm: when a FirestormMarked unit dies, spawns a fireball-like explosion at its position.
+#[allow(clippy::type_complexity)]
 pub fn firestorm_death_explosion(
     mut commands: Commands,
     dead_units: Query<
@@ -164,6 +172,7 @@ pub fn firestorm_death_explosion(
             With<FirestormMarked>,
             Without<Corpse>,
             Without<FirestormProcessed>,
+            Without<GhostEntity>,
         ),
     >,
     assets: Res<SpellVisualAssets>,

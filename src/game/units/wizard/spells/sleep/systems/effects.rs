@@ -87,7 +87,10 @@ pub(crate) fn apply_sleep(
 pub fn update_sleep_modifiers(
     time: Res<Time>,
     mut commands: Commands,
-    mut query: Query<(Entity, &mut SleepModifier)>,
+    mut query: Query<
+        (Entity, &mut SleepModifier),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
 ) {
     let delta = time.delta_secs();
     for (entity, mut sleep) in query.iter_mut() {
@@ -104,15 +107,19 @@ pub fn update_sleep_modifiers(
 }
 
 /// Night Terrors talent: apply DPS to sleeping units.
+#[allow(clippy::type_complexity)]
 pub fn update_night_terrors(
     time: Res<Time>,
     mut commands: Commands,
-    mut query: Query<(
-        Entity,
-        &mut NightTerrors,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-    )>,
+    mut query: Query<
+        (
+            Entity,
+            &mut NightTerrors,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
 ) {
     let delta = time.delta_secs();
     for (entity, mut terrors, mut health, mut temp_hp) in query.iter_mut() {
@@ -129,20 +136,31 @@ pub fn update_night_terrors(
 }
 
 /// Narcoleptic Wave: after the delay, spread sleep to nearby awake enemies.
+#[allow(clippy::type_complexity)]
 pub fn update_narcoleptic_wave(
     time: Res<Time>,
     mut commands: Commands,
-    mut wave_query: Query<(
-        Entity,
-        &mut NarcolepticWave,
-        &SleepModifier,
-        &Transform,
-        &Team,
-        Has<NightTerrors>,
-        Has<Comatose>,
-        Option<&Sleepwalking>,
-    )>,
-    awake_targets: Query<(Entity, &Transform, &Team), (Without<SleepModifier>, Without<Corpse>)>,
+    mut wave_query: Query<
+        (
+            Entity,
+            &mut NarcolepticWave,
+            &SleepModifier,
+            &Transform,
+            &Team,
+            Has<NightTerrors>,
+            Has<Comatose>,
+            Option<&Sleepwalking>,
+        ),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
+    awake_targets: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<SleepModifier>,
+            Without<Corpse>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
+    >,
 ) {
     let delta = time.delta_secs();
 

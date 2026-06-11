@@ -6,6 +6,7 @@ use super::super::components::{
 use super::super::constants;
 use super::super::constants::*;
 use crate::game::components::OnGameplayScreen;
+use crate::game::multiplayer::components::{GhostEntity, GhostSpellEffect};
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::units::components::{
@@ -29,17 +30,20 @@ const WALL_SMOKE_INTERVAL: f32 = 0.25;
 pub fn apply_wall_of_fire_damage(
     mut commands: Commands,
     time: Res<Time>,
-    mut effects: Query<(&mut WallOfFireEffect, &mut UniqueHitTracker)>,
-    mut targets: Query<(
-        Entity,
-        &Transform,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-        Has<SpellShield>,
-        Has<InsideWallOfFire>,
-        Option<&SearingHeatDebuff>,
-        &Team,
-    )>,
+    mut effects: Query<(&mut WallOfFireEffect, &mut UniqueHitTracker), Without<GhostSpellEffect>>,
+    mut targets: Query<
+        (
+            Entity,
+            &Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+            Has<InsideWallOfFire>,
+            Option<&SearingHeatDebuff>,
+            &Team,
+        ),
+        Without<GhostEntity>,
+    >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,
     session: Option<Res<MultiplayerSession>>,
@@ -133,7 +137,7 @@ pub fn apply_wall_of_fire_damage(
 /// If Scorched Earth talent is active, spawns a slow zone in its place.
 pub fn cleanup_wall_of_fire(
     mut commands: Commands,
-    effects: Query<(Entity, &WallOfFireEffect)>,
+    effects: Query<(Entity, &WallOfFireEffect), Without<GhostSpellEffect>>,
     mut materials: ResMut<Assets<StandardMaterial>>, // For scorched earth zones
     visual_assets: Res<SpellVisualAssets>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
@@ -237,7 +241,7 @@ pub fn spawn_wall_of_fire_smoke(
 pub fn cleanup_wall_of_fire_sfx(
     mut commands: Commands,
     sfx_entities: Query<(Entity, &WallOfFireSfx)>,
-    walls: Query<&WallOfFireEffect>,
+    walls: Query<&WallOfFireEffect, Without<GhostSpellEffect>>,
 ) {
     for (entity, sfx) in sfx_entities.iter() {
         if walls.get(sfx.wall_entity).is_err() {

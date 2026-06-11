@@ -37,6 +37,7 @@ pub fn justina_chain_lightning(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     targets: Query<
@@ -47,9 +48,13 @@ pub fn justina_chain_lightning(
             Without<MindControlled>,
             Without<Wizard>,
             Without<BanishedModifier>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
-    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
+    mut health_query: Query<
+        (&mut Health, Option<&mut TemporaryHitPoints>),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
     visual_assets: Res<SpellVisualAssets>,
 ) {
     use crate::game::units::wizard::spells::chain_lightning::{
@@ -134,7 +139,7 @@ pub fn justina_chain_lightning(
 }
 
 /// Justina's fireball — shoots fireballs at random defenders.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn justina_fireball(
     time: Res<Time>,
     mut commands: Commands,
@@ -154,6 +159,7 @@ pub fn justina_fireball(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     defender_teams: Query<
@@ -164,6 +170,7 @@ pub fn justina_fireball(
             Without<MindControlled>,
             Without<Wizard>,
             Without<BanishedModifier>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     visual_assets: Res<SpellVisualAssets>,

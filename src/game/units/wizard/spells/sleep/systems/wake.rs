@@ -5,13 +5,17 @@ use bevy::prelude::*;
 /// Dreamwalker: sleepwalking units walk away from the local wizard's castle (back toward spawn).
 /// Overrides their targeting velocity so they move in the opposite direction of `LocalSpellOrigin`,
 /// which resolves to the host's wizard in SP/host and the guest's wizard in MP guest.
+#[allow(clippy::type_complexity)]
 pub fn update_sleepwalkers(
-    mut query: Query<(
-        &Transform,
-        &Sleepwalking,
-        &mut TargetingVelocity,
-        &MovementSpeed,
-    )>,
+    mut query: Query<
+        (
+            &Transform,
+            &Sleepwalking,
+            &mut TargetingVelocity,
+            &MovementSpeed,
+        ),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
     local_origin: Res<LocalSpellOrigin>,
 ) {
     for (transform, sleepwalking, mut targeting, movement_speed) in query.iter_mut() {

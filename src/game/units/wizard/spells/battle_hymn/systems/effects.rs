@@ -5,7 +5,10 @@ use bevy::prelude::*;
 pub fn update_battle_hymn_modifier(
     mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<(Entity, &mut BattleHymnModifier, Option<&mut EchoingSong>)>,
+    mut query: Query<
+        (Entity, &mut BattleHymnModifier, Option<&mut EchoingSong>),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
 ) {
     let delta = time.delta_secs();
     for (entity, mut modifier, echoing_song) in query.iter_mut() {

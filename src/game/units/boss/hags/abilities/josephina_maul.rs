@@ -7,6 +7,7 @@ use crate::game::pathfinding::StagingAttacker;
 use crate::game::units::components::{Corpse, Health};
 
 /// Josephina's frenzy — 5x attack speed after leap landing for MAULING_DURATION.
+#[allow(clippy::type_complexity)]
 pub fn josephina_vicious_mauling(
     time: Res<Time>,
     death_tracker: Res<HagDeathTracker>,
@@ -17,6 +18,7 @@ pub fn josephina_vicious_mauling(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
 ) {
@@ -61,6 +63,7 @@ pub fn josephina_corpse_consume(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     corpses: Query<(Entity, &Transform), With<Corpse>>,

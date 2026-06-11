@@ -46,7 +46,12 @@ pub fn hag_movement(
                 Option<&crate::game::units::components::Petrified>,
             ),
         ),
-        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
 ) {
     for (
@@ -121,6 +126,7 @@ pub fn hag_separation(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
 ) {
@@ -167,6 +173,7 @@ pub fn justina_kite_distance(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     king_query: Query<&Transform, (With<King>, Without<Hag>, Without<Corpse>)>,

@@ -24,19 +24,23 @@ type MindControlPursuitFilter = (
 
 /// Updates mind-controlled units — they target non-MC same-team allies.
 pub fn update_mind_controlled_targeting(
-    mut controlled: Query<(
-        Entity,
-        &Transform,
-        &Team,
-        &mut TargetingVelocity,
-        &MindControlled,
-    )>,
+    mut controlled: Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut TargetingVelocity,
+            &MindControlled,
+        ),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
     all_units: Query<
         (Entity, &Transform, &Team),
         (
             Without<Corpse>,
             Without<MindControlled>,
             Without<BanishedModifier>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
 ) {
@@ -109,12 +113,15 @@ pub fn mind_controlled_pursue_allies(
 pub fn update_mind_control_wear_off(
     time: Res<Time>,
     mut commands: Commands,
-    mut controlled: Query<(
-        Entity,
-        &mut MindControlled,
-        Has<crate::game::units::wizard::spells::mind_control::components::AmnesiaOnExpiry>,
-        Has<crate::game::units::wizard::spells::mind_control::components::SleeperAgentPending>,
-    )>,
+    mut controlled: Query<
+        (
+            Entity,
+            &mut MindControlled,
+            Has<crate::game::units::wizard::spells::mind_control::components::AmnesiaOnExpiry>,
+            Has<crate::game::units::wizard::spells::mind_control::components::SleeperAgentPending>,
+        ),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
     retaliators: Query<(Entity, &RetaliationTarget)>,
 ) {
     use crate::game::units::wizard::spells::mind_control::components::{
@@ -171,6 +178,7 @@ pub fn update_mind_control_wear_off(
 
 /// Mind-controlled units attack their own team (gated by global attack cycle).
 /// They skip other mind-controlled units and only attack non-MC allies.
+#[allow(clippy::type_complexity)]
 pub fn mind_controlled_combat(
     attack_cycle: Res<crate::game::attack_cycle::GlobalAttackCycle>,
     mut commands: Commands,
@@ -183,7 +191,10 @@ pub fn mind_controlled_combat(
             &mut AttackTiming,
             &MindControlled,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
     mut potential_targets: Query<
         (
@@ -198,6 +209,7 @@ pub fn mind_controlled_combat(
             Without<Corpse>,
             Without<MindControlled>,
             Without<BanishedModifier>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
 ) {
@@ -248,7 +260,10 @@ pub fn mind_controlled_combat(
 /// Cleans up RetaliationTarget when the target entity is dead or no longer mind-controlled.
 pub fn cleanup_retaliation_targets(
     mut commands: Commands,
-    retaliators: Query<(Entity, &RetaliationTarget)>,
+    retaliators: Query<
+        (Entity, &RetaliationTarget),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
     mc_units: Query<Entity, With<MindControlled>>,
 ) {
     for (entity, retaliation) in &retaliators {

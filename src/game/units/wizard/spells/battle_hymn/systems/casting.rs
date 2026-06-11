@@ -41,7 +41,7 @@ pub fn handle_battle_hymn_casting(
     ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
-    mut targets_query: Query<
+    #[allow(clippy::type_complexity)] mut targets_query: Query<
         (
             Entity,
             &Transform,
@@ -50,7 +50,10 @@ pub fn handle_battle_hymn_casting(
             Option<&mut TemporaryHitPoints>,
             Option<&mut HasteModifier>,
         ),
-        Without<Wizard>,
+        (
+            Without<Wizard>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
     audio_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),
     mut talent_progress: Option<

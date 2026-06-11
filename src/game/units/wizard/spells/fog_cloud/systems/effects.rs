@@ -2,17 +2,22 @@ use super::super::components::{
     BlindingMistDebuff, BlindingMistZone, ChokingFogZone, FogCloudZone, RollingFogZone,
 };
 use super::super::constants;
+use crate::game::multiplayer::components::{GhostEntity, GhostSpellEffect};
 use crate::game::units::components::{Corpse, FogEvasionModifier, Health, Team};
 use crate::game::units::wizard::spells::utils::xz_distance;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use bevy::prelude::*;
 
+#[allow(clippy::type_complexity)]
 pub fn apply_fog_cloud_evasion(
     mut commands: Commands,
     time: Res<Time>,
-    mut zones: Query<&mut FogCloudZone>,
-    mut targets: Query<(Entity, &Transform, Option<&mut FogEvasionModifier>), Without<Corpse>>,
+    mut zones: Query<&mut FogCloudZone, Without<GhostSpellEffect>>,
+    mut targets: Query<
+        (Entity, &Transform, Option<&mut FogEvasionModifier>),
+        (Without<Corpse>, Without<GhostEntity>),
+    >,
 ) {
     let delta = time.delta_secs();
     for mut zone in &mut zones {
@@ -38,10 +43,14 @@ pub fn apply_fog_cloud_evasion(
 }
 
 /// Tier 2: Blinding Mist — apply/refresh debuff on units inside fog zones with this talent.
+#[allow(clippy::type_complexity)]
 pub fn apply_blinding_mist(
     mut commands: Commands,
-    zones: Query<(&FogCloudZone, &BlindingMistZone)>,
-    mut targets: Query<(Entity, &Transform, Option<&mut BlindingMistDebuff>), Without<Corpse>>,
+    zones: Query<(&FogCloudZone, &BlindingMistZone), Without<GhostSpellEffect>>,
+    mut targets: Query<
+        (Entity, &Transform, Option<&mut BlindingMistDebuff>),
+        (Without<Corpse>, Without<GhostEntity>),
+    >,
 ) {
     for (zone, _) in &zones {
         for (entity, transform, existing_debuff) in &mut targets {
@@ -62,7 +71,7 @@ pub fn apply_blinding_mist(
 pub fn tick_blinding_mist_debuff(
     mut commands: Commands,
     time: Res<Time>,
-    mut debuffs: Query<(Entity, &mut BlindingMistDebuff)>,
+    mut debuffs: Query<(Entity, &mut BlindingMistDebuff), Without<GhostEntity>>,
 ) {
     let delta = time.delta_secs();
     for (entity, mut debuff) in &mut debuffs {
@@ -74,10 +83,11 @@ pub fn tick_blinding_mist_debuff(
 }
 
 /// Tier 3: Choking Fog — deal minor DPS to non-ally units inside the fog.
+#[allow(clippy::type_complexity)]
 pub fn apply_choking_fog_damage(
     time: Res<Time>,
-    mut zones: Query<(&FogCloudZone, &mut ChokingFogZone)>,
-    mut targets: Query<(&Transform, &Team, &mut Health), Without<Corpse>>,
+    mut zones: Query<(&FogCloudZone, &mut ChokingFogZone), Without<GhostSpellEffect>>,
+    mut targets: Query<(&Transform, &Team, &mut Health), (Without<Corpse>, Without<GhostEntity>)>,
 ) {
     // Multiplayer setup stage: units are immune to damage.
     if crate::game::units::components::is_setup_immune() {
@@ -100,9 +110,13 @@ pub fn apply_choking_fog_damage(
 }
 
 /// Tier 3: Rolling Fog — move the fog zone toward the nearest attacker approach direction.
+#[allow(clippy::type_complexity)]
 pub fn move_rolling_fog(
     time: Res<Time>,
-    mut zones: Query<(&mut FogCloudZone, &mut Transform, &RollingFogZone)>,
+    mut zones: Query<
+        (&mut FogCloudZone, &mut Transform, &RollingFogZone),
+        Without<GhostSpellEffect>,
+    >,
     units: Query<(&Transform, &Team), (Without<Corpse>, Without<FogCloudZone>)>,
 ) {
     let delta = time.delta_secs();
@@ -175,7 +189,10 @@ pub fn emit_fog_cloud_particles(
     }
 }
 
-pub fn cleanup_fog_cloud_zone(mut commands: Commands, zones: Query<(Entity, &FogCloudZone)>) {
+pub fn cleanup_fog_cloud_zone(
+    mut commands: Commands,
+    zones: Query<(Entity, &FogCloudZone), Without<GhostSpellEffect>>,
+) {
     for (entity, zone) in &zones {
         if zone.time_alive >= zone.duration {
             commands.entity(entity).try_despawn();

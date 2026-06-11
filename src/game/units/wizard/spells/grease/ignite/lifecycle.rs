@@ -67,7 +67,10 @@ pub fn fade_grease_zone(
 /// Cleans up expired grease zones. For Endless Oil, triggers regeneration instead of despawn.
 pub fn cleanup_grease_zone(
     mut commands: Commands,
-    zones: Query<(Entity, &GreaseZone, Has<GreaseIgnited>)>,
+    zones: Query<
+        (Entity, &GreaseZone, Has<GreaseIgnited>),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (entity, zone, is_ignited) in &zones {
@@ -105,7 +108,10 @@ pub fn cleanup_grease_zone(
 pub fn update_grease_regeneration(
     mut commands: Commands,
     time: Res<Time>,
-    mut zones: Query<(Entity, &mut GreaseZone, &mut GreaseRegenerating)>,
+    mut zones: Query<
+        (Entity, &mut GreaseZone, &mut GreaseRegenerating),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut materials: ResMut<Assets<StandardMaterial>>,
     zone_materials: Query<&MeshMaterial3d<StandardMaterial>, With<GreaseZone>>,
 ) {
@@ -136,12 +142,15 @@ pub fn update_grease_regeneration(
 pub fn cleanup_grease_debuffs(
     mut commands: Commands,
     zones: Query<Entity, With<GreaseZone>>,
-    mut tracked: Query<(
-        Entity,
-        &GreaseZonePresenceTracker,
-        Option<&GreaseOilSlickDebuff>,
-        Option<&mut Health>,
-    )>,
+    #[allow(clippy::type_complexity)] mut tracked: Query<
+        (
+            Entity,
+            &GreaseZonePresenceTracker,
+            Option<&GreaseOilSlickDebuff>,
+            Option<&mut Health>,
+        ),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
 ) {
     for (entity, tracker, oil_slick, mut health) in &mut tracked {
         // If the zone this tracker references no longer exists, clean up

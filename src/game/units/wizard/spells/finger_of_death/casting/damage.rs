@@ -77,8 +77,11 @@ pub fn apply_finger_of_death_damage(
     time: Res<Time>,
     mut commands: Commands,
     mut mouse_state: ResMut<MouseButtonState>,
-    mut beams: Query<&mut FingerOfDeathBeam>,
-    mut targets: Query<
+    mut beams: Query<
+        &mut FingerOfDeathBeam,
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
+    #[allow(clippy::type_complexity)] mut targets: Query<
         (
             Entity,
             &Transform,
@@ -87,7 +90,10 @@ pub fn apply_finger_of_death_damage(
             Has<SpellShield>,
             &Team,
         ),
-        Without<Wizard>,
+        (
+            Without<Wizard>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
     mut wizard_query: Query<
         (Entity, &mut Mana, &mut CastingState),

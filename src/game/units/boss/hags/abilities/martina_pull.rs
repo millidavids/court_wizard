@@ -22,6 +22,7 @@ type MindControlTargetFilter = (
     Without<MindControlled>,
     Without<Wizard>,
     Without<BanishedModifier>,
+    Without<crate::game::multiplayer::components::GhostEntity>,
 );
 
 /// Martina's teleport pull — teleports random defenders to her position.
@@ -47,6 +48,7 @@ pub fn martina_teleport_pull(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     mut defenders: Query<
@@ -63,6 +65,7 @@ pub fn martina_teleport_pull(
             Without<MindControlled>,
             Without<Wizard>,
             Without<BanishedModifier>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
 ) {
@@ -155,6 +158,7 @@ pub fn martina_mind_control(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     defenders: Query<MindControlTargetData, MindControlTargetFilter>,

@@ -6,6 +6,7 @@ use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
 use bevy::prelude::*;
 
+#[allow(clippy::type_complexity)]
 pub(crate) fn apply_battle_hymn_buff(
     commands: &mut Commands,
     circle_pos: Vec3,
@@ -20,7 +21,10 @@ pub(crate) fn apply_battle_hymn_buff(
             Option<&mut TemporaryHitPoints>,
             Option<&mut HasteModifier>,
         ),
-        Without<crate::game::units::wizard::components::Wizard>,
+        (
+            Without<crate::game::units::wizard::components::Wizard>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
     talent_progress: &mut Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,

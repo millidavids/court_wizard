@@ -3,6 +3,7 @@ use rand::Rng;
 use super::super::components::{SpikeGrowthZone, SpikeStormProjectile};
 use super::super::constants;
 use crate::game::components::OnGameplayScreen;
+use crate::game::multiplayer::components::{GhostEntity, GhostSpellEffect};
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::components::Health;
 use crate::game::units::wizard::spells::utils;
@@ -12,7 +13,7 @@ use bevy::prelude::*;
 /// Death Garden: grows zone radius over time and updates pathfinding obstacles.
 pub fn update_death_garden(
     time: Res<Time>,
-    mut zones: Query<&mut SpikeGrowthZone>,
+    mut zones: Query<&mut SpikeGrowthZone, Without<GhostSpellEffect>>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     let delta = time.delta_secs();
@@ -44,8 +45,8 @@ pub fn update_death_garden(
 pub fn spike_storm_volley(
     mut commands: Commands,
     time: Res<Time>,
-    mut zones: Query<&mut SpikeGrowthZone>,
-    targets: Query<(Entity, &Transform, &Health), Without<SpikeGrowthZone>>,
+    mut zones: Query<&mut SpikeGrowthZone, Without<GhostSpellEffect>>,
+    targets: Query<(Entity, &Transform, &Health), (Without<SpikeGrowthZone>, Without<GhostEntity>)>,
     visual_assets: Res<SpellVisualAssets>,
 ) {
     let delta = time.delta_secs();
@@ -155,7 +156,7 @@ pub fn emit_spike_growth_rings(
 /// Despawns expired spike growth zones.
 pub fn cleanup_spike_growth_zone(
     mut commands: Commands,
-    zones: Query<(Entity, &SpikeGrowthZone)>,
+    zones: Query<(Entity, &SpikeGrowthZone), Without<GhostSpellEffect>>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (entity, zone) in &zones {

@@ -25,6 +25,7 @@ pub fn tick_eye_transfer(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     eye_visuals: Query<(Entity, &ChildOf, &EyeVisual)>,
@@ -246,6 +247,7 @@ pub fn tick_eye_transfer(
 }
 
 /// Updates eyes in flight — arcs them toward their target hag and delivers on arrival.
+#[allow(clippy::type_complexity)]
 pub fn update_eye_flight(
     time: Res<Time>,
     mut commands: Commands,
@@ -257,6 +259,7 @@ pub fn update_eye_flight(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     hag_assets: Res<HagAssets>,

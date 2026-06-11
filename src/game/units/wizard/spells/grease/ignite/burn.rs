@@ -25,7 +25,11 @@ pub fn check_grease_ignition(
     mut commands: Commands,
     mut zones: Query<
         (Entity, &mut GreaseZone),
-        (Without<GreaseIgnited>, Without<GreaseRegenerating>),
+        (
+            Without<GreaseIgnited>,
+            Without<GreaseRegenerating>,
+            Without<crate::game::multiplayer::components::GhostSpellEffect>,
+        ),
     >,
     ignited_zone_query: Query<&GreaseZone, With<GreaseIgnited>>,
     fire_units: Query<
@@ -39,7 +43,7 @@ pub fn check_grease_ignition(
     wall_of_fires: Query<&WallOfFireEffect>,
     meteor_ground_fires: Query<&MeteorGroundFire>,
     disintegrate_beams: Query<&DisintegrateBeam>,
-    mut targets: Query<
+    #[allow(clippy::type_complexity)] mut targets: Query<
         (
             Entity,
             &Transform,
@@ -48,7 +52,10 @@ pub fn check_grease_ignition(
             Has<SpellShield>,
             &Team,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
@@ -256,8 +263,11 @@ pub fn update_grease_fire_spread(
 pub fn apply_grease_burn(
     mut commands: Commands,
     time: Res<Time>,
-    mut zones: Query<(&mut GreaseZone, &GreaseIgnited)>,
-    mut targets: Query<
+    mut zones: Query<
+        (&mut GreaseZone, &GreaseIgnited),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
+    #[allow(clippy::type_complexity)] mut targets: Query<
         (
             Entity,
             &Transform,
@@ -266,7 +276,10 @@ pub fn apply_grease_burn(
             Has<SpellShield>,
             &Team,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     session: Option<Res<MultiplayerSession>>,

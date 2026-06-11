@@ -10,7 +10,13 @@ use bevy::prelude::*;
 
 /// Local wizard fireball casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
-pub fn move_fireballs(time: Res<Time>, mut fireballs: Query<(&mut Transform, &Fireball)>) {
+pub fn move_fireballs(
+    time: Res<Time>,
+    mut fireballs: Query<
+        (&mut Transform, &Fireball),
+        Without<crate::game::multiplayer::components::GhostSpellProjectile>,
+    >,
+) {
     for (mut transform, fireball) in &mut fireballs {
         transform.translation += fireball.velocity * time.delta_secs();
     }
@@ -27,12 +33,15 @@ pub fn check_fireball_collisions(
     visual_assets: Res<SpellVisualAssets>,
     mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     time: Res<Time>,
-    fireballs: Query<(
-        Entity,
-        &Transform,
-        &Fireball,
-        Option<&crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn>,
-    )>,
+    #[allow(clippy::type_complexity)] fireballs: Query<
+        (
+            Entity,
+            &Transform,
+            &Fireball,
+            Option<&crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn>,
+        ),
+        Without<crate::game::multiplayer::components::GhostSpellProjectile>,
+    >,
     targets: Query<(&Transform, &Team, &Hitbox)>,
     walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
     rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
@@ -144,7 +153,13 @@ pub fn check_fireball_collisions(
 /// Despawns fireballs that travel beyond the wizard's spell range.
 pub fn despawn_distant_fireballs(
     mut commands: Commands,
-    fireballs: Query<(Entity, &Transform), With<Fireball>>,
+    fireballs: Query<
+        (Entity, &Transform),
+        (
+            With<Fireball>,
+            Without<crate::game::multiplayer::components::GhostSpellProjectile>,
+        ),
+    >,
     wizard_query: Query<&Wizard, (With<LocalWizard>, Without<Fireball>)>,
 ) {
     let Ok(wizard) = wizard_query.single() else {

@@ -30,9 +30,12 @@ pub fn process_chain_lightning_bounces(
     time: Res<Time>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
-    mut bolts: Query<(Entity, &mut ChainLightningBolt)>,
+    mut bolts: Query<
+        (Entity, &mut ChainLightningBolt),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut groups: Query<&mut ChainLightningGroup>,
-    mut enemies: Query<
+    #[allow(clippy::type_complexity)] mut enemies: Query<
         (
             Entity,
             &Transform,
@@ -41,7 +44,10 @@ pub fn process_chain_lightning_bounces(
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
     mut rods: Query<(Entity, &Transform, &mut LightningRod)>,
     crystals: Query<(Entity, &Transform), With<ArcaneCrystal>>,
@@ -334,6 +340,7 @@ fn spawn_child_bolt(
 /// lightning rods, arcane crystals, and ponds — but excludes corpses.
 /// Filters out targets blocked by WallOfStone line of sight.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 fn find_next_bounce_targets(
     origin: Vec3,
     hit_entities: &HashSet<Entity>,
@@ -346,7 +353,10 @@ fn find_next_bounce_targets(
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
     rods: &Query<(Entity, &Transform, &mut LightningRod)>,
     crystals: &Query<(Entity, &Transform), With<ArcaneCrystal>>,

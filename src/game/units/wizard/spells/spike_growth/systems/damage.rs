@@ -2,6 +2,7 @@ use super::super::components::{
     SpikeGrowthLingeringPoison, SpikeGrowthZone, SpikeStormProjectile, ZonePresenceTracker,
 };
 use super::super::constants;
+use crate::game::multiplayer::components::{GhostEntity, GhostSpellEffect};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Health, RootedModifier, SlowMovementModifier, Team, TemporaryHitPoints,
@@ -18,20 +19,27 @@ use bevy::prelude::*;
 /// Handles Thorn Maze (enhanced slow), Quicksand (root after threshold),
 /// and Poisoned Spikes (zone presence tracking + lingering on exit).
 /// Also tracks Death Garden kill extensions.
+#[allow(clippy::type_complexity)]
 pub fn apply_spike_growth_damage(
     mut commands: Commands,
     time: Res<Time>,
-    mut zones: Query<(Entity, &mut SpikeGrowthZone, &mut UniqueHitTracker)>,
-    mut targets: Query<(
-        Entity,
-        &Transform,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-        Option<&mut SlowMovementModifier>,
-        Has<SpellShield>,
-        Option<&mut ZonePresenceTracker>,
-        &Team,
-    )>,
+    mut zones: Query<
+        (Entity, &mut SpikeGrowthZone, &mut UniqueHitTracker),
+        Without<GhostSpellEffect>,
+    >,
+    mut targets: Query<
+        (
+            Entity,
+            &Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Option<&mut SlowMovementModifier>,
+            Has<SpellShield>,
+            Option<&mut ZonePresenceTracker>,
+            &Team,
+        ),
+        Without<GhostEntity>,
+    >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     session: Option<Res<MultiplayerSession>>,
 ) {
@@ -169,17 +177,21 @@ pub fn apply_spike_growth_damage(
 }
 
 /// Ticks lingering poison effect and applies damage.
+#[allow(clippy::type_complexity)]
 pub fn tick_lingering_poison(
     mut commands: Commands,
     time: Res<Time>,
-    mut targets: Query<(
-        Entity,
-        &mut SpikeGrowthLingeringPoison,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-        Has<SpellShield>,
-        &Team,
-    )>,
+    mut targets: Query<
+        (
+            Entity,
+            &mut SpikeGrowthLingeringPoison,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+            &Team,
+        ),
+        Without<GhostEntity>,
+    >,
     session: Option<Res<MultiplayerSession>>,
 ) {
     let delta = time.delta_secs();
@@ -214,11 +226,14 @@ pub fn tick_lingering_poison(
 }
 
 /// Updates spike storm projectile positions and checks for collisions.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn update_spike_storm_projectiles(
     mut commands: Commands,
     time: Res<Time>,
-    mut projectiles: Query<(Entity, &mut Transform, &mut SpikeStormProjectile)>,
+    mut projectiles: Query<
+        (Entity, &mut Transform, &mut SpikeStormProjectile),
+        Without<GhostSpellEffect>,
+    >,
     mut targets: Query<
         (
             Entity,
@@ -228,7 +243,7 @@ pub fn update_spike_storm_projectiles(
             Has<SpellShield>,
             &Team,
         ),
-        Without<SpikeStormProjectile>,
+        (Without<SpikeStormProjectile>, Without<GhostEntity>),
     >,
     session: Option<Res<MultiplayerSession>>,
 ) {

@@ -52,7 +52,10 @@ pub fn update_napalm_trails(
     time: Res<Time>,
     visual_assets: Res<SpellVisualAssets>,
     mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
-    mut fireballs: Query<(&Transform, &mut Fireball)>,
+    mut fireballs: Query<
+        (&Transform, &mut Fireball),
+        Without<crate::game::multiplayer::components::GhostSpellProjectile>,
+    >,
 ) {
     for (transform, mut fireball) in &mut fireballs {
         if !fireball.napalm {

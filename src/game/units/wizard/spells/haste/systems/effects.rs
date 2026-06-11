@@ -1,3 +1,4 @@
+use crate::game::multiplayer::components::GhostEntity;
 use crate::game::units::components::{Corpse, HasteModifier, SlowMovementModifier, Team};
 use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::haste::components::{
@@ -12,6 +13,7 @@ use super::casting::compute_talent_params;
 /// Handles HasteModifier expiry effects: Momentum buff and Chain Haste.
 /// Detects units whose HasteModifier just expired by checking for marker components
 /// (MomentumPending, ChainHasteSource) that outlive the HasteModifier.
+#[allow(clippy::type_complexity)]
 pub fn handle_haste_expiry(
     mut commands: Commands,
     // Units with momentum pending but no haste (haste just expired)
@@ -21,10 +23,14 @@ pub fn handle_haste_expiry(
             With<MomentumPending>,
             Without<HasteModifier>,
             Without<Corpse>,
+            Without<GhostEntity>,
         ),
     >,
     // Units with chain haste source but no haste (haste just expired)
-    chain_sources: Query<(Entity, &Transform, &ChainHasteSource, &Team), Without<HasteModifier>>,
+    chain_sources: Query<
+        (Entity, &Transform, &ChainHasteSource, &Team),
+        (Without<HasteModifier>, Without<GhostEntity>),
+    >,
     // Potential targets for chain haste (alive units without haste)
     potential_targets: Query<
         (Entity, &Transform, &Team),
@@ -33,6 +39,7 @@ pub fn handle_haste_expiry(
             Without<ChainHasteSource>,
             Without<Corpse>,
             Without<Wizard>,
+            Without<GhostEntity>,
         ),
     >,
     active_talents: Option<Res<ActiveTalents>>,
@@ -103,13 +110,21 @@ pub fn handle_haste_expiry(
 }
 
 /// Ticks HasteSlowZone timer and applies slow to non-hasted units within range.
+#[allow(clippy::type_complexity)]
 pub fn tick_haste_slow_zone(
     mut commands: Commands,
     time: Res<Time>,
-    mut zones: Query<(Entity, &mut HasteSlowZone)>,
+    mut zones: Query<
+        (Entity, &mut HasteSlowZone),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut units: Query<
         (Entity, &Transform, Option<&mut SlowMovementModifier>),
-        (Without<Corpse>, Without<HasteModifier>),
+        (
+            Without<Corpse>,
+            Without<HasteModifier>,
+            Without<GhostEntity>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();

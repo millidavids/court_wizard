@@ -116,15 +116,18 @@ pub fn apply_explosion_damage(
         &mut FireballExplosion,
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
-    mut targets: Query<(
-        Entity,
-        &Transform,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-        &Team,
-        Has<SpellShield>,
-        Option<&MarkedForDeathModifier>,
-    )>,
+    #[allow(clippy::type_complexity)] mut targets: Query<
+        (
+            Entity,
+            &Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            &Team,
+            Has<SpellShield>,
+            Option<&MarkedForDeathModifier>,
+        ),
+        Without<crate::game::multiplayer::components::GhostEntity>,
+    >,
     mut talent_progress: Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,

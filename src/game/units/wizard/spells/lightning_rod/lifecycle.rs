@@ -36,7 +36,11 @@ type ArcTargetData = (
     Option<&'static mut SlowMovementModifier>,
     &'static Team,
 );
-type ArcTargetFilter = (Without<Corpse>, Without<LightningStrike>);
+type ArcTargetFilter = (
+    Without<Corpse>,
+    Without<LightningStrike>,
+    Without<crate::game::multiplayer::components::GhostEntity>,
+);
 
 /// Compute talent parameters from active talent selections.
 pub(super) fn update_lightning_rod(
@@ -114,7 +118,10 @@ pub(super) fn update_lightning_strikes(
     time: Res<Time>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
-    mut strikes: Query<(Entity, &mut LightningBolt, &LightningStrike)>,
+    mut strikes: Query<
+        (Entity, &mut LightningBolt, &LightningStrike),
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut screen_flash: MessageWriter<crate::game::crt_effect::ScreenFlashMessage>,
     mut units: Query<ArcTargetData, ArcTargetFilter>,
     ponds: Query<&Pond>,

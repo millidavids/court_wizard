@@ -3,6 +3,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::components::GhostEntity;
 use crate::game::units::components::HasteModifier;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard,
@@ -80,7 +81,10 @@ pub fn handle_haste_casting(
     ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
-    mut targets_query: Query<(Entity, &Transform, Option<&mut HasteModifier>), Without<Wizard>>,
+    mut targets_query: Query<
+        (Entity, &Transform, Option<&mut HasteModifier>),
+        (Without<Wizard>, Without<GhostEntity>),
+    >,
     audio_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),
     active_talents: Option<Res<ActiveTalents>>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
@@ -240,13 +244,17 @@ pub fn handle_haste_casting(
 
 /// Applies haste buff to ALL units in radius (magic is indiscriminate).
 /// Returns the number of units buffed.
+#[allow(clippy::type_complexity)]
 pub(crate) fn apply_haste_buff(
     commands: &mut Commands,
     circle_pos: Vec3,
     radius: f32,
     empowerment: f32,
     talent_params: &HasteTalentParams,
-    targets: &mut Query<(Entity, &Transform, Option<&mut HasteModifier>), Without<Wizard>>,
+    targets: &mut Query<
+        (Entity, &Transform, Option<&mut HasteModifier>),
+        (Without<Wizard>, Without<GhostEntity>),
+    >,
 ) -> u32 {
     let mut modifier = constants::HASTE_MODIFIER * empowerment * talent_params.speed_mult;
     let mut duration = constants::HASTE_DURATION * empowerment * talent_params.duration_mult;

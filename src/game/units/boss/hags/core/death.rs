@@ -16,6 +16,7 @@ pub fn resurrect_eyed_hags(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
 ) {
@@ -29,7 +30,15 @@ pub fn resurrect_eyed_hags(
 /// Handles permanent death of blind hags (no eyes) after they become corpses.
 pub fn intercept_blind_hag_death(
     mut commands: Commands,
-    hag_corpses: Query<Entity, (With<Hag>, With<Corpse>, Without<PermanentlyDead>)>,
+    hag_corpses: Query<
+        Entity,
+        (
+            With<Hag>,
+            With<Corpse>,
+            Without<PermanentlyDead>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
+    >,
     mut living_eye_states: Query<
         (Entity, &mut HagEyeState),
         (
@@ -37,6 +46,7 @@ pub fn intercept_blind_hag_death(
             Without<Corpse>,
             Without<PermanentlyDead>,
             Without<StagingAttacker>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     mut death_tracker: ResMut<HagDeathTracker>,
@@ -86,7 +96,15 @@ pub fn intercept_blind_hag_death(
 /// Applies enrage haste to the last surviving hag when 2 are permanently dead.
 pub fn apply_enrage_to_last_hag(
     mut commands: Commands,
-    hags: Query<(Entity, &HagEyeState), (With<Hag>, Without<Corpse>, Without<PermanentlyDead>)>,
+    hags: Query<
+        (Entity, &HagEyeState),
+        (
+            With<Hag>,
+            Without<Corpse>,
+            Without<PermanentlyDead>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
+    >,
     death_tracker: Res<HagDeathTracker>,
     existing_haste: Query<&HasteModifier, With<Hag>>,
 ) {
