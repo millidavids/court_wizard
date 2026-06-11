@@ -9,6 +9,7 @@ mod petrification;
 mod spawn;
 
 pub use disintegration::ray_disintegration_sweep;
+pub use disintegration::update_ray_beam_visuals;
 pub use eye_movement::update_ray_eye_movement;
 pub use fear_movement::{cleanse_fear_with_rage, update_fear_movement};
 pub use lifecycle::{
@@ -18,6 +19,5 @@ pub use lifecycle::{
 pub use particles::{spawn_ray_stalk_particles, update_ray_stalk_particles};
 pub use petrification::{ray_petrification_beam, update_ray_petrification_visuals};
 pub use spawn::ray_movement;
-pub use spawn::spawn_ray;
 pub(crate) use spawn::ray_sfx_volume;
-pub use disintegration::update_ray_beam_visuals;
+pub use spawn::spawn_ray;
