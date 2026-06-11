@@ -89,6 +89,7 @@ impl SquallStorm {
 }
 
 /// Ice projectile component - falls from the sky and explodes on impact.
+#[allow(dead_code)]
 #[derive(Component)]
 pub(crate) struct IceProjectile {
     /// Current velocity of the projectile.
@@ -101,10 +102,8 @@ pub(crate) struct IceProjectile {
     /// Radius of the explosion.
     pub explosion_radius: f32,
     /// Collision radius of the projectile itself.
-    #[allow(dead_code)]
     pub radius: f32,
     /// Empowerment multiplier.
-    #[allow(dead_code)]
     pub empowerment: f32,
     /// Whether this projectile is a hailstone (larger, more damage).
     pub is_hailstone: bool,
@@ -153,7 +152,6 @@ pub(crate) struct IceExplosion {
     /// Whether damage has been applied yet (one-time damage).
     pub damage_applied: bool,
     /// Empowerment multiplier.
-    #[allow(dead_code)]
     pub empowerment: f32,
 }
 

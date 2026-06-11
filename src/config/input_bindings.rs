@@ -117,7 +117,6 @@ fn from_string(s: &str) -> KeyCode {
 // ---------------------------------------------------------------------------
 
 /// Identifies which binding context (archetype) a key belongs to.
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BindingContext {
     Universal,
@@ -129,7 +128,6 @@ pub(crate) enum BindingContext {
 }
 
 /// Identifies a specific action within any binding context.
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BindingAction {
     // Universal
@@ -359,7 +357,6 @@ pub(crate) struct InputBindings {
     pub arcanorouter: ArcanoRouterBindings,
 }
 
-#[allow(dead_code)]
 impl InputBindings {
     /// Returns the current binding for a given context + action.
     pub fn get(&self, context: BindingContext, action: BindingAction) -> Option<KeyCode> {
@@ -665,7 +662,6 @@ pub(crate) fn key_display_name(key: Option<KeyCode>) -> &'static str {
 
 /// Returns `true` if a key is allowed to be bound.
 /// Excludes Escape (used for menus) and Backspace (used as unbind key in UI).
-#[allow(dead_code)]
 pub(crate) fn is_bindable_key(key: KeyCode) -> bool {
     !matches!(key, KeyCode::Escape | KeyCode::Backspace)
 }

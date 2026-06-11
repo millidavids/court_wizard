@@ -61,17 +61,6 @@ impl Tree {
         }
     }
 
-    /// Returns obstacle bounds as `[min_x, min_z, max_x, max_z]` for pathfinding.
-    #[allow(dead_code)]
-    pub fn obstacle_bounds(&self) -> [f32; 4] {
-        [
-            self.center.x - self.radius,
-            self.center.z - self.radius,
-            self.center.x + self.radius,
-            self.center.z + self.radius,
-        ]
-    }
-
     /// Pushes a point outside the tree if it overlaps.
     pub fn push_out(&self, point: Vec3, unit_radius: f32) -> Option<Vec3> {
         let dx = point.x - self.center.x;

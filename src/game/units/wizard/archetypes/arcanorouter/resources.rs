@@ -207,7 +207,7 @@ impl ArcanoRouterState {
     }
 
     /// Converts an allocation percentage to a multiplier (100% = 1.0x)
-    #[allow(dead_code)]
+    #[allow(dead_code)] // used by tests
     pub fn get_multiplier(&self, slider: SliderType) -> f32 {
         self.get_allocation(slider) / 100.0
     }

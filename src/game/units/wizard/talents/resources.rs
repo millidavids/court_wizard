@@ -71,22 +71,6 @@ impl ActiveTalents {
             .get(&spell)
             .and_then(|sels| sels.get(tier).copied().flatten())
     }
-
-    /// Set a talent selection for a spell at a given tier.
-    #[allow(dead_code)]
-    pub fn set_selection(&mut self, spell: Spell, tier: usize, choice: Option<u8>) {
-        let entry = self.selections.entry(spell).or_insert([None; 3]);
-        if let Some(slot) = entry.get_mut(tier) {
-            *slot = choice;
-        }
-        save_data::set_spell_talent_selection(spell, tier, choice);
-    }
-
-    /// Check if a specific talent is active for a spell.
-    #[allow(dead_code)]
-    pub fn has_talent(&self, spell: Spell, tier: usize, choice: u8) -> bool {
-        self.get_selection(spell, tier) == Some(choice)
-    }
 }
 
 /// Accumulates talent progress during a single battle.

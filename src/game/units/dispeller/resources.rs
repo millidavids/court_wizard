@@ -7,8 +7,8 @@ use crate::game::units::systems::create_corpse_sprite_materials;
 use super::constants::*;
 
 /// Pre-loaded meshes and materials for dispeller units.
-#[derive(Resource)]
 #[allow(dead_code)]
+#[derive(Resource)]
 pub struct DispellerAssets {
     pub bolt_mesh: Handle<Mesh>,
     pub bolt_material: Handle<StandardMaterial>,
@@ -22,6 +22,7 @@ pub struct DispellerAssets {
     pub casting_texture: Handle<Image>,
     /// Death animation sprite sheet.
     pub death_texture: Handle<Image>,
+    #[allow(dead_code)]
     pub defender_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
     pub attacker_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
     pub undead_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],

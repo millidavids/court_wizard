@@ -80,19 +80,6 @@ impl GunState {
             GunType::Flamethrower => 4,
         }
     }
-
-    /// Returns ammo state for a specific gun.
-    #[allow(dead_code)]
-    pub fn ammo_for(&self, gun: GunType) -> &AmmoState {
-        &self.ammo[self.gun_index(gun)]
-    }
-
-    /// Returns mutable ammo state for a specific gun.
-    #[allow(dead_code)]
-    pub fn ammo_for_mut(&mut self, gun: GunType) -> &mut AmmoState {
-        let idx = self.gun_index(gun);
-        &mut self.ammo[idx]
-    }
 }
 
 /// Tracks the looping flamethrower sound effect entity so it can be stopped.

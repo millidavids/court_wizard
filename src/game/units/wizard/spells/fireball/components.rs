@@ -97,14 +97,12 @@ pub struct FireballExplosion {
     /// Damage dealt per tick to units hit by the explosion.
     pub damage_per_tick: f32,
     /// Type of damage dealt.
-    #[allow(dead_code)]
     pub damage_type: DamageType,
     /// Time the explosion has been active (in seconds).
     pub time_alive: f32,
     /// Time since last damage tick (in seconds).
     pub time_since_last_tick: f32,
     /// Empowerment multiplier for spell effectiveness.
-    #[allow(dead_code)]
     pub empowerment: f32,
     /// Duration of this explosion (allows per-explosion override, e.g. Lingering Flames).
     pub duration: f32,

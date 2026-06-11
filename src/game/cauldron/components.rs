@@ -42,15 +42,6 @@ impl CauldronState {
         matches!(self, Self::Idle)
     }
 
-    /// Returns the recipe currently being brewed, if any.
-    #[allow(dead_code)]
-    pub fn active_recipe(&self) -> Option<&Recipe> {
-        match self {
-            Self::Brewing { recipe, .. } => Some(recipe),
-            _ => None,
-        }
-    }
-
     /// Cancels the current brew, returning to idle.
     pub fn cancel(&mut self) {
         *self = Self::Idle;
@@ -96,7 +87,6 @@ impl CauldronState {
     }
 
     /// Returns brew progress as a percentage (0.0 to 1.0).
-    #[allow(dead_code)]
     pub fn progress(&self) -> f32 {
         match self {
             Self::Brewing {

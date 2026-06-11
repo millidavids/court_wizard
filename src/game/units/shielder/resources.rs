@@ -6,14 +6,15 @@ use crate::game::units::constants::{DEFAULT_SPRITE_HEIGHT, DEFAULT_SPRITE_WIDTH}
 use crate::game::units::systems::create_corpse_sprite_materials;
 
 /// Pre-loaded meshes and materials for shielder units.
-#[derive(Resource)]
 #[allow(dead_code)]
+#[derive(Resource)]
 pub struct ShielderAssets {
     /// Rectangle mesh for sprite rendering.
     pub sprite_mesh: Handle<Mesh>,
     /// Shielder walking sprite sheet texture.
     pub sprite_texture: Handle<Image>,
     /// Attack animation sprite sheet.
+    #[allow(dead_code)]
     pub attacking_texture: Handle<Image>,
     /// Casting animation sprite sheet (shield ability).
     pub casting_texture: Handle<Image>,

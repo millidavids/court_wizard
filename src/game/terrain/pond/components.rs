@@ -11,18 +11,7 @@ pub struct Pond {
     pub ripple_timer: f32,
 }
 
-impl Pond {
-    /// Returns obstacle bounds as `[min_x, min_z, max_x, max_z]` for pathfinding.
-    #[allow(dead_code)]
-    pub fn obstacle_bounds(&self) -> [f32; 4] {
-        [
-            self.center.x - self.radius,
-            self.center.z - self.radius,
-            self.center.x + self.radius,
-            self.center.z + self.radius,
-        ]
-    }
-}
+impl Pond {}
 
 /// Accumulated water-evaporation state from fire damage hitting a pond.
 /// Feeds a growing fog cloud above the pond.

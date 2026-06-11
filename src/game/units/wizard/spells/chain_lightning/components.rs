@@ -21,7 +21,6 @@ pub struct ChainLightningBolt {
     /// Current damage for next hit (decreases with each split level).
     pub current_damage: f32,
     /// Type of damage dealt.
-    #[allow(dead_code)]
     pub damage_type: DamageType,
     /// Number of split levels remaining.
     pub bounces_remaining: u32,

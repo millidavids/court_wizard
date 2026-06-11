@@ -5,6 +5,7 @@ use crate::game::units::components::CORPSE_MATERIAL_VARIANTS;
 use crate::game::units::systems::create_corpse_sprite_materials;
 
 /// Pre-loaded meshes and materials for assassin units.
+#[allow(dead_code)]
 #[derive(Resource)]
 pub struct AssassinAssets {
     /// Rectangle mesh for sprite rendering (same size as archer).
@@ -19,7 +20,6 @@ pub struct AssassinAssets {
     #[allow(dead_code)]
     pub attacker_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
     /// Undead corpse materials.
-    #[allow(dead_code)]
     pub undead_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
 }
 

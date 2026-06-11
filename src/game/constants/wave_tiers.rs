@@ -59,11 +59,6 @@ pub const fn is_lich_level(level: u32) -> bool {
 /// Number of unique boss types in the rotation cycle.
 pub const BOSS_CYCLE_LENGTH: u32 = 5;
 
-#[allow(dead_code)]
-pub const fn is_ray_level(level: u32) -> bool {
-    is_boss_level(level) && get_tier(level) % BOSS_CYCLE_LENGTH == 4
-}
-
 /// Returns the boss name for a given boss level, or None if not a boss level.
 pub fn boss_name_for_level(level: u32) -> Option<&'static str> {
     if !is_boss_level(level) {

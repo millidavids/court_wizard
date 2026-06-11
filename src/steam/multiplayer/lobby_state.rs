@@ -27,11 +27,7 @@ pub(crate) enum SteamLobbyState {
     /// `peer` isn't currently read by any system (the socket's `expected_peer`
     /// drives filtering) but stays here so future code can render "Connected
     /// to <friend name>" without round-tripping through Steam again.
-    Joined {
-        lobby_id: LobbyId,
-        #[allow(dead_code)]
-        peer: SteamId,
-    },
+    Joined { lobby_id: LobbyId, peer: SteamId },
 }
 
 /// Holds the crossbeam senders that Steam-callback closures capture, plus the

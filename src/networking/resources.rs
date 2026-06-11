@@ -30,7 +30,6 @@ pub enum ConnectionState {
     WaitingForSignaling,
 
     /// SDP exchange complete, waiting for data channel to open.
-    #[allow(dead_code)]
     Connecting,
 
     /// Data channel is open and messages can be sent/received.

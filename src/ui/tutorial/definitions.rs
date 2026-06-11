@@ -44,13 +44,13 @@ pub enum HighlightTarget {
 
 /// Where to anchor the tutorial panel on screen.
 #[derive(Debug, Clone, Copy)]
-#[allow(dead_code)]
 pub(super) enum PanelAnchor {
     Center,
     TopLeft,
     TopRight,
     BottomLeft,
     BottomRight,
+    #[allow(dead_code)]
     TopCenter,
     BottomCenter,
     CenterLeft,

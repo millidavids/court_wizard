@@ -73,7 +73,6 @@ impl ToggleModifier {
     }
 
     /// Description shown in tooltip/hover.
-    #[allow(dead_code)]
     pub const fn description(&self) -> &'static str {
         match self {
             ToggleModifier::ManaDrought => "No passive mana regen. Kills restore mana instead.",
@@ -142,7 +141,6 @@ impl ToggleModifier {
     }
 
     /// Look up a toggle modifier by its stable string ID.
-    #[allow(dead_code)]
     pub fn from_id(id: &str) -> Option<ToggleModifier> {
         ToggleModifier::all().iter().find(|t| t.id() == id).copied()
     }
@@ -174,14 +172,7 @@ impl ActiveToggles {
         }
     }
 
-    /// All active toggles.
-    #[allow(dead_code)]
-    pub fn iter(&self) -> impl Iterator<Item = &ToggleModifier> {
-        self.toggles.iter()
-    }
-
     /// Number of active toggles.
-    #[allow(dead_code)]
     pub fn count(&self) -> usize {
         self.toggles.len()
     }
@@ -197,7 +188,6 @@ impl ActiveToggles {
     }
 
     /// Deserializes from a list of string IDs. Unknown IDs are silently skipped.
-    #[allow(dead_code)]
     pub fn from_ids(ids: &[String]) -> Self {
         Self {
             toggles: ids

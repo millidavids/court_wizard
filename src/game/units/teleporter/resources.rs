@@ -8,12 +8,12 @@ use crate::game::units::systems::create_corpse_sprite_materials;
 use super::constants::{TELEPORTER_BOLT_COLOR, TELEPORTER_BOLT_RADIUS};
 
 #[derive(Resource)]
-#[allow(dead_code)]
 pub struct TeleporterAssets {
     pub sprite_mesh: Handle<Mesh>,
     pub sprite_texture: Handle<Image>,
     pub casting_texture: Handle<Image>,
     pub death_texture: Handle<Image>,
+    #[allow(dead_code)]
     pub attacker_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
     pub channel_particle_material: Handle<StandardMaterial>,
     pub bolt_mesh: Handle<Mesh>,

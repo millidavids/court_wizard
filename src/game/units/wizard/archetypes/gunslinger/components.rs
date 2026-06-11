@@ -46,24 +46,6 @@ impl GunType {
         }
     }
 
-    /// Returns minimum time between shots.
-    #[allow(dead_code)]
-    pub const fn fire_interval(&self) -> f32 {
-        match self {
-            GunType::MachineGun => constants::MACHINE_GUN_FIRE_INTERVAL,
-            GunType::Magnum => constants::MAGNUM_FIRE_INTERVAL,
-            GunType::RocketLauncher => constants::ROCKET_FIRE_INTERVAL,
-            GunType::Shotgun => constants::SHOTGUN_FIRE_INTERVAL,
-            GunType::Flamethrower => constants::FLAMETHROWER_FIRE_INTERVAL,
-        }
-    }
-
-    /// Returns true if this gun fires while mouse is held (vs click-to-fire).
-    #[allow(dead_code)]
-    pub const fn is_hold_to_fire(&self) -> bool {
-        matches!(self, GunType::MachineGun | GunType::Flamethrower)
-    }
-
     /// Returns how many ammo pieces to show in the UI per actual ammo unit.
     pub const fn ammo_per_ui_piece(&self) -> u32 {
         match self {

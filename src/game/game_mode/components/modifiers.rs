@@ -87,7 +87,6 @@ impl Default for RogueliteModifiers {
 
 impl RogueliteModifiers {
     /// Returns true if all modifiers are at their default (100%) values.
-    #[allow(dead_code)]
     pub fn is_default(&self) -> bool {
         (self.game_speed - 1.0).abs() < 0.01
             && (self.enemy_effectiveness - 1.0).abs() < 0.01

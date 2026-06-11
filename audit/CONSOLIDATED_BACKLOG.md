@@ -519,3 +519,28 @@ Many are deliberate (future API surface, debug-only, boss-predicate symmetry lik
 The safe sub-action — removing *stale* allows where the item is actually used — was done where found
 (e.g. F023 Spell::category). A full sweep is an open question for the maintainer (do you want the
 genuinely-unused items deleted, or are they intentional API-for-later?).
+
+### Wave C dependency CVE bump — INVESTIGATED, blocked upstream (2026-06-11)
+Checked crate versions (authoritative source). Neither CVE is safely bumpable:
+- **steamworks 0.12.2 → 0.13.1:** BLOCKED. `bevy-steamworks 0.16.0` is the latest published release
+  and hard-depends on steamworks 0.12.2. No bevy-steamworks version uses 0.13. A [patch] override
+  would break bevy-steamworks's 0.12-era API usage. Needs upstream bevy-steamworks release.
+- **hickory 0.26.0-beta.4 → 0.26.1:** BLOCKED within range. `iroh 0.98.1` hard-pins
+  `hickory-resolver = "=0.26.0-beta.4"` (exact). Only `iroh 1.0.0-rc.1` (major breaking RC) changes
+  it — bumping the P2P netcode backbone to an RC risks wire-compat and can't be verified without a
+  2-client smoke-test. Deferred to a deliberate, tested iroh 1.0 upgrade.
+Both remain documented for the maintainer; not force-bumped to honor "make sure nothing breaks".
+
+### Wave C dead-code sweep — DONE (2026-06-11)
+Compiler-driven (stripped the 62 `#[allow(dead_code)]`, let rustc report genuine dead code):
+- **Removed 12 genuinely-dead methods/functions** (active_recipe, is_ray_level, iter, obstacle_bounds×2,
+  fire_interval, is_hold_to_fire, ammo_for, ammo_for_mut, set_selection, has_talent + a few).
+- **Removed ~7 stale allows** (items that were actually used — the attribute was a lie).
+- **Suppressed 46 intentional/cascade-risky dead items** with `#[allow(dead_code)]`: the 18 wire-format
+  flag constants in `networking/protocol.rs` (module-level allow — protocol surface), set-for-completeness
+  data fields (`damage_type`, `*_corpse_materials`, `cursor_position`, etc. — removing cascades into
+  constructors), and never-constructed enum variants.
+- **Restored `get_multiplier`** (test-only API) after the cfg(test) gotcha: the default `cargo check`
+  dead-scan misses test usages, so it looked dead but a unit test uses it.
+- Gate: bin `clippy -D warnings` clean + test 52/52 + native build. (Note: a pre-existing
+  `--all-targets`-only clippy lint in `damage.rs` test code is unrelated and left as-is.)

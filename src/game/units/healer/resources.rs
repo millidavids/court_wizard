@@ -8,14 +8,15 @@ use crate::game::units::systems::create_corpse_sprite_materials;
 use super::constants::*;
 
 /// Pre-loaded meshes and materials for healer units.
-#[derive(Resource)]
 #[allow(dead_code)]
+#[derive(Resource)]
 pub struct HealerAssets {
     /// Rectangle mesh for sprite rendering.
     pub sprite_mesh: Handle<Mesh>,
     /// Healer walking sprite sheet texture.
     pub sprite_texture: Handle<Image>,
     /// Attack animation sprite sheet.
+    #[allow(dead_code)]
     pub attacking_texture: Handle<Image>,
     /// Casting animation sprite sheet (heal ability).
     pub casting_texture: Handle<Image>,

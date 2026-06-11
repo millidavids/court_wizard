@@ -65,7 +65,6 @@ impl InsightBonusStat {
     }
 
     /// All four stats in display order.
-    #[allow(dead_code)]
     pub(crate) const fn all() -> &'static [InsightBonusStat] {
         &[
             Self::SpellDamage,
