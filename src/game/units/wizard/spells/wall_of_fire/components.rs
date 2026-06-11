@@ -19,7 +19,6 @@ pub struct WallOfFireEffect {
     /// Damage dealt each tick.
     pub damage_per_tick: f32,
     /// Type of damage dealt.
-    #[allow(dead_code)]
     pub damage_type: DamageType,
     /// Time between damage ticks (seconds).
     pub tick_interval: f32,

@@ -81,7 +81,6 @@ pub struct MagicMissile {
     /// Damage dealt on impact.
     pub damage: f32,
     /// Type of damage dealt.
-    #[allow(dead_code)]
     pub damage_type: DamageType,
     /// Collision radius.
     pub radius: f32,

@@ -11,7 +11,6 @@ use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
-use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
@@ -304,7 +303,7 @@ pub fn check_magic_missile_collisions(
                     &mut health,
                     temp_hp.as_deref_mut(),
                     missile.damage,
-                    DamageType::Force,
+                    missile.damage_type,
                     false,
                 );
                 target_killed = health.current <= 0.0;

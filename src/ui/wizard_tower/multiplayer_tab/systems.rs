@@ -30,7 +30,7 @@ pub(super) fn route_pending_rematch_from_menu(
 
 /// Returns `true` when the active tab is one that hosts multiplayer lobby
 /// interaction (Multiplayer connection tab or the VS duel tab).
-pub(super) fn multiplayer_tab_active(tab: Option<Res<WizardTowerTab>>) -> bool {
+pub(super) fn mp_tab_selected(tab: Option<Res<WizardTowerTab>>) -> bool {
     tab.is_some_and(|t| matches!(*t, WizardTowerTab::Multiplayer | WizardTowerTab::Vs))
 }
 

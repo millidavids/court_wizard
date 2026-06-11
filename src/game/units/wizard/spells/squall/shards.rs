@@ -15,7 +15,6 @@ use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::terrain::messages::TerrainDamageMessage;
-use crate::game::units::DamageType;
 use crate::game::units::components::{
     FogEvasionModifier, FrostAccumulation, Health, Hitbox, SlowMovementModifier, Team,
     TemporaryHitPoints, apply_spell_damage_with_team,
@@ -362,7 +361,7 @@ pub(super) fn update_ice_explosions(
                 position: explosion.origin,
                 radius: explosion.max_radius,
                 damage: explosion.damage,
-                damage_type: DamageType::Frost,
+                damage_type: explosion.damage_type,
             });
 
             // Permafrost talent doubles frost accumulation per hit
@@ -404,7 +403,7 @@ pub(super) fn update_ice_explosions(
                         &mut health,
                         temp_hp.as_deref_mut(),
                         explosion.damage,
-                        DamageType::Frost,
+                        explosion.damage_type,
                         has_spell_shield,
                         caster_team,
                         *team,

@@ -54,7 +54,6 @@ pub(crate) struct BlackHole {
     /// Maximum radius the black hole can reach.
     pub max_radius: f32,
     /// Type of damage dealt.
-    #[allow(dead_code)]
     pub damage_type: DamageType,
     /// Time since the black hole was spawned (for growth animation).
     pub time_alive: f32,

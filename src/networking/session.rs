@@ -49,7 +49,6 @@ impl SessionMode {
 ///
 /// Inserted when both players are ready to start a match.
 /// Contains all data needed to set up the multiplayer battlefield.
-#[allow(dead_code)]
 #[derive(Resource)]
 pub struct MultiplayerSession {
     /// Whether this peer is the host or guest.
@@ -64,11 +63,16 @@ pub struct MultiplayerSession {
     /// Wizard type chosen by the guest.
     pub guest_wizard: WizardType,
 
+    // host_spells/guest_spells are populated at lobby/start time but not yet
+    // consumed — each peer sources its own loadout locally. Kept as reserved
+    // session state; suppressed per-field so genuine deadness elsewhere in this
+    // struct still warns.
     /// Spells available to the host (from their unlocked spells).
     #[allow(dead_code)]
     pub host_spells: Vec<Spell>,
 
     /// Spells available to the guest (from their unlocked spells).
+    #[allow(dead_code)]
     pub guest_spells: Vec<Spell>,
 
     /// True for a co-op roguelite match with the Urgent toggle active. Disables

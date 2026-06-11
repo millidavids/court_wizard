@@ -3,12 +3,9 @@
 use bevy::prelude::*;
 
 use super::resources::FocusNavInhibit;
-use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::state::{InGameState, MultiplayerGameState};
 
-pub(super) fn gamepad_active(active: Res<ActiveInputDevice>) -> bool {
-    active.is_gamepad()
-}
+pub(super) use crate::game::input::gamepad::gamepad_active;
 
 /// Focus navigation is disabled during active gameplay (`InGameState::Running`
 /// in single-player, `MultiplayerGameState::Running` in multiplayer): any forced

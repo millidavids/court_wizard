@@ -26,7 +26,10 @@ impl Plugin for MainMenuManualPlugin {
             .add_systems(
                 Update,
                 (
-                    systems::handle_main_menu_back_button.in_set(ButtonActionSet),
+                    crate::ui::layout_helpers::handle_main_menu_back_button::<
+                        super::components::BackButton,
+                    >
+                        .in_set(ButtonActionSet),
                     systems::handle_tab_click.in_set(ButtonActionSet),
                     systems::rebuild_content_on_tab_change
                         .run_if(resource_exists::<ManualTab>.and(resource_changed::<ManualTab>)),
@@ -57,7 +60,10 @@ impl Plugin for PauseMenuManualPlugin {
             .add_systems(
                 Update,
                 (
-                    systems::handle_pause_menu_back_button.in_set(ButtonActionSet),
+                    crate::ui::layout_helpers::handle_pause_menu_back_button::<
+                        super::components::BackButton,
+                    >
+                        .in_set(ButtonActionSet),
                     systems::handle_tab_click.in_set(ButtonActionSet),
                     systems::rebuild_content_on_tab_change
                         .run_if(resource_exists::<ManualTab>.and(resource_changed::<ManualTab>)),

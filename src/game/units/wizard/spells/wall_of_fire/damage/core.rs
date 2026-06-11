@@ -8,7 +8,6 @@ use super::super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::terrain::messages::TerrainDamageMessage;
-use crate::game::units::DamageType;
 use crate::game::units::components::{
     Health, ResidualFireDamaged, Team, TemporaryHitPoints, apply_spell_damage_with_team,
 };
@@ -67,7 +66,7 @@ pub fn apply_wall_of_fire_damage(
                 position: midpoint,
                 radius: half_length + effect.half_width,
                 damage: tick_damage,
-                damage_type: DamageType::Fire,
+                damage_type: effect.damage_type,
             });
 
             for (
@@ -90,7 +89,7 @@ pub fn apply_wall_of_fire_damage(
                         &mut health,
                         temp_hp.as_deref_mut(),
                         tick_damage,
-                        DamageType::Fire,
+                        effect.damage_type,
                         has_spell_shield,
                         caster_team,
                         *team,

@@ -3,7 +3,6 @@ use super::super::constants::*;
 use crate::game::units::components::{
     Corpse, Health, SlowMovementModifier, Team, TemporaryHitPoints, apply_spell_damage_with_team,
 };
-use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{Spell, Wizard};
 use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, local_player_team};
@@ -109,7 +108,7 @@ pub(crate) fn apply_black_hole_damage(
                     &mut health,
                     temp_hp.as_deref_mut(),
                     total_damage,
-                    DamageType::Force,
+                    black_hole.damage_type,
                     has_spell_shield,
                     caster_team,
                     *team,
@@ -235,7 +234,7 @@ pub(crate) fn apply_dimensional_rift(
                     &mut health,
                     temp_hp.as_deref_mut(),
                     DIMENSIONAL_RIFT_DAMAGE * black_hole.empowerment,
-                    DamageType::Force,
+                    black_hole.damage_type,
                     has_spell_shield,
                     caster_team,
                     *team,

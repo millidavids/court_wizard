@@ -145,7 +145,6 @@ pub(crate) struct IceExplosion {
     /// Damage dealt to units in the explosion.
     pub damage: f32,
     /// Type of damage dealt.
-    #[allow(dead_code)]
     pub damage_type: DamageType,
     /// Time the explosion has been active (in seconds).
     pub time_alive: f32,

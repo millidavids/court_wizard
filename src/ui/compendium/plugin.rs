@@ -5,9 +5,8 @@ use crate::ui::plugin::ButtonActionSet;
 use crate::ui::systems::{escape_to_landing, escape_to_pause_main, handle_scroll};
 
 use super::components::{DetailPanel, OnCompendiumScreen, ScrollableCompendiumContainer};
-use super::systems::{
-    cleanup_compendium_state, handle_main_menu_back_button, handle_pause_menu_back_button,
-};
+use super::systems::cleanup_compendium_state;
+use crate::ui::layout_helpers::{handle_main_menu_back_button, handle_pause_menu_back_button};
 
 use super::systems;
 
@@ -28,7 +27,7 @@ impl Plugin for MainMenuCompendiumPlugin {
             .add_systems(
                 Update,
                 (
-                    handle_main_menu_back_button,
+                    handle_main_menu_back_button::<super::components::BackButton>,
                     systems::handle_tab_click,
                     systems::handle_item_click,
                     systems::handle_toggle_save_run,
@@ -71,7 +70,7 @@ impl Plugin for PauseMenuCompendiumPlugin {
         .add_systems(
             Update,
             (
-                handle_pause_menu_back_button,
+                handle_pause_menu_back_button::<super::components::BackButton>,
                 systems::handle_tab_click,
                 systems::handle_item_click,
                 systems::handle_toggle_save_run,

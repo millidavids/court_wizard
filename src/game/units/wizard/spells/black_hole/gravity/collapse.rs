@@ -3,7 +3,6 @@ use super::super::constants::*;
 use crate::game::units::components::{
     Health, Team, TemporaryHitPoints, apply_spell_damage_with_team,
 };
-use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::utils::local_player_team;
@@ -89,7 +88,7 @@ pub(crate) fn despawn_expired_black_holes(
                             &mut health,
                             temp_hp.as_deref_mut(),
                             SINGULARITY_DAMAGE * black_hole.empowerment,
-                            DamageType::Force,
+                            black_hole.damage_type,
                             has_spell_shield,
                             caster_team,
                             *team,

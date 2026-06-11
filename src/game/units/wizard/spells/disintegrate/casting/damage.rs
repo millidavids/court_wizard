@@ -84,7 +84,7 @@ pub fn apply_disintegrate_damage(
                         spawn_pos,
                         velocity,
                         mini_damage,
-                        constants::DAMAGE_TYPE,
+                        beam.damage_type,
                         explosion_radius,
                         fireball::constants::PROJECTILE_COLLISION_RADIUS * scale,
                         beam.empowerment,
@@ -104,7 +104,7 @@ pub fn apply_disintegrate_damage(
                     position: tip,
                     radius: 0.0,
                     damage,
-                    damage_type: constants::DAMAGE_TYPE,
+                    damage_type: beam.damage_type,
                 });
             }
 
@@ -122,7 +122,7 @@ pub fn apply_disintegrate_damage(
                         &mut health,
                         temp_hp.as_deref_mut(),
                         damage,
-                        constants::DAMAGE_TYPE,
+                        beam.damage_type,
                         has_spell_shield,
                         caster_team,
                         *team,

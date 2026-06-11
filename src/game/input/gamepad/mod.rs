@@ -10,6 +10,7 @@ mod plugin;
 pub(crate) mod resources;
 mod rumble;
 mod run_conditions;
+pub(crate) use run_conditions::gamepad_active;
 pub(crate) mod systems;
 
 pub(crate) use plugin::GamepadInputPlugin;

@@ -55,7 +55,6 @@ pub struct DisintegrateBeam {
     /// Length of the beam.
     pub length: f32,
     /// Type of damage dealt.
-    #[allow(dead_code)]
     pub damage_type: DamageType,
     /// Time since last damage tick.
     pub time_since_damage: f32,

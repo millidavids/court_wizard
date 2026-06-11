@@ -308,6 +308,36 @@ pub fn spawn_page_container<M: Component>(
 // Shared Escape key handling
 // ---------------------------------------------------------------------------
 
+/// Generic "Back" button-click handler returning to the main-menu landing screen.
+/// Parameterized by the screen's own back-button marker component `B` so each
+/// screen (compendium, manual, …) reuses one implementation.
+pub(crate) fn handle_main_menu_back_button<B: Component>(
+    mut button_clicked: MessageReader<crate::game::input::messages::MouseClicked>,
+    button_query: Query<&B>,
+    mut next_state: ResMut<NextState<MenuState>>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
+) {
+    for event in button_clicked.read() {
+        if button_query.get(event.button).is_ok() {
+            channel_change.write(ChannelChangeMessage);
+            next_state.set(MenuState::Landing);
+        }
+    }
+}
+
+/// Generic "Back" button-click handler returning to the pause-menu main screen.
+pub(crate) fn handle_pause_menu_back_button<B: Component>(
+    mut button_clicked: MessageReader<crate::game::input::messages::MouseClicked>,
+    button_query: Query<&B>,
+    mut next_state: ResMut<NextState<PauseMenuState>>,
+) {
+    for event in button_clicked.read() {
+        if button_query.get(event.button).is_ok() {
+            next_state.set(PauseMenuState::Main);
+        }
+    }
+}
+
 /// Handles Escape key / gamepad back to return to the main menu landing screen.
 pub fn escape_to_landing(
     keyboard: Res<ButtonInput<KeyCode>>,

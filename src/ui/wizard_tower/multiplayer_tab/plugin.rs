@@ -13,7 +13,7 @@ use super::sync::{
     broadcast_host_mode_to_guest, sync_lobby_with_connection, sync_mp_wizard_selection,
 };
 use super::systems::{
-    handle_pending_rematch_on_enter, multiplayer_tab_active, reset_lobby_on_exit,
+    handle_pending_rematch_on_enter, mp_tab_selected, reset_lobby_on_exit,
     route_pending_rematch_from_menu,
 };
 use super::text_input::handle_join_code_input;
@@ -66,7 +66,7 @@ impl Plugin for MultiplayerTabPlugin {
                     handle_join_code_input,
                 )
                     .run_if(in_state(MetaGameState::WizardTower))
-                    .run_if(multiplayer_tab_active),
+                    .run_if(mp_tab_selected),
             )
             // The wizard-selection sync needs `SelectedWizard` to exist (it is
             // inserted lazily), so it carries its own resource-gated condition.
@@ -74,7 +74,7 @@ impl Plugin for MultiplayerTabPlugin {
                 Update,
                 sync_mp_wizard_selection
                     .run_if(in_state(MetaGameState::WizardTower))
-                    .run_if(multiplayer_tab_active)
+                    .run_if(mp_tab_selected)
                     .run_if(
                         resource_exists::<SelectedWizard>.and(resource_changed::<SelectedWizard>),
                     ),
