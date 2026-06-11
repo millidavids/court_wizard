@@ -22,7 +22,6 @@ pub struct DispellerAssets {
     pub casting_texture: Handle<Image>,
     /// Death animation sprite sheet.
     pub death_texture: Handle<Image>,
-    #[allow(dead_code)]
     pub defender_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
     pub attacker_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
     pub undead_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],

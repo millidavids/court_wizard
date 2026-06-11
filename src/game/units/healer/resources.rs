@@ -16,7 +16,6 @@ pub struct HealerAssets {
     /// Healer walking sprite sheet texture.
     pub sprite_texture: Handle<Image>,
     /// Attack animation sprite sheet.
-    #[allow(dead_code)]
     pub attacking_texture: Handle<Image>,
     /// Casting animation sprite sheet (heal ability).
     pub casting_texture: Handle<Image>,

@@ -11,8 +11,6 @@ pub struct Pond {
     pub ripple_timer: f32,
 }
 
-impl Pond {}
-
 /// Accumulated water-evaporation state from fire damage hitting a pond.
 /// Feeds a growing fog cloud above the pond.
 #[derive(Component, Default)]

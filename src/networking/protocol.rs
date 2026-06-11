@@ -4,7 +4,6 @@
 //! Reliable channel: commands, events, and setup messages.
 //! Unreliable channel: raw binary state snapshots (handled separately).
 
-#![allow(dead_code)] // wire-format flag constants: defined for protocol completeness
 use serde::{Deserialize, Serialize};
 
 use crate::config::WizardType;
@@ -412,6 +411,7 @@ impl StatusEffectKind {
 /// the bit layouts document the wire protocol for talent variants we plan
 /// to forward but haven't yet wired the cast-side packing for. They are
 /// allowed dead code so the protocol stays self-documenting in one place.
+#[allow(dead_code)] // bit layouts deliberately ahead of their senders; kept for wire-protocol self-documentation
 pub mod status_flags {
     // Sleep talents
     pub const SLEEP_NIGHT_TERRORS: u32 = 1 << 0;
