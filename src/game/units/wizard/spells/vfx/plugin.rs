@@ -27,7 +27,11 @@ impl Plugin for VfxPlugin {
         // ticks — no entity mutation, no gameplay side effect.
         app.add_systems(
             Update,
-            (update_fire_particle_time, update_aura_sphere_time).run_if(is_spell_effects_active),
+            (
+                systems::update_fire_particle_time,
+                systems::update_aura_sphere_time,
+            )
+                .run_if(is_spell_effects_active),
         );
         app.add_systems(
             Update,
@@ -55,26 +59,5 @@ impl Plugin for VfxPlugin {
             )
                 .run_if(is_spell_effects_active),
         );
-    }
-}
-
-/// Updates the global time uniform on all fire particle materials each frame.
-fn update_fire_particle_time(time: Res<Time>, mut materials: ResMut<Assets<FireParticleMaterial>>) {
-    let t = time.elapsed_secs();
-    for (_id, material) in materials.iter_mut() {
-        material.time = t;
-    }
-}
-
-/// Updates the global time uniform on all aura sphere materials each frame.
-fn update_aura_sphere_time(
-    time: Res<Time>,
-    mut materials: ResMut<
-        Assets<crate::game::units::wizard::spells::visual_assets::AuraSphereMaterial>,
-    >,
-) {
-    let t = time.elapsed_secs();
-    for (_id, material) in materials.iter_mut() {
-        material.time = t;
     }
 }

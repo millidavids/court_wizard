@@ -27,6 +27,7 @@ mod pause_menu;
 pub(crate) mod plugin;
 pub(crate) mod roulette_display;
 pub(crate) mod rune_display;
+mod scale;
 mod spell_book;
 mod splash_screen;
 pub(crate) mod systems;

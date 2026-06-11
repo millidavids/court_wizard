@@ -9,6 +9,7 @@ pub(crate) mod messages;
 mod plugin;
 pub(crate) mod resources;
 mod rumble;
+mod run_conditions;
 pub(crate) mod systems;
 
 pub(crate) use plugin::GamepadInputPlugin;

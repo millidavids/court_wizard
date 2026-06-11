@@ -10,6 +10,7 @@ use super::components::ActionBarLayoutProgress;
 use super::components::InfiniteMana;
 use super::messages::AssignSpellToSlot;
 use super::radial;
+use super::run_conditions::action_bar_enabled;
 use super::systems;
 
 /// Plugin that manages the action bar UI.
@@ -28,11 +29,11 @@ impl Plugin for ActionBarPlugin {
         // spawn in their linear positions.
         app.add_systems(
             OnEnter(InGameState::Running),
-            reset_layout_progress.before(systems::spawn_action_bar),
+            systems::reset_layout_progress.before(systems::spawn_action_bar),
         )
         .add_systems(
             OnEnter(MultiplayerGameState::Running),
-            reset_layout_progress.before(systems::spawn_action_bar),
+            systems::reset_layout_progress.before(systems::spawn_action_bar),
         )
         // Clear blocked spells before spawning the action bar.
         .add_systems(
@@ -133,22 +134,4 @@ impl Plugin for ActionBarPlugin {
                 .run_if(in_state(InGameState::Running).or(in_state(MultiplayerGameState::Running))),
         );
     }
-}
-
-/// The action bar is hidden for archetypes that don't choose spells from it
-/// (RuneCaster casts via rune combos, Randomancer via the roulette).
-fn action_bar_enabled(config: Res<crate::config::GameConfig>) -> bool {
-    !config.wizard_type.uses_exclusive_casting()
-}
-
-/// Resets the radial-vs-linear morph progress on gameplay start. Snaps
-/// directly to the radial endpoint when a gamepad is the active input device
-/// so the action bar renders in its final radial layout from the very first
-/// frame — otherwise the controller in-game tutorial (which references the
-/// radial controls) would talk about a layout that hadn't morphed yet.
-fn reset_layout_progress(
-    mut progress: ResMut<ActionBarLayoutProgress>,
-    active: Res<crate::game::input::gamepad::resources::ActiveInputDevice>,
-) {
-    progress.0 = if active.is_gamepad() { 1.0 } else { 0.0 };
 }

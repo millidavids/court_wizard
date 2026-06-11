@@ -20,6 +20,20 @@ use super::lobby_state::{
 };
 use super::sockets::{SteamP2pSocket, start_connecting, start_listening, tear_down_socket};
 
+/// Startup system: construct the bridge (channels + persistent
+/// LobbyChatUpdate callback handle) and insert it as a resource.
+pub(super) fn init_steam_lobby_bridge(mut commands: Commands, client: Res<Client>) {
+    commands.insert_resource(SteamLobbyBridge::new(&client));
+}
+
+/// Startup system: kick off SDR relay-network initialization. Documented
+/// best-practice when anticipating P2P connections (avoids multi-second
+/// startup latency on the first `connect_p2p` call).
+pub(super) fn init_relay_network_access(client: Res<Client>) {
+    client.networking_utils().init_relay_network_access();
+    info!("Steam relay network access initialized");
+}
+
 /// Drain `create_lobby` FnOnce results pushed from the Steam dispatcher
 /// thread. On success: finish the host-side setup (overlay, lobby data,
 /// rich presence) on the Bevy main thread. On failure: surface via

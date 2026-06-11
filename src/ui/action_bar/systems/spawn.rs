@@ -6,6 +6,7 @@ use super::super::radial::{ease, linear_pos, radial_pos};
 use crate::config::input_bindings::{InputBindings, key_display_name};
 use crate::config::{GameConfig, WizardType};
 use crate::game::components::OnGameplayScreen;
+use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::units::wizard::archetypes::gunslinger::GunType;
 use crate::ui::components::{ButtonColors, GunIconAssets, SpellIconAssets};
 use crate::ui::systems::scale_font_by_text_width;
@@ -20,6 +21,18 @@ pub(crate) const DEBUG_BUTTON_BG_OFF: Color = Color::srgba(0.2, 0.1, 0.1, 0.8);
 pub(crate) const DEBUG_BUTTON_BG_ON: Color = Color::srgba(0.1, 0.5, 0.1, 0.9);
 #[cfg(debug_assertions)]
 const DEBUG_BUTTON_BORDER: Color = Color::srgba(0.6, 0.3, 0.3, 1.0);
+
+/// Resets the radial-vs-linear morph progress on gameplay start. Snaps
+/// directly to the radial endpoint when a gamepad is the active input device
+/// so the action bar renders in its final radial layout from the very first
+/// frame — otherwise the controller in-game tutorial (which references the
+/// radial controls) would talk about a layout that hadn't morphed yet.
+pub(crate) fn reset_layout_progress(
+    mut progress: ResMut<ActionBarLayoutProgress>,
+    active: Res<ActiveInputDevice>,
+) {
+    progress.0 = if active.is_gamepad() { 1.0 } else { 0.0 };
+}
 
 /// Calculates the appropriate font size for action bar spell names based on max line width.
 pub(crate) fn calculate_action_bar_font_size(name: &str) -> f32 {

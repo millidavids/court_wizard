@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 
-use super::components::{BattlefieldAssets, LavaPool, WaterRipple, WaterRippleAssets};
+use super::components::{LavaPool, WaterRipple, WaterRippleAssets};
 use super::ground_material::{GroundMaterial, StoneNoiseMaterial};
 use super::systems;
+use super::systems::load_battlefield_assets;
 use super::trampling::TramplingPlugin;
 use crate::game::pathfinding::resources::PathfindingGrid;
 use crate::game::run_conditions::{any_exist, is_gameplay_running};
@@ -39,15 +40,4 @@ impl Plugin for BattlefieldPlugin {
                 .run_if(resource_exists::<PathfindingGrid>),
         );
     }
-}
-
-/// Pre-loads battlefield textures at startup.
-pub(crate) fn load_battlefield_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.insert_resource(BattlefieldAssets {
-        castle_wall: asset_server.load("images/castle_wall.png"),
-        right_wall: asset_server.load("images/static_sprites/right_wall.png"),
-        left_wall: asset_server.load("images/static_sprites/left_wall.png"),
-        wall_floor: asset_server.load("images/static_sprites/wall_floor.png"),
-        battlefield_tiles: asset_server.load("images/sprite_sheets/battlefield_tiles.png"),
-    });
 }

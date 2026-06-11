@@ -12,6 +12,7 @@ use super::resources::{
     ActiveInputDevice, GamepadAimSettings, RadialHoveredSlot, VirtualCursorPosition,
 };
 use super::rumble::rumble_on_score_screen;
+use super::run_conditions::gamepad_active;
 use super::systems::{
     detect_active_input_device, emit_ui_confirm_back_messages, sync_gamepad_settings,
     toggle_cursor_visibility, translate_triggers_to_mouse_messages, update_radial_hovered_slot,
@@ -22,10 +23,6 @@ use crate::game::run_conditions::{
     is_warglock,
 };
 use crate::state::InGameState;
-
-fn gamepad_active(active: Res<ActiveInputDevice>) -> bool {
-    active.is_gamepad()
-}
 
 pub(crate) struct GamepadInputPlugin;
 

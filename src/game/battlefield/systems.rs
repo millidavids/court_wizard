@@ -11,6 +11,17 @@ use super::ground_material::{GroundMaterial, StoneNoiseMaterial};
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::*;
 
+/// Pre-loads battlefield textures at startup.
+pub(crate) fn load_battlefield_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.insert_resource(BattlefieldAssets {
+        castle_wall: asset_server.load("images/castle_wall.png"),
+        right_wall: asset_server.load("images/static_sprites/right_wall.png"),
+        left_wall: asset_server.load("images/static_sprites/left_wall.png"),
+        wall_floor: asset_server.load("images/static_sprites/wall_floor.png"),
+        battlefield_tiles: asset_server.load("images/sprite_sheets/battlefield_tiles.png"),
+    });
+}
+
 /// Sets up the battlefield and castle when entering the InGame state.
 ///
 /// Spawns the battlefield ground plane, castle wall image, and point light in 3D space.

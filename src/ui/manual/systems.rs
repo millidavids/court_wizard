@@ -7,6 +7,9 @@ use super::components::{
     ScrollableManualContainer,
 };
 use super::constants::*;
+use crate::game::crt_effect::ChannelChangeMessage;
+use crate::game::input::messages::MouseClicked;
+use crate::state::{MenuState, PauseMenuState};
 use crate::ui::components::{ButtonActive, ButtonColors};
 use crate::ui::constants::{
     ACTIVE_TAB_BG, ACTIVE_TAB_BORDER, BACK_BUTTON_STYLE, INACTIVE_TAB_BG, TAB_BORDER,
@@ -296,6 +299,34 @@ pub(super) fn update_tab_active_state(
 pub(super) fn cleanup_resources(mut commands: Commands) {
     commands.remove_resource::<ManualTab>();
     commands.remove_resource::<ParsedManualContent>();
+}
+
+/// Handles back button for main menu manual.
+pub(super) fn handle_main_menu_back_button(
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&BackButton>,
+    mut next_state: ResMut<NextState<MenuState>>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
+) {
+    for event in button_clicked.read() {
+        if button_query.get(event.button).is_ok() {
+            channel_change.write(ChannelChangeMessage);
+            next_state.set(MenuState::Landing);
+        }
+    }
+}
+
+/// Handles back button for pause menu manual.
+pub(super) fn handle_pause_menu_back_button(
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&BackButton>,
+    mut next_state: ResMut<NextState<PauseMenuState>>,
+) {
+    for event in button_clicked.read() {
+        if button_query.get(event.button).is_ok() {
+            next_state.set(PauseMenuState::Main);
+        }
+    }
 }
 
 #[cfg(test)]
