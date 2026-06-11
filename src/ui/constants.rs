@@ -31,7 +31,20 @@ pub const TEXT_PLACEHOLDER: Color = Color::hsla(30.0, 0.05, 0.45, 1.0);
 pub const INSIGHT_COLOR: Color = Color::srgb(0.6, 0.8, 1.0);
 
 /// Purple accent for active/selected states and highlights.
-pub const GOLD_ACCENT: Color = Color::hsla(270.0, 0.65, 0.55, 1.0);
+pub const ACTIVE_ACCENT: Color = Color::hsla(270.0, 0.65, 0.55, 1.0);
+
+// ── Surface / shadow tints ──────────────────────────────────────────────────
+
+/// Tight contact shadow under framed page panels.
+pub const PANEL_SHADOW_CONTACT: Color = Color::hsla(25.0, 0.20, 0.08, 0.4);
+/// Medium-depth shadow under framed page panels.
+pub const PANEL_SHADOW_MEDIUM: Color = Color::hsla(25.0, 0.15, 0.05, 0.3);
+/// Wide ambient shadow under framed page panels.
+pub const PANEL_SHADOW_AMBIENT: Color = Color::hsla(25.0, 0.10, 0.03, 0.2);
+/// Dot-leader ("……") row text color.
+pub const DOT_LEADER_COLOR: Color = Color::hsla(0.0, 0.0, 0.3, 1.0);
+/// Slider track background fill.
+pub const SLIDER_TRACK_BG: Color = Color::srgb(0.2, 0.2, 0.2);
 
 // ── Spell Category Colors (rectangular harmony from button purple 270) ──────
 

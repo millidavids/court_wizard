@@ -10,9 +10,9 @@ use bevy::shader::ShaderRef;
 
 use crate::config::GameConfig;
 
+use super::attack_cycle::GlobalAttackCycle;
 use super::cauldron::resources::CauldronBuffs;
 use super::constants::*;
-use super::plugin::GlobalAttackCycle;
 use super::resources::CurrentLevel;
 use super::units::boss::components::Boss;
 use super::units::components::{
@@ -150,7 +150,7 @@ pub fn cleanup_for_replay(
 /// This system runs on OnExit(InGameState::ScoreScreen) and resets resources like
 /// the attack cycle timer and defender activation status.
 pub fn reset_resources_for_replay(
-    mut attack_cycle: ResMut<super::plugin::GlobalAttackCycle>,
+    mut attack_cycle: ResMut<super::attack_cycle::GlobalAttackCycle>,
     mut defenders_activated: ResMut<super::units::infantry::components::DefendersActivated>,
     mut king_spawned: ResMut<KingSpawned>,
     mut cauldron_buffs: ResMut<CauldronBuffs>,
@@ -179,8 +179,6 @@ pub fn activate_defenders_on_proximity(
     defenders: Query<(&Transform, &Team), Without<Corpse>>,
     all_units: Query<(&Transform, &Team), Without<Corpse>>,
 ) {
-    const ENGAGEMENT_RANGE: f32 = 800.0; // Archer max range (700) + 100
-
     // During retreat, defenders are force-deactivated — skip activation
     if retreat_state.is_active() {
         return;
@@ -214,7 +212,7 @@ pub fn activate_defenders_on_proximity(
             let distance = defender_transform
                 .translation
                 .distance(enemy_transform.translation);
-            if distance < ENGAGEMENT_RANGE {
+            if distance < DEFENDER_ACTIVATION_RANGE {
                 // Enemy in range - activate all defenders
                 defenders_activated.active = true;
                 return;
@@ -516,6 +514,23 @@ pub fn update_unit_shadows(
             shadow_transform.translation.y = SHADOW_Y;
         } else {
             commands.entity(shadow_entity).try_despawn();
+        }
+    }
+}
+
+/// Sets the virtual time speed from the GameConfig game_speed setting.
+pub(super) fn apply_game_speed(config: Res<GameConfig>, mut time: ResMut<Time<Virtual>>) {
+    time.set_relative_speed_f64(config.game_speed as f64);
+}
+
+/// Pauses gameplay when the window loses focus.
+pub(super) fn auto_pause_on_focus_loss(
+    mut focus_events: MessageReader<bevy::window::WindowFocused>,
+    mut next_state: ResMut<NextState<crate::state::InGameState>>,
+) {
+    for event in focus_events.read() {
+        if !event.focused {
+            next_state.set(crate::state::InGameState::Paused);
         }
     }
 }

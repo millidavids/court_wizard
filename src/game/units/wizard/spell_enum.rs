@@ -156,7 +156,6 @@ impl Spell {
     }
 
     /// Returns the category this spell belongs to.
-    #[allow(dead_code)]
     pub const fn category(&self) -> SpellCategory {
         match self {
             Spell::MagicMissile

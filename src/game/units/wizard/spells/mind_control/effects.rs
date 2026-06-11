@@ -23,7 +23,11 @@ pub(super) fn update_traitors_mark_aura(
     >,
     mut enemies: Query<
         (Entity, &Transform, &Team, Has<Demoralized>),
-        (Without<Corpse>, Without<MindControlled>),
+        (
+            Without<Corpse>,
+            Without<MindControlled>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
 ) {
     for (entity, transform, team, has_demoralized) in &mut enemies {
@@ -66,7 +70,10 @@ fn confused_combat_attack(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
 ) {
     if !timing.can_attack(current_time, last_time) {
@@ -121,7 +128,7 @@ pub(super) fn tick_mass_hysteria(
 /// Amnesia effect: confused units attack random nearby targets (friend or foe).
 pub(super) fn tick_amnesia_effect(
     time: Res<Time>,
-    attack_cycle: Res<crate::game::plugin::GlobalAttackCycle>,
+    attack_cycle: Res<crate::game::attack_cycle::GlobalAttackCycle>,
     mut commands: Commands,
     mut amnesia_query: Query<
         (
@@ -141,7 +148,10 @@ pub(super) fn tick_amnesia_effect(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();
@@ -185,7 +195,11 @@ pub(super) fn tick_sleeper_agent(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        (Without<Corpse>, Without<SleeperAgentActive>),
+        (
+            Without<Corpse>,
+            Without<SleeperAgentActive>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();
@@ -236,9 +250,20 @@ pub(super) fn update_mass_hysteria_targeting(
             &mut FlowFieldVelocity,
             &mut FlockingVelocity,
         ),
-        (With<MassHysteriaTarget>, Without<Corpse>),
+        (
+            With<MassHysteriaTarget>,
+            Without<Corpse>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
-    all_units: Query<(Entity, &Transform), Without<Corpse>>,
+    all_units: Query<
+        (Entity, &Transform),
+        (
+            Without<Corpse>,
+            // Exclude ghost mirror-images so hysteria steers toward real combatants.
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
+    >,
 ) {
     for (entity, transform, mut targeting, mut flow_field, mut flocking) in &mut hysteria_units {
         let pos = transform.translation;

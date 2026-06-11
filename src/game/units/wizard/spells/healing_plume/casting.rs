@@ -292,7 +292,11 @@ pub fn apply_healing_plume_heal(
             Option<&mut TemporaryHitPoints>,
             Has<crate::game::units::wizard::archetypes::meteorologist::components::DryModifier>,
         ),
-        Without<Corpse>,
+        // Ghost units mirror the host's army; healing them corrupts ghost sim state.
+        (
+            Without<Corpse>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
+        ),
     >,
     mut commands: Commands,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,

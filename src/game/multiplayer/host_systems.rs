@@ -919,10 +919,11 @@ pub fn receive_raise_corpse_messages(
 pub fn receive_dispel_messages(
     mut commands: Commands,
     mut connection: ResMut<NetworkConnection>,
-    spell_effects: Query<
-        (Entity, &NetworkEntityId),
-        With<crate::game::multiplayer::components::NetworkedSpellEffect>,
-    >,
+    spell_effects: Query<(
+        Entity,
+        &NetworkEntityId,
+        &crate::game::multiplayer::components::NetworkedSpellEffect,
+    )>,
     units_with_shield: Query<
         (Entity, &NetworkEntityId),
         With<crate::game::units::king::components::SpellShield>,
@@ -937,10 +938,15 @@ pub fn receive_dispel_messages(
     for msg in messages {
         match msg {
             NetworkMessage::DispelSpellEffect { target_network_id } => {
-                if let Some(entity) = spell_effects
-                    .iter()
-                    .find_map(|(e, id)| (id.0 == target_network_id).then_some(e))
-                    && let Ok(mut ec) = commands.get_entity(entity)
+                // The guest forwards every host spell-effect ghost in the dispel
+                // radius; the host is authoritative for *which* are dispellable.
+                if let Some(entity) = spell_effects.iter().find_map(|(e, id, effect)| {
+                    (id.0 == target_network_id
+                        && crate::game::units::wizard::spells::dispel::bolt::is_dispellable(
+                            effect.kind,
+                        ))
+                    .then_some(e)
+                }) && let Ok(mut ec) = commands.get_entity(entity)
                 {
                     ec.try_despawn();
                 }

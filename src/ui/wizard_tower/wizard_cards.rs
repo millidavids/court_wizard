@@ -10,7 +10,7 @@ use crate::config::WizardType;
 use crate::config::save_data::load_unified_save;
 use crate::game::input::messages::MouseClicked;
 use crate::ui::components::ButtonActive;
-use crate::ui::constants::{GOLD_ACCENT, TEXT_DISABLED, TEXT_MUTED, TEXT_PRIMARY};
+use crate::ui::constants::{ACTIVE_ACCENT, TEXT_DISABLED, TEXT_MUTED, TEXT_PRIMARY};
 use crate::ui::systems::spawn_button;
 
 use super::layout::RightPanelView;
@@ -29,7 +29,7 @@ const CARD_LONG_DESC_FONT_SIZE: f32 = 10.0;
 const CARD_STATUS_FONT_SIZE: f32 = 10.0;
 const CARD_BG: Color = Color::hsla(220.0, 0.08, 0.11, 0.75);
 const CARD_BORDER: Color = Color::hsla(0.0, 0.0, 0.20, 0.6);
-const CARD_BORDER_SELECTED: Color = GOLD_ACCENT;
+const CARD_BORDER_SELECTED: Color = ACTIVE_ACCENT;
 const LOCKED_CARD_BG: Color = Color::hsla(20.0, 0.08, 0.06, 0.6);
 const LOCKED_CARD_BORDER: Color = Color::hsla(25.0, 0.10, 0.12, 0.5);
 const LOCKED_TEXT_COLOR: Color = Color::hsla(30.0, 0.06, 0.45, 1.0);
@@ -202,7 +202,7 @@ fn spawn_compact_card(parent: &mut ChildSpawnerCommands, wizard_type: WizardType
             card.spawn((
                 Text::new(wizard_type.display_name()),
                 TextFont::from_font_size(CARD_NAME_FONT_SIZE),
-                TextColor(GOLD_ACCENT),
+                TextColor(ACTIVE_ACCENT),
             ));
 
             // Short description (always visible)

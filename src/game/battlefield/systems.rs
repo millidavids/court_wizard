@@ -549,6 +549,9 @@ pub fn apply_lava_damage(
             Without<Corpse>,
             Without<crate::game::units::components::Flying>,
             Without<crate::game::units::boss::ray::RayEye>,
+            // Ghost units carry `Health` for CRDT propagation; damaging them here
+            // would double-apply lava damage through the network channel.
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
 ) {

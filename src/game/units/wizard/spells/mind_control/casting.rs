@@ -86,7 +86,7 @@ struct HighlightedUnit {
 }
 
 /// Local wizard mind control casting — hold-to-cast with dynamic target highlighting.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(super) fn handle_mind_control_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
@@ -117,6 +117,8 @@ pub(super) fn handle_mind_control_casting(
             Without<MindControlled>,
             Without<Boss>,
             Without<MassHysteriaTarget>,
+            // Never mind-control the host's networked ghost units.
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     existing_controlled: Query<&MindControlled>,
@@ -373,6 +375,7 @@ pub(super) fn handle_mind_control_casting(
 
 /// Finds the nearest enemy to the cursor within TARGET_SEARCH_RADIUS and spell range.
 /// Bosses are excluded from mind control targeting.
+#[allow(clippy::type_complexity)]
 fn find_nearest_enemy(
     enemies_query: &Query<
         (Entity, &Transform, &Team, &MeshMaterial3d<StandardMaterial>),
@@ -381,6 +384,7 @@ fn find_nearest_enemy(
             Without<MindControlled>,
             Without<Boss>,
             Without<MassHysteriaTarget>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     cursor_pos: Option<Vec3>,
@@ -416,6 +420,7 @@ fn find_nearest_enemy(
 
 /// Updates the highlight to point at a new target (or clears if None).
 /// Clones the material for the highlighted entity so only it gets tinted.
+#[allow(clippy::type_complexity)]
 fn update_highlight(
     commands: &mut Commands,
     materials: &mut ResMut<Assets<StandardMaterial>>,
@@ -426,6 +431,7 @@ fn update_highlight(
             Without<MindControlled>,
             Without<Boss>,
             Without<MassHysteriaTarget>,
+            Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
     highlight: &mut HighlightState,

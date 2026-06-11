@@ -127,7 +127,7 @@ pub(crate) fn build_multiplayer_panels(
             right.spawn((
                 Text::new(message.clone()),
                 TextFont::from_font_size(super::panel_styles::BODY_FONT_SIZE),
-                TextColor(crate::ui::constants::GOLD_ACCENT),
+                TextColor(crate::ui::constants::ACTIVE_ACCENT),
                 Node {
                     margin: UiRect::top(Val::Px(10.0)),
                     ..default()

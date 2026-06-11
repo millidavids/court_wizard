@@ -1,8 +1,6 @@
 //! UI layout helpers: panels, scroll areas, escape handlers, button spawn, slider rows.
 
-use super::button_systems::{
-    FrostedGlassOverlay, ParchmentPanel, edge_color, insert_material_background, opaque,
-};
+use super::button_systems::{edge_color, insert_material_background, opaque};
 use bevy::ecs::relationship::Relationship;
 use bevy::input::keyboard::KeyCode;
 use bevy::input::mouse::MouseWheel;
@@ -16,18 +14,27 @@ use bevy::ui::RelativeCursorPosition;
 use super::components::{ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, ButtonStyle};
 use super::constants::{
     BUTTON_3D_OFFSET_REST, BUTTON_REST_OUTLINE, BUTTON_SHADOW_COLOR, CONTENT_BG, CONTENT_BORDER,
-    DETAIL_BG, DETAIL_BORDER, DETAIL_PADDING, FRAME_OUTER_RING_COLOR, FRAME_OUTLINE_COLOR,
-    FRAME_OUTLINE_OFFSET, FRAME_OUTLINE_WIDTH, FRAME_SHADOW_SPREAD_BASE, LEFT_PANEL_WIDTH, LIST_BG,
-    LIST_BORDER, OVERLAY_BG, PANEL_BORDER_RADIUS, SCROLL_BG, SCROLL_BORDER, SCROLL_SHADOW_COLOR,
+    DETAIL_BG, DETAIL_BORDER, DETAIL_PADDING, DOT_LEADER_COLOR, FRAME_OUTER_RING_COLOR,
+    FRAME_OUTLINE_COLOR, FRAME_OUTLINE_OFFSET, FRAME_OUTLINE_WIDTH, FRAME_SHADOW_SPREAD_BASE,
+    LEFT_PANEL_WIDTH, LIST_BG, LIST_BORDER, OVERLAY_BG, PANEL_BORDER_RADIUS, PANEL_SHADOW_AMBIENT,
+    PANEL_SHADOW_CONTACT, PANEL_SHADOW_MEDIUM, SCROLL_BG, SCROLL_BORDER, SCROLL_SHADOW_COLOR,
     SHADOW_COLOR, SLIDER_BORDER_WIDTH, SLIDER_BUTTON_BG, SLIDER_BUTTON_BORDER_COLOR,
     SLIDER_BUTTON_FONT_SIZE, SLIDER_BUTTON_SIZE, SLIDER_GAP, SLIDER_LABEL_FONT_SIZE,
-    SLIDER_TRACK_WIDTH, TEXT_PRIMARY, TEXT_SHADOW_COLOR,
+    SLIDER_TRACK_BG, SLIDER_TRACK_WIDTH, TEXT_PRIMARY, TEXT_SHADOW_COLOR,
 };
 use super::focus::Focusable;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::MouseButtonState;
 use crate::game::input::gamepad::messages::MenuBackPressed;
 use crate::state::{InGameState, MenuState, MultiplayerGameState, PauseMenuState};
+
+/// Marker for page content panels that should receive a parchment background.
+#[derive(Component)]
+pub(crate) struct ParchmentPanel;
+
+/// Marker for overlay roots that should receive a frosted glass background.
+#[derive(Component)]
+pub(crate) struct FrostedGlassOverlay;
 
 /// Scales a font size down based on text width to fit within a constrained area.
 ///
@@ -266,7 +273,7 @@ pub fn spawn_page_container<M: Component>(
                 },
                 // Tight contact shadow
                 ShadowStyle {
-                    color: Color::hsla(25.0, 0.20, 0.08, 0.4),
+                    color: PANEL_SHADOW_CONTACT,
                     x_offset: Val::Px(0.0),
                     y_offset: Val::Px(1.0),
                     spread_radius: Val::Px(FRAME_SHADOW_SPREAD_BASE),
@@ -274,7 +281,7 @@ pub fn spawn_page_container<M: Component>(
                 },
                 // Medium depth shadow
                 ShadowStyle {
-                    color: Color::hsla(25.0, 0.15, 0.05, 0.3),
+                    color: PANEL_SHADOW_MEDIUM,
                     x_offset: Val::Px(0.0),
                     y_offset: Val::Px(4.0),
                     spread_radius: Val::Px(FRAME_SHADOW_SPREAD_BASE + 2.0),
@@ -282,7 +289,7 @@ pub fn spawn_page_container<M: Component>(
                 },
                 // Wide ambient shadow
                 ShadowStyle {
-                    color: Color::hsla(25.0, 0.10, 0.03, 0.2),
+                    color: PANEL_SHADOW_AMBIENT,
                     x_offset: Val::Px(0.0),
                     y_offset: Val::Px(8.0),
                     spread_radius: Val::Px(FRAME_SHADOW_SPREAD_BASE + 4.0),
@@ -731,7 +738,7 @@ pub(crate) fn spawn_dot_leader(parent: &mut ChildSpawnerCommands, font_size: f32
         .with_child((
             Text::new("......................................................................"),
             TextFont::from_font_size(font_size),
-            TextColor(Color::hsla(0.0, 0.0, 0.3, 1.0)),
+            TextColor(DOT_LEADER_COLOR),
         ));
 }
 
@@ -847,7 +854,7 @@ pub(crate) fn spawn_slider_row<
                             ..default()
                         },
                         BorderColor::all(SLIDER_BUTTON_BORDER_COLOR),
-                        BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
+                        BackgroundColor(SLIDER_TRACK_BG),
                         Interaction::default(),
                         RelativeCursorPosition::default(),
                         slider_track,

@@ -2,23 +2,17 @@ use bevy::prelude::*;
 
 use crate::state::{AppState, InGameState};
 
-#[cfg(debug_assertions)]
-use super::components::OnGameplayScreen;
 use super::run_conditions::{is_gameplay_running, is_not_mp_setup_phase, is_spell_effects_active};
-#[cfg(debug_assertions)]
-use super::units::components::Hitbox;
 
 pub use super::sets::{MovementSystemSet, PostCombatSet, VelocitySystemSet};
 
 use super::achievements::AchievementsPlugin;
+use super::attack_cycle::GlobalAttackCycle;
 use super::battlefield::BattlefieldPlugin;
 use super::cauldron::CauldronPlugin;
 use super::combat_systems;
-use super::constants::ATTACK_CYCLE_DURATION;
 use super::crt_effect::CrtEffectPlugin;
 use super::debug_ui::DebugUiPlugin;
-#[cfg(debug_assertions)]
-use super::debug_ui::DebugUiVisible;
 use super::drops::DropsPlugin;
 use super::game_mode::GameModePlugin;
 use super::input::InputPlugin;
@@ -40,45 +34,6 @@ use super::units::boss::hags::systems as hags_systems;
 use super::units::wizard::talents::TalentsPlugin;
 use super::wave_systems;
 use super::win_lose_systems;
-
-/// Global attack cycle timer resource.
-///
-/// Cycles from 0.0 to CYCLE_DURATION seconds. Units track which time offset
-/// in the cycle they last attacked and can only attack again when the timer
-/// cycles back to that offset. This naturally staggers attacks across all units.
-#[derive(Resource)]
-pub struct GlobalAttackCycle {
-    /// Current time in the cycle (0.0 to CYCLE_DURATION)
-    pub current_time: f32,
-    /// Cycle time BEFORE the most recent `tick(delta)` call. `combat()`
-    /// uses this as the `last_time` parameter to `can_attack` so the
-    /// "did the cycle sweep past this unit's slot in the last frame?"
-    /// window is exactly the time actually elapsed — not a constant
-    /// `APPROX_FRAME_TIME` approximation that re-fires under fast frames
-    /// (frame_delta < 0.016) and skips slots under slow frames
-    /// (frame_delta > 0.016).
-    pub previous_time: f32,
-    /// Duration of one complete cycle in seconds
-    pub cycle_duration: f32,
-}
-
-impl Default for GlobalAttackCycle {
-    fn default() -> Self {
-        Self {
-            current_time: 0.0,
-            previous_time: 0.0,
-            cycle_duration: ATTACK_CYCLE_DURATION,
-        }
-    }
-}
-
-impl GlobalAttackCycle {
-    /// Advances the cycle timer by delta time, wrapping back to 0 after cycle_duration.
-    pub fn tick(&mut self, delta: f32) {
-        self.previous_time = self.current_time;
-        self.current_time = (self.current_time + delta) % self.cycle_duration;
-    }
-}
 
 /// Main game plugin that coordinates all gameplay sub-plugins.
 ///
@@ -139,7 +94,7 @@ impl Plugin for GamePlugin {
                 (
                     shared_systems::init_level_from_config,
                     shared_systems::reset_resources_for_replay,
-                    apply_game_speed,
+                    shared_systems::apply_game_speed,
                 ),
             )
             .add_systems(
@@ -148,7 +103,7 @@ impl Plugin for GamePlugin {
             )
             .add_systems(
                 Update,
-                auto_pause_on_focus_loss
+                shared_systems::auto_pause_on_focus_loss
                     .run_if(in_state(InGameState::Running))
                     .run_if(|config: Res<crate::config::GameConfig>| {
                         config.auto_pause_on_focus_loss
@@ -331,119 +286,5 @@ impl Plugin for GamePlugin {
                     .run_if(is_gameplay_running)
                     .run_if(in_state(AppState::InGame)),
             );
-
-        // Debug hitbox visualization — driven by the global DebugUiVisible
-        // flag (toggled by F2 in `debug_ui.rs`). Debug builds only.
-        #[cfg(debug_assertions)]
-        app.add_systems(
-            Update,
-            (
-                sync_debug_hitboxes_resource,
-                update_debug_hitboxes.run_if(resource_exists::<DebugHitboxes>),
-            )
-                .run_if(in_state(AppState::InGame)),
-        );
-    }
-}
-
-/// Sets the virtual time speed from the GameConfig game_speed setting.
-fn apply_game_speed(config: Res<crate::config::GameConfig>, mut time: ResMut<Time<Virtual>>) {
-    time.set_relative_speed_f64(config.game_speed as f64);
-}
-
-// --- Debug hitbox visualization ---
-
-/// When present, debug hitbox cylinders are shown.
-#[cfg(debug_assertions)]
-#[derive(Resource)]
-struct DebugHitboxes {
-    material: Handle<StandardMaterial>,
-    mesh: Handle<Mesh>,
-}
-
-/// Marker linking a debug cylinder to its parent unit entity.
-#[cfg(debug_assertions)]
-#[derive(Component)]
-struct DebugHitboxMarker(Entity);
-
-#[cfg(debug_assertions)]
-fn sync_debug_hitboxes_resource(
-    mut commands: Commands,
-    visible: Res<DebugUiVisible>,
-    existing: Option<Res<DebugHitboxes>>,
-    debug_cylinders: Query<Entity, With<DebugHitboxMarker>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    if visible.0 && existing.is_none() {
-        let material = materials.add(StandardMaterial {
-            base_color: Color::srgba(0.5, 0.5, 0.5, 0.3),
-            alpha_mode: AlphaMode::Blend,
-            unlit: true,
-            cull_mode: None,
-            ..default()
-        });
-        let mesh = meshes.add(Cylinder::new(1.0, 1.0));
-        commands.insert_resource(DebugHitboxes { material, mesh });
-    } else if !visible.0 && existing.is_some() {
-        commands.remove_resource::<DebugHitboxes>();
-        for entity in &debug_cylinders {
-            commands.entity(entity).try_despawn();
-        }
-    }
-}
-
-#[cfg(debug_assertions)]
-fn update_debug_hitboxes(
-    mut commands: Commands,
-    debug_res: Res<DebugHitboxes>,
-    units: Query<(Entity, &Transform, &Hitbox)>,
-    mut cylinders: Query<(&DebugHitboxMarker, &mut Transform), Without<Hitbox>>,
-    cylinder_entities: Query<(Entity, &DebugHitboxMarker), Without<Hitbox>>,
-) {
-    // Track which units already have a debug cylinder
-    let mut has_cylinder: std::collections::HashSet<Entity> = std::collections::HashSet::new();
-    for (marker, mut cyl_transform) in &mut cylinders {
-        if let Ok((_, unit_transform, hitbox)) = units.get(marker.0) {
-            has_cylinder.insert(marker.0);
-            // Position cylinder centered on the unit's position, scaled to hitbox.
-            // Cylinder primitive has half_height=1 (total height=2), so Y scale = height/2.
-            cyl_transform.translation = unit_transform.translation;
-            cyl_transform.scale = Vec3::new(hitbox.radius, hitbox.height / 2.0, hitbox.radius);
-        } else {
-            // Unit despawned — will be cleaned up below
-        }
-    }
-
-    // Remove orphaned debug cylinders (unit no longer exists)
-    for (entity, marker) in &cylinder_entities {
-        if units.get(marker.0).is_err() {
-            commands.entity(entity).try_despawn();
-        }
-    }
-
-    // Spawn debug cylinders for new units
-    for (entity, _transform, _hitbox) in &units {
-        if !has_cylinder.contains(&entity) {
-            commands.spawn((
-                Mesh3d(debug_res.mesh.clone()),
-                MeshMaterial3d(debug_res.material.clone()),
-                Transform::default(),
-                DebugHitboxMarker(entity),
-                OnGameplayScreen,
-            ));
-        }
-    }
-}
-
-/// Pauses gameplay when the window loses focus.
-fn auto_pause_on_focus_loss(
-    mut focus_events: MessageReader<bevy::window::WindowFocused>,
-    mut next_state: ResMut<NextState<InGameState>>,
-) {
-    for event in focus_events.read() {
-        if !event.focused {
-            next_state.set(InGameState::Paused);
-        }
     }
 }

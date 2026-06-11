@@ -661,16 +661,6 @@ pub fn distribute_units_to_cells(total_units: u32) -> Vec<u32> {
         .collect()
 }
 
-/// Calculates the world position of a grid cell.
-///
-/// The grid is a 6x6 radial arc centered on the wizard's spell range ring.
-/// Row 0 is closest to the wizard (near edge tangent to range ring).
-/// Columns fan out angularly around the center angle.
-///
-/// # Arguments
-/// * `row` - Row index (0 = closest to wizard)
-/// * `col` - Column index (0-5, centered around center angle)
-///
 /// Calculates the world position of a defender grid cell.
 ///
 /// The defender grid is a radial arc positioned opposite from attackers,

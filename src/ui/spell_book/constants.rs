@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use crate::ui::constants::{GOLD_ACCENT, TEXT_BODY, TEXT_MUTED};
+use crate::ui::constants::{ACTIVE_ACCENT, TEXT_BODY, TEXT_MUTED};
 
 // Re-export shared layout constants used in systems.rs
 pub use crate::ui::constants::{DETAIL_PADDING, LEFT_PANEL_WIDTH};
@@ -82,7 +82,7 @@ pub const SPELL_BUTTON_BG: Color = Color::hsla(20.0, 0.12, 0.09, 0.75);
 pub const SPELL_BUTTON_BORDER: Color = Color::hsla(270.0, 0.20, 0.22, 0.6);
 
 /// Border for the currently selected spell button — gold accent.
-pub const SPELL_BUTTON_SELECTED_BORDER: Color = GOLD_ACCENT;
+pub const SPELL_BUTTON_SELECTED_BORDER: Color = ACTIVE_ACCENT;
 
 /// Text color for spell buttons.
 pub const SPELL_BUTTON_TEXT_COLOR: Color = TEXT_BODY;

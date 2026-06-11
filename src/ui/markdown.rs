@@ -6,7 +6,7 @@
 
 use bevy::prelude::*;
 
-use crate::ui::constants::{CONTENT_BORDER, GOLD_ACCENT, TEXT_BODY, TEXT_MUTED, TEXT_PRIMARY};
+use crate::ui::constants::{ACTIVE_ACCENT, CONTENT_BORDER, TEXT_BODY, TEXT_MUTED, TEXT_PRIMARY};
 
 // ── Markdown-specific styling constants ─────────────────────────────────────
 
@@ -235,8 +235,8 @@ pub(crate) fn spawn_markdown(parent: &mut ChildSpawnerCommands, blocks: &[Markdo
 
 fn spawn_heading(parent: &mut ChildSpawnerCommands, level: u8, text: &str) {
     let (font_size, color) = match level {
-        1 => (H1_FONT_SIZE, GOLD_ACCENT),
-        2 => (H2_FONT_SIZE, GOLD_ACCENT),
+        1 => (H1_FONT_SIZE, ACTIVE_ACCENT),
+        2 => (H2_FONT_SIZE, ACTIVE_ACCENT),
         _ => (H3_FONT_SIZE, TEXT_PRIMARY),
     };
 

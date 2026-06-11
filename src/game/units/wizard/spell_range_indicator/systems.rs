@@ -6,6 +6,11 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::units::wizard::components::{LocalWizard, Wizard};
 use crate::game::units::wizard::spells::utils::ground_projected_range;
 
+/// Reference dimensions the spell-range circle mesh is authored at; the live
+/// circle is scaled from this base to the wizard's actual spell range.
+const BASE_RADIUS: f32 = 3000.0;
+const BASE_HEIGHT: f32 = 100.0;
+
 /// Spawns the spell range indicator circle when the wizard is created.
 pub fn setup_spell_range_indicator(
     mut commands: Commands,
@@ -16,8 +21,6 @@ pub fn setup_spell_range_indicator(
     for (wizard_transform, wizard) in wizard_query.iter() {
         let wizard_pos = wizard_transform.translation;
 
-        const BASE_RADIUS: f32 = 3000.0;
-        const BASE_HEIGHT: f32 = 100.0;
         let base_ground_radius = ground_projected_range(BASE_RADIUS, BASE_HEIGHT);
         let actual_ground_radius = ground_projected_range(wizard.spell_range, wizard_pos.y);
 
@@ -47,15 +50,13 @@ pub fn update_spell_range_indicator(
     mut circle_query: Query<&mut Transform, With<SpellRangeCircle>>,
 ) {
     // Only update if wizard's spell range changed
-    let Some((wizard_transform, wizard)) = wizard_query.iter().next() else {
+    let Ok((wizard_transform, wizard)) = wizard_query.single() else {
         return;
     };
-    let Some(mut circle_transform) = circle_query.iter_mut().next() else {
+    let Ok(mut circle_transform) = circle_query.single_mut() else {
         return;
     };
 
-    const BASE_RADIUS: f32 = 3000.0;
-    const BASE_HEIGHT: f32 = 100.0;
     let base_ground_radius = ground_projected_range(BASE_RADIUS, BASE_HEIGHT);
     let actual_ground_radius =
         ground_projected_range(wizard.spell_range, wizard_transform.translation.y);

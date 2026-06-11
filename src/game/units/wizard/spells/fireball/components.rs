@@ -66,7 +66,7 @@ impl Fireball {
 pub struct ScorchedEarthFire;
 
 /// Pre-generated sub-explosion that triggers when the main explosion reaches its distance.
-pub(super) struct PendingBubble {
+pub(crate) struct PendingBubble {
     /// Normalized direction from explosion center.
     pub direction: Vec3,
     /// Distance from center at which this bubble triggers.
@@ -81,7 +81,7 @@ pub(super) struct PendingBubble {
 /// triggers when the main explosion's growing radius reaches its offset distance,
 /// giving an amorphous, bubbling eruption look.
 #[derive(Component)]
-pub(super) struct ExplosionBubbleSpawner {
+pub(crate) struct ExplosionBubbleSpawner {
     pub pending: Vec<PendingBubble>,
 }
 

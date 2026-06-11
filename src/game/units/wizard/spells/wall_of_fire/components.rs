@@ -100,7 +100,7 @@ pub struct WallOfFirePreview;
 
 /// Looping sound effect entity that follows a wall of fire.
 #[derive(Component)]
-pub(super) struct WallOfFireSfx {
+pub(crate) struct WallOfFireSfx {
     /// The parent wall of fire entity this sound tracks.
     pub wall_entity: Entity,
 }

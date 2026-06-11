@@ -8,6 +8,7 @@
 //! - Simple collision-based combat
 
 pub(crate) mod achievements;
+pub(crate) mod attack_cycle;
 mod battlefield;
 #[cfg(feature = "benchmarking")]
 mod benchmarking;

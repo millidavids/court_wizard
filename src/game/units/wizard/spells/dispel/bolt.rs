@@ -603,11 +603,15 @@ pub fn forward_dispel_impacts_to_host(
         (Entity, &DispelImpact, &Transform, Option<&DispelForwarded>),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
-    spell_effects: Query<(
-        &Transform,
-        &NetworkedSpellEffect,
-        &crate::networking::entity_map::NetworkEntityId,
-    )>,
+    // The host's persistent spell-effects are mirrored on the guest as ghosts
+    // (`GhostSpellEffect` + `NetworkEntityId`, but NOT `NetworkedSpellEffect`).
+    // We forward those ghosts by `net_id`; the host validates dispellability
+    // authoritatively in `receive_dispel_messages`. (The guest's OWN effects are
+    // dispelled locally by `update_dispel_impacts` — they are not ghosts.)
+    spell_effects: Query<
+        (&Transform, &crate::networking::entity_map::NetworkEntityId),
+        With<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     shielded_units: Query<
         (&Transform, &crate::networking::entity_map::NetworkEntityId),
         With<SpellShield>,
@@ -623,10 +627,7 @@ pub fn forward_dispel_impacts_to_host(
         let mut already = forwarded.cloned().unwrap_or_default();
         let mut changed = false;
 
-        for (spell_transform, networked, net_id) in &spell_effects {
-            if !is_dispellable(networked.kind) {
-                continue;
-            }
+        for (spell_transform, net_id) in &spell_effects {
             if already.spell_effects.contains(&net_id.0) {
                 continue;
             }

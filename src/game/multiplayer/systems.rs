@@ -4,9 +4,9 @@ use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 use crate::config::{GameConfig, WizardType};
+use crate::game::attack_cycle::GlobalAttackCycle;
 use crate::game::cauldron::resources::CauldronBuffs;
 use crate::game::input::messages::MouseClicked;
-use crate::game::plugin::GlobalAttackCycle;
 use crate::game::resources::{GameOutcome, KillStats};
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::networking::entity_map::{EntityIdCounter, NetworkEntityMap};

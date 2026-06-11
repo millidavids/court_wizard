@@ -5,10 +5,10 @@ use std::cmp::Ordering;
 use bevy::prelude::*;
 use rand::Rng;
 
+use super::super::attack_cycle::GlobalAttackCycle;
 use super::super::cauldron::components::{CauldronDamageBonus, CauldronDamageResistance};
 use super::super::cauldron::resources::CauldronBuffs;
 use super::super::constants::*;
-use super::super::plugin::GlobalAttackCycle;
 use super::super::units::boss::components::Boss;
 use super::super::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, EliteAttackSpeedBonus, EliteDamageBonus,

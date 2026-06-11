@@ -276,12 +276,16 @@ pub(super) fn update_ice_explosions(
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     visual_assets: Res<SpellVisualAssets>,
-    mut explosions: Query<(
-        Entity,
-        &mut IceExplosion,
-        &mut Transform,
-        Option<&MeshMaterial3d<FireExplosionSphereMaterial>>,
-    )>,
+    mut explosions: Query<
+        (
+            Entity,
+            &mut IceExplosion,
+            &mut Transform,
+            Option<&MeshMaterial3d<FireExplosionSphereMaterial>>,
+        ),
+        // Ghost ice explosions mirror the host's; applying frost here double-stacks it.
+        Without<crate::game::multiplayer::components::GhostSpellEffect>,
+    >,
     mut units: Query<
         (
             Entity,

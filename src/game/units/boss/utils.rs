@@ -4,8 +4,8 @@ use crate::game::units::components::{ANIMATION_MOVE_THRESHOLD_SQ, FacingDirectio
 
 /// Eye-pulsing sprite sheet — shared by hag invulnerability/ability eyes and
 /// Ray's 5 boss eyes. 4 frames in a single 256×64 row.
-pub(in crate::game) const EYE_SHEET_WIDTH: f32 = 256.0;
-pub(in crate::game) const EYE_SHEET_HEIGHT: f32 = 64.0;
+const EYE_SHEET_WIDTH: f32 = 256.0;
+const EYE_SHEET_HEIGHT: f32 = 64.0;
 pub(in crate::game) const EYE_SHEET_COLUMNS: usize = 4;
 pub(in crate::game) const EYE_PULSE_FRAME_DURATION: f32 = 0.18;
 /// UV size of one eye frame (frames are square, 64×64 within a 256×64 sheet).
