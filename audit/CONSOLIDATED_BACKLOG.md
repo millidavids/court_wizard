@@ -497,3 +497,25 @@ host_systems, multiplayer/systems, multiplayer/plugin), save_data.rs (back-compa
 mind_control/casting (edited for P0/F133), spells/utils.rs + shared_systems.rs + game/constants.rs +
 movement_systems.rs + config/resources.rs + combat_systems/melee.rs (cross-cutting/load-bearing),
 crt_effect/* (shader, load-bearing per memory), game/plugin.rs + wizard_tower/plugin.rs (registration).
+
+---
+
+## Wave C progress (2026-06-11)
+
+**DONE:** Removed unused direct deps `anyhow` + `serde_json` (0 usages in src/; cargo machete clean).
+
+**Dependency CVEs — diagnosed, deferred (require breaking direct-dep upgrades, must be tested):**
+- `steamworks 0.12.2` (RUSTSEC-2026-0121, P2P-auth DoS → ≥0.13.1): transitively pinned by
+  `bevy-steamworks 0.16`. Fix needs a newer bevy-steamworks (Bevy-version-coupled) — not a safe
+  `cargo update`. Deferred to a deliberate, tested dep upgrade.
+- `hickory-proto`/`hickory-net 0.26.0-beta.4` (RUSTSEC-2026-0119/closest-encloser → ≥0.26.1):
+  transitively pinned by `iroh 0.98` (the MP netcode backbone). Bumping risks MP wire-compat; needs
+  an iroh upgrade + co-op smoke-test. Deferred.
+- Unmaintained (informational, no fix needed now): `bincode 1.x` (save-format risk — see memory),
+  `paste`, `atomic-polyfill` (both transitive).
+
+**Dead-code (`#[allow(dead_code)]` ×65) — needs maintainer intent, NOT swept unilaterally:**
+Many are deliberate (future API surface, debug-only, boss-predicate symmetry like `is_ray_level`).
+The safe sub-action — removing *stale* allows where the item is actually used — was done where found
+(e.g. F023 Spell::category). A full sweep is an open question for the maintainer (do you want the
+genuinely-unused items deleted, or are they intentional API-for-later?).

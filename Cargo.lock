@@ -2065,9 +2065,8 @@ dependencies = [
 
 [[package]]
 name = "court_wizard"
-version = "0.10.28"
+version = "0.10.29"
 dependencies = [
- "anyhow",
  "arboard",
  "bevy",
  "bevy-steamworks",
@@ -2080,7 +2079,6 @@ dependencies = [
  "iroh",
  "rand 0.9.4",
  "serde",
- "serde_json",
  "thiserror 2.0.18",
  "tokio",
  "toml",
