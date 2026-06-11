@@ -85,3 +85,11 @@ pub(crate) fn track_transmutation_stacks(
         stacks.count += 1;
     }
 }
+
+pub(crate) fn init_transmutation_stacks(mut commands: Commands) {
+    commands.init_resource::<TransmutationStacks>();
+}
+
+pub(crate) fn cleanup_transmutation_stacks(mut commands: Commands) {
+    commands.remove_resource::<TransmutationStacks>();
+}

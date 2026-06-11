@@ -16,6 +16,7 @@ pub(super) mod panels;
 pub(super) mod plugin;
 pub(super) mod state;
 pub(super) mod sync;
+pub(super) mod systems;
 pub(super) mod text_input;
 
 pub(crate) use plugin::MultiplayerTabPlugin;

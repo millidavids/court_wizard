@@ -544,3 +544,15 @@ Compiler-driven (stripped the 62 `#[allow(dead_code)]`, let rustc report genuine
   dead-scan misses test usages, so it looked dead but a unit test uses it.
 - Gate: bin `clippy -D warnings` clean + test 52/52 + native build. (Note: a pre-existing
   `--all-targets`-only clippy lint in `damage.rs` test code is unrelated and left as-is.)
+
+## Wave D progress (2026-06-11)
+**DONE — plugin-purity subset (6 worst plugin.rs files):** moved system bodies/helpers/types out of
+wizard_tower, state, multiplayer_tab, focus, compendium, telekinesis plugin.rs into sibling files;
+plugins are now registration-only with all run_if/ordering preserved. Gate green.
+
+**REMAINDER (~280 Wave D findings) — catalogued in audit/findings.json (wave=D), recommend incremental:**
+Mostly Low-severity naming/doc-drift + smaller consistency/perf items (inline-const dedup, a few
+missing run_if guards, O(N²) calculate_effectiveness, Vec::remove(0)→VecDeque). These are polish, not
+structural debt — best done incrementally per-module rather than a risky bulk pass (perf-guard and
+algorithmic changes need behavioral verification). The remaining 8 lower-priority plugin.rs files
+(1-2 fns each) are borderline and left for that incremental pass.

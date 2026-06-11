@@ -7,7 +7,9 @@ mod materials;
 mod multiplayer_tab;
 mod plugin;
 mod roguelite_tab;
+mod run_conditions;
 mod study_tab;
+mod systems;
 mod wizard_cards;
 
 pub use plugin::WizardTowerPlugin;

@@ -2,13 +2,11 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::{
-    HarvestFlash, PsychicShockwave, TelekinesisIndicator, TransmutationStacks,
-};
+use super::components::{HarvestFlash, PsychicShockwave, TelekinesisIndicator};
+use super::run_conditions::has_telekinesis_talent;
 use super::systems;
 use crate::game::drops::components::IngredientDrop;
 use crate::game::run_conditions::is_spell_effects_active;
-use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::state::AppState;
 
 pub struct TelekinesisPlugin;
@@ -38,32 +36,17 @@ impl Plugin for TelekinesisPlugin {
             )
                 .run_if(is_spell_effects_active),
         )
-        .add_systems(OnEnter(AppState::InGame), init_transmutation_stacks)
-        .add_systems(OnExit(AppState::InGame), cleanup_transmutation_stacks)
+        .add_systems(
+            OnEnter(AppState::InGame),
+            systems::init_transmutation_stacks,
+        )
+        .add_systems(
+            OnExit(AppState::InGame),
+            systems::cleanup_transmutation_stacks,
+        )
         .add_systems(
             OnExit(AppState::MultiplayerGame),
-            cleanup_transmutation_stacks,
+            systems::cleanup_transmutation_stacks,
         );
     }
-}
-
-/// Run condition: checks if a specific Telekinesis talent is selected at the given tier and choice.
-fn has_telekinesis_talent(
-    tier: usize,
-    choice: u8,
-) -> impl Fn(Option<Res<ActiveTalents>>) -> bool + Clone {
-    move |active_talents: Option<Res<ActiveTalents>>| {
-        active_talents
-            .as_ref()
-            .and_then(|t| t.get_selection(Spell::Telekinesis, tier))
-            == Some(choice)
-    }
-}
-
-fn init_transmutation_stacks(mut commands: Commands) {
-    commands.init_resource::<TransmutationStacks>();
-}
-
-fn cleanup_transmutation_stacks(mut commands: Commands) {
-    commands.remove_resource::<TransmutationStacks>();
 }

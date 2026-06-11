@@ -1,12 +1,13 @@
 use bevy::prelude::*;
 
-use crate::game::crt_effect::ChannelChangeMessage;
-use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
 use crate::ui::plugin::ButtonActionSet;
-
-use super::components::{BackButton, CompendiumState, DetailPanel, ScrollableCompendiumContainer};
 use crate::ui::systems::{escape_to_landing, escape_to_pause_main, handle_scroll};
+
+use super::components::{DetailPanel, OnCompendiumScreen, ScrollableCompendiumContainer};
+use super::systems::{
+    cleanup_compendium_state, handle_main_menu_back_button, handle_pause_menu_back_button,
+};
 
 use super::systems;
 
@@ -20,7 +21,7 @@ impl Plugin for MainMenuCompendiumPlugin {
             .add_systems(
                 OnExit(MenuState::Compendium),
                 (
-                    crate::ui::systems::cleanup_screen::<super::components::OnCompendiumScreen>,
+                    crate::ui::systems::cleanup_screen::<OnCompendiumScreen>,
                     cleanup_compendium_state,
                 ),
             )
@@ -63,7 +64,7 @@ impl Plugin for PauseMenuCompendiumPlugin {
         .add_systems(
             OnExit(PauseMenuState::Compendium),
             (
-                crate::ui::systems::cleanup_screen::<super::components::OnCompendiumScreen>,
+                crate::ui::systems::cleanup_screen::<OnCompendiumScreen>,
                 cleanup_compendium_state,
             ),
         )
@@ -89,38 +90,4 @@ impl Plugin for PauseMenuCompendiumPlugin {
                 .run_if(in_state(PauseMenuState::Compendium)),
         );
     }
-}
-
-// ---------------------------------------------------------------------------
-// Button handlers
-// ---------------------------------------------------------------------------
-
-fn handle_main_menu_back_button(
-    mut button_clicked: MessageReader<MouseClicked>,
-    button_query: Query<&BackButton>,
-    mut next_state: ResMut<NextState<MenuState>>,
-    mut channel_change: MessageWriter<ChannelChangeMessage>,
-) {
-    for event in button_clicked.read() {
-        if button_query.get(event.button).is_ok() {
-            channel_change.write(ChannelChangeMessage);
-            next_state.set(MenuState::Landing);
-        }
-    }
-}
-
-fn handle_pause_menu_back_button(
-    mut button_clicked: MessageReader<MouseClicked>,
-    button_query: Query<&BackButton>,
-    mut next_state: ResMut<NextState<PauseMenuState>>,
-) {
-    for event in button_clicked.read() {
-        if button_query.get(event.button).is_ok() {
-            next_state.set(PauseMenuState::Main);
-        }
-    }
-}
-
-fn cleanup_compendium_state(mut commands: Commands) {
-    commands.remove_resource::<CompendiumState>();
 }
