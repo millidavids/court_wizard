@@ -128,3 +128,84 @@ pub(crate) fn clamp_cursor_to_spell_range_with_origin(
         effect_radius,
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn xz_distance_ignores_y() {
+        let a = Vec3::new(0.0, 100.0, 0.0);
+        let b = Vec3::new(3.0, -50.0, 4.0);
+        // 3-4-5 triangle in XZ; Y difference is ignored.
+        assert!((xz_distance(a, b) - 5.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn sphere_cylinder_overlap_and_gap() {
+        let cyl = Vec3::new(0.0, 0.0, 0.0);
+        // Touching horizontally within the cylinder's height band.
+        assert!(sphere_intersects_cylinder(
+            Vec3::new(14.0, 5.0, 0.0),
+            5.0,
+            cyl,
+            10.0,
+            20.0
+        ));
+        // Same XZ but well above the cylinder top + sphere radius -> no overlap.
+        assert!(!sphere_intersects_cylinder(
+            Vec3::new(0.0, 100.0, 0.0),
+            5.0,
+            cyl,
+            10.0,
+            20.0
+        ));
+        // Horizontally beyond combined radius -> no overlap.
+        assert!(!sphere_intersects_cylinder(
+            Vec3::new(100.0, 5.0, 0.0),
+            5.0,
+            cyl,
+            10.0,
+            20.0
+        ));
+    }
+
+    #[test]
+    fn distance_to_segment_endpoints_and_perpendicular() {
+        let start = Vec3::new(0.0, 0.0, 0.0);
+        let end = Vec3::new(10.0, 0.0, 0.0);
+        // Perpendicular foot at the midpoint.
+        assert!(
+            (distance_to_line_segment_xz(Vec3::new(5.0, 0.0, 3.0), start, end) - 3.0).abs() < 1e-4
+        );
+        // Beyond an endpoint clamps to that endpoint.
+        assert!(
+            (distance_to_line_segment_xz(Vec3::new(-4.0, 0.0, 0.0), start, end) - 4.0).abs() < 1e-4
+        );
+        // Degenerate segment (start == end) -> distance to the point.
+        assert!(
+            (distance_to_line_segment_xz(Vec3::new(0.0, 0.0, 6.0), start, start) - 6.0).abs()
+                < 1e-4
+        );
+    }
+
+    #[test]
+    fn clamp_to_spell_range_clamps_only_when_beyond() {
+        let wiz = Vec3::ZERO;
+        // Inside range: unchanged.
+        let inside = Vec3::new(10.0, 0.0, 0.0);
+        assert_eq!(clamp_to_spell_range(inside, wiz, 100.0), inside);
+        // Beyond range: pulled to exactly spell_range distance.
+        let clamped = clamp_to_spell_range(Vec3::new(200.0, 0.0, 0.0), wiz, 100.0);
+        assert!((clamped.length() - 100.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn ground_projected_range_is_pythagorean_and_floors_at_zero() {
+        // 3-4-5: range 5, height 3 -> ground radius 4.
+        assert!((ground_projected_range(5.0, 3.0) - 4.0).abs() < 1e-4);
+        // Height >= range -> no ground reach.
+        assert_eq!(ground_projected_range(5.0, 5.0), 0.0);
+        assert_eq!(ground_projected_range(5.0, 9.0), 0.0);
+    }
+}

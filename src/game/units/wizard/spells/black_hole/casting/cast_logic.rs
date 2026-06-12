@@ -1,17 +1,16 @@
-//! Black hole casting and spawn.
+//! Black hole casting system and core casting logic.
 
-use super::components::{BlackHole, BlackHoleSfx, BlackHoleTalentParams};
-use super::constants::*;
+use super::super::constants::*;
+use super::spawn::spawn_black_hole;
+use super::talents::compute_talent_params;
 use crate::config::GameConfig;
-use crate::game::components::OnGameplayScreen;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::audio::SpellSfxAssets;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -20,7 +19,6 @@ use crate::game::units::wizard::spells::utils::{
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
-use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
 
 /// Result from spell casting logic, used to communicate state back to the wrapper.
@@ -31,90 +29,9 @@ struct CastResult {
     cursor_pos: Option<Vec3>,
 }
 
-/// Compute talent parameters from active talent selections.
-fn compute_talent_params(active_talents: Option<&ActiveTalents>) -> BlackHoleTalentParams {
-    let mut params = BlackHoleTalentParams::default();
-
-    let Some(talents) = active_talents else {
-        return params;
-    };
-
-    let t1 = talents.get_selection(Spell::BlackHole, 0);
-    let t2 = talents.get_selection(Spell::BlackHole, 1);
-    let t3 = talents.get_selection(Spell::BlackHole, 2);
-
-    // Tier 1
-    match t1 {
-        Some(0) => params.gravity_mult = DENSER_CORE_GRAVITY_MULT,
-        Some(1) => {
-            params.radius_mult = EXPANSIVE_VOID_RADIUS_MULT;
-            params.damage_mult = EXPANSIVE_VOID_DAMAGE_MULT;
-        }
-        // Some(2) Quick Collapse: handled at cast time, not stored in params
-        _ => {}
-    }
-
-    // Tier 2
-    match t2 {
-        Some(0) => params.event_horizon = true,
-        Some(1) => params.crushing_pressure = true,
-        Some(2) => params.void_siphon = true,
-        _ => {}
-    }
-
-    // Tier 3
-    match t3 {
-        Some(0) => params.singularity = true,
-        // Some(1) Twin Stars: handled at spawn time
-        Some(2) => params.dimensional_rift = true,
-        _ => {}
-    }
-
-    params
-}
-
-/// Spawns a black hole entity (solid black icosphere) with a looping sound.
-pub(crate) fn spawn_black_hole(
-    commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    position: Vec3,
-    empowerment: f32,
-    sfx: &SpellSfxAssets,
-    game_config: &GameConfig,
-    talent_params: BlackHoleTalentParams,
-) {
-    let max_radius = MAX_RADIUS * empowerment * talent_params.radius_mult;
-    let spawn_pos = Vec3::new(position.x, BLACK_HOLE_HEIGHT, position.z);
-
-    let black_hole_entity = commands
-        .spawn((
-            BlackHole::new(spawn_pos, max_radius, empowerment, talent_params),
-            Mesh3d(assets.black_hole_sphere.clone()),
-            MeshMaterial3d(assets.black_hole.clone()),
-            Transform::from_translation(spawn_pos).with_scale(Vec3::ZERO),
-            NetworkedSpellEffect {
-                kind: SpellEffectKind::BlackHole,
-            },
-            OnGameplayScreen,
-        ))
-        .id();
-
-    // Looping sound effect attenuated by distance from wizard to black hole
-    let sfx_entity = audio::play_looping_sfx_at(
-        commands,
-        &sfx.black_hole_persistent,
-        spawn_pos,
-        game_config,
-        sfx,
-    );
-    commands
-        .entity(sfx_entity)
-        .insert(BlackHoleSfx { black_hole_entity });
-}
-
 /// Local wizard Black Hole casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn handle_black_hole_casting(
+pub(crate) fn handle_black_hole_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,

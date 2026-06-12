@@ -106,3 +106,49 @@ impl TramplingGrid {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn world_to_index_maps_corners_and_bounds() {
+        let grid = TramplingGrid::new();
+        let side = grid.tiles_per_side;
+        let half = BATTLEFIELD_SIZE / 2.0;
+
+        // Bottom-left corner (-half, -half) is tile (0, 0) -> index 0.
+        assert_eq!(grid.world_to_index(-half, -half), Some(0));
+
+        // Centre lands in the middle column/row.
+        let mid = (half / TRAMPLING_CELL_SIZE).floor() as usize;
+        assert_eq!(grid.world_to_index(0.0, 0.0), Some(mid * side + mid));
+
+        // Just inside the top-right corner -> last tile.
+        let inside = half - TRAMPLING_CELL_SIZE * 0.5;
+        assert_eq!(
+            grid.world_to_index(inside, inside),
+            Some((side - 1) * side + (side - 1))
+        );
+
+        // Out of bounds in each direction -> None.
+        assert_eq!(grid.world_to_index(-half - 1.0, 0.0), None);
+        assert_eq!(grid.world_to_index(0.0, half + 1.0), None);
+        assert_eq!(grid.world_to_index(half + 1.0, half + 1.0), None);
+    }
+
+    #[test]
+    fn world_to_index_is_in_range_for_interior_samples() {
+        let grid = TramplingGrid::new();
+        let half = BATTLEFIELD_SIZE / 2.0;
+        let n = grid.values.len();
+        // A spread of interior points must all map to a valid flat index.
+        for k in 0..20 {
+            let frac = k as f32 / 20.0;
+            let x = -half + frac * BATTLEFIELD_SIZE * 0.999;
+            let z = -half + (1.0 - frac) * BATTLEFIELD_SIZE * 0.999;
+            let idx = grid.world_to_index(x, z).expect("interior point in bounds");
+            assert!(idx < n, "index {idx} out of range {n}");
+        }
+    }
+}
