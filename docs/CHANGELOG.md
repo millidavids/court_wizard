@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.10.48] - 2026-06-12
 
 ### Changed
 - **Smoother big battles** — under-the-hood performance work keeps large fights running more smoothly.
