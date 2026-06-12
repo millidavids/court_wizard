@@ -69,6 +69,20 @@ fn coop_host_keeps_running(state: &InGameState, urgent: bool) -> bool {
 ///
 /// This allows all gameplay plugins to share a single set of system registrations
 /// that work for both single-player and multiplayer host modes.
+/// True for the set of multiplayer states where gameplay/spell systems run:
+/// `Running`, plus the overlays that don't pause the simulation (`Paused` is a
+/// co-op sync-pause, `Settings`/`SpellBook`/`CauldronMenu` are in-game overlays).
+fn mp_state_in_gameplay_set(s: &MultiplayerGameState) -> bool {
+    matches!(
+        s,
+        MultiplayerGameState::Running
+            | MultiplayerGameState::Paused
+            | MultiplayerGameState::Settings
+            | MultiplayerGameState::SpellBook
+            | MultiplayerGameState::CauldronMenu
+    )
+}
+
 pub fn is_gameplay_running(
     sp_state: Option<Res<State<InGameState>>>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
@@ -82,16 +96,7 @@ pub fn is_gameplay_running(
         return true;
     }
     // Multiplayer host: Running, Paused, or SpellBook (overlays don't pause gameplay)
-    if mp_state.is_some_and(|s| {
-        matches!(
-            *s.get(),
-            MultiplayerGameState::Running
-                | MultiplayerGameState::Paused
-                | MultiplayerGameState::Settings
-                | MultiplayerGameState::SpellBook
-                | MultiplayerGameState::CauldronMenu
-        )
-    }) {
+    if mp_state.is_some_and(|s| mp_state_in_gameplay_set(s.get())) {
         return session.is_some_and(|s| s.role == PeerRole::Host);
     }
     false
@@ -132,16 +137,7 @@ pub fn is_local_wizard_active(
         return true;
     }
     // Multiplayer: Running, Paused, or SpellBook — both host AND guest
-    if mp_state.is_some_and(|s| {
-        matches!(
-            *s.get(),
-            MultiplayerGameState::Running
-                | MultiplayerGameState::Paused
-                | MultiplayerGameState::Settings
-                | MultiplayerGameState::SpellBook
-                | MultiplayerGameState::CauldronMenu
-        )
-    }) {
+    if mp_state.is_some_and(|s| mp_state_in_gameplay_set(s.get())) {
         return true;
     }
     false
@@ -166,16 +162,7 @@ pub fn is_spell_effects_active(
         return true;
     }
     // Multiplayer: Running, Paused, or SpellBook — both host AND guest
-    mp_state.is_some_and(|s| {
-        matches!(
-            *s.get(),
-            MultiplayerGameState::Running
-                | MultiplayerGameState::Paused
-                | MultiplayerGameState::Settings
-                | MultiplayerGameState::SpellBook
-                | MultiplayerGameState::CauldronMenu
-        )
-    })
+    mp_state.is_some_and(|s| mp_state_in_gameplay_set(s.get()))
 }
 
 /// Duration (seconds) of the multiplayer setup stage at the start of a match,

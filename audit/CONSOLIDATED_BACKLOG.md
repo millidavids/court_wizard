@@ -556,3 +556,67 @@ missing run_if guards, O(N²) calculate_effectiveness, Vec::remove(0)→VecDeque
 structural debt — best done incrementally per-module rather than a risky bulk pass (perf-guard and
 algorithmic changes need behavioral verification). The remaining 8 lower-priority plugin.rs files
 (1-2 fns each) are borderline and left for that incremental pass.
+
+## Wave B high-risk tail — DONE (2026-06-12)
+
+The 20 deferred high-risk oversized files split via path-preserving X.rs->X/ pattern
+(commit 690dd55), plus the multiplayer/plugin.rs registration-helper extraction
+(commit 264326b). Both gated green (check / cargo fix / fmt / clippy -D warnings /
+52 tests / native build).
+
+- **20 splits**: save_data/wizard_crud, config/{systems,input_bindings},
+  networking/{snapshot,transport/connection}, multiplayer/{spawning,loading,
+  guest_visuals/ghost_effect_spawn, guest_snapshot/{apply_state_snapshot,status_forwarding}},
+  spells/{dispel/bolt,squall/shards,arcane_crystal/hits}, units/status_effects,
+  shared_systems, loading/queue, battlefield/systems, ui/{layout_helpers,
+  wizard_tower/{endless_tab,graph}}. Integrity: +1161 net boilerplate LOC, no code
+  dropped. Cold review verdict: Ship -- wire-format field order, save serde attrs,
+  and every ghost-gating filter (incl. F133) preserved.
+- **multiplayer/plugin.rs** (552 -> 40 LOC): build() split into 6 contiguous-span
+  register() helpers under registration/. Registration symbol set verified identical
+  (no system dropped/added); insertion order byte-identical.
+
+**300-LOC offender count: 116** (was 125 before this tail; 180 at campaign baseline).
+Remaining offenders include the exempt registry/match monoliths (visual_assets 1478,
+spell_enum 764, achievement_id 522) and ~110 mostly-cohesive single-concern files.
+Follow-up noted: loading/queue/processor.rs (701) is a cohesive dispatch worth a look.
+
+**Still needs a 2-client co-op smoke-test** before promotion (MP wire-format +
+ghost-gating + plugin-ordering changes can't be exercised by cargo test).
+
+## Wave D correctness-bug pass — DONE (2026-06-12, commit d583717)
+
+Verified 15 High/Medium correctness + MP findings against CURRENT code (post-split,
+post-ghost-fix) via a read-only verification workflow. Result: 8 ALREADY_FIXED (all
+ghost-gating — resolved by a9a1059 + splits, confirmed filters present), 7 genuine
+still-present bugs FIXED:
+1. Cauldron damage/resistance buffs insert-only -> stacking brews dropped (now value-change refresh)
+2. Insight study drag-slider ignored bonus allocations -> over-allocate (now total_allocated)
+3. Ogre melee damage pass tighter than swing gate -> phantom whiffs (unified range)
+4. Teleport timer-complete path consumed mana without re-check -> negative mana (re-checks)
+5. Wall of Stone Quick Foundations synced only last segment -> remote pathfinding hole (Vec of bounds)
+6. Banishment hardcoded Defenders perspective -> versus-guest banished own army (local_player_team)
+7. Cast-VFX school flare raw u8 literals -> now via SpellSchoolWire repr
+
+Gate green (check / clippy -D warnings / 52 tests / native build). Items 5 & 6 are
+MP-facing and need the 2-client co-op smoke-test. Items 1-4 are observable
+single-player fixes -> changelog-worthy at promotion time.
+
+## Wave D perf pass — DONE (2026-06-12, commit 89c85bf)
+
+Verified 13 audited perf findings against current code. 6 safe wins applied (meteo
+particle asset caching, commander Local HashMap, arcane_crystal Vec->HashSet,
+dispeller edge-distance compute-once, archer unused query members removed); ray
+teleport-material skipped (fires once/15s, proposed fix saved nothing). Deferred as
+risk: squall absolute-zero per-frame slow (framerate bug, needs balance retune);
+healer snapshot dedup, host message-target lookup, O(n^2) calculate_effectiveness
+(behavioral/MP risk — need a deliberate decision + profiling). Gate green.
+
+## Wave D Medium code-quality pass — DONE (2026-06-12, commit 44f6eb6)
+
+From the 29 remaining Medium TypeContract/ConsistencyRot/ErrorObservability findings,
+fixed the genuine bugs + clean dedups; skipped cosmetic ones (color literals, keyboard
+hints) and not-real ones (music-fade 1-frame delay; fog effects already ghost-gated):
+- codec fragment_datagram >255-fragment index wrap -> truncate+warn (MP correctness)
+- WaveStagingPlan::next_staging_point expect()/div-by-zero -> graceful fallback to 0
+- deduped horizontal_distance (x2) + xz_distance closure onto shared utils::xz_distance
