@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Changed
+- **Smoother big battles** — under-the-hood performance work keeps large fights running more smoothly.
+- **Consistent slow effects** — chilling effects now slow enemies at the same rate regardless of your frame rate.
+
+### Fixed
+- **Co-op double-hits** — several spells no longer apply their effects twice when playing co-op.
+- **Co-op teammate targeting** — a teammate's spells now correctly strike the enemy wave instead of their own army.
+- **Co-op walls** — both halves of a double-width wall now block enemies for your teammate too.
+- **Stacking potion buffs** — when more than one potion effect is active they now combine and refresh on your army properly, instead of one being ignored.
+- **Spell research slider** — dragging a spell's research slider can no longer overspend your Insight.
+- **Assorted combat fixes** — large enemies connect their attacks more reliably, Teleport no longer mischarges mana in a rare case, and a turret-placement quirk was corrected.
+
 ## [v0.10.10] - 2026-06-10
 
 ### Added
