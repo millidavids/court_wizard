@@ -41,7 +41,7 @@ pub(super) fn spawn_spell_items(
         ));
 
         for spell in category.spells() {
-            let debug_name = format!("{:?}", spell);
+            let debug_name = spell.save_key().to_string();
             let is_unlocked = spell.research_cost() == 0 || unlocked_spells.contains(&debug_name);
             let progress = research_progress.get(&debug_name).copied().unwrap_or(0);
             let cost = spell.research_cost();
@@ -130,7 +130,7 @@ pub(super) fn spawn_unit_items(
             if unit_type.team_label() != *team_label {
                 continue;
             }
-            let debug_name = format!("{:?}", unit_type);
+            let debug_name = unit_type.save_key().to_string();
             let is_unlocked = unlocked_units.contains(&debug_name);
 
             let display_text = if is_unlocked {
@@ -160,7 +160,7 @@ pub(super) fn spawn_wizard_items(
     state: &CompendiumState,
 ) {
     for wizard_type in WizardType::all() {
-        let debug_name = format!("{:?}", wizard_type);
+        let debug_name = wizard_type.save_key().to_string();
         let is_unlocked = *wizard_type == WizardType::BoringOleMage
             || unlocked_wizard_types.contains(&debug_name);
 

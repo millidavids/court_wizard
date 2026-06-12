@@ -40,7 +40,7 @@ pub(crate) fn update_graph_node_positions(
 
 /// Returns true if the given spell name is present in the provided unlocked list.
 fn spell_name_in_list(spell: Spell, unlocked: &[String]) -> bool {
-    let name = format!("{:?}", spell);
+    let name = spell.save_key().to_string();
     unlocked.contains(&name)
 }
 
@@ -81,7 +81,7 @@ pub(crate) fn update_graph_node_borders(
 /// Returns true if a spell's prerequisite is met, given a pre-loaded unlocked list.
 fn spell_prereq_met(spell: Spell, unlocked: &[String]) -> bool {
     if let Some(prereq) = spell.prerequisite() {
-        let prereq_name = format!("{:?}", prereq);
+        let prereq_name = prereq.save_key().to_string();
         if !unlocked.contains(&prereq_name) {
             return false;
         }
@@ -94,7 +94,7 @@ fn spell_prereq_met(spell: Spell, unlocked: &[String]) -> bool {
             .filter(|name| {
                 Spell::researchable()
                     .iter()
-                    .any(|s| &format!("{:?}", s) == *name)
+                    .any(|s| &s.save_key().to_string() == *name)
             })
             .count() as u32;
         if researched < required {

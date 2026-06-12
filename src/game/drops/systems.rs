@@ -26,7 +26,7 @@ pub(super) fn init_locked_ingredients(mut locked: ResMut<LockedIngredients>) {
     locked.locked = Ingredient::all()
         .iter()
         .filter(|ingredient| {
-            let debug_name = format!("{:?}", ingredient);
+            let debug_name = ingredient.save_key().to_string();
             !unlocked.contains(&debug_name)
         })
         .copied()

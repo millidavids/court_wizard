@@ -119,6 +119,46 @@ impl SpellCategory {
 
 impl Spell {
     /// Returns all available spells in order.
+    /// Stable on-disk key for save data. Pinned to the variant name explicitly so
+    /// that renaming a variant (or changing the `Debug` derive) can never silently
+    /// orphan existing player saves. A unit test asserts this stays equal to the
+    /// `Debug` representation, which is the format already on disk.
+    pub fn save_key(&self) -> &'static str {
+        match self {
+            Self::MagicMissile => "MagicMissile",
+            Self::Disintegrate => "Disintegrate",
+            Self::Fireball => "Fireball",
+            Self::GuardianCircle => "GuardianCircle",
+            Self::ChainLightning => "ChainLightning",
+            Self::FingerOfDeath => "FingerOfDeath",
+            Self::RaiseTheDead => "RaiseTheDead",
+            Self::Teleport => "Teleport",
+            Self::WallOfStone => "WallOfStone",
+            Self::BlackHole => "BlackHole",
+            Self::Squall => "Squall",
+            Self::WallOfFire => "WallOfFire",
+            Self::Entangle => "Entangle",
+            Self::Haste => "Haste",
+            Self::SpikeGrowth => "SpikeGrowth",
+            Self::LightningRod => "LightningRod",
+            Self::Telekinesis => "Telekinesis",
+            Self::MeteorFall => "MeteorFall",
+            Self::MarkOfDeath => "MarkOfDeath",
+            Self::PlagueWind => "PlagueWind",
+            Self::Sleep => "Sleep",
+            Self::Grease => "Grease",
+            Self::FogCloud => "FogCloud",
+            Self::BattleHymn => "BattleHymn",
+            Self::HealingPlume => "HealingPlume",
+            Self::BerserkerRage => "BerserkerRage",
+            Self::Banishment => "Banishment",
+            Self::Polymorph => "Polymorph",
+            Self::ArcaneCrystal => "ArcaneCrystal",
+            Self::Dispel => "Dispel",
+            Self::MindControl => "MindControl",
+        }
+    }
+
     pub const fn all() -> &'static [Spell] {
         &[
             Spell::MagicMissile,

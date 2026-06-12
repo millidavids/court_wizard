@@ -1,5 +1,6 @@
 mod migration;
 mod save_cache;
+mod save_key_compat;
 mod save_structs;
 mod wizard_crud;
 

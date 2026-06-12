@@ -103,7 +103,7 @@ pub(crate) fn set_insight_bonus_levels(updates: &[(&str, u8)]) {
 
 /// Returns the research progress (insight invested) for a specific spell.
 pub(crate) fn get_spell_research_progress(spell: Spell) -> u32 {
-    let name = format!("{:?}", spell);
+    let name = spell.save_key().to_string();
     load_unified_save()
         .and_then(|s| s.player.spell_research_progress.get(&name).copied())
         .unwrap_or(0)
@@ -115,7 +115,7 @@ pub(crate) fn add_spell_research_progress(spell: Spell, amount: u32) -> bool {
     let Some(mut save_file) = load_unified_save() else {
         return false;
     };
-    let name = format!("{:?}", spell);
+    let name = spell.save_key().to_string();
     let entry = save_file
         .player
         .spell_research_progress
@@ -145,7 +145,7 @@ pub(crate) fn add_spell_research_progress(spell: Spell, amount: u32) -> bool {
 
 /// Returns the talent progress for a specific spell.
 pub(crate) fn get_spell_talent_progress(spell: Spell) -> u32 {
-    let name = format!("{:?}", spell);
+    let name = spell.save_key().to_string();
     load_unified_save()
         .and_then(|s| s.player.spell_talent_progress.get(&name).copied())
         .unwrap_or(0)
@@ -168,7 +168,7 @@ pub(crate) fn add_spell_talent_progress_batch(
         let entry = save_file
             .player
             .spell_talent_progress
-            .entry(format!("{:?}", spell))
+            .entry(spell.save_key().to_string())
             .or_insert(0);
         prev_values.insert(spell, *entry);
         *entry += amount;
@@ -182,7 +182,7 @@ pub(crate) fn add_spell_talent_progress_batch(
 
 /// Returns the talent selections for a spell as [Option<u8>; 3].
 pub(crate) fn get_spell_talent_selections(spell: Spell) -> [Option<u8>; 3] {
-    let name = format!("{:?}", spell);
+    let name = spell.save_key().to_string();
     let raw =
         load_unified_save().and_then(|s| s.player.spell_talent_selections.get(&name).cloned());
 
@@ -203,7 +203,7 @@ pub(crate) fn set_spell_talent_selection(spell: Spell, tier: usize, choice: Opti
     let Some(mut save_file) = load_unified_save() else {
         return;
     };
-    let name = format!("{:?}", spell);
+    let name = spell.save_key().to_string();
     let entry = save_file
         .player
         .spell_talent_selections

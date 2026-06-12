@@ -89,13 +89,16 @@ pub(crate) struct UnlockedContent {
 
 impl UnlockedContent {
     pub(crate) fn all_spells() -> Vec<String> {
-        Spell::all().iter().map(|s| format!("{:?}", s)).collect()
+        Spell::all()
+            .iter()
+            .map(|s| s.save_key().to_string())
+            .collect()
     }
 
     pub(crate) fn default_spells() -> Vec<String> {
         Spell::default_unlocked()
             .iter()
-            .map(|s| format!("{:?}", s))
+            .map(|s| s.save_key().to_string())
             .collect()
     }
 
@@ -107,7 +110,7 @@ impl UnlockedContent {
     }
 
     fn default_ingredients() -> Vec<String> {
-        vec![format!("{:?}", Ingredient::Lavender)]
+        vec![Ingredient::Lavender.save_key().to_string()]
     }
 
     fn default_units() -> Vec<String> {

@@ -23,7 +23,7 @@ pub(crate) fn unlock_achievement(id: AchievementId) -> bool {
 /// Returns true if the wizard type was newly unlocked.
 pub(crate) fn unlock_wizard_type(wizard_type: WizardType) -> bool {
     let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
-    let name = format!("{:?}", wizard_type);
+    let name = wizard_type.save_key().to_string();
     if save_file
         .player
         .unlocked_content
@@ -41,7 +41,7 @@ pub(crate) fn unlock_wizard_type(wizard_type: WizardType) -> bool {
 /// Returns true if the ingredient was newly unlocked.
 pub(crate) fn unlock_ingredient(ingredient: crate::game::cauldron::brews::Ingredient) -> bool {
     let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
-    let name = format!("{:?}", ingredient);
+    let name = ingredient.save_key().to_string();
     if save_file
         .player
         .unlocked_content
@@ -59,7 +59,7 @@ pub(crate) fn unlock_ingredient(ingredient: crate::game::cauldron::brews::Ingred
 /// Returns true if the unit was newly unlocked.
 pub(crate) fn unlock_unit(unit_type: UnitType) -> bool {
     let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
-    let name = format!("{:?}", unit_type);
+    let name = unit_type.save_key().to_string();
     if save_file.player.unlocked_content.units.contains(&name) {
         return false;
     }
@@ -85,7 +85,7 @@ pub(crate) fn unlock_everything_for_testing() {
     // every talent tier is selectable (this does not auto-pick a branch).
     player.unlocked_content.spells = UnlockedContent::all_spells();
     for spell in Spell::all() {
-        let name = format!("{:?}", spell);
+        let name = spell.save_key().to_string();
         let cost = spell.research_cost();
         if cost > 0 {
             player.spell_research_progress.insert(name.clone(), cost);
@@ -106,9 +106,12 @@ pub(crate) fn unlock_everything_for_testing() {
     player.unlocked_content.ingredients = UnlockedContent::all_ingredients();
     player.unlocked_content.wizard_types = WizardType::all()
         .iter()
-        .map(|w| format!("{:?}", w))
+        .map(|w| w.save_key().to_string())
         .collect();
-    player.unlocked_content.units = UnitType::all().iter().map(|u| format!("{:?}", u)).collect();
+    player.unlocked_content.units = UnitType::all()
+        .iter()
+        .map(|u| u.save_key().to_string())
+        .collect();
     player.unlocked_content.combos = crate::game::cauldron::brews::constants::all_combo_names()
         .map(|name| name.to_string())
         .collect();

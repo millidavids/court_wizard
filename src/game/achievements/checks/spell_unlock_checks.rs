@@ -28,7 +28,7 @@ pub(crate) fn check_master_brewer(
 
         let all_collected = Ingredient::all()
             .iter()
-            .all(|i| unlocked.contains(&format!("{:?}", i)));
+            .all(|i| unlocked.contains(&i.save_key().to_string()));
 
         if all_collected {
             do_unlock(&mut res, &mut events);

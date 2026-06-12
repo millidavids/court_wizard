@@ -164,7 +164,7 @@ pub(super) fn build_wizard_card_grid(
                             }
                             let is_unlocked = unlocked_names
                                 .iter()
-                                .any(|name| name == &format!("{:?}", wizard_type));
+                                .any(|name| name == &wizard_type.save_key().to_string());
                             if is_unlocked {
                                 spawn_compact_card(column, *wizard_type);
                             } else {
@@ -450,11 +450,11 @@ pub(super) fn animate_card_expand(
 /// Gets a status string for a wizard type from save data.
 fn get_wizard_status(wizard_type: WizardType) -> String {
     let save = load_unified_save();
-    let wizard_type_name = format!("{:?}", wizard_type);
+    let wizard_type_name = wizard_type.save_key().to_string();
 
     if let Some(save) = save {
         for wizard_save in &save.wizards {
-            if format!("{:?}", wizard_save.wizard_type) == wizard_type_name {
+            if wizard_save.wizard_type.save_key().to_string() == wizard_type_name {
                 return format!("Level {}", wizard_save.current_level);
             }
         }

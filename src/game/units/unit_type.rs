@@ -33,6 +33,32 @@ pub enum UnitType {
 
 impl UnitType {
     /// Returns all unit type variants in encounter / unlock order.
+    /// Stable on-disk key for save data. Pinned to the variant name explicitly so
+    /// that renaming a variant (or changing the `Debug` derive) can never silently
+    /// orphan existing player saves. A unit test asserts this stays equal to the
+    /// `Debug` representation, which is the format already on disk.
+    pub fn save_key(&self) -> &'static str {
+        match self {
+            Self::Infantry => "Infantry",
+            Self::Archer => "Archer",
+            Self::King => "King",
+            Self::KingsGuard => "KingsGuard",
+            Self::Elite => "Elite",
+            Self::Assassin => "Assassin",
+            Self::Brute => "Brute",
+            Self::Commander => "Commander",
+            Self::Dispeller => "Dispeller",
+            Self::Aerialist => "Aerialist",
+            Self::Healer => "Healer",
+            Self::Shielder => "Shielder",
+            Self::Ogre => "Ogre",
+            Self::Lich => "Lich",
+            Self::DarkMage => "DarkMage",
+            Self::Hag => "Hag",
+            Self::Ray => "Ray",
+        }
+    }
+
     pub fn all() -> &'static [UnitType] {
         &[
             UnitType::Infantry,

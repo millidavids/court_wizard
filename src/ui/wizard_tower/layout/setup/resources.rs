@@ -11,7 +11,7 @@ pub(crate) fn get_unlocked_spells() -> Vec<Spell> {
         .unwrap_or_default();
     Spell::all()
         .iter()
-        .filter(|s| unlocked_names.contains(&format!("{:?}", s)))
+        .filter(|s| unlocked_names.contains(&s.save_key().to_string()))
         .copied()
         .collect()
 }

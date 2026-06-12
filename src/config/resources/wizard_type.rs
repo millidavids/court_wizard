@@ -130,6 +130,26 @@ impl WizardType {
     }
 
     /// Returns all available wizard types.
+    /// Stable on-disk key for save data. Pinned to the variant name explicitly so
+    /// that renaming a variant (or changing the `Debug` derive) can never silently
+    /// orphan existing player saves. A unit test asserts this stays equal to the
+    /// `Debug` representation, which is the format already on disk.
+    pub fn save_key(&self) -> &'static str {
+        match self {
+            Self::BoringOleMage => "BoringOleMage",
+            Self::RuneCaster => "RuneCaster",
+            Self::Randomancer => "Randomancer",
+            Self::Arcanorouter => "Arcanorouter",
+            Self::Excremage => "Excremage",
+            Self::Alchemist => "Alchemist",
+            Self::Warglock => "Warglock",
+            Self::Swordcerer => "Swordcerer",
+            Self::Meteorologist => "Meteorologist",
+            Self::Shepherd => "Shepherd",
+            Self::Psychopath => "Psychopath",
+        }
+    }
+
     pub const fn all() -> &'static [WizardType] {
         &[
             WizardType::BoringOleMage,

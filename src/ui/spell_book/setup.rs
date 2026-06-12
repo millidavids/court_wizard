@@ -57,7 +57,7 @@ pub(super) fn spawn_spell_book_ui(
         if is_multiplayer {
             return true;
         }
-        let debug_name = format!("{:?}", spell);
+        let debug_name = spell.save_key().to_string();
         unlocked_spells.contains(&debug_name)
     };
 

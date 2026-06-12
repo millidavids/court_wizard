@@ -43,7 +43,7 @@ impl ActiveTalents {
                         && let Some(entry) = sf
                             .player
                             .spell_talent_selections
-                            .get_mut(&format!("{:?}", spell))
+                            .get_mut(&spell.save_key().to_string())
                         && tier < entry.len()
                     {
                         entry[tier] = -1;

@@ -23,7 +23,7 @@ pub(super) fn spawn_endless_items(
             if wizard.endless_best_stats.is_empty() {
                 continue;
             }
-            let type_name = format!("{:?}", wizard.wizard_type);
+            let type_name = wizard.wizard_type.save_key().to_string();
             let max_level = wizard
                 .endless_best_stats
                 .keys()
@@ -37,7 +37,7 @@ pub(super) fn spawn_endless_items(
         }
 
         for wizard_type in WizardType::all() {
-            let debug_name = format!("{:?}", wizard_type);
+            let debug_name = wizard_type.save_key().to_string();
             if let Some(&highest) = type_levels.get(&debug_name) {
                 wizard_types_with_data.push((*wizard_type, highest));
             }
@@ -54,7 +54,7 @@ pub(super) fn spawn_endless_items(
     }
 
     for (wizard_type, highest_level) in &wizard_types_with_data {
-        let debug_name = format!("{:?}", wizard_type);
+        let debug_name = wizard_type.save_key().to_string();
         let label = format!("{} (Lv{})", wizard_type.display_name(), highest_level);
         spawn_item_button(
             parent,
@@ -81,7 +81,7 @@ pub(super) fn spawn_endless_detail_for_wizard(
 
     if let Some(save) = save {
         for wizard in &save.wizards {
-            if format!("{:?}", wizard.wizard_type) != wizard_type_name {
+            if wizard.wizard_type.save_key().to_string() != wizard_type_name {
                 continue;
             }
             for (level_str, stats) in &wizard.endless_best_stats {

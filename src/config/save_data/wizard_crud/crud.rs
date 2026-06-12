@@ -26,7 +26,7 @@ fn validate_action_bar_slots(action_bar_slots: &mut [Option<Spell>; 5]) {
 
     for slot in action_bar_slots.iter_mut() {
         if let Some(spell) = slot {
-            let debug_name = format!("{:?}", spell);
+            let debug_name = spell.save_key().to_string();
             if !unlocked_spells.contains(&debug_name) {
                 *slot = None; // Clear locked spell from action bar
             }

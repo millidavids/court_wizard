@@ -128,6 +128,34 @@ impl Ingredient {
     }
 
     /// Returns all available ingredients.
+    /// Stable on-disk key for save data. Pinned to the variant name explicitly so
+    /// that renaming a variant (or changing the `Debug` derive) can never silently
+    /// orphan existing player saves. A unit test asserts this stays equal to the
+    /// `Debug` representation, which is the format already on disk.
+    pub fn save_key(&self) -> &'static str {
+        match self {
+            Self::Lavender => "Lavender",
+            Self::Mugwort => "Mugwort",
+            Self::Yarrow => "Yarrow",
+            Self::Mistletoe => "Mistletoe",
+            Self::Vervain => "Vervain",
+            Self::Wormwood => "Wormwood",
+            Self::BlueLotus => "BlueLotus",
+            Self::Meadowsweet => "Meadowsweet",
+            Self::Valerian => "Valerian",
+            Self::NatronSalt => "NatronSalt",
+            Self::LapisLazuli => "LapisLazuli",
+            Self::Henbane => "Henbane",
+            Self::Frankincense => "Frankincense",
+            Self::Amber => "Amber",
+            Self::RavenFeather => "RavenFeather",
+            Self::MandrakeRoot => "MandrakeRoot",
+            Self::RowanBerry => "RowanBerry",
+            Self::DragonsBlood => "DragonsBlood",
+            Self::PhilosophersStone => "PhilosophersStone",
+        }
+    }
+
     pub const fn all() -> &'static [Ingredient] {
         &[
             Ingredient::Lavender,

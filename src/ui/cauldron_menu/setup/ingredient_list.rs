@@ -39,7 +39,7 @@ pub(super) fn spawn_ingredient_list(
                     .copied()
                     .filter(|i| {
                         i.category() == *category && {
-                            let debug_name = format!("{:?}", i);
+                            let debug_name = i.save_key().to_string();
                             unlocked_ingredients.contains(&debug_name)
                         }
                     })

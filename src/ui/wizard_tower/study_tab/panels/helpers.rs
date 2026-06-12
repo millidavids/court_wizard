@@ -24,7 +24,7 @@ pub(crate) fn count_researched_spells() -> u32 {
     Spell::researchable()
         .iter()
         .filter(|spell| {
-            let name = format!("{:?}", spell);
+            let name = spell.save_key().to_string();
             unlocked.contains(&name)
         })
         .count() as u32
@@ -38,7 +38,7 @@ pub(crate) fn is_prereq_met(spell: Spell) -> bool {
         .unwrap_or_default();
 
     if let Some(prereq) = spell.prerequisite() {
-        let prereq_name = format!("{:?}", prereq);
+        let prereq_name = prereq.save_key().to_string();
         if !unlocked.contains(&prereq_name) {
             return false;
         }
@@ -61,7 +61,7 @@ pub(crate) fn is_spell_unlocked(spell: Spell) -> bool {
     let unlocked: Vec<String> = save
         .map(|s| s.player.unlocked_content.spells)
         .unwrap_or_default();
-    let name = format!("{:?}", spell);
+    let name = spell.save_key().to_string();
     unlocked.contains(&name)
 }
 
