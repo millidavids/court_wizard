@@ -131,7 +131,7 @@ pub(crate) fn update_detail_panel(
         CompendiumItemId::Spell(debug_name) => {
             let spell = Spell::all()
                 .iter()
-                .find(|s| format!("{:?}", s) == *debug_name);
+                .find(|s| s.save_key() == debug_name.as_str());
             if let Some(spell) = spell {
                 let is_unlocked =
                     spell.research_cost() == 0 || unlocked_spells.contains(debug_name);
@@ -212,7 +212,7 @@ pub(crate) fn update_detail_panel(
             hide_icon(detail_icon);
             let ingredient = Ingredient::all()
                 .iter()
-                .find(|i| format!("{:?}", i) == *debug_name);
+                .find(|i| i.save_key() == debug_name.as_str());
             if let Some(ingredient) = ingredient {
                 let is_unlocked = unlocked_ingredients.contains(debug_name);
                 if let Ok(mut t) = title_q.single_mut() {
@@ -244,7 +244,7 @@ pub(crate) fn update_detail_panel(
         CompendiumItemId::Unit(debug_name) => {
             let unit_type = UnitType::all()
                 .iter()
-                .find(|u| format!("{:?}", u) == *debug_name);
+                .find(|u| u.save_key() == debug_name.as_str());
             if let Some(unit_type) = unit_type {
                 let is_unlocked = unlocked_units.contains(debug_name);
 
@@ -330,7 +330,7 @@ pub(crate) fn update_detail_panel(
             hide_icon(detail_icon);
             let wizard_type = WizardType::all()
                 .iter()
-                .find(|w| format!("{:?}", w) == *debug_name);
+                .find(|w| w.save_key() == debug_name.as_str());
             if let Some(wizard_type) = wizard_type {
                 let is_unlocked = *wizard_type == WizardType::BoringOleMage
                     || unlocked_wizard_types.contains(debug_name);
@@ -393,7 +393,7 @@ pub(crate) fn update_detail_panel(
             hide_icon(detail_icon);
             let wizard_type = WizardType::all()
                 .iter()
-                .find(|w| format!("{:?}", w) == *debug_name);
+                .find(|w| w.save_key() == debug_name.as_str());
             if let Ok(mut t) = title_q.single_mut() {
                 **t = wizard_type
                     .map(|w| format!("{} — Endless", w.display_name()))

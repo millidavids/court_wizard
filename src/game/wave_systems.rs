@@ -131,7 +131,6 @@ pub fn tick_wave_timer(
             &aerialist_assets,
             &mut materials,
             i,
-            level,
         );
         aerialist_entities.push(entity);
     }

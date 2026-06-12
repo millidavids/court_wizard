@@ -9,7 +9,7 @@ use super::super::components::{
 };
 use super::super::constants::*;
 use crate::game::units::components::{Corpse, Team, Teleportable};
-use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, WizardInput};
+use crate::game::units::wizard::components::{CastingState, Mana, WizardInput};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
@@ -49,7 +49,6 @@ pub(super) fn teleport_casting_logic(
     clamped_pos: Option<Vec3>,
     casting_state: &mut CastingState,
     mana: &mut Mana,
-    _primed_spell: &PrimedSpell,
     caster: &mut TeleportCaster,
     commands: &mut Commands,
     visual_assets: &SpellVisualAssets,

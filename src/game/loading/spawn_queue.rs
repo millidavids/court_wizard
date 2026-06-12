@@ -42,7 +42,6 @@ pub enum SpawnTask {
     },
     AttackerAerialist {
         unit_index: u32,
-        level: u32,
     },
     Brute,
     Teleporter,

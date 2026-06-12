@@ -1,3 +1,5 @@
+use bevy::prelude::Color;
+
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
 
 pub const PRIMED_HEALING_PLUME: PrimedSpell = PrimedSpell {
@@ -51,4 +53,4 @@ pub const HEALING_RAIN_HEAL_MULT: f32 = 0.75;
 /// Healing Rain: movement speed of the zone toward cursor (units/sec).
 pub const HEALING_RAIN_MOVE_SPEED: f32 = 40.0;
 /// Field Medic: green tint color for converted unit.
-pub const FIELD_MEDIC_COLOR: (f32, f32, f32, f32) = (0.3, 0.85, 0.3, 1.0);
+pub const FIELD_MEDIC_COLOR: Color = Color::srgba(0.3, 0.85, 0.3, 1.0);

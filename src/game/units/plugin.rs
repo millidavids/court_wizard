@@ -176,7 +176,7 @@ impl Plugin for UnitsPlugin {
                 (
                     systems::process_pending_damage_effects,
                     systems::update_fire_dot,
-                    systems::update_electric_charge,
+                    systems::update_shocked,
                     systems::update_electric_arc_visuals,
                     systems::update_poisoned.run_if(any_with_component::<PoisonedModifier>),
                     systems::update_sickened.run_if(any_with_component::<SickenedModifier>),

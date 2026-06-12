@@ -208,7 +208,6 @@ pub fn handle_teleport_casting(
         clamped_pos,
         &mut casting_state,
         &mut mana,
-        primed_spell,
         &mut caster,
         &mut commands,
         &visual_assets,

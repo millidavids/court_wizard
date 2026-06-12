@@ -105,7 +105,7 @@ impl UnlockedContent {
     pub(crate) fn all_ingredients() -> Vec<String> {
         Ingredient::all()
             .iter()
-            .map(|i| format!("{:?}", i))
+            .map(|i| i.save_key().to_string())
             .collect()
     }
 
@@ -117,7 +117,7 @@ impl UnlockedContent {
         UnitType::all()
             .iter()
             .filter(|u| u.is_default_unlocked())
-            .map(|u| format!("{:?}", u))
+            .map(|u| u.save_key().to_string())
             .collect()
     }
 
@@ -125,7 +125,7 @@ impl UnlockedContent {
         WizardType::all()
             .iter()
             .filter(|w| **w == WizardType::BoringOleMage)
-            .map(|w| format!("{:?}", w))
+            .map(|w| w.save_key().to_string())
             .collect()
     }
 }

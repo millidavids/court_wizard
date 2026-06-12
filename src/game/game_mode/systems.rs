@@ -58,7 +58,7 @@ pub(super) fn init_toggle_resources(
             .filter(|wt| {
                 unlocked_names
                     .iter()
-                    .any(|name| name == &format!("{:?}", wt))
+                    .any(|name| name.as_str() == wt.save_key())
             })
             .copied()
             .collect();

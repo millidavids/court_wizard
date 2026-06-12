@@ -81,7 +81,7 @@ pub(super) fn spawn_ingredient_items(
     let mut ingredients: Vec<_> = Ingredient::all()
         .iter()
         .map(|i| {
-            let debug_name = format!("{:?}", i);
+            let debug_name = i.save_key().to_string();
             let is_unlocked = unlocked_ingredients.contains(&debug_name);
             (i, debug_name, is_unlocked)
         })

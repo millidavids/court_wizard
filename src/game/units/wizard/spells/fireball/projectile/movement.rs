@@ -32,7 +32,6 @@ pub fn check_fireball_collisions(
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
-    time: Res<Time>,
     #[allow(clippy::type_complexity)] fireballs: Query<
         (
             Entity,
@@ -48,8 +47,6 @@ pub fn check_fireball_collisions(
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {
-    let t = time.elapsed_secs();
-
     for (fireball_entity, fireball_transform, fireball, crystal_spawn) in &fireballs {
         let fireball_pos = fireball_transform.translation;
 
@@ -64,7 +61,6 @@ pub fn check_fireball_collisions(
                 mats,
                 pos,
                 fireball,
-                t,
                 &sfx,
                 &game_config,
                 crystal_spawn,

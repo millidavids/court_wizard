@@ -23,9 +23,6 @@ pub enum TeamFilter {
     Defenders,
     /// Only buff Attacker units
     Attackers,
-    /// Buff both Defenders and Attackers
-    #[allow(dead_code)]
-    Both,
 }
 
 impl TeamFilter {
@@ -34,7 +31,6 @@ impl TeamFilter {
         match self {
             Self::Defenders => matches!(team, Team::Defenders),
             Self::Attackers => matches!(team, Team::Attackers),
-            Self::Both => true,
         }
     }
 }

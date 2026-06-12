@@ -22,7 +22,6 @@ pub(in crate::game) fn spawn_single_attacker_aerialist(
     aerialist_assets: &AerialistAssets,
     materials: &mut Assets<StandardMaterial>,
     unit_index: u32,
-    _level: u32,
 ) -> Entity {
     // Spawn with archers (same depth offset)
     let (spawn_x, spawn_z) = attacker_spawn_position(unit_index, ARCHER_SPAWN_DEPTH_OFFSET);

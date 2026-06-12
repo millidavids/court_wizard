@@ -13,7 +13,7 @@ pub use animation_drivers::{
     update_walking_animation,
 };
 pub use electric_poison::{
-    update_airborne_units, update_electric_arc_visuals, update_electric_charge, update_poisoned,
+    update_airborne_units, update_electric_arc_visuals, update_poisoned, update_shocked,
     update_sickened,
 };
 pub use facing_direction::update_facing_direction;

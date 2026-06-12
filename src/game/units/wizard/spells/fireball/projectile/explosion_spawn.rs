@@ -20,7 +20,6 @@ pub(crate) fn spawn_explosion_with_talents(
     sphere_materials: &mut Assets<FireExplosionSphereMaterial>,
     position: Vec3,
     fireball: &Fireball,
-    _time_secs: f32,
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
     crystal_spawn: Option<&CrystalSpawn>,

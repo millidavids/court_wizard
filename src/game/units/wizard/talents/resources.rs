@@ -40,10 +40,8 @@ impl ActiveTalents {
 
                     // Fix in the loaded save file (batched write at end)
                     if let Some(ref mut sf) = save_file
-                        && let Some(entry) = sf
-                            .player
-                            .spell_talent_selections
-                            .get_mut(spell.save_key())
+                        && let Some(entry) =
+                            sf.player.spell_talent_selections.get_mut(spell.save_key())
                         && tier < entry.len()
                     {
                         entry[tier] = -1;

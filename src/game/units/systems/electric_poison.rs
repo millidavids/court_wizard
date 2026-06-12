@@ -28,7 +28,7 @@ pub struct ElectricArcVisual {
 /// Arc damage is applied directly to health without inserting `PendingDamageEffect`,
 /// so it does **not** propagate the electric debuff to arc targets.
 #[allow(clippy::too_many_arguments)]
-pub fn update_electric_charge(
+pub fn update_shocked(
     mut commands: Commands,
     time: Res<Time>,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,

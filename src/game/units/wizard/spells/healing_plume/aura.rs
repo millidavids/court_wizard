@@ -172,9 +172,8 @@ pub(super) fn try_convert_field_medic(
         }
 
         // Create green-tinted material for the converted healer
-        let (r, g, b, a) = constants::FIELD_MEDIC_COLOR;
         let green_material = materials.add(StandardMaterial {
-            base_color: Color::srgba(r, g, b, a),
+            base_color: constants::FIELD_MEDIC_COLOR,
             ..Default::default()
         });
 

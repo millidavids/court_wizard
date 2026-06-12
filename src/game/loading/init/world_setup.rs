@@ -281,10 +281,9 @@ pub fn init_loading_progress(
         let total_aerialists =
             (calculate_total_aerialists(level) as f32 * count_mult).round() as u32;
         for i in 0..total_aerialists {
-            queue.tasks.push_back(SpawnTask::AttackerAerialist {
-                unit_index: i,
-                level,
-            });
+            queue
+                .tasks
+                .push_back(SpawnTask::AttackerAerialist { unit_index: i });
         }
 
         // 9. Brute (if tier qualifies, wave 1)

@@ -191,14 +191,13 @@ pub fn process_spawn_queue(
                     level,
                 );
             }
-            SpawnTask::AttackerAerialist { unit_index, level } => {
+            SpawnTask::AttackerAerialist { unit_index } => {
                 aerialist_systems::spawn_single_attacker_aerialist(
                     &mut game_rng.0,
                     &mut commands,
                     &aerialist_assets,
                     &mut materials,
                     unit_index,
-                    level,
                 );
             }
             SpawnTask::UpgradeToDispeller { entity } => {
