@@ -10,3 +10,8 @@ steamworks_achievements.csv
 /steam-content/
 /steam-build-output/
 multiplayer_problems
+
+# Tech-debt overhaul process artifacts (kept on disk, not committed)
+/audit/
+/TECH_DEBT_AUDIT.md
+/.claude/workflows/
