@@ -164,8 +164,11 @@ pub fn ogre_combat(
             let dz = target_pos.z - boss_pos.z;
             let distance = (dx * dx + dz * dz).sqrt();
 
-            // Hit all enemies within boss radius + their hitbox (melee reach)
-            if distance > boss_hitbox.radius + target_hitbox.radius {
+            // Hit all enemies within the SAME range the first-pass gate used, so
+            // an enemy that triggers the swing is actually damaged by it.
+            let attack_range =
+                (boss_hitbox.radius + target_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
+            if distance > attack_range {
                 continue;
             }
 

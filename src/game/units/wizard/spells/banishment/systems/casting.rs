@@ -14,10 +14,11 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input,
-    clamp_cursor_to_spell_range_with_origin, ground_projected_range,
+    clamp_cursor_to_spell_range_with_origin, ground_projected_range, local_player_team,
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use crate::networking::session::MultiplayerSession;
 use crate::networking::snapshot::SpellSoundId;
 use bevy::prelude::*;
 
@@ -89,12 +90,16 @@ pub fn handle_banishment_casting(
     active_talents: Option<Res<ActiveTalents>>,
     mut progress: ResMut<BattleTalentProgress>,
     visual_assets: Res<SpellVisualAssets>,
-    target_assist: Res<TargetAssistWorldPos>,
+    // `session` is bundled with `target_assist` to stay under Bevy's 16-param
+    // system limit. `local_player_team` reads it so a versus guest (Team::Attackers)
+    // banishes the enemy wave, not their own army.
+    assist_ctx: (Res<TargetAssistWorldPos>, Option<Res<MultiplayerSession>>),
     local_origin: Res<LocalSpellOrigin>,
     mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,
 ) {
+    let (target_assist, session) = &assist_ctx;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
-    apply_target_assist(&mut input, &target_assist);
+    apply_target_assist(&mut input, target_assist);
 
     let Ok((_wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -114,6 +119,7 @@ pub fn handle_banishment_casting(
     );
 
     let talent_params = compute_talent_params(active_talents.as_deref());
+    let caster_team = local_player_team(session.as_deref());
 
     let banished_count = banishment_casting_logic(
         &input,
@@ -129,6 +135,7 @@ pub fn handle_banishment_casting(
         time.elapsed_secs(),
         local_origin.0,
         &mut pending_cast_events,
+        caster_team,
     );
 
     if banished_count > 0 {
@@ -176,6 +183,7 @@ fn banishment_casting_logic(
     time_secs: f32,
     local_origin: Vec3,
     pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
+    caster_team: Team,
 ) -> u32 {
     // Check for release event
     if input.just_released {
@@ -214,6 +222,7 @@ fn banishment_casting_logic(
                             time_secs,
                             local_origin,
                             pending,
+                            caster_team,
                         )
                     } else {
                         cast_single_banishment(
@@ -228,6 +237,7 @@ fn banishment_casting_logic(
                             time_secs,
                             local_origin,
                             pending,
+                            caster_team,
                         )
                     };
                     casting_state.cancel();

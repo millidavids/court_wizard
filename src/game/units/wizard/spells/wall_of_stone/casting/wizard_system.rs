@@ -90,16 +90,18 @@ pub fn handle_wall_of_stone_casting(
         &talent_params,
     );
 
-    // Send wall placement over network so the other client updates pathfinding
+    // Send each placed wall segment over the network so the other client updates
+    // pathfinding for ALL of them (Quick Foundations places two).
     if cast_result.completed
-        && let Some(bounds) = cast_result.obstacle_bounds
         && let Some(ref mut conn) = connection
     {
-        conn.outgoing_messages
-            .push(crate::networking::protocol::NetworkMessage::WallPlaced {
-                bounds,
-                placed: true,
-            });
+        for bounds in cast_result.obstacle_bounds {
+            conn.outgoing_messages
+                .push(crate::networking::protocol::NetworkMessage::WallPlaced {
+                    bounds,
+                    placed: true,
+                });
+        }
     }
 
     // Local-only: manage preview

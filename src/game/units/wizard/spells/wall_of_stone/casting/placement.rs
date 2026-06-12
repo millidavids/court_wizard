@@ -17,8 +17,9 @@ pub(crate) struct CastResult {
     pub(crate) completed: bool,
     /// Whether preview should be despawned (release with too-short drag or no mana).
     pub(crate) despawn_preview: bool,
-    /// Obstacle bounds for network sync (set when completed=true).
-    pub(crate) obstacle_bounds: Option<[f32; 4]>,
+    /// Obstacle bounds for network sync, one entry per placed wall segment
+    /// (Quick Foundations places two — both must be synced to the remote grid).
+    pub(crate) obstacle_bounds: Vec<[f32; 4]>,
     /// Center position of the placed wall (for sound effects).
     pub(crate) wall_center: Option<Vec3>,
 }
@@ -40,7 +41,7 @@ pub(crate) fn wall_of_stone_casting_logic(
     let mut result = CastResult {
         completed: false,
         despawn_preview: false,
-        obstacle_bounds: None,
+        obstacle_bounds: Vec::new(),
         wall_center: None,
     };
 
@@ -151,8 +152,9 @@ pub(crate) fn wall_of_stone_casting_logic(
                         rebuild: false,
                     });
 
-                    // Use the last wall's bounds for network sync
-                    result.obstacle_bounds = Some(obs_bounds);
+                    // Collect EVERY segment's bounds for network sync (not just
+                    // the last) so the remote grid registers both walls.
+                    result.obstacle_bounds.push(obs_bounds);
                     result.wall_center = Some(center);
                 }
 

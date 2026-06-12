@@ -16,6 +16,7 @@ use crate::game::multiplayer::spell_sync::PendingCastEvents;
 use crate::game::units::wizard::spells::visual_assets::{AuraSphereMaterial, SpellVisualAssets};
 use crate::networking::snapshot::{
     AuraBubbleVariant, CastEventKind, CastEventSnapshot, MoteMaterial, PoofVariant, SparkMaterial,
+    SpellSchoolWire,
 };
 
 /// Pushes a one-shot cast event into the outgoing MP snapshot.
@@ -53,15 +54,18 @@ pub fn spawn_school_flare_synced(
     time_secs: f32,
 ) {
     spawn_school_flare(commands, assets, local_origin, school, time_secs);
+    // Encode through the wire enum's #[repr(u8)] discriminants so the ordinals
+    // stay tied to SpellSchoolWire at compile time (the receiver decodes via
+    // SpellSchoolWire::try_from). Don't hand-write magic numbers here.
     let subkind = match school {
-        SpellSchool::Fire => 0,
-        SpellSchool::Lightning => 1,
-        SpellSchool::Arcane => 2,
-        SpellSchool::Nature => 3,
-        SpellSchool::Holy => 4,
-        SpellSchool::Dark => 5,
-        SpellSchool::Force => 6,
-        SpellSchool::Transmutation => 7,
+        SpellSchool::Fire => SpellSchoolWire::Fire as u8,
+        SpellSchool::Lightning => SpellSchoolWire::Lightning as u8,
+        SpellSchool::Arcane => SpellSchoolWire::Arcane as u8,
+        SpellSchool::Nature => SpellSchoolWire::Nature as u8,
+        SpellSchool::Holy => SpellSchoolWire::Holy as u8,
+        SpellSchool::Dark => SpellSchoolWire::Dark as u8,
+        SpellSchool::Force => SpellSchoolWire::Force as u8,
+        SpellSchool::Transmutation => SpellSchoolWire::Transmutation as u8,
     };
     emit_cast_event(
         pending,

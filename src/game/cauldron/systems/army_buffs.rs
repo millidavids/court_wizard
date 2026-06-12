@@ -42,7 +42,7 @@ pub fn buff_defender_damage(
     for (entity, team, existing) in &defenders {
         if *team == Team::Defenders {
             if bonus > 0.0 {
-                if existing.is_none() {
+                if existing.map(|b| b.0) != Some(bonus) {
                     commands.entity(entity).insert(CauldronDamageBonus(bonus));
                 }
             } else if existing.is_some() {
@@ -62,7 +62,7 @@ pub fn buff_defender_resistance(
     for (entity, team, existing) in &defenders {
         if *team == Team::Defenders {
             if resistance > 0.0 {
-                if existing.is_none() {
+                if existing.map(|r| r.0) != Some(resistance) {
                     commands
                         .entity(entity)
                         .insert(CauldronDamageResistance(resistance));

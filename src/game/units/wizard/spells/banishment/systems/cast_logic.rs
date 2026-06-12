@@ -96,6 +96,7 @@ pub(super) fn cast_single_banishment(
     time_secs: f32,
     local_origin: Vec3,
     pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
+    caster_team: Team,
 ) -> u32 {
     let duration = params.duration * empowerment;
     let mut banished_count = 0u32;
@@ -103,7 +104,7 @@ pub(super) fn cast_single_banishment(
     // Find candidates within spell range, sorted by distance to cursor
     let mut candidates: Vec<(Entity, f32, Vec3, &Health)> = enemies_query
         .iter()
-        .filter(|(_, _, team, _)| Team::Defenders.is_enemy(team))
+        .filter(|(_, _, team, _)| caster_team.is_enemy(team))
         .filter(|(_, transform, _, _)| {
             is_in_spell_range(transform.translation, spell_range, local_origin)
         })
@@ -177,12 +178,13 @@ pub(super) fn cast_mass_banishment(
     time_secs: f32,
     local_origin: Vec3,
     pending: &mut crate::game::multiplayer::spell_sync::PendingCastEvents,
+    caster_team: Team,
 ) -> u32 {
     let duration = constants::MASS_BANISHMENT_DURATION * empowerment;
     let mut banished_count = 0u32;
 
     for (entity, transform, team, health) in enemies_query.iter() {
-        if !Team::Defenders.is_enemy(team) {
+        if !caster_team.is_enemy(team) {
             continue;
         }
         if !is_in_spell_range(transform.translation, spell_range, local_origin) {

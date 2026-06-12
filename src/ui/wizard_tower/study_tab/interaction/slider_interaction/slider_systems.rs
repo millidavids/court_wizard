@@ -97,12 +97,9 @@ pub(crate) fn handle_detail_slider_interaction(
         let alloc_frac = (cursor_frac - progress_frac).max(0.0);
         let desired = (alloc_frac * cost as f32).round() as u32;
 
-        let others: u32 = allocation
-            .allocations
-            .iter()
-            .filter(|(s, _)| **s != spell)
-            .map(|(_, v)| *v)
-            .sum();
+        // Sum everything else allocated (spell slots AND bonus-stat slots), so a
+        // drag can't exceed the true insight balance. Mirrors the +/- buttons.
+        let others: u32 = allocation.total_allocated() - allocation.get(&spell);
         let max_for_spell = insight_balance.saturating_sub(others).min(remaining);
         let clamped = desired.min(max_for_spell);
 

@@ -245,9 +245,15 @@ pub(super) fn teleport_casting_logic(
                     let source_pos = transform.translation;
                     let radius = effective_circle_radius * source_circle.empowerment;
 
-                    mana.consume(effective_mana_cost);
+                    // Re-check affordability at completion: mana may have been
+                    // spent elsewhere during the windup. If we can't afford it,
+                    // the cast still ends (below) but no teleport happens.
+                    let can_pay = mana.can_afford(effective_mana_cost);
+                    if can_pay {
+                        mana.consume(effective_mana_cost);
+                    }
 
-                    if let Some(dest_pos) = caster.destination_position {
+                    if can_pay && let Some(dest_pos) = caster.destination_position {
                         vfx::systems::spawn_aura_bubble_synced(
                             commands,
                             visual_assets,
