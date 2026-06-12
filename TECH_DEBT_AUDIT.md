@@ -246,3 +246,18 @@ keyboard-hint strings, a few structural clones). Best done incrementally per-mod
 
 **NEEDS:** a 2-client co-op smoke-test before promotion (MP wire-format, ghost-gating, and
 plugin-ordering changes can't be exercised by cargo test).
+
+## MP-critical verification (2026-06-12) — Ship
+- **Boot smoke:** Windows build launches, builds the full plugin graph (no ordering
+  panic/ambiguity), loads assets, reaches MainMenu, saves config. Split modules
+  (config/systems/{window,persist}) run correctly.
+- **Consolidated cold review (fresh-context):** wire format byte-identical (all
+  snapshot structs/enums, fragment headers self-consistent); ghost-gating correct on
+  all sampled mutating systems, no VFX over-gated; plugin-ordering + run-condition
+  locals preserved verbatim. Verdict: Ship — 0 Critical, 0 Major.
+- **Known pre-existing Minor (NOT fixed — exists on main):** emit_spike_growth_rings
+  + emit_fog_cloud_particles tick timers on ghost zones → doubled VFX particles on the
+  guest (cosmetic). Left intentionally; gating risks invisible remote VFX depending on
+  the particle-sync model — needs the live co-op test to decide.
+- **Still requires** the user's manual 2-client co-op smoke-test (guest-path damage /
+  remote-spell rendering) before promotion.
