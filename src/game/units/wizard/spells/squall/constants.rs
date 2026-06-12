@@ -86,8 +86,10 @@ pub const SLEET_STORM_EVASION_DURATION: f32 = 1.0;
 // Tier 3: Absolute Zero
 /// Mana drained per second while Absolute Zero is channeling.
 pub const ABSOLUTE_ZERO_MANA_PER_SEC: f32 = 12.0;
-/// Stacking slow added per frame (0.005 = 0.5% per frame).
-pub const ABSOLUTE_ZERO_SLOW_PER_FRAME: f32 = 0.005;
+/// Stacking slow accrued per SECOND while inside the zone. 0.3/sec == the legacy
+/// 0.005-per-frame rate at 60 FPS, but is now framerate-independent (applied as
+/// `* delta`) so the slow no longer accrues at half-rate at 30 FPS.
+pub const ABSOLUTE_ZERO_SLOW_PER_SEC: f32 = 0.3;
 /// Maximum slow that can stack from Absolute Zero (0.9 = 90% slow).
 pub const ABSOLUTE_ZERO_MAX_SLOW: f32 = 0.9;
 /// Damage per second dealt to units inside the Absolute Zero zone.

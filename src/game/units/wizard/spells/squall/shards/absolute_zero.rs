@@ -70,10 +70,12 @@ pub(crate) fn update_absolute_zero(
             if distance <= storm.radius && !crate::game::units::components::is_setup_immune() {
                 health.take_damage(damage_this_frame);
 
-                // Stack slow (Absolute Zero has its own stacking on top of frost accumulation)
+                // Stack slow (Absolute Zero has its own stacking on top of frost
+                // accumulation). Framerate-independent: accrue per second via delta.
+                let slow_this_frame = ABSOLUTE_ZERO_SLOW_PER_SEC * delta;
                 if let Some(mut az) = az_slow {
-                    az.accumulated_slow = (az.accumulated_slow - ABSOLUTE_ZERO_SLOW_PER_FRAME)
-                        .max(-ABSOLUTE_ZERO_MAX_SLOW);
+                    az.accumulated_slow =
+                        (az.accumulated_slow - slow_this_frame).max(-ABSOLUTE_ZERO_MAX_SLOW);
                     az.decay_timer = ABSOLUTE_ZERO_SLOW_DECAY_TIME;
 
                     apply_or_insert_slow(
@@ -85,14 +87,14 @@ pub(crate) fn update_absolute_zero(
                     );
                 } else {
                     commands.entity(entity).insert(AbsoluteZeroSlow {
-                        accumulated_slow: -ABSOLUTE_ZERO_SLOW_PER_FRAME,
+                        accumulated_slow: -slow_this_frame,
                         decay_timer: ABSOLUTE_ZERO_SLOW_DECAY_TIME,
                     });
                     apply_or_insert_slow(
                         &mut commands,
                         entity,
                         slow_mod,
-                        -ABSOLUTE_ZERO_SLOW_PER_FRAME,
+                        -slow_this_frame,
                         ABSOLUTE_ZERO_SLOW_DECAY_TIME,
                     );
                 }
