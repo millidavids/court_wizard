@@ -636,3 +636,26 @@ dead IceProjectile.radius chain exposed by dropping a blanket allow(dead_code).
 
 The remaining ~124 skipped Low items each need individual judgment (cross-module or
 behavior/save-affecting) — not suitable for a bulk safe pass.
+
+## Skipped-items + deferred-risk pass — DONE (2026-06-12)
+
+Worked through the 124 skipped Low items + the deferred risk items by category:
+- **C save-format** (5776699/78f6100): added save_key() to Spell/Ingredient/UnitType/
+  WizardType, routed ~50 format!("{:?}") save+UI key sites through it; a test asserts
+  save_key()==Debug for every variant so on-disk format is provably unchanged.
+- **D framerate** (82d04dc): Absolute Zero slow now per-second*delta (60fps identical).
+- **E perf** (7bc67d7): calculate_effectiveness O(n^2) -> spatial grid with 3 equivalence
+  tests vs brute force.
+- **B renames/param trims** (78f6100): update_electric_charge->update_shocked; dropped dead
+  params (_primed_spell, _time_secs, _level + AttackerAerialist.level field); removed
+  TeamFilter::Both; FIELD_MEDIC_COLOR tuple->Color.
+- **F split** (65f84ab/50c5f74): black_hole/casting.rs -> casting/ dir module.
+- **G tests** (65f84ab): TramplingGrid::world_to_index + 5 spell_math geometry helpers.
+- **A cross-module dedup: SKIPPED** — its items are false-positives or already-resolved
+  (compute_talent_params returns a different type per spell; SmellyModifier already uses
+  impl_timed_modifier!; Boulder vs WallOfStone obstacle_bounds are AABB vs OBB). Deduping
+  would couple distinct code, not remove duplication.
+
+Remaining: the genuinely-cosmetic Low tail the churn already skipped for being intentional
+/not-real, plus the few items needing live playtesting (non-framerate balance: 3D-vs-XZ
+distance, NullZone alpha). All gates green throughout; 66 tests (16 added this campaign).
