@@ -44,6 +44,7 @@ pub(crate) use dimensions::{
 };
 
 // pub(crate) items — must remain pub(crate) at this level too
+pub(crate) use dimensions::NO_SELECTION_PLACEHOLDER;
 pub(crate) use dimensions::spawn_coop_gated_button;
 
 // cfg-gated item

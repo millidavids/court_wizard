@@ -34,6 +34,13 @@ mod tests {
                 "Ingredient save_key drifted from Debug"
             );
         }
+        // PhilosophersStone is intentionally excluded from `Ingredient::all()`
+        // (never dropped / unlocked), so the loop above doesn't reach it — pin
+        // it explicitly so a rename can't silently drift its key either.
+        assert_eq!(
+            Ingredient::PhilosophersStone.save_key(),
+            format!("{:?}", Ingredient::PhilosophersStone)
+        );
     }
 
     #[test]
@@ -55,6 +62,23 @@ mod tests {
                 format!("{v:?}"),
                 "WizardType save_key drifted from Debug"
             );
+        }
+    }
+
+    /// `AchievementId::id()` is a custom snake_case save key (not the Debug name),
+    /// so the realistic save-corruption risk is a duplicate or empty id rather than
+    /// drift from Debug. Guard against both — a collision would conflate two
+    /// achievements' unlock state on disk.
+    #[test]
+    fn achievement_ids_are_unique_and_nonempty() {
+        use crate::config::save_data::AchievementId;
+        use std::collections::HashSet;
+
+        let mut seen = HashSet::new();
+        for a in AchievementId::all() {
+            let id = a.id();
+            assert!(!id.is_empty(), "AchievementId {a:?} has an empty save id");
+            assert!(seen.insert(id), "duplicate AchievementId save id: {id:?}");
         }
     }
 }

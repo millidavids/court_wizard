@@ -221,3 +221,6 @@ pub(crate) const DEBUG_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     text_color: Color::srgb(1.0, 0.7, 0.7),
     text_shadow: true,
 };
+
+/// Placeholder shown in the study-tab detail panel when nothing is selected.
+pub(crate) const NO_SELECTION_PLACEHOLDER: &str = "Select a spell or bonus to view details";

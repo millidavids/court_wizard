@@ -183,7 +183,7 @@ pub(crate) fn load_my_unlocked_content() -> (Vec<WizardType>, Vec<Spell>) {
                 // competitive match. Filtering here keeps it out of the lobby grid
                 // AND the `PlayerInfo` exchange, so it can never reach a match.
                 .filter(|wt| *wt != WizardType::Psychopath)
-                .filter(|wt| names.iter().any(|n| n == &wt.save_key().to_string()))
+                .filter(|wt| names.iter().any(|n| n.as_str() == wt.save_key()))
                 .collect::<Vec<_>>()
         })
         .filter(|wts: &Vec<_>| !wts.is_empty())

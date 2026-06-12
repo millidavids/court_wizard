@@ -6,7 +6,7 @@ use super::super::units::components::{Corpse, Effectiveness, Hitbox, SpellDamage
 
 /// Minimal per-unit data for the melee-proximity calculation.
 #[derive(Clone, Copy)]
-struct ProxUnit {
+pub(crate) struct ProxUnit {
     pos: Vec3,
     radius: f32,
     team: Team,
@@ -86,11 +86,16 @@ pub fn calculate_effectiveness(
             Without<super::super::units::boss::components::Boss>,
         ),
     >,
+    // Reused across frames so this every-frame hot path doesn't heap-allocate the
+    // snapshot/entity buffers and the rejoin map each tick.
+    mut entities: Local<Vec<Entity>>,
+    mut snapshot: Local<Vec<ProxUnit>>,
+    mut by_entity: Local<HashMap<Entity, (u32, u32)>>,
 ) {
     // Collect a snapshot (parallel to the entity list) and count proximity via the
     // spatial grid, then map each unit's counts back by Entity for the write pass.
-    let mut entities: Vec<Entity> = Vec::new();
-    let mut snapshot: Vec<ProxUnit> = Vec::new();
+    entities.clear();
+    snapshot.clear();
     for (entity, transform, hitbox, team, _) in units.iter() {
         entities.push(entity);
         snapshot.push(ProxUnit {
@@ -101,7 +106,8 @@ pub fn calculate_effectiveness(
     }
 
     let counts = count_melee_proximity(&snapshot);
-    let by_entity: HashMap<Entity, (u32, u32)> = entities.into_iter().zip(counts).collect();
+    by_entity.clear();
+    by_entity.extend(entities.iter().copied().zip(counts));
 
     for (entity, _, _, _, mut effectiveness) in units.iter_mut() {
         let (ally_count, enemy_count) = by_entity.get(&entity).copied().unwrap_or((0, 0));

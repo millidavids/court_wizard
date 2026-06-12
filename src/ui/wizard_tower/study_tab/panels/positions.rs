@@ -1,11 +1,10 @@
 use bevy::prelude::*;
 
 use crate::config::save_data::load_unified_save;
-use crate::game::units::wizard::components::Spell;
 
 use super::super::super::components::*;
 use super::super::super::constants::*;
-use super::helpers::{clip_line_to_rect, graph_to_screen};
+use super::helpers::{clip_line_to_rect, graph_to_screen, is_prereq_met_in, is_spell_unlocked_in};
 
 /// Updates the screen position of all graph nodes based on pan/zoom state.
 pub(crate) fn update_graph_node_positions(
@@ -38,12 +37,6 @@ pub(crate) fn update_graph_node_positions(
     }
 }
 
-/// Returns true if the given spell name is present in the provided unlocked list.
-fn spell_name_in_list(spell: Spell, unlocked: &[String]) -> bool {
-    let name = spell.save_key().to_string();
-    unlocked.contains(&name)
-}
-
 /// Updates border colors on spell nodes based on the selected spell.
 /// Loads save data once per invocation (the system is change-detection gated).
 pub(crate) fn update_graph_node_borders(
@@ -61,8 +54,8 @@ pub(crate) fn update_graph_node_borders(
             *border_color = BorderColor::all(GRAPH_NODE_SELECTED_BORDER);
         } else {
             let spell = graph_node.spell;
-            let unlocked = spell_name_in_list(spell, &unlocked_names);
-            let prereq_met = spell_prereq_met(spell, &unlocked_names);
+            let unlocked = is_spell_unlocked_in(spell, &unlocked_names);
+            let prereq_met = is_prereq_met_in(spell, &unlocked_names);
             let cost = spell.research_cost();
             let is_free = cost == 0;
 
@@ -76,33 +69,6 @@ pub(crate) fn update_graph_node_borders(
             *border_color = BorderColor::all(border);
         }
     }
-}
-
-/// Returns true if a spell's prerequisite is met, given a pre-loaded unlocked list.
-fn spell_prereq_met(spell: Spell, unlocked: &[String]) -> bool {
-    if let Some(prereq) = spell.prerequisite() {
-        let prereq_name = prereq.save_key().to_string();
-        if !unlocked.contains(&prereq_name) {
-            return false;
-        }
-    }
-
-    let required = spell.required_total_spells();
-    if required > 0 {
-        let researched = unlocked
-            .iter()
-            .filter(|name| {
-                Spell::researchable()
-                    .iter()
-                    .any(|s| &s.save_key().to_string() == *name)
-            })
-            .count() as u32;
-        if researched < required {
-            return false;
-        }
-    }
-
-    true
 }
 
 /// Updates graph edge segment positions based on pan/zoom state.

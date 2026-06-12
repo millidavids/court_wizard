@@ -15,8 +15,8 @@ use super::components::{
     Airborne, BerserkerRageModifier, CombatAnimation, DeathAnimationFinished, DyingAnimation,
     FacingDirection, FearModifier, FireDoT, FogEvasionModifier, FrozenSolidModifier, HasteModifier,
     Knockback, MarkedForDeathModifier, Petrified, PoisonedModifier, PulsingAnimation,
-    RemoteFireEffect, RisingAnimation, RootedModifier, SickenedModifier, SlowMovementModifier,
-    SmellyModifier, Stunned, TemporaryHitPoints, WalkingAnimation,
+    RemoteFireEffect, RisingAnimation, RootedModifier, Shocked, SickenedModifier,
+    SlowMovementModifier, SmellyModifier, Stunned, TemporaryHitPoints, WalkingAnimation,
 };
 use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
@@ -175,8 +175,8 @@ impl Plugin for UnitsPlugin {
                 Update,
                 (
                     systems::process_pending_damage_effects,
-                    systems::update_fire_dot,
-                    systems::update_shocked,
+                    systems::update_fire_dot.run_if(any_with_component::<FireDoT>),
+                    systems::update_shocked.run_if(any_with_component::<Shocked>),
                     systems::update_electric_arc_visuals,
                     systems::update_poisoned.run_if(any_with_component::<PoisonedModifier>),
                     systems::update_sickened.run_if(any_with_component::<SickenedModifier>),

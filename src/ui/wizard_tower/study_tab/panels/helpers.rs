@@ -14,55 +14,50 @@ pub(crate) fn calculate_talent_font_size(name: &str) -> f32 {
     scale_font_by_text_width(max_word_width, 7.0, 13.0, 0.65, TALENT_CARD_FONT)
 }
 
-/// Returns the number of spells the player has fully researched.
-pub(crate) fn count_researched_spells() -> u32 {
-    let save = load_unified_save();
-    let unlocked: Vec<String> = save
+/// Loads the player's unlocked-spell name list from save (empty if no save).
+pub(crate) fn load_unlocked_spells() -> Vec<String> {
+    load_unified_save()
         .map(|s| s.player.unlocked_content.spells)
-        .unwrap_or_default();
+        .unwrap_or_default()
+}
 
+/// Returns true if `spell`'s save key is present in a pre-loaded unlocked list.
+pub(crate) fn is_spell_unlocked_in(spell: Spell, unlocked: &[String]) -> bool {
+    unlocked.iter().any(|n| n.as_str() == spell.save_key())
+}
+
+/// Counts fully-researched spells against a pre-loaded unlocked list.
+pub(crate) fn count_researched_spells_in(unlocked: &[String]) -> u32 {
     Spell::researchable()
         .iter()
-        .filter(|spell| {
-            let name = spell.save_key().to_string();
-            unlocked.contains(&name)
-        })
+        .filter(|spell| is_spell_unlocked_in(**spell, unlocked))
         .count() as u32
+}
+
+/// Returns true if `spell`'s prerequisite is met against a pre-loaded unlocked list.
+pub(crate) fn is_prereq_met_in(spell: Spell, unlocked: &[String]) -> bool {
+    if let Some(prereq) = spell.prerequisite()
+        && !is_spell_unlocked_in(prereq, unlocked)
+    {
+        return false;
+    }
+    let required = spell.required_total_spells();
+    required == 0 || count_researched_spells_in(unlocked) >= required
+}
+
+/// Returns the number of spells the player has fully researched.
+pub(crate) fn count_researched_spells() -> u32 {
+    count_researched_spells_in(&load_unlocked_spells())
 }
 
 /// Returns true if a spell's prerequisite is met.
 pub(crate) fn is_prereq_met(spell: Spell) -> bool {
-    let save = load_unified_save();
-    let unlocked: Vec<String> = save
-        .map(|s| s.player.unlocked_content.spells)
-        .unwrap_or_default();
-
-    if let Some(prereq) = spell.prerequisite() {
-        let prereq_name = prereq.save_key().to_string();
-        if !unlocked.contains(&prereq_name) {
-            return false;
-        }
-    }
-
-    let required = spell.required_total_spells();
-    if required > 0 {
-        let researched = count_researched_spells();
-        if researched < required {
-            return false;
-        }
-    }
-
-    true
+    is_prereq_met_in(spell, &load_unlocked_spells())
 }
 
 /// Returns true if this spell is fully researched (unlocked).
 pub(crate) fn is_spell_unlocked(spell: Spell) -> bool {
-    let save = load_unified_save();
-    let unlocked: Vec<String> = save
-        .map(|s| s.player.unlocked_content.spells)
-        .unwrap_or_default();
-    let name = spell.save_key().to_string();
-    unlocked.contains(&name)
+    is_spell_unlocked_in(spell, &load_unlocked_spells())
 }
 
 /// Returns the color associated with a damage type for UI display.

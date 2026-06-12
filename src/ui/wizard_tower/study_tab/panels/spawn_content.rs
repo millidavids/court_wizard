@@ -489,7 +489,7 @@ pub(crate) fn spawn_study_panels(
         .with_children(|panel| {
             // Placeholder text shown when nothing is selected
             panel.spawn((
-                Text::new("Select a spell or bonus to view details"),
+                Text::new(NO_SELECTION_PLACEHOLDER),
                 TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
                 TextColor(LOCKED_TEXT_COLOR),
             ));

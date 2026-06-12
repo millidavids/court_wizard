@@ -164,7 +164,7 @@ pub(super) fn build_wizard_card_grid(
                             }
                             let is_unlocked = unlocked_names
                                 .iter()
-                                .any(|name| name == &wizard_type.save_key().to_string());
+                                .any(|name| name.as_str() == wizard_type.save_key());
                             if is_unlocked {
                                 spawn_compact_card(column, *wizard_type);
                             } else {

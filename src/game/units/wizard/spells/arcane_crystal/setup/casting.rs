@@ -129,7 +129,7 @@ pub(crate) fn handle_arcane_crystal_casting(
             // Count permanent crystals already placed this level.
             let placed_this_level = existing_crystals
                 .iter()
-                .filter(|(_, c)| !c.permanent)
+                .filter(|(_, c)| c.permanent)
                 .count();
             if placed_this_level > 0 {
                 // Already placed one this level — block
