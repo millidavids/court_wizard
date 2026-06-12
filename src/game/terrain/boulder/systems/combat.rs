@@ -9,6 +9,7 @@ use crate::game::units::components::{AttackTiming, Corpse, Health, Hitbox, Tempo
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorExplosion;
 use crate::game::units::wizard::spells::squall::components::IceExplosion;
+use crate::game::units::wizard::spells::utils::xz_distance;
 
 /// Units with no valid path attack nearby boulders (same pattern as wall of stone).
 pub fn units_attack_blocking_rocks(
@@ -75,12 +76,6 @@ pub fn apply_spell_damage_to_rocks(
     ice_explosions: Query<&IceExplosion>,
     mut rocks: Query<(&Boulder, &mut ObstacleHealth)>,
 ) {
-    let xz_distance = |a: Vec3, b: Vec3| -> f32 {
-        let dx = a.x - b.x;
-        let dz = a.z - b.z;
-        (dx * dx + dz * dz).sqrt()
-    };
-
     for (rock, mut health) in &mut rocks {
         if rock.sinking || health.is_dead() {
             continue;

@@ -69,8 +69,21 @@ pub(super) fn fragment_datagram(
         return Vec::new();
     }
 
-    let chunks: Vec<&[u8]> = payload.chunks(max_payload).collect();
-    let fragment_count = chunks.len().min(255) as u8;
+    let mut chunks: Vec<&[u8]> = payload.chunks(max_payload).collect();
+    // The header carries a u8 fragment index/count, so at most 255 fragments can
+    // be reassembled. Cap the emitted set to 255 (rather than letting the index
+    // wrap past 255 and corrupt reassembly). An oversized unreliable payload is
+    // pathological — drop the tail and warn instead of shipping inconsistent
+    // headers.
+    if chunks.len() > 255 {
+        bevy::log::warn!(
+            "fragment_datagram: payload of {} bytes needs {} fragments (>255); truncating",
+            payload.len(),
+            chunks.len()
+        );
+        chunks.truncate(255);
+    }
+    let fragment_count = chunks.len() as u8;
 
     chunks
         .into_iter()

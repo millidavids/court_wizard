@@ -8,14 +8,10 @@ use crate::game::units::components::{
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::Spell;
-use crate::game::units::wizard::spells::utils::{UniqueHitTracker, local_player_team};
+use crate::game::units::wizard::spells::utils::{UniqueHitTracker, local_player_team, xz_distance};
 use crate::game::units::wizard::talents::resources::BattleTalentProgress;
 use crate::networking::session::MultiplayerSession;
 use bevy::prelude::*;
-
-fn horizontal_distance(a: Vec3, b: Vec3) -> f32 {
-    Vec2::new(a.x - b.x, a.z - b.z).length()
-}
 
 /// Applies periodic necrotic damage to all units within the cloud.
 /// Handles Toxic Weakness (vulnerability), Choking Gas (slow), Necrotic Rot (max HP reduction),
@@ -72,7 +68,7 @@ pub fn apply_plague_wind_damage(
         for (entity, transform, mut health, mut temp_hp, has_spell_shield, already_marked, team) in
             &mut units
         {
-            let inside = horizontal_distance(cloud.origin, transform.translation) <= cloud.radius;
+            let inside = xz_distance(cloud.origin, transform.translation) <= cloud.radius;
 
             if inside {
                 // Mark unit as inside cloud (for Plague Carrier tracking), skip if already marked
@@ -147,7 +143,7 @@ pub fn cleanup_toxic_weakness(
     for (entity, transform, debuff, mut health) in &mut debuffed_units {
         let still_inside = clouds.iter().any(|cloud| {
             cloud.talent_params.toxic_weakness
-                && horizontal_distance(cloud.origin, transform.translation) <= cloud.radius
+                && xz_distance(cloud.origin, transform.translation) <= cloud.radius
         });
 
         if !still_inside {
@@ -183,7 +179,7 @@ pub fn track_plague_carrier(
                 continue;
             }
 
-            if horizontal_distance(cloud.origin, transform.translation) <= cloud.radius {
+            if xz_distance(cloud.origin, transform.translation) <= cloud.radius {
                 still_inside = true;
                 break;
             }

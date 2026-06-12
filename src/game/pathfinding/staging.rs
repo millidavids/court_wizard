@@ -57,9 +57,12 @@ impl WaveStagingPlan {
     /// cycling through that tunnel's active points in round-robin order.
     pub fn next_staging_point(&mut self, wave: u32, tunnel: SpawnTunnel) -> u8 {
         let key = (wave, tunnel);
-        let points = self.wave_points.get(&key).expect(
-            "WaveStagingPlan: no staging points for wave/tunnel — compute_wave_staging must be called first",
-        );
+        // Normally compute_wave_staging has populated this key with >=1 point, but
+        // fall back to staging point 0 rather than panicking if it's missing or
+        // empty (e.g. a tunnel range that yielded no points).
+        let Some(points) = self.wave_points.get(&key).filter(|p| !p.is_empty()) else {
+            return 0;
+        };
         let counter = self.wave_counters.entry(key).or_insert(0);
         let idx = *counter % points.len();
         *counter += 1;

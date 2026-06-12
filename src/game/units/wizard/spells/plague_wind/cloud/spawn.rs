@@ -4,13 +4,9 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::components::{Corpse, Health};
-use crate::game::units::wizard::spells::utils::UniqueHitTracker;
+use crate::game::units::wizard::spells::utils::{UniqueHitTracker, xz_distance};
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
-
-fn horizontal_distance(a: Vec3, b: Vec3) -> f32 {
-    Vec2::new(a.x - b.x, a.z - b.z).length()
-}
 
 /// Computes talent parameters from the player's active talent selections.
 #[allow(clippy::too_many_arguments)]
@@ -86,7 +82,7 @@ pub fn spawn_pandemic_clouds(
                 continue;
             }
 
-            if horizontal_distance(cloud.origin, unit_pos) <= cloud.radius {
+            if xz_distance(cloud.origin, unit_pos) <= cloud.radius {
                 // Spawn stationary child cloud at death position
                 let child_radius = cloud.radius * constants::PANDEMIC_CHILD_RADIUS_MULT;
 
