@@ -620,3 +620,19 @@ hints) and not-real ones (music-fade 1-frame delay; fog effects already ghost-ga
 - codec fragment_datagram >255-fragment index wrap -> truncate+warn (MP correctness)
 - WaveStagingPlan::next_staging_point expect()/div-by-zero -> graceful fallback to 0
 - deduped horizontal_distance (x2) + xz_distance closure onto shared utils::xz_distance
+
+## Low-severity churn — DONE (2026-06-12, commit 4f24ed9)
+
+Per-module pass over the 276 Low findings via 13 disjoint-scope agents: 152 safe
+fixes applied, 126 skipped. Skips were correct: cross-module renames, public-API
+changes, save-format coupling, gameplay/balance changes, or already-resolved by the
+splits. Categories fixed: DocDrift (stale/copy-paste comments, phase-ticket refs),
+ConsistencyRot (magic-number->named-constant, helper dedup, color/const aliasing),
+ArchitecturalDecay (visibility tightening, Default impls), Performance (run_if guards,
+!is_empty, compute-once loops, load-save-once), ErrorObservability (warn logs), dead
+code (IceProjectile damage_type/radius + ICE_PROJECTILE_RADIUS, dead bindings).
+Gate green. Post-churn fixups: reverted 2 over-narrowed boss visibilities; removed the
+dead IceProjectile.radius chain exposed by dropping a blanket allow(dead_code).
+
+The remaining ~124 skipped Low items each need individual judgment (cross-module or
+behavior/save-affecting) — not suitable for a bulk safe pass.
