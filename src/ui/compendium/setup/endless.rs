@@ -81,7 +81,7 @@ pub(super) fn spawn_endless_detail_for_wizard(
 
     if let Some(save) = save {
         for wizard in &save.wizards {
-            if wizard.wizard_type.save_key().to_string() != wizard_type_name {
+            if wizard.wizard_type.save_key() != wizard_type_name {
                 continue;
             }
             for (level_str, stats) in &wizard.endless_best_stats {

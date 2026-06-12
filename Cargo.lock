@@ -2065,7 +2065,7 @@ dependencies = [
 
 [[package]]
 name = "court_wizard"
-version = "0.10.43"
+version = "0.10.44"
 dependencies = [
  "arboard",
  "bevy",

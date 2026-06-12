@@ -454,7 +454,7 @@ fn get_wizard_status(wizard_type: WizardType) -> String {
 
     if let Some(save) = save {
         for wizard_save in &save.wizards {
-            if wizard_save.wizard_type.save_key().to_string() == wizard_type_name {
+            if wizard_save.wizard_type.save_key() == wizard_type_name {
                 return format!("Level {}", wizard_save.current_level);
             }
         }
