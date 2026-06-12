@@ -214,3 +214,35 @@ Needs a 2-client co-op smoke-test after.
 **Other notable still-open (Wave-D-deferred):** missing any_with_component perf guards
 (units/plugin.rs), status_effects.rs + shared_systems.rs splits, run_conditions.rs match-arm dedup,
 WaveSpawnedMessage dead channel, 16 Security-category + 69 DocDrift items. See `audit/findings.json`.
+
+---
+
+## Campaign resolution summary (2026-06-12)
+
+The tech-debt overhaul (`tech-debt-overhaul` branch) is substantially complete. Status by category:
+
+**RESOLVED**
+- **Structural (file-splits):** 300-LOC offenders 180 → 116. Remaining are exempt registry/match
+  monoliths (visual_assets, spell_enum, achievement_id) + ~110 cohesive single-concern siblings.
+- **plugin.rs purity:** all plugin.rs are registration-only (incl. multiplayer/plugin.rs 552→40 LOC).
+- **MP ghost-gating (the #1 bug class):** 24 re-audit bugs fixed (81 filters); all spell/boss systems
+  verified gated.
+- **Correctness bugs:** 7 fixed (teleport mana double-spend, wall-of-stone MP sync hole, banishment
+  team perspective, cauldron buff stacking, ogre melee range, insight slider over-allocate, school-flare
+  wire encoding) + datagram fragment overflow + staging panic.
+- **Perf:** 5 hot-path wins (meteo particle asset caching, commander Local map, crystal HashSet,
+  dispeller compute-once, archer unused query write-lock).
+- **Dedup:** distance helpers + run_conditions match consolidated onto shared fns.
+- **Dead code / deps:** removed; CVE upgrades documented as upstream-blocked.
+
+**DEFERRED (need a decision or carry risk — not bugs to fix blindly)**
+- Squall Absolute-Zero per-frame slow is framerate-dependent; fixing needs a balance retune.
+- O(n²) calculate_effectiveness, healer ally-snapshot dedup, host message-target lookup: behavioral/
+  MP-correctness risk — need profiling + deliberate design, not a mechanical fix.
+- Talent save-key uses format!("{:?}", spell): fixing requires a save migration (back-compat).
+
+**REMAINING (low ROI)** — ~250 Low-severity naming/doc-drift + cosmetic items (color literals,
+keyboard-hint strings, a few structural clones). Best done incrementally per-module.
+
+**NEEDS:** a 2-client co-op smoke-test before promotion (MP wire-format, ghost-gating, and
+plugin-ordering changes can't be exercised by cargo test).
