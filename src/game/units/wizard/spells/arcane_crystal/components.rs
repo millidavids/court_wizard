@@ -1,6 +1,7 @@
 //! Arcane Crystal spell components.
 
 use bevy::prelude::*;
+use std::collections::HashSet;
 
 /// The type of spell the crystal has most recently absorbed.
 /// Used for auto-casting on a timer.
@@ -63,9 +64,9 @@ pub(crate) struct ArcaneCrystal {
     /// Current pulse animation timer (0.0 = no pulse).
     pub pulse_timer: f32,
     /// Set of FingerOfDeath beam entities already processed (prevents re-triggering).
-    pub fod_beams_processed: Vec<Entity>,
+    pub fod_beams_processed: HashSet<Entity>,
     /// Set of FireballExplosion entities already processed (prevents re-triggering).
-    pub explosions_processed: Vec<Entity>,
+    pub explosions_processed: HashSet<Entity>,
     /// Active persistent beam groups + target pairs (beam_entities, target_entity).
     /// Each group may contain multiple beams when forked talent is active.
     pub active_beams: Vec<(Vec<Entity>, Entity)>,
@@ -109,8 +110,8 @@ impl ArcaneCrystal {
             collision_radius,
             empowerment,
             pulse_timer: 0.0,
-            fod_beams_processed: Vec::new(),
-            explosions_processed: Vec::new(),
+            fod_beams_processed: HashSet::new(),
+            explosions_processed: HashSet::new(),
             active_beams: Vec::new(),
             hit_by_disintegrate: false,
             remembered_spell: None,

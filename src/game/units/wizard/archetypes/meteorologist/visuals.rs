@@ -146,11 +146,19 @@ pub fn update_ground_overlay(
 }
 
 /// Spawns weather particles each frame based on active weather.
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_weather_particles(
     mut commands: Commands,
     weather: Res<WeatherState>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    // The particle mesh/material are invariant — build each once and reuse the
+    // handle so we don't allocate a fresh asset entry every frame. The `Local`s
+    // keep the handles alive for the session.
+    mut rain_mesh: Local<Option<Handle<Mesh>>>,
+    mut rain_mat: Local<Option<Handle<StandardMaterial>>>,
+    mut snow_mesh: Local<Option<Handle<Mesh>>>,
+    mut snow_mat: Local<Option<Handle<StandardMaterial>>>,
 ) {
     // Particles are purely visual. Use a NON-seeded RNG so running this on both
     // multiplayer peers (for full-fidelity weather visuals) doesn't perturb the
@@ -172,17 +180,23 @@ pub fn spawn_weather_particles(
         match weather_type {
             WeatherType::Storm => {
                 let count = (RAIN_PARTICLES_PER_FRAME as f32 * intensity_scale) as u32;
-                let mesh = meshes.add(Rectangle::new(1.5, 25.0));
-                let mat = materials.add(StandardMaterial {
-                    base_color: RAIN_PARTICLE_COLOR,
-                    alpha_mode: AlphaMode::Blend,
-                    unlit: true,
-                    // Double-sided: the multiplayer guest's camera is mirrored to the
-                    // far side of the battlefield and would otherwise see only the
-                    // backface of these flat quads (which is culled by default).
-                    cull_mode: None,
-                    ..default()
-                });
+                let mesh = rain_mesh
+                    .get_or_insert_with(|| meshes.add(Rectangle::new(1.5, 25.0)))
+                    .clone();
+                let mat = rain_mat
+                    .get_or_insert_with(|| {
+                        materials.add(StandardMaterial {
+                            base_color: RAIN_PARTICLE_COLOR,
+                            alpha_mode: AlphaMode::Blend,
+                            unlit: true,
+                            // Double-sided: the multiplayer guest's camera is mirrored to
+                            // the far side of the battlefield and would otherwise see only
+                            // the backface of these flat quads (culled by default).
+                            cull_mode: None,
+                            ..default()
+                        })
+                    })
+                    .clone();
 
                 for _ in 0..count {
                     let x = rng.random_range(-PARTICLE_SPAWN_HALF_SIZE..PARTICLE_SPAWN_HALF_SIZE);
@@ -203,15 +217,21 @@ pub fn spawn_weather_particles(
             }
             WeatherType::Blizzard => {
                 let count = (SNOW_PARTICLES_PER_FRAME as f32 * intensity_scale) as u32;
-                let mesh = meshes.add(Circle::new(4.0));
-                let mat = materials.add(StandardMaterial {
-                    base_color: SNOW_PARTICLE_COLOR,
-                    alpha_mode: AlphaMode::Blend,
-                    unlit: true,
-                    // Double-sided so the mirrored multiplayer guest camera sees them.
-                    cull_mode: None,
-                    ..default()
-                });
+                let mesh = snow_mesh
+                    .get_or_insert_with(|| meshes.add(Circle::new(4.0)))
+                    .clone();
+                let mat = snow_mat
+                    .get_or_insert_with(|| {
+                        materials.add(StandardMaterial {
+                            base_color: SNOW_PARTICLE_COLOR,
+                            alpha_mode: AlphaMode::Blend,
+                            unlit: true,
+                            // Double-sided so the mirrored multiplayer guest camera sees them.
+                            cull_mode: None,
+                            ..default()
+                        })
+                    })
+                    .clone();
 
                 for _ in 0..count {
                     let x = rng.random_range(-PARTICLE_SPAWN_HALF_SIZE..PARTICLE_SPAWN_HALF_SIZE);

@@ -54,7 +54,7 @@ pub(crate) fn detect_fireball_hits(
             let distance = xz_distance(crystal.position, explosion.origin);
 
             if distance <= explosion.max_radius {
-                crystal.explosions_processed.push(explosion_entity);
+                crystal.explosions_processed.insert(explosion_entity);
                 crystal.mark_absorption();
                 crystal.remembered_spell = Some(RememberedSpell::Fireball);
                 crystal.auto_cast_timer = 0.0;

@@ -24,6 +24,8 @@ pub fn apply_commander_auras(
         Without<Corpse>,
     >,
     affected_units: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    // Reused across frames so we don't heap-allocate a fresh map every tick.
+    mut units_in_aura: Local<HashMap<Entity, (Option<f32>, Option<f32>)>>,
 ) {
     // Collect all commander data upfront to avoid borrow conflicts
     let commander_data: Vec<_> = commanders
@@ -42,7 +44,7 @@ pub fn apply_commander_auras(
 
     // Track which units are in ANY commander's aura
     // HashMap<Entity, (max_damage_buff, max_speed_buff)>
-    let mut units_in_aura: HashMap<Entity, (Option<f32>, Option<f32>)> = HashMap::new();
+    units_in_aura.clear();
 
     // For each commander, find units in range and track max buffs
     for (commander_entity, commander_pos, radius, team_filter, damage_buff, speed_buff) in
@@ -82,7 +84,7 @@ pub fn apply_commander_auras(
     }
 
     // Apply buffs to units in aura range
-    for (unit_entity, (max_damage, max_speed)) in &units_in_aura {
+    for (unit_entity, (max_damage, max_speed)) in &*units_in_aura {
         if let Some(damage) = max_damage {
             commands
                 .entity(*unit_entity)

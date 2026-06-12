@@ -66,43 +66,26 @@ pub fn update_dispeller_targeting(
 
         // Priority 1: Nearest dispellable spell effect (using edge distance)
         if !spell_targets.is_empty() {
-            let nearest_spell = spell_targets.iter().min_by(|a, b| {
-                let dist_a = spell_edge_distance(
-                    transform.translation,
-                    a.0,
-                    a.1,
-                    &wall_of_fire_query,
-                    &wall_of_stone_query,
-                    &spike_growth_query,
-                    &grease_query,
-                    &meteor_fire_query,
-                );
-                let dist_b = spell_edge_distance(
-                    transform.translation,
-                    b.0,
-                    b.1,
-                    &wall_of_fire_query,
-                    &wall_of_stone_query,
-                    &spike_growth_query,
-                    &grease_query,
-                    &meteor_fire_query,
-                );
-                dist_a
-                    .partial_cmp(&dist_b)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
+            // Compute each edge distance once, then pick the minimum by the cached
+            // value (the comparator previously recomputed it twice per pair).
+            let nearest_spell = spell_targets
+                .iter()
+                .map(|&(spell_entity, target_pos)| {
+                    let dist = spell_edge_distance(
+                        transform.translation,
+                        spell_entity,
+                        target_pos,
+                        &wall_of_fire_query,
+                        &wall_of_stone_query,
+                        &spike_growth_query,
+                        &grease_query,
+                        &meteor_fire_query,
+                    );
+                    (spell_entity, target_pos, dist)
+                })
+                .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal));
 
-            if let Some(&(spell_entity, target_pos)) = nearest_spell {
-                let distance = spell_edge_distance(
-                    transform.translation,
-                    spell_entity,
-                    target_pos,
-                    &wall_of_fire_query,
-                    &wall_of_stone_query,
-                    &spike_growth_query,
-                    &grease_query,
-                    &meteor_fire_query,
-                );
+            if let Some((_spell_entity, target_pos, distance)) = nearest_spell {
                 targeting_velocity.distance_to_target = distance;
 
                 if distance <= DISPEL_RANGE {

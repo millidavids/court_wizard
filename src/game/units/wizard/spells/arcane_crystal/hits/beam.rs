@@ -207,7 +207,7 @@ pub(crate) fn detect_beam_hits(
             }
 
             if fod_beam.contains_point(crystal.position, fod_beam.beam_width_fired()) {
-                crystal.fod_beams_processed.push(fod_entity);
+                crystal.fod_beams_processed.insert(fod_entity);
                 crystal.mark_absorption();
                 crystal.remembered_spell = Some(RememberedSpell::FingerOfDeath);
                 crystal.auto_cast_timer = 0.0;

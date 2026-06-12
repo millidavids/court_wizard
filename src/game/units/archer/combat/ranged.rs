@@ -9,9 +9,7 @@ use super::super::resources::ArcherAssets;
 use crate::game::components::Velocity;
 use crate::game::constants::*;
 use crate::game::pathfinding::{StagingAttacker, WaveGroup};
-use crate::game::units::components::{
-    AttackTiming, BanishedModifier, Corpse, Hitbox, SleepModifier, Team,
-};
+use crate::game::units::components::{BanishedModifier, Corpse, Hitbox, SleepModifier, Team};
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
 /// Updates archer movement timers to track time since stopped moving.
@@ -105,10 +103,8 @@ pub fn archer_ranged_combat(
         (
             Entity,
             &Transform,
-            &Hitbox,
             &Team,
             &AttackRange,
-            &mut AttackTiming,
             &mut ArcherMovementTimer,
             Option<&SleepModifier>,
             Option<&BanishedModifier>,
@@ -151,10 +147,8 @@ pub fn archer_ranged_combat(
     for (
         archer_entity,
         archer_transform,
-        _archer_hitbox,
         archer_team,
         attack_range,
-        _attack_timing,
         mut movement_timer,
         sleeping,
         banished,
