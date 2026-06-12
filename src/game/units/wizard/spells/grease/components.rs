@@ -161,6 +161,12 @@ impl GreaseOilSlickDebuff {
     }
 }
 
+impl Default for GreaseOilSlickDebuff {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Marker for a grease zone that is regenerating after being ignited (Endless Oil talent).
 /// The zone returns to its slippery state and can be re-ignited.
 #[derive(Component)]
@@ -174,5 +180,11 @@ impl GreaseRegenerating {
         Self {
             time_regenerating: 0.0,
         }
+    }
+}
+
+impl Default for GreaseRegenerating {
+    fn default() -> Self {
+        Self::new()
     }
 }

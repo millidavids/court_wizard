@@ -52,6 +52,12 @@ pub const HARVEST_RADIUS: f32 = 40.0;
 pub const HARVEST_FLASH_DURATION: f32 = 0.2;
 /// Color for the harvest flash overlay (light blue).
 pub const HARVEST_FLASH_COLOR: Color = Color::srgba(0.4, 0.75, 1.0, 0.7);
+/// Y-height of the harvest flash overlay circle above the ground.
+pub const HARVEST_FLASH_Y: f32 = 2.0;
+/// World-space diameter of the harvest flash overlay circle.
+pub const HARVEST_FLASH_SCALE: f32 = 20.0;
+/// Y-height of the psychic shockwave torus spawn position above the ground.
+pub const SHOCKWAVE_SPAWN_Y: f32 = 1.0;
 
 // T2: Keen Senses
 /// Drop chance multiplier when Keen Senses talent is active.

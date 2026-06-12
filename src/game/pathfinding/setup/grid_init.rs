@@ -108,11 +108,11 @@ fn register_circular_terrain(
     info!("{}: {} cells at cost {}", label, cells.len(), cost);
 }
 
-/// Continuously rebuilds all active flow fields in parallel on background threads.
+/// Seeds the attacker flow field for the first time once the Defender King spawns.
 ///
-/// Each frame, polls pending async tasks and applies completed fields. When a field
-/// has no pending rebuild, immediately spawns a new one with fresh target data.
-/// This keeps all fields constantly up-to-date without timers or thresholds.
+/// Runs once when the King entity first receives a Transform (via `Added<Transform>`).
+/// Sets up the initial pathfinding target so attackers have a valid flow field
+/// from the very first frame of gameplay.
 #[allow(clippy::type_complexity)]
 pub fn generate_initial_fields(
     mut pathfinding: ResMut<PathfindingGrid>,

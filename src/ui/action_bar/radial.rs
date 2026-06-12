@@ -120,6 +120,8 @@ pub(super) fn animate_action_bar_layout(
     let slot_h = SLOT_BUTTON_STYLE.height * scale;
     let border_px = SLOT_BUTTON_STYLE.border_width * scale;
     let padding_px = 2.0 * scale;
+    // In radial mode the icon alone identifies the spell; collapse text content.
+    let text_hidden = progress.0 > 0.5;
     let mut slot_entities: Vec<Entity> = Vec::new();
     for (entity, slot, mut node) in &mut slots {
         slot_entities.push(entity);
@@ -137,6 +139,11 @@ pub(super) fn animate_action_bar_layout(
         node.min_height = Val::Px(0.0);
         node.border = UiRect::all(Val::Px(border_px));
         node.padding = UiRect::all(Val::Px(padding_px));
+        node.justify_content = if text_hidden {
+            JustifyContent::Center
+        } else {
+            JustifyContent::SpaceBetween
+        };
     }
 
     // Action-bar slots have a 3D button structure spawned by
@@ -172,7 +179,6 @@ pub(super) fn animate_action_bar_layout(
     // hotkey glyph isn't meaningful on a controller and the spell name is
     // redundant with the icon. Collapsing both also prevents their intrinsic
     // size from overflowing the shrunken button.
-    let text_hidden = progress.0 > 0.5;
     for (mut font, mut node) in &mut name_texts {
         font.font_size = SPELL_NAME_FONT_SIZE * scale;
         node.display = if text_hidden {
@@ -189,14 +195,6 @@ pub(super) fn animate_action_bar_layout(
             Display::Flex
         };
     }
-    for (_entity, _slot, mut node) in slots.iter_mut() {
-        node.justify_content = if text_hidden {
-            JustifyContent::Center
-        } else {
-            JustifyContent::SpaceBetween
-        };
-    }
-
     for mut vis in &mut inf {
         *vis = if progress.0 > 0.05 {
             Visibility::Hidden

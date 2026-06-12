@@ -13,11 +13,8 @@ use crate::game::units::wizard::components::{CastingState, LocalWizard, Mana, Pr
 use crate::game::units::wizard::spells::utils::local_player_team;
 use crate::networking::session::MultiplayerSession;
 
-/// Blocks spell input when the mouse is interacting with a UI button so
-/// clicking a HUD button doesn't simultaneously fire a spell. With a
-/// gamepad, spells are triggered by RT (not by a UI cursor), and the hidden
-/// OS cursor may sit over a HUD button at any time — gating on mouse mode
-/// prevents those incidental hovers from silently killing RT casts.
+/// Updates the mana bar and reserved-mana bar widths to reflect the wizard's
+/// current mana and any mana reserved by active concentration spells.
 pub(crate) fn update_mana_bar(
     wizard_query: Query<&Mana, With<LocalWizard>>,
     concentration_spells: Query<&ConcentrationSpell>,

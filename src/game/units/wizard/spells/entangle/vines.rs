@@ -1,4 +1,5 @@
-//! Entangle vine effects: ground tick, root expire, mana regen, application.
+//! Entangle spell application and vine VFX: roots targets, spawns the ground-effect entity,
+//! notifies pathfinding, and manages vine torus spawning/animation/cleanup.
 
 use super::super::super::components::Wizard;
 use super::casting::apply_entangle_to_unit;

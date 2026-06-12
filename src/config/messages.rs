@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-/// Message that triggers saving the current configuration to localStorage.
+/// Message that triggers saving the current configuration to disk.
 ///
 /// Send this message when you want to manually persist the current
 /// config state immediately, bypassing the debounce timer.
@@ -10,7 +10,7 @@ pub(crate) struct SaveConfigMessage;
 /// Message that triggers debounced config save.
 ///
 /// Send this message whenever any configuration changes that should be
-/// persisted to localStorage. The ConfigPlugin will debounce these messages
-/// and save after 0.5s of inactivity.
+/// persisted to disk. The ConfigPlugin will debounce these messages
+/// and save after 2s of inactivity.
 #[derive(Message)]
 pub struct ConfigChanged;

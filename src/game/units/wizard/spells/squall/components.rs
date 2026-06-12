@@ -89,20 +89,15 @@ impl SquallStorm {
 }
 
 /// Ice projectile component - falls from the sky and explodes on impact.
-#[allow(dead_code)]
+/// All ice projectiles deal Frost damage; the explosion carries its own `damage_type` field.
 #[derive(Component)]
 pub(crate) struct IceProjectile {
     /// Current velocity of the projectile.
     pub velocity: Vec3,
     /// Damage dealt by the explosion.
     pub damage: f32,
-    /// Type of damage dealt.
-    #[allow(dead_code)]
-    pub damage_type: DamageType,
     /// Radius of the explosion.
     pub explosion_radius: f32,
-    /// Collision radius of the projectile itself.
-    pub radius: f32,
     /// Empowerment multiplier.
     pub empowerment: f32,
     /// Whether this projectile is a hailstone (larger, more damage).
@@ -117,7 +112,6 @@ impl IceProjectile {
         velocity: Vec3,
         damage: f32,
         explosion_radius: f32,
-        radius: f32,
         empowerment: f32,
         is_hailstone: bool,
         ice_age: bool,
@@ -125,9 +119,7 @@ impl IceProjectile {
         Self {
             velocity,
             damage,
-            damage_type: DamageType::Frost,
             explosion_radius,
-            radius,
             empowerment,
             is_hailstone,
             ice_age,

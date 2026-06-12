@@ -254,9 +254,6 @@ pub(super) fn spawn_controls_tab(
                     });
                 });
         });
-
-    // NOTE: The rest of this function was the old placeholder. The spawn_controls_subsection
-    // and spawn_key_binding_row helpers are defined below.
 }
 
 fn spawn_controls_subsection(

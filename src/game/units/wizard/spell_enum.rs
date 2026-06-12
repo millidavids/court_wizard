@@ -568,12 +568,11 @@ impl Spell {
     pub const fn research_cost(&self) -> u32 {
         match self {
             Spell::MagicMissile | Spell::Telekinesis | Spell::GuardianCircle | Spell::Entangle => 0,
-            // Root spells (immediately researchable)
+            // Root spells (immediately researchable, require only a default spell)
             Spell::Disintegrate => 30,
             Spell::Grease => 30,
             Spell::ChainLightning => 30,
             Spell::FingerOfDeath => 30,
-            Spell::WallOfStone => 30,
             // Second-tier (requires predecessor)
             Spell::Fireball => 50,
             Spell::MarkOfDeath => 50,
@@ -585,6 +584,7 @@ impl Spell {
             Spell::Haste => 60,
             Spell::Teleport => 60,
             // Third-tier
+            Spell::WallOfStone => 30,
             Spell::WallOfFire => 80,
             Spell::BattleHymn => 80,
             Spell::PlagueWind => 80,

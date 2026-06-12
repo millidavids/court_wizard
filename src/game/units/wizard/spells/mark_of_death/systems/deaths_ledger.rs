@@ -23,10 +23,15 @@ pub(crate) fn spawn_deaths_ledger_explosion(
     visual_assets: &SpellVisualAssets,
     materials: &mut Assets<StandardMaterial>,
 ) {
-    let pulse_material = materials
-        .get(&visual_assets.necrotic_pulse)
-        .cloned()
-        .unwrap_or_default();
+    let pulse_material = if let Some(mat) = materials.get(&visual_assets.necrotic_pulse).cloned() {
+        mat
+    } else {
+        bevy::log::warn!(
+            "spawn_deaths_ledger_explosion: necrotic_pulse material handle is invalid; \
+             explosion will render as default white material"
+        );
+        StandardMaterial::default()
+    };
     let instance = materials.add(pulse_material);
 
     commands.spawn((

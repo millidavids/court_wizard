@@ -17,7 +17,7 @@ use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::random_position_in_cell;
 
 /// Spawns a brute attacker.
-/// Brutes spawn in the archer row alongside archers.
+/// Brutes spawn at the front with infantry.
 pub(in crate::game) fn spawn_brute(
     rng: &mut impl Rng,
     mut commands: Commands,

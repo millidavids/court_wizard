@@ -79,7 +79,7 @@ pub(crate) fn spawn_fire_particle_puff(
 }
 
 /// Spawns black smoke puffs rising from a fire source.
-pub fn spawn_fire_black_smoke(
+pub(super) fn spawn_fire_black_smoke(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     position: Vec3,
@@ -113,7 +113,7 @@ pub fn spawn_fire_black_smoke(
 /// Spawns large, slow-rising dark smoke puffs using the plague-wind billboard style.
 /// These are the visible plume smoke that rises above the fire — same animation system
 /// as plague wind (`PlagueSmoke` component) but with dark gray material.
-pub fn spawn_fire_rising_smoke(
+pub(super) fn spawn_fire_rising_smoke(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     position: Vec3,

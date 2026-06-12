@@ -102,7 +102,9 @@ pub(crate) fn update_absolute_zero(
                     &mut commands,
                     entity,
                     frost_accum,
-                    FROST_PER_HIT * delta * 5.0, // continuous accumulation while in zone
+                    // Continuous frost accumulation at ~5 hits/sec equivalent
+                    // (FROST_PER_HIT * 5 per second, scaled by delta for frame-rate independence).
+                    FROST_PER_HIT * delta * 5.0,
                 );
             }
         }

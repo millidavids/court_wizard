@@ -25,7 +25,8 @@ use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::infantry::systems as infantry_systems;
 use crate::state::AppState;
 
-/// Initializes the loading progress tracker and spawn queue.
+/// Processes pending spawn tasks each frame, spawning a calculated batch of entities
+/// per frame until the queue is exhausted, then transitions to `AppState::InGame`.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn process_spawn_queue(
     mut commands: Commands,

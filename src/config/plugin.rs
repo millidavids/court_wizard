@@ -9,7 +9,7 @@ use super::systems::*;
 /// - Applies settings to Bevy components (Window, GameConfig, etc.)
 /// - **Bevy components are the single source of truth** (no duplicate state)
 /// - Implements unified debouncing for all config changes
-/// - Persists changes to disk after 0.5s of inactivity
+/// - Persists changes to disk after 2s of inactivity
 /// - Flushes all pending saves on app exit (Alt+F4, window close, etc.)
 #[derive(Default)]
 pub struct ConfigPlugin;

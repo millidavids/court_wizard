@@ -82,7 +82,8 @@ pub fn update_ray_eye_movement(
             }
         }
 
-        // Steer away from Ray when close, toward Ray when far
+        // Steer away from Ray when close, toward Ray when far.
+        // my_pos is a Vec2 in XZ world space (x→x, y→z), so my_pos.y is world-Z.
         let to_body = Vec2::new(body_pos.x - my_pos.x, body_pos.z - my_pos.y);
         let dist_to_body = to_body.length();
         let orbit_threshold = RAY_EYE_RADIUS * 4.0;

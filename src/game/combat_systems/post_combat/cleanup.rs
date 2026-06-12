@@ -18,6 +18,7 @@ use crate::game::achievements::messages::{
     CloseCallMessage, DefenderKilledBySpellMessage, EnemyKilledMessage, ScorchedEarthMessage,
 };
 use crate::game::achievements::resources::AchievementResource;
+use crate::game::units::wizard::archetypes::swordcerer::CLOSE_CALL_DISTANCE;
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn convert_dead_to_corpses(
@@ -124,7 +125,6 @@ pub fn convert_dead_to_corpses(
                 if close_call_achievement.is_locked()
                     && let Ok(wiz_transform) = wizard_query.single()
                 {
-                    use super::super::super::units::wizard::archetypes::swordcerer::CLOSE_CALL_DISTANCE;
                     let diff = transform.translation - wiz_transform.translation;
                     let xz_dist = (diff.x * diff.x + diff.z * diff.z).sqrt();
                     if xz_dist <= CLOSE_CALL_DISTANCE {

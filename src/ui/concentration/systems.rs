@@ -46,7 +46,11 @@ pub(super) fn spawn_concentration_ui(
             ))
             .id()
     } else {
-        ui_root_query.iter().next().expect("UI root exists")
+        // has_ui == true so the query is guaranteed non-empty here.
+        let Some(root) = ui_root_query.iter().next() else {
+            return;
+        };
+        root
     };
 
     // Collect which spell entities already have buttons

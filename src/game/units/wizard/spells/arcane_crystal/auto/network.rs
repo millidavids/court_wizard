@@ -48,25 +48,15 @@ pub(crate) fn crystal_network_chain(
     }
     let target_teams = crystal_target_teams(session.as_deref());
 
-    // Collect crystal positions and remembered spells for chaining
-    let crystal_data: Vec<(Entity, Vec3, f32, f32, Option<RememberedSpell>, bool)> = crystals
+    // Collect crystal identity, position, and pulse state for chaining;
+    // mutable fields (range, empowerment, spell) are re-fetched via get_mut below.
+    let crystal_data: Vec<(Entity, Vec3, Option<RememberedSpell>, bool)> = crystals
         .iter()
-        .map(|(e, c)| {
-            (
-                e,
-                c.position,
-                c.range,
-                c.empowerment,
-                c.remembered_spell,
-                c.just_absorbed,
-            )
-        })
+        .map(|(e, c)| (e, c.position, c.remembered_spell, c.just_absorbed))
         .collect();
 
     // For each crystal that just pulsed, check if nearby crystals should chain
-    for (source_entity, source_pos, _source_range, _source_emp, source_spell, source_pulsed) in
-        &crystal_data
-    {
+    for (source_entity, source_pos, source_spell, source_pulsed) in &crystal_data {
         if !source_pulsed {
             continue;
         }
@@ -74,9 +64,7 @@ pub(crate) fn crystal_network_chain(
             continue;
         };
 
-        for (target_entity, target_pos, _target_range, _target_emp, _target_spell, target_pulsed) in
-            &crystal_data
-        {
+        for (target_entity, target_pos, _target_spell, target_pulsed) in &crystal_data {
             if source_entity == target_entity || *target_pulsed {
                 continue;
             }

@@ -144,7 +144,6 @@ pub fn pull_corpses_to_cursor(
 /// Tier 3: Undead Detonation — when a raised undead with UndeadDetonation dies, explode.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_undead_detonation(
-    time: Res<Time>,
     mut commands: Commands,
     dead_query: Query<(Entity, &UndeadDetonation, &Transform), (With<RaisedUndead>, Added<Corpse>)>,
     mut targets: Query<
@@ -161,8 +160,6 @@ pub fn handle_undead_detonation(
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {
-    let _t = time.elapsed_secs();
-
     for (dead_entity, detonation, transform) in &dead_query {
         let origin = transform.translation;
 

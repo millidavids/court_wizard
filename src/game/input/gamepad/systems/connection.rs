@@ -43,7 +43,7 @@ pub(crate) fn detect_active_input_device(
         .map(|ax| gamepad.get(*ax).unwrap_or(0.0))
         .fold(0.0f32, |acc, v| acc + v * v);
 
-        let stick_active = mag_sq.sqrt() > DEVICE_SWITCH_STICK_MAGNITUDE;
+        let stick_active = mag_sq > DEVICE_SWITCH_STICK_MAGNITUDE * DEVICE_SWITCH_STICK_MAGNITUDE;
 
         if any_button || stick_active {
             let should_switch = match *active {

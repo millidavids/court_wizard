@@ -42,16 +42,16 @@ pub(crate) fn apply_battle_hymn_buff(
 
     // Tier 1 modifications
     match t1 {
-        Some(0) => duration *= 1.5,     // Inspiring Words: +50% duration
-        Some(1) => damage_bonus *= 1.5, // War Drums: +50% damage bonus
+        Some(0) => duration *= constants::INSPIRING_WORDS_DURATION_MULT, // Inspiring Words: +50% duration
+        Some(1) => damage_bonus *= constants::WAR_DRUMS_DAMAGE_MULT, // War Drums: +50% damage bonus
         // Wide Anthem radius is already applied via indicator.talent_radius_mult
         _ => {}
     }
 
     // Tier 3: Hymn of Legends doubles both bonuses (applied before Tier 2 adds effects)
     if t3 == Some(0) {
-        damage_bonus *= 2.0;
-        attack_speed *= 2.0;
+        damage_bonus *= constants::HYMN_OF_LEGENDS_MULT;
+        attack_speed *= constants::HYMN_OF_LEGENDS_MULT;
     }
 
     // Tier 2 echo duration
@@ -64,7 +64,11 @@ pub(crate) fn apply_battle_hymn_buff(
 
     // Tier 3 damage reduction
     let has_anthem_resilience = t3 == Some(1);
-    let anthem_reduction = if has_anthem_resilience { 0.3 } else { 0.0 };
+    let anthem_reduction = if has_anthem_resilience {
+        constants::ANTHEM_RESILIENCE_REDUCTION
+    } else {
+        0.0
+    };
 
     // Tier 3: Chorus of Valor ignores radius (buff all defenders)
     let ignore_radius = t3 == Some(2);
@@ -108,9 +112,9 @@ pub(crate) fn apply_battle_hymn_buff(
                     .insert(AnthemResilience::new(anthem_reduction));
             }
 
-            // Tier 2: Fortifying Hymn grants 20 temporary HP
+            // Tier 2: Fortifying Hymn grants temporary HP
             if t2 == Some(0) {
-                let temp_hp_amount = 20.0 * empowerment;
+                let temp_hp_amount = constants::FORTIFYING_HYMN_TEMP_HP * empowerment;
                 if let Some(mut temp_hp) = existing_temp_hp {
                     if temp_hp.amount < temp_hp_amount {
                         temp_hp.amount = temp_hp_amount;
@@ -123,9 +127,9 @@ pub(crate) fn apply_battle_hymn_buff(
                 }
             }
 
-            // Tier 2: Swift March grants 25% movement speed
+            // Tier 2: Swift March grants movement speed
             if t2 == Some(2) {
-                let speed_bonus = 0.25;
+                let speed_bonus = constants::SWIFT_MARCH_SPEED_BONUS;
                 if let Some(mut haste) = existing_haste {
                     haste.modifier = haste.modifier.max(speed_bonus);
                     haste.time_remaining = haste.time_remaining.max(duration);

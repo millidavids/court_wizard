@@ -17,7 +17,7 @@ pub const INFANTRY_DAMAGE_INCREASE: f32 = 1.2;
 /// Damage multiplier when assassin attacks archers (instant kill).
 pub const ASSASSIN_VS_ARCHER_DAMAGE: f32 = 1000.0;
 
-/// Assassin attack speed bonus (2.0 = 3x attack speed).
+/// Assassin attack speed bonus. Currently disabled (0.0 = no bonus).
 pub const ASSASSIN_ATTACK_SPEED_BONUS: f32 = 0.0;
 
 // ===== Health =====

@@ -264,22 +264,8 @@ fn finger_of_death_casting_logic(
 
             // Calculate beam target
             if let Some(cursor_pos) = input.cursor_pos {
-                let beam_origin =
-                    wizard_pos + Vec3::new(0.0, constants::BEAM_ORIGIN_HEIGHT_OFFSET, 0.0);
-
-                // Clamp target position to spell range
-                let to_target = cursor_pos - beam_origin;
-                let distance = to_target.length();
-                let clamped_target = if distance > wizard.spell_range {
-                    beam_origin + to_target.normalize() * wizard.spell_range
-                } else {
-                    cursor_pos
-                };
-
-                let direction = (clamped_target - beam_origin).normalize();
-                let beam_length = (clamped_target - beam_origin)
-                    .length()
-                    .min(constants::BEAM_LENGTH);
+                let (beam_origin, direction, beam_length) =
+                    compute_beam_geometry(wizard_pos, cursor_pos, wizard.spell_range);
 
                 // Calculate cast progress using talent-modified cast time
                 let cast_progress = (casting_state.progress(cast_time)).min(1.0);
@@ -319,22 +305,8 @@ fn finger_of_death_casting_logic(
 
                 // Spawn initial beam
                 if let Some(cursor_pos) = input.cursor_pos {
-                    let beam_origin =
-                        wizard_pos + Vec3::new(0.0, constants::BEAM_ORIGIN_HEIGHT_OFFSET, 0.0);
-
-                    // Clamp target position to spell range
-                    let to_target = cursor_pos - beam_origin;
-                    let distance = to_target.length();
-                    let clamped_target = if distance > wizard.spell_range {
-                        beam_origin + to_target.normalize() * wizard.spell_range
-                    } else {
-                        cursor_pos
-                    };
-
-                    let direction = (clamped_target - beam_origin).normalize();
-                    let beam_length = (clamped_target - beam_origin)
-                        .length()
-                        .min(constants::BEAM_LENGTH);
+                    let (beam_origin, direction, beam_length) =
+                        compute_beam_geometry(wizard_pos, cursor_pos, wizard.spell_range);
 
                     result.beam_action = BeamAction::SpawnBeam {
                         origin: beam_origin,
@@ -350,4 +322,26 @@ fn finger_of_death_casting_logic(
     }
 
     result
+}
+
+/// Computes beam origin, range-clamped direction, and beam length from wizard position
+/// and cursor world position.
+fn compute_beam_geometry(
+    wizard_pos: Vec3,
+    cursor_pos: Vec3,
+    spell_range: f32,
+) -> (Vec3, Vec3, f32) {
+    let beam_origin = wizard_pos + Vec3::new(0.0, constants::BEAM_ORIGIN_HEIGHT_OFFSET, 0.0);
+    let to_target = cursor_pos - beam_origin;
+    let distance = to_target.length();
+    let clamped_target = if distance > spell_range {
+        beam_origin + to_target.normalize() * spell_range
+    } else {
+        cursor_pos
+    };
+    let direction = (clamped_target - beam_origin).normalize();
+    let beam_length = (clamped_target - beam_origin)
+        .length()
+        .min(constants::BEAM_LENGTH);
+    (beam_origin, direction, beam_length)
 }

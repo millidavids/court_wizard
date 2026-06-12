@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use super::super::components::*;
+use super::super::constants::{MAX_SHIELD_HP, SHIELD_KEEPALIVE_SECS};
 use super::super::resources::CauldronBuffs;
 use crate::game::units::components::{Corpse, Effectiveness, Health, Team, TemporaryHitPoints};
 use crate::game::units::wizard::components::{LocalWizard, Mana};
@@ -206,19 +207,19 @@ pub fn shield_defenders(
         return;
     }
     let shield_amount = shield_per_second * time.delta_secs();
-    const MAX_SHIELD: f32 = 20.0;
 
     for (entity, team, temp_hp) in &mut defenders {
         if *team != Team::Defenders {
             continue;
         }
         if let Some(mut existing) = temp_hp {
-            existing.amount = (existing.amount + shield_amount).min(MAX_SHIELD);
-            existing.time_remaining = 5.0; // Keep alive while buff is active
+            existing.amount = (existing.amount + shield_amount).min(MAX_SHIELD_HP);
+            existing.time_remaining = SHIELD_KEEPALIVE_SECS; // Keep alive while buff is active
         } else {
-            commands
-                .entity(entity)
-                .insert(TemporaryHitPoints::new(shield_amount, 5.0));
+            commands.entity(entity).insert(TemporaryHitPoints::new(
+                shield_amount,
+                SHIELD_KEEPALIVE_SECS,
+            ));
         }
     }
 }

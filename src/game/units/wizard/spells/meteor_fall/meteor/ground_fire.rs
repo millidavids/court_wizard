@@ -9,7 +9,7 @@ use crate::game::units::components::{
     Health, Team, TemporaryHitPoints, apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
-use crate::game::units::wizard::spells::utils::local_player_team;
+use crate::game::units::wizard::spells::utils::{local_player_team, xz_distance};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::session::MultiplayerSession;
@@ -80,12 +80,7 @@ pub(crate) fn apply_ground_fire_damage(
             fire.time_since_last_tick = 0.0;
 
             for (entity, transform, mut health, mut temp_hp, has_spell_shield, team) in &mut units {
-                let dist = Vec3::new(
-                    fire.origin.x - transform.translation.x,
-                    0.0,
-                    fire.origin.z - transform.translation.z,
-                )
-                .length();
+                let dist = xz_distance(fire.origin, transform.translation);
 
                 if dist <= fire.radius {
                     apply_spell_damage_with_team(

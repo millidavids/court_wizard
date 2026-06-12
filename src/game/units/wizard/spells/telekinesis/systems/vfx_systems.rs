@@ -83,11 +83,11 @@ pub(super) fn apply_harvest_damage(
                 MeshMaterial3d(visual_assets.harvest_flash_material.clone()),
                 Transform::from_translation(Vec3::new(
                     transform.translation.x,
-                    2.0,
+                    constants::HARVEST_FLASH_Y,
                     transform.translation.z,
                 ))
                 .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-                .with_scale(Vec3::splat(20.0)),
+                .with_scale(Vec3::splat(constants::HARVEST_FLASH_SCALE)),
                 HarvestFlash {
                     time_remaining: constants::HARVEST_FLASH_DURATION,
                     material_cloned: false,
@@ -108,8 +108,12 @@ pub(super) fn spawn_shockwave(
     commands.spawn((
         Mesh3d(visual_assets.shockwave_torus.clone()),
         MeshMaterial3d(visual_assets.shockwave_material.clone()),
-        Transform::from_translation(Vec3::new(pickup_pos.x, 1.0, pickup_pos.z))
-            .with_scale(Vec3::splat(0.01)),
+        Transform::from_translation(Vec3::new(
+            pickup_pos.x,
+            constants::SHOCKWAVE_SPAWN_Y,
+            pickup_pos.z,
+        ))
+        .with_scale(Vec3::splat(0.01)),
         PsychicShockwave {
             time_alive: 0.0,
             prev_radius: 0.0,

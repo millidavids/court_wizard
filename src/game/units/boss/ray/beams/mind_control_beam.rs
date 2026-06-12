@@ -16,7 +16,7 @@ use crate::game::units::king::components::King;
 use crate::game::units::wizard::spells::audio::SpellSfxAssets;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
-/// Attenuated volume for Ray's sound effects — slight falloff from wizard/camera position.
+/// Manages Ray's mind-control beam sweep: channels, fires, and applies MindControlled to hit units.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn ray_mind_control_beam(
     time: Res<Time>,

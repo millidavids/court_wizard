@@ -1,6 +1,7 @@
 //! Ice explosion updates, frozen ground ticking, and storm-ring reticle.
 
 use bevy::prelude::*;
+use rand::Rng;
 
 use super::super::casting::apply_frost_accumulation;
 use super::super::components::{FrozenGround, IceExplosion, SquallStorm, SquallStormRing};
@@ -90,7 +91,6 @@ pub(crate) fn update_ice_explosions(
             && curr_tick > prev_tick
             && explosion.time_alive < EXPLOSION_LIFETIME
         {
-            use rand::Rng;
             let dir = Vec3::new(
                 game_rng.0.random_range(-1.0..1.0_f32),
                 game_rng.0.random_range(0.2..1.0_f32),

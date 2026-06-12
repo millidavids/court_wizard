@@ -25,11 +25,13 @@ pub const CAULDRON_2_POSITION: Vec3 = Vec3::new(
 /// on its wall ledge (the same spot as the host's single-player cauldron). Used by
 /// BOTH the co-op host (SP loading path) and the co-op guest so neither peer sees
 /// it move; the guest stands further along the wall to its right.
-pub const CAULDRON_COOP_POSITION: Vec3 = Vec3::new(
-    WIZARD_POSITION.x + CAULDRON_OFFSET.x,
-    WIZARD_POSITION.y + CAULDRON_OFFSET.y,
-    WIZARD_POSITION.z + CAULDRON_OFFSET.z,
-);
+pub const CAULDRON_COOP_POSITION: Vec3 = CAULDRON_POSITION;
+
+/// Maximum temporary hit points a defender can hold from the cauldron shield buff.
+pub(in crate::game::cauldron) const MAX_SHIELD_HP: f32 = 20.0;
+
+/// Duration (seconds) a shield component stays alive while the cauldron buff is active.
+pub(in crate::game::cauldron) const SHIELD_KEEPALIVE_SECS: f32 = 5.0;
 
 /// Total duration of the brew bubble effect (seconds).
 pub const BREW_BUBBLE_DURATION: f32 = 1.0;

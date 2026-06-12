@@ -10,6 +10,11 @@ pub(crate) const MAX_SEED: u64 = 10_000_000_000;
 /// Maximum number of characters in the seed input field.
 pub(crate) const MAX_SEED_CHARS: usize = 10;
 
+/// Border color for the seed input box when it is not focused.
+pub(crate) const SEED_BORDER_UNFOCUSED: Color = Color::hsla(270.0, 0.35, 0.35, 1.0);
+/// Border color for the seed input box when it is focused / active.
+pub(crate) const SEED_BORDER_FOCUSED: Color = Color::hsla(270.0, 0.65, 0.55, 1.0);
+
 /// Text color for modifier labels.
 pub(crate) const LABEL_COLOR: Color = TEXT_PRIMARY;
 

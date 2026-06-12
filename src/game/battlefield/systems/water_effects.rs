@@ -12,8 +12,6 @@ pub fn emit_water_ripples(
     time: Res<Time>,
     mut timer: Local<f32>,
 ) {
-    let assets = ripple_assets;
-
     *timer += time.delta_secs();
     if *timer < WATER_RIPPLE_INTERVAL {
         return;
@@ -42,7 +40,7 @@ pub fn emit_water_ripples(
     });
 
     commands.spawn((
-        Mesh3d(assets.mesh.clone()),
+        Mesh3d(ripple_assets.mesh.clone()),
         MeshMaterial3d(mat),
         Transform::from_xyz(x, WATER_POOL_POSITION.y + 2.0, z)
             .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))

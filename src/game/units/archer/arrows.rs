@@ -12,7 +12,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
-/// Updates archer movement timers to track time since stopped moving.
+/// Spawns an arrow projectile entity at `origin` aimed at `target`.
 pub(in crate::game) fn spawn_arrow(
     rng: &mut impl Rng,
     commands: &mut Commands,
@@ -175,14 +175,8 @@ pub fn check_arrow_collisions(
             is_assassin,
         ) in &mut targets
         {
-            // Skip same team
-            if *team == arrow.source_team {
-                continue;
-            }
-
-            let is_enemy = arrow.source_team.is_enemy(team);
-
-            if !is_enemy {
+            // Skip non-enemies (same team, or Undead-vs-Undead)
+            if !arrow.source_team.is_enemy(team) {
                 continue;
             }
 

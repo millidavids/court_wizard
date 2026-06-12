@@ -109,7 +109,6 @@ pub fn handle_wall_of_fire_casting(
         && caster.preview_entity.is_none()
         && let Some(pos) = clamped_pos
     {
-        let preview_height = 10.0;
         let preview_entity = commands
             .spawn((
                 Mesh3d(visual_assets.unit_cuboid.clone()),
@@ -120,9 +119,12 @@ pub fn handle_wall_of_fire_casting(
                     cull_mode: None,
                     ..default()
                 })),
-                Transform::from_xyz(pos.x, preview_height / 2.0 + 1.0, pos.z).with_scale(
-                    Vec3::new(0.0, preview_height, WALL_WIDTH * talent_params.width_mult),
-                ),
+                Transform::from_xyz(pos.x, constants::WALL_RENDER_HEIGHT / 2.0 + 1.0, pos.z)
+                    .with_scale(Vec3::new(
+                        0.0,
+                        constants::WALL_RENDER_HEIGHT,
+                        WALL_WIDTH * talent_params.width_mult,
+                    )),
                 WallOfFirePreview,
                 OnGameplayScreen,
             ))
@@ -146,13 +148,16 @@ pub fn handle_wall_of_fire_casting(
             let forward = diff.normalize();
             let center = anchor + forward * (length / 2.0);
             let rotation = Quat::from_rotation_arc(Vec3::X, forward);
-            let preview_height = 10.0;
             let preview_width = WALL_WIDTH * talent_params.width_mult;
 
-            preview_transform.translation =
-                Vec3::new(center.x, preview_height / 2.0 + 1.0, center.z);
+            preview_transform.translation = Vec3::new(
+                center.x,
+                constants::WALL_RENDER_HEIGHT / 2.0 + 1.0,
+                center.z,
+            );
             preview_transform.rotation = rotation;
-            preview_transform.scale = Vec3::new(length, preview_height, preview_width);
+            preview_transform.scale =
+                Vec3::new(length, constants::WALL_RENDER_HEIGHT, preview_width);
         }
     }
 

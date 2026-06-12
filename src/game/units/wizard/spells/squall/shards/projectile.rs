@@ -15,7 +15,7 @@ use crate::game::units::wizard::spells::visual_assets::{
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
 
-/// Applies or inserts a [`SlowMovementModifier`] on an entity.
+/// Spawns ice projectiles from active squall storms.
 pub(crate) fn spawn_ice_projectiles(
     time: Res<Time>,
     mut commands: Commands,
@@ -75,7 +75,6 @@ pub(crate) fn spawn_ice_projectiles(
                     Vec3::new(0.0, ICE_INITIAL_VELOCITY, 0.0),
                     damage,
                     explosion_radius,
-                    ICE_PROJECTILE_RADIUS,
                     storm.empowerment,
                     is_hailstone,
                     storm.talent_params.ice_age,

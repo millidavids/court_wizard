@@ -17,7 +17,7 @@ pub use plugin::WizardTowerPlugin;
 // Re-exports for tutorial system
 pub(crate) use components::{
     InsightDisplay, LevelDisplay, SpellGraphArea, StudyButtonAction, StudyDetailPanel,
-    TimeTravelContainer, WizardTowerButtonAction,
+    TimeTravelContainer,
 };
 pub(crate) use components::{SelectedStudySpell, StudyAllocAdjustButton, TalentCard};
 pub(crate) use layout::{

@@ -329,10 +329,10 @@ pub(super) fn handle_desaturation_message(
     }
 }
 
-/// Projects active black hole positions to viewport-local UV space for gravitational lensing.
+/// Handles an incoming `ScreenFlashMessage`, inserting or replacing the `ScreenFlashTimer`
+/// resource so the flash animation plays from the beginning.
 ///
-/// The CRT shader operates in viewport-local UV (0–1 within the letterboxed region),
-/// so we must convert from full-window UV to local UV using the viewport offset/size.
+/// A new flash always takes priority over an in-progress one.
 pub(super) fn handle_screen_flash_message(
     mut commands: Commands,
     mut messages: MessageReader<ScreenFlashMessage>,

@@ -8,6 +8,12 @@ use super::states::{
 /// Logs AppState transitions for debugging.
 ///
 /// Only enabled in debug builds.
+///
+/// Note: `AppState` is always present (it is the root state, initialised in
+/// `StatePlugin::build`), so `Res<State<AppState>>` is used here instead of
+/// `Option<Res<...>>`. All sub-states (`MenuState`, `InGameState`, etc.) are
+/// only present when their parent state is active, which is why those logging
+/// functions use `Option<Res<...>>`.
 #[cfg(debug_assertions)]
 pub(super) fn log_app_state_transitions(app_state: Res<State<AppState>>) {
     if app_state.is_changed() {

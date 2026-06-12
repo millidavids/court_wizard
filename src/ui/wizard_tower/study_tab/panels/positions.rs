@@ -1,8 +1,11 @@
 use bevy::prelude::*;
 
+use crate::config::save_data::load_unified_save;
+use crate::game::units::wizard::components::Spell;
+
 use super::super::super::components::*;
 use super::super::super::constants::*;
-use super::helpers::{clip_line_to_rect, graph_to_screen, is_prereq_met, is_spell_unlocked};
+use super::helpers::{clip_line_to_rect, graph_to_screen};
 
 /// Updates the screen position of all graph nodes based on pan/zoom state.
 pub(crate) fn update_graph_node_positions(
@@ -35,19 +38,31 @@ pub(crate) fn update_graph_node_positions(
     }
 }
 
+/// Returns true if the given spell name is present in the provided unlocked list.
+fn spell_name_in_list(spell: Spell, unlocked: &[String]) -> bool {
+    let name = format!("{:?}", spell);
+    unlocked.contains(&name)
+}
+
 /// Updates border colors on spell nodes based on the selected spell.
-/// Only runs when selection changes, avoiding per-frame save data loads.
+/// Loads save data once per invocation (the system is change-detection gated).
 pub(crate) fn update_graph_node_borders(
     selected: Res<SelectedStudySpell>,
     mut border_query: Query<(&mut BorderColor, &SpellGraphNode)>,
 ) {
+    // Load save data once for the whole pass rather than once per node.
+    let save = load_unified_save();
+    let unlocked_names: Vec<String> = save
+        .map(|s| s.player.unlocked_content.spells)
+        .unwrap_or_default();
+
     for (mut border_color, graph_node) in &mut border_query {
         if selected.0 == Some(graph_node.spell) {
             *border_color = BorderColor::all(GRAPH_NODE_SELECTED_BORDER);
         } else {
             let spell = graph_node.spell;
-            let unlocked = is_spell_unlocked(spell);
-            let prereq_met = is_prereq_met(spell);
+            let unlocked = spell_name_in_list(spell, &unlocked_names);
+            let prereq_met = spell_prereq_met(spell, &unlocked_names);
             let cost = spell.research_cost();
             let is_free = cost == 0;
 
@@ -61,6 +76,33 @@ pub(crate) fn update_graph_node_borders(
             *border_color = BorderColor::all(border);
         }
     }
+}
+
+/// Returns true if a spell's prerequisite is met, given a pre-loaded unlocked list.
+fn spell_prereq_met(spell: Spell, unlocked: &[String]) -> bool {
+    if let Some(prereq) = spell.prerequisite() {
+        let prereq_name = format!("{:?}", prereq);
+        if !unlocked.contains(&prereq_name) {
+            return false;
+        }
+    }
+
+    let required = spell.required_total_spells();
+    if required > 0 {
+        let researched = unlocked
+            .iter()
+            .filter(|name| {
+                Spell::researchable()
+                    .iter()
+                    .any(|s| &format!("{:?}", s) == *name)
+            })
+            .count() as u32;
+        if researched < required {
+            return false;
+        }
+    }
+
+    true
 }
 
 /// Updates graph edge segment positions based on pan/zoom state.

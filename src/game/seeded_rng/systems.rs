@@ -5,7 +5,7 @@ use super::resources::{GameRng, GameSeed};
 use crate::config::GameConfig;
 
 /// Initializes the GameSeed and GameRng resources from config or generates a random seed.
-pub fn init_game_seed(mut commands: Commands, config: Res<GameConfig>) {
+pub(super) fn init_game_seed(mut commands: Commands, config: Res<GameConfig>) {
     let seed = config
         .seed
         .unwrap_or_else(|| rand::rng().random_range(0..u64::MAX));

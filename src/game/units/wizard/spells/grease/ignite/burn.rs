@@ -19,7 +19,7 @@ use crate::game::units::wizard::talents::resources::BattleTalentProgress;
 use crate::networking::session::MultiplayerSession;
 use bevy::prelude::*;
 
-/// Helper to write an obstacle event for a grease zone.
+/// Scans fire sources and ignites non-ignited grease zones on contact, applying burst damage and talent effects.
 #[allow(clippy::too_many_arguments)]
 pub fn check_grease_ignition(
     mut commands: Commands,

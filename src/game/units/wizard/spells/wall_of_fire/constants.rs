@@ -12,6 +12,7 @@ pub const PRIMED_WALL_OF_FIRE: PrimedSpell = PrimedSpell {
 };
 
 pub const MANA_COST: f32 = 35.0;
+pub(crate) const WALL_RENDER_HEIGHT: f32 = 10.0;
 pub const MIN_WALL_LENGTH: f32 = 20.0;
 pub const MAX_WALL_LENGTH: f32 = 600.0;
 pub const WALL_WIDTH: f32 = 60.0;

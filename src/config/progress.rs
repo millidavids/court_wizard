@@ -146,7 +146,7 @@ fn compute_signature(data: &ProgressData) -> String {
     to_hex(hash)
 }
 
-/// Loads and verifies progress from localStorage.
+/// Loads and verifies progress from disk.
 /// Returns None if missing, tampered, or invalid.
 pub(crate) fn load_verified_progress() -> Option<ProgressData> {
     let contents = storage::load_progress().ok()?;

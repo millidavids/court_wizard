@@ -63,6 +63,9 @@ pub(crate) fn detect_beam_hits(
             crystal.mark_absorption();
             crystal.remembered_spell = Some(RememberedSpell::Disintegrate);
             crystal.auto_cast_timer = 0.0;
+            // Intentionally does NOT call increment_resonance() or progress.increment() here:
+            // disintegrate hits run every frame while the beam is channeled, so tracking
+            // them per-frame would over-count. Progress is tracked via the beam's own systems.
 
             // Clean up beam groups whose entities were despawned externally
             crystal.active_beams.retain(|(beam_entities, _)| {

@@ -131,7 +131,7 @@ pub fn update_beam_eclipse(
         .iter()
         .next()
         .map(|w| w.spell_range)
-        .unwrap_or(500.0);
+        .unwrap_or(constants::ECLIPSE_FALLBACK_SPELL_RANGE);
 
     for (eclipse, mut transform) in eclipse_query.iter_mut() {
         let Ok(beam) = beam_query.get(eclipse.beam_entity) else {

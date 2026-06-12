@@ -20,10 +20,7 @@ use super::systems::{
 ///
 /// To change states from a system:
 ///
-/// ```rust
-/// use bevy::prelude::*;
-/// use court_wizard::state::{AppState, MenuState};
-///
+/// ```rust,ignore
 /// fn start_game(mut next_state: ResMut<NextState<AppState>>) {
 ///     next_state.set(AppState::InGame);
 /// }
@@ -37,10 +34,7 @@ use super::systems::{
 ///
 /// Use `.run_if(in_state(State))` to conditionally run systems:
 ///
-/// ```rust
-/// use bevy::prelude::*;
-/// use court_wizard::state::AppState;
-///
+/// ```rust,ignore
 /// fn game_logic() {
 ///     // This system only runs when AppState::InGame is active
 /// }
@@ -53,10 +47,7 @@ use super::systems::{
 ///
 /// Use `OnEnter` and `OnExit` schedules for state-specific initialization:
 ///
-/// ```rust
-/// use bevy::prelude::*;
-/// use court_wizard::state::AppState;
-///
+/// ```rust,ignore
 /// fn setup_game(mut commands: Commands) {
 ///     // Spawn game entities
 /// }

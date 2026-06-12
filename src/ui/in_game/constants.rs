@@ -58,6 +58,13 @@ pub const HAG_JUSTINA_BAR_COLOR: Color = Color::srgba(0.9, 0.4, 0.1, 0.8);
 pub const HAG_MARTINA_BAR_COLOR: Color = Color::srgba(0.5, 0.15, 0.7, 0.8);
 pub const HAG_JOSEPHINA_BAR_COLOR: Color = Color::srgba(0.25, 0.75, 0.2, 0.8);
 
+/// Ray eye health bar section colors (per eye type).
+pub const RAY_EYE_PETRIFICATION_COLOR: Color = Color::srgb(0.7, 0.7, 0.7);
+pub const RAY_EYE_DISINTEGRATION_COLOR: Color = Color::srgb(1.0, 0.6, 0.1);
+pub const RAY_EYE_FEAR_COLOR: Color = Color::srgb(0.6, 0.0, 0.8);
+pub const RAY_EYE_MIND_CONTROL_COLOR: Color = Color::srgb(1.0, 0.3, 0.6);
+pub const RAY_EYE_TELEPORTATION_COLOR: Color = Color::srgb(0.0, 1.0, 0.7);
+
 /// Gap between hag health bar sections.
 pub const HAG_BAR_SECTION_GAP: f32 = 3.0;
 

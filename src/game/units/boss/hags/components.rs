@@ -16,7 +16,7 @@ pub enum HagIdentity {
 }
 
 /// Tracks which magical eyes this hag currently holds.
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct HagEyeState {
     /// Holds the invulnerability eye (damage is negated while held).
     pub has_invulnerability_eye: bool,
@@ -26,10 +26,7 @@ pub struct HagEyeState {
 
 impl HagEyeState {
     pub fn new() -> Self {
-        Self {
-            has_invulnerability_eye: false,
-            has_ability_eye: false,
-        }
+        Self::default()
     }
 }
 

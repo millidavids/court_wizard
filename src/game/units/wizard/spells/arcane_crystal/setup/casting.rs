@@ -125,8 +125,8 @@ pub(crate) fn handle_arcane_crystal_casting(
         let talent_params = compute_talent_params(active_talents.as_deref());
 
         if talent_params.auto_crystal {
-            // Auto-Crystal (turret): only 1 non-permanent crystal allowed per level.
-            // Count crystals placed this level (non-permanent ones).
+            // Auto-Crystal (turret): only 1 permanent turret crystal allowed per level.
+            // Count permanent crystals already placed this level.
             let placed_this_level = existing_crystals
                 .iter()
                 .filter(|(_, c)| !c.permanent)
@@ -150,7 +150,7 @@ pub(crate) fn handle_arcane_crystal_casting(
                 commands.entity(crystal_entity).try_despawn();
             }
         } else {
-            // Crystal Network: allow up to 3 crystals; despawn oldest if at limit
+            // Crystal Network: allow up to 3 crystals; despawn an arbitrary one if at limit
             let count = existing_crystals.iter().count();
             if count >= CRYSTAL_NETWORK_MAX_CRYSTALS
                 && let Some((oldest, _)) = existing_crystals.iter().next()

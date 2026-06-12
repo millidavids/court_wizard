@@ -23,7 +23,10 @@ pub(crate) enum ModifierSliderValue {
 }
 
 impl ModifierSliderValue {
-    pub fn get(&self, modifiers: &crate::game::game_mode::components::RogueliteModifiers) -> f32 {
+    pub(crate) fn get(
+        &self,
+        modifiers: &crate::game::game_mode::components::RogueliteModifiers,
+    ) -> f32 {
         match self {
             Self::GameSpeed => modifiers.game_speed,
             Self::EnemyEffectiveness => modifiers.enemy_effectiveness,
@@ -32,7 +35,7 @@ impl ModifierSliderValue {
         }
     }
 
-    pub fn set(
+    pub(crate) fn set(
         &self,
         modifiers: &mut crate::game::game_mode::components::RogueliteModifiers,
         value: f32,
@@ -45,19 +48,19 @@ impl ModifierSliderValue {
         }
     }
 
-    pub fn min_value(&self) -> f32 {
+    pub(crate) fn min_value(&self) -> f32 {
         0.2
     }
 
-    pub fn max_value(&self) -> f32 {
+    pub(crate) fn max_value(&self) -> f32 {
         3.0
     }
 
-    pub fn step(&self) -> f32 {
+    pub(crate) fn step(&self) -> f32 {
         0.1
     }
 
-    pub fn label(&self) -> &'static str {
+    pub(crate) fn label(&self) -> &'static str {
         match self {
             Self::GameSpeed => "Wave Speed",
             Self::EnemyEffectiveness => "Enemy Strength",

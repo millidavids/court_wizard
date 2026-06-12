@@ -23,9 +23,6 @@ pub(crate) fn update_detail_panel_on_selection_change(
     children_query: Query<&Children>,
     stone_query: Query<(), With<StoneSelectorPanel>>,
 ) {
-    if !selection.is_changed() {
-        return;
-    }
     let Ok(panel_entity) = detail_panel.single() else {
         return;
     };

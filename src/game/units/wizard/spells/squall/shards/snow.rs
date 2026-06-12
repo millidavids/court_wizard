@@ -21,9 +21,8 @@ pub(crate) fn spawn_snow_particles(
 
     for storm in storms.iter() {
         // Check spawn interval using elapsed time
-        let interval = SNOW_SPAWN_INTERVAL;
-        let spawn_check = (time_secs / interval) as u32;
-        let prev_check = ((time_secs - time.delta_secs()) / interval) as u32;
+        let spawn_check = (time_secs / SNOW_SPAWN_INTERVAL) as u32;
+        let prev_check = ((time_secs - time.delta_secs()) / SNOW_SPAWN_INTERVAL) as u32;
         if spawn_check == prev_check {
             continue;
         }

@@ -15,7 +15,8 @@ use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
 
-/// Computes talent parameters from active talent selections.
+/// Detects newly-spawned corpses inside an active Font of Life zone and
+/// marks them for delayed resurrection via `FontOfLifePending`.
 pub fn font_of_life_detect_deaths(
     mut commands: Commands,
     mut zones: Query<(Entity, &HealingPlumeZone, &mut FontOfLifeZone)>,

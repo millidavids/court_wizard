@@ -1,1 +1,1 @@
-//! Re-export hub for loading systems split into init.rs + queue.rs (Phase 18).
+//! Placeholder module — loading systems live in `init/` and `queue/`.

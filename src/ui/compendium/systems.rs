@@ -1,4 +1,4 @@
-//! Re-export hub for compendium systems split (Phase 16).
+//! Compendium systems and re-exports from the setup sub-module.
 
 pub(super) use super::setup::*;
 

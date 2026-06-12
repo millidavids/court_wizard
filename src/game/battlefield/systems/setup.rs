@@ -107,6 +107,8 @@ pub fn setup_battlefield(
         // Sand underlay (circular blend around the pond)
         let sand_size = WATER_POOL_RADIUS * 3.5;
         let sand_mesh = Rectangle::new(sand_size, sand_size);
+        // +100.0 / -100.0 offsets nudge the sand patch slightly toward the castle
+        // to align the circular blend center with the visual pond art.
         let sand_material = stone_materials.add(StoneNoiseMaterial {
             dark_color: Vec4::new(0.55, 0.45, 0.30, 1.0),
             light_color: Vec4::new(0.75, 0.65, 0.48, 1.0),
@@ -152,8 +154,8 @@ pub fn setup_battlefield(
         commands.spawn((
             Mesh3d(meshes.add(stone_mesh)),
             MeshMaterial3d(stone_material),
-            // Center further from camera than wall_floor (Z=-1000) so transparent
-            // sort order puts this behind the wall floor.
+            // Centered at Z=-1500 (further from camera than wall_floor at Z=-1000) so
+            // the transparent wall_floor sorts on top of this opaque underlay.
             origin_transform
                 * Transform::from_xyz(WALL_FLOOR_POSITION.x, 0.5, -1500.0)
                     .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),

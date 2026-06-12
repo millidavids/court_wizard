@@ -1,4 +1,4 @@
-//! Post-combat reactions: invulnerability and corpse conversion.
+//! Post-combat reactions: corpse conversion (cleanup.rs) and invulnerability enforcement (death_conversion.rs).
 
 mod cleanup;
 mod death_conversion;

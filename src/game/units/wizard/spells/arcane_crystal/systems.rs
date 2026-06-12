@@ -1,4 +1,4 @@
-//! Re-export hub for arcane_crystal systems split (Phase 14).
+//! Re-export hub for arcane_crystal sub-module systems.
 
 pub(super) use super::auto::*;
 pub(super) use super::hits::*;

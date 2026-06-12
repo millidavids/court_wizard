@@ -1,7 +1,7 @@
 //! Compact binary snapshot format for multiplayer state synchronization.
 //!
 //! The host serializes the game state into a `GameSnapshot` each frame and
-//! sends it over the unreliable WebRTC data channel. The guest deserializes
+//! sends it over the unreliable iroh/QUIC datagram channel. The guest deserializes
 //! and renders ghost entities from the snapshot data.
 
 mod cast_event;

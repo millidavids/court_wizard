@@ -51,16 +51,7 @@ impl KillStats {
     }
 
     pub fn reset(&mut self) {
-        self.defenders_killed = 0;
-        self.attackers_killed = 0;
-        self.undead_killed = 0;
-        self.defenders_killed_by_spell = 0;
-        self.total_attackers_spawned = 0;
-        self.elapsed_time = 0.0;
-        self.first_defender_death_time = None;
-        self.king_killed_by_spell = false;
-        self.wizard_damaged_enemies = false;
-        self.battle_started = false;
+        *self = Self::default();
     }
 }
 

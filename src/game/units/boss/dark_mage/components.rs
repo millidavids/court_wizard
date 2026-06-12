@@ -54,16 +54,14 @@ impl DarkMageSpellCooldowns {
 }
 
 /// Queue of spells ready to cast.
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct DarkMageSpellQueue {
     pub queue: VecDeque<DarkMageSpellType>,
 }
 
 impl DarkMageSpellQueue {
     pub fn new() -> Self {
-        Self {
-            queue: VecDeque::new(),
-        }
+        Self::default()
     }
 }
 
@@ -136,12 +134,18 @@ pub struct DarkMageEnrage {
     pub cooldown_mult: f32,
 }
 
-impl DarkMageEnrage {
-    pub fn new() -> Self {
+impl Default for DarkMageEnrage {
+    fn default() -> Self {
         Self {
             phase: 0,
             cooldown_mult: 1.0,
         }
+    }
+}
+
+impl DarkMageEnrage {
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 

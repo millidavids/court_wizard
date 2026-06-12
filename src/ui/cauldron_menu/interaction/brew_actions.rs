@@ -7,7 +7,8 @@ use crate::game::cauldron::messages::{CancelBrewMessage, StartBrewMessage};
 use crate::game::input::messages::MouseClicked;
 use crate::state::{InGameState, MultiplayerGameState};
 
-/// Spawns the cauldron menu UI when entering the CauldronMenu state.
+/// Handles cauldron menu button clicks: starts or cancels a brew, or closes
+/// the menu when the back/close button is pressed.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn button_action(
     mut button_clicked: MessageReader<MouseClicked>,

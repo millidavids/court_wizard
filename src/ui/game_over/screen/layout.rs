@@ -16,10 +16,10 @@ use crate::ui::systems::{spawn_button, spawn_page_container, spawn_title_with_sh
 use super::super::components::*;
 use super::super::constants::*;
 
-/// Saves efficiency for current level to config when entering game over screen.
+/// Spawns the game-over / score screen UI.
 ///
-/// This system runs on OnEnter(InGameState::ScoreScreen) BEFORE setup_game_over_screen
-/// to save efficiency, but DOES NOT update the level yet (that happens after UI displays).
+/// Runs on `OnEnter(InGameState::ScoreScreen)` and `OnEnter(MultiplayerGameState::ScoreScreen)`.
+/// Displays outcome (victory/defeat), kill stats, insight earned, and seed.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn setup_game_over_screen(
     mut commands: Commands,

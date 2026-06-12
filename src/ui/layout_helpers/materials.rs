@@ -85,6 +85,12 @@ impl FrostedGlassMaterial {
     }
 }
 
+impl Default for FrostedGlassMaterial {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Scales a font size down based on text width to fit within a constrained area.
 ///
 /// Returns `base_font` when `max_width <= min_chars`, scaling linearly down to

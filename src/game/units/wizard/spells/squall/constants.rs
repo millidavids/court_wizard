@@ -23,9 +23,6 @@ pub const ICE_INITIAL_VELOCITY: f32 = -100.0;
 /// Gravity acceleration applied to falling ice projectiles.
 pub const ICE_GRAVITY: f32 = -500.0;
 
-/// Radius of the ice projectile for collision detection.
-pub const ICE_PROJECTILE_RADIUS: f32 = 5.0;
-
 /// Visual radius of the ice projectile mesh.
 pub const ICE_PROJECTILE_MESH_RADIUS: f32 = 8.0;
 

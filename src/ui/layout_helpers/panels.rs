@@ -161,8 +161,9 @@ pub fn spawn_right_scroll_panel<M: Component>(
 /// The border color, background, border-radius, and shadow are applied
 /// automatically.
 ///
-/// When `pause_menu` is true, `GlobalZIndex(500)` is added so the page
-/// renders above in-game UI.
+/// When `pause_menu` is true, `GlobalZIndex(1000)` is added so the page
+/// renders above all other UI (e.g., spell book / cauldron menus). When
+/// `pause_menu` is false, `GlobalZIndex(500)` is used instead.
 pub fn spawn_page_container<M: Component>(
     commands: &mut Commands,
     screen_marker: M,

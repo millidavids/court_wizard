@@ -77,12 +77,16 @@ impl Plugin for UnitsPlugin {
             .add_systems(
                 Update,
                 (
-                    systems::update_timed_modifier::<TemporaryHitPoints>,
-                    systems::update_timed_modifier::<SlowMovementModifier>,
+                    systems::update_timed_modifier::<TemporaryHitPoints>
+                        .run_if(any_with_component::<TemporaryHitPoints>),
+                    systems::update_timed_modifier::<SlowMovementModifier>
+                        .run_if(any_with_component::<SlowMovementModifier>),
                     systems::update_frost_accumulation
                         .run_if(any_with_component::<FrostAccumulation>),
-                    systems::update_timed_modifier::<RootedModifier>,
-                    systems::update_timed_modifier::<HasteModifier>,
+                    systems::update_timed_modifier::<RootedModifier>
+                        .run_if(any_with_component::<RootedModifier>),
+                    systems::update_timed_modifier::<HasteModifier>
+                        .run_if(any_with_component::<HasteModifier>),
                     systems::update_timed_modifier::<Stunned>.run_if(any_with_component::<Stunned>),
                     movement::zero_velocity_for::<Stunned>
                         .after(MovementCalculationSet)

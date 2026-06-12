@@ -47,10 +47,17 @@ pub(crate) fn wall_transform(start: Vec3, end: Vec3, half_width: f32) -> Transfo
     let wall_len = start.distance(end);
     let center = start + wall_dir * (wall_len / 2.0);
     let rotation = Quat::from_rotation_arc(Vec3::X, wall_dir);
-    let preview_height = 10.0;
-    Transform::from_xyz(center.x, preview_height / 2.0 + 1.0, center.z)
-        .with_rotation(rotation)
-        .with_scale(Vec3::new(wall_len, preview_height, half_width * 2.0))
+    Transform::from_xyz(
+        center.x,
+        super::super::constants::WALL_RENDER_HEIGHT / 2.0 + 1.0,
+        center.z,
+    )
+    .with_rotation(rotation)
+    .with_scale(Vec3::new(
+        wall_len,
+        super::super::constants::WALL_RENDER_HEIGHT,
+        half_width * 2.0,
+    ))
 }
 
 /// Spawns fire sparks and looping SFX along a wall segment.

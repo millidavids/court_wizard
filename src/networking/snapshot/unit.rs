@@ -8,7 +8,6 @@ use crate::game::units::components::{Health, Team};
 
 use crate::networking::entity_map::NetworkEntityId;
 
-/// Per-unit state with CRDT health data (~37 bytes).
 /// Per-unit network snapshot.
 ///
 /// **HP via CRDT, not via `health_pct`:** the CRDT damage[2]/healing[2]

@@ -69,9 +69,9 @@ pub struct MouseClicked {
     pub button: Entity,
 }
 
-/// Message sent when a number key (1-10, using 0 for 10) is pressed.
+/// Message sent when a number key is pressed to select an action bar slot.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct ActionBarKeyPressed {
-    /// The action bar slot (0-9, where 0 represents the 10th slot).
+    /// The action bar slot index (0-based). Currently binds slots 0–4 (5 slots total).
     pub slot: u8,
 }

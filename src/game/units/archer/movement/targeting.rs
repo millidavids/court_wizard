@@ -9,7 +9,7 @@ use crate::game::units::components::{BanishedModifier, Corpse, Team};
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
-/// Updates archer movement timers to track time since stopped moving.
+/// Sets the targeting velocity for archers, steering them toward or away from enemies.
 pub fn update_archer_targeting(
     defenders_activated: Res<DefendersActivated>,
     mut commands: Commands,

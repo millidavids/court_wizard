@@ -217,11 +217,10 @@ pub(crate) fn spawn_lightning_strike(
 
     // Vertical lightning bolt striking down from sky along the corridor
     // Spawn several bolts along the corridor length for visual impact
-    let bolt_count = 3;
-    let step = LIGHTNING_CORRIDOR_LENGTH / (bolt_count as f32 + 1.0);
+    let step = LIGHTNING_CORRIDOR_LENGTH / (LIGHTNING_BOLT_COUNT as f32 + 1.0);
     let corridor_start = target_pos - direction * (LIGHTNING_CORRIDOR_LENGTH / 2.0);
 
-    for i in 1..=bolt_count {
+    for i in 1..=LIGHTNING_BOLT_COUNT {
         let pos = corridor_start + direction * (step * i as f32);
         commands.spawn((
             Mesh3d(spell_assets.cross_plane_cylinder.clone()),

@@ -116,6 +116,8 @@ pub const LIGHTNING_DAMAGE: f32 = 40.0;
 pub const LIGHTNING_STRIKE_DURATION: f32 = 0.5;
 /// Height of the lightning bolt visual (tall enough to originate off-camera).
 pub const LIGHTNING_BOLT_HEIGHT: f32 = 2000.0;
+/// Number of lightning bolt visuals spawned along the corridor.
+pub const LIGHTNING_BOLT_COUNT: usize = 3;
 
 // ===== Plague Cloud =====
 

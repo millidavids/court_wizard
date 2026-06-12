@@ -8,7 +8,7 @@ use crate::game::run_conditions::{
 use crate::state::{AppState, InGameState, MultiplayerGameState};
 use crate::ui::plugin::ButtonActionSet;
 
-use super::components::{RetreatFlash, ShieldFellFlash};
+use super::components::{BossHealthBarRoot, RetreatFlash, ShieldFellFlash};
 use super::setup_banner;
 use super::systems;
 
@@ -125,14 +125,16 @@ impl Plugin for InGamePlugin {
                 )
                     .run_if(is_local_wizard_active),
             )
-            // Boss health bar: spawn when boss appears, update each frame
+            // Boss health bar: spawn when boss appears (skip once bar is up), update each frame
             .add_systems(
                 Update,
-                (
-                    systems::spawn_boss_health_bar,
-                    systems::update_boss_health_bar,
-                )
-                    .run_if(is_gameplay_running),
+                systems::spawn_boss_health_bar
+                    .run_if(is_gameplay_running)
+                    .run_if(not(any_with_component::<BossHealthBarRoot>)),
+            )
+            .add_systems(
+                Update,
+                systems::update_boss_health_bar.run_if(is_gameplay_running),
             )
             .add_systems(
                 Update,

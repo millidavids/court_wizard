@@ -96,6 +96,11 @@ pub fn process_chain_lightning_bounces(
         }
     }
 
+    // Snapshot obstacle geometry once per frame — shared across all bolts processed this tick.
+    let wall_snapshot: Vec<_> = walls.iter().collect();
+    let rock_snapshot: Vec<_> = rocks_query.iter().filter(|r| !r.sinking).collect();
+    let tree_snapshot: Vec<_> = trees_query.iter().collect();
+
     // Process collected bolts
     for (bolt_entity, snapshot) in bolts_to_process {
         // Look up shared hit list
@@ -107,11 +112,6 @@ pub fn process_chain_lightning_bounces(
 
         let bounce_range =
             constants::BOUNCE_RANGE * snapshot.empowerment * snapshot.bounce_range_mult;
-
-        // Find up to split_count targets (units + lightning rods + crystals)
-        let wall_snapshot: Vec<_> = walls.iter().collect();
-        let rock_snapshot: Vec<_> = rocks_query.iter().filter(|r| !r.sinking).collect();
-        let tree_snapshot: Vec<_> = trees_query.iter().collect();
         let targets = find_next_bounce_targets(
             snapshot.last_hit_position,
             &group.hit_entities,

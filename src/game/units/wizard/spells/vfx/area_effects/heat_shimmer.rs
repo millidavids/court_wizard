@@ -24,7 +24,7 @@ pub fn spawn_heat_shimmer(
 }
 
 /// Spawns heat shimmer billboards with a custom size (for larger surface fire effects).
-pub fn spawn_heat_shimmer_sized(
+pub(super) fn spawn_heat_shimmer_sized(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     position: Vec3,

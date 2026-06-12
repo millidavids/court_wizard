@@ -14,13 +14,12 @@ use super::super::constants::{
     BUTTON_BACKGROUND, BUTTON_BORDER, SELECTED_BACKGROUND, SELECTED_BORDER,
 };
 
-/// Sets up the settings menu UI with a tabbed interface.
+/// Handles confirmation popup button clicks and Back-gamepad dismissal.
 ///
-/// Creates a settings screen with tabs for Graphics, Audio, Game, and Controls.
-/// Tab content is rebuilt dynamically by `rebuild_settings_content` when the
-/// active tab changes.
-///
-/// All spawned entities are marked with `OnSettingsScreen` for cleanup.
+/// When Back is pressed while a popup is open, the popup is despawned.
+/// When a `ConfirmationAction::Confirm` button is clicked, the corresponding
+/// settings action (reset tutorials, clear progress) is executed and the
+/// popup is despawned.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_confirmation_popup(
     mut commands: Commands,

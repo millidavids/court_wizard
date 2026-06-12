@@ -7,7 +7,7 @@ use crate::game::cauldron::brews::Ingredient;
 pub(crate) struct IngredientDrop {
     /// Which ingredient this drop will unlock when collected.
     pub ingredient: Ingredient,
-    /// Time this drop has been alive (for despawn and fade).
+    /// Time this drop has been alive in seconds (used for bobbing and pulse animation).
     pub time_alive: f32,
 }
 

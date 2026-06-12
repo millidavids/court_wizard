@@ -131,6 +131,9 @@ pub(super) const TWIN_STARS_EFFECTIVENESS: f32 = 0.6;
 pub(super) const TWIN_STARS_OFFSET: f32 = 60.0;
 
 /// T3-1 Twin Stars: mana cost multiplier.
+/// Currently 1.0 (no discount). Reserved for future rebalancing — the named
+/// constant keeps the casting system's intent clear even though both branches
+/// currently produce the same result.
 pub(super) const TWIN_STARS_MANA_MULT: f32 = 1.0;
 
 /// T3-2 Dimensional Rift: interval between teleport pulses (seconds).

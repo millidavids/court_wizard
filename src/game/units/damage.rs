@@ -22,7 +22,9 @@ pub enum DamageType {
     ///
     /// Dealt by: Squall
     Frost,
-    /// Necrotic damage (reserved for future spells)
+    /// Necrotic damage
+    ///
+    /// Dealt by: Finger of Death, Raise the Dead, Mark of Death
     Necrotic,
     /// Nature damage
     ///

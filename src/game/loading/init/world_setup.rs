@@ -193,8 +193,6 @@ pub fn init_loading_progress(
     }
 
     // Check if this is a boss level (every 5th level starting at 5)
-    use crate::game::constants::{BOSS_CYCLE_LENGTH, get_tier};
-    use crate::game::constants::{is_boss_level, is_lich_level};
     use crate::game::units::brute::constants::BRUTE_START_TIER;
     use crate::game::units::teleporter::constants::TELEPORTER_START_TIER;
 
@@ -340,7 +338,7 @@ pub fn init_loading_progress(
         });
     }
 
-    // 8. Defender Archers (always spawn regardless of boss level)
+    // 10. Defender Archers (always spawn regardless of boss level)
     let base_archer_count = attrition_state
         .as_ref()
         .map(|a| a.archers)
@@ -373,7 +371,7 @@ pub fn init_loading_progress(
     // 13. Load cauldron assets (texture for sprite sheet)
     queue.tasks.push_back(SpawnTask::LoadCauldronAssets);
 
-    // 13. Cauldron (next to wizard on castle wall)
+    // 13b. Cauldron (next to wizard on castle wall)
     queue.tasks.push_back(SpawnTask::Cauldron);
 
     // 14. Select upgrades for attacker units (after all attackers spawn)

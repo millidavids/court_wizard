@@ -1,6 +1,6 @@
 //! Network message protocol.
 //!
-//! Defines the serializable message types sent over the WebRTC data channels.
+//! Defines the serializable message types sent over iroh/QUIC channels.
 //! Reliable channel: commands, events, and setup messages.
 //! Unreliable channel: raw binary state snapshots (handled separately).
 
@@ -67,7 +67,7 @@ use crate::game::units::wizard::components::Spell;
 ///   re-sends it as a self-healing heartbeat). Appended after `HostModeSelection`.
 pub const PROTOCOL_VERSION: u32 = 12;
 
-/// Messages sent over the reliable WebRTC data channel between peers.
+/// Messages sent over the reliable iroh/QUIC channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NetworkMessage {
     /// Ping with a timestamp for RTT measurement.

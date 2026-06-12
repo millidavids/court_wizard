@@ -116,14 +116,14 @@ pub(crate) fn spawn_action_bar(
 
                     // For gunslinger, render gun icons (no name fallback);
                     // every gun has a dedicated icon now.
-                    let (slot_name, icon_handle): (&str, Option<Handle<Image>>) = if is_gunslinger {
+                    // Spell names are no longer rendered in action bar slots —
+                    // icons are the identity (see `animate_action_bar_layout`).
+                    let icon_handle: Option<Handle<Image>> = if is_gunslinger {
                         let gun = guns[slot as usize];
-                        ("", gun_icon_assets.get(&gun).cloned())
+                        gun_icon_assets.get(&gun).cloned()
                     } else {
                         let spell = effective_slot(&config, slot as usize, mp_session.as_deref());
-                        let icon = spell.and_then(|s| icon_assets.get(&s).cloned());
-                        let name = spell.map(|s| s.name()).unwrap_or("");
-                        (name, icon)
+                        spell.and_then(|s| icon_assets.get(&s).cloned())
                     };
 
                     // Compute initial position from the already-settled
@@ -216,14 +216,6 @@ pub(crate) fn spawn_action_bar(
                                     ActionBarSlotIcon { slot },
                                 ));
                             }
-
-                            // Spell names have been removed from the
-                            // action bar — icons are the identity, and
-                            // long names like "Crescent Strike" /
-                            // "Forged in Fire" overflow the 50x50
-                            // button. The hotkey text above the icon is
-                            // all that remains.
-                            let _ = slot_name;
                         });
                 }
 

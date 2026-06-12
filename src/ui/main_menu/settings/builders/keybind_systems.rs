@@ -18,7 +18,6 @@ use super::super::constants::{
 use crate::config::input_bindings::{is_bindable_key, key_display_name, key_name};
 
 /// Opens key capture overlay when a binding button is clicked.
-/// Opens key capture overlay when a binding button is clicked.
 pub fn key_binding_button_action(
     mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,

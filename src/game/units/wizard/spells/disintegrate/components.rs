@@ -206,9 +206,10 @@ impl DisintegrateBeam {
 
     /// Checks if a unit with the given hitbox radius is hit by the beam.
     ///
-    /// Full 3D point-to-line-segment distance check. The beam has uniform width
-    /// along its entire length. When `ground_collision` is set, projects both beam
-    /// and point to Y=0 for XZ-only checks (used by crystal beams).
+    /// Full 3D point-to-line-segment distance check. The beam widens as a cone
+    /// from 0 at the origin to full `beam_width()` at the tip. When
+    /// `ground_collision` is set, projects both beam and point to Y=0 for
+    /// XZ-only checks (used by crystal beams).
     pub fn contains_point_with_radius(&self, point: Vec3, unit_radius: f32) -> bool {
         let current_len = self.current_length();
         if current_len < 0.001 {
@@ -247,11 +248,14 @@ impl DisintegrateBeam {
         distance <= self.beam_width() * cone_t + unit_radius
     }
 
-    /// Checks if the beam cylinder intersects a vertical hitbox cylinder.
+    /// Checks if the beam cone intersects a vertical hitbox cylinder.
     ///
-    /// Uses separate horizontal (XZ) and vertical (Y) overlap checks:
-    /// - Horizontally: XZ distance between closest approach points <= beam_width + hitbox_radius
-    /// - Vertically: beam's Y range at closest approach overlaps the hitbox [0, hitbox_height]
+    /// Projects the unit center onto the beam axis and checks whether the
+    /// perpendicular distance is within the cone radius (widens from 0 at
+    /// origin to `beam_width()` at tip) plus `hitbox_radius`.
+    ///
+    /// Note: `_hitbox_height` is reserved for a future vertical-cull pass; the
+    /// current implementation uses full 3D distance without Y-range clipping.
     pub fn intersects_hitbox_cylinder(
         &self,
         unit_pos: Vec3,

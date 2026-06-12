@@ -81,7 +81,7 @@ pub fn handle_battle_hymn_casting(
     let t1 = talents.and_then(|t| t.get_selection(Spell::BattleHymn, 0));
     let t3 = talents.and_then(|t| t.get_selection(Spell::BattleHymn, 2));
     let radius_mult = match t1 {
-        Some(2) => 1.4, // Wide Anthem: +40% radius
+        Some(2) => constants::WIDE_ANTHEM_RADIUS_MULT, // Wide Anthem: +40% radius
         _ => 1.0,
     };
     let chorus_of_valor = t3 == Some(2);
@@ -174,7 +174,7 @@ pub fn handle_battle_hymn_casting(
                 visual_assets.battle_hymn_aura_sphere.clone(),
                 crate::networking::snapshot::AuraBubbleVariant::BattleHymn,
                 local_origin.0,
-                200.0,
+                constants::CIRCLE_RADIUS,
                 2.5,
             );
             apply_battle_hymn_buff(

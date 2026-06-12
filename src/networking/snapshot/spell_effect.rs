@@ -141,7 +141,10 @@ pub struct SpellProjectileSnapshot {
 #[derive(Serialize, Deserialize)]
 pub struct SpellArcSnapshot {
     /// Arc type: 0=ChainLightning, 1=LightningStrike,
-    /// 4=FingerOfDeath, 5=LightningRodArc, 6=Disintegrate.
+    /// 4=FingerOfDeath, 5=LightningRodArc.
+    /// Kinds 2 (crystal_beam) and 3 (crystal_arc) were valid historically but
+    /// are no longer emitted — the receiver still handles them as dead paths.
+    /// Kind 6 (Disintegrate) was retired; Disintegrate now uses `BeamSnapshot`.
     pub kind: u8,
     /// Origin X.
     pub ox: f32,

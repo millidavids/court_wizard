@@ -14,11 +14,7 @@ use crate::game::units::components::{Corpse, Team};
 use crate::game::units::king::components::{King, SpellShield};
 use crate::state::{InGameState, MultiplayerGameState};
 
-/// Blocks spell input when the mouse is interacting with a UI button so
-/// clicking a HUD button doesn't simultaneously fire a spell. With a
-/// gamepad, spells are triggered by RT (not by a UI cursor), and the hidden
-/// OS cursor may sit over a HUD button at any time — gating on mouse mode
-/// prevents those incidental hovers from silently killing RT casts.
+/// Updates the wave display text when the wave state changes.
 pub(super) fn update_wave_display(
     wave_state: Res<WaveState>,
     mut wave_display_query: Query<&mut Text, With<WaveDisplay>>,
@@ -350,6 +346,8 @@ pub(super) fn show_buff_tooltip(
                     .spawn((
                         Node {
                             position_type: PositionType::Absolute,
+                            // BUFF_BOX_SIZE = box height, BUFF_BOX_GAP = gap below box,
+                            // 20.0 = HUD top margin, 10.0 = extra padding above tooltip.
                             top: Val::Px(BUFF_BOX_SIZE + BUFF_BOX_GAP + 20.0 + 10.0),
                             left: Val::Px(20.0),
                             max_width: Val::Px(BUFF_TOOLTIP_MAX_WIDTH),

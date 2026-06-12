@@ -4,6 +4,7 @@ use super::super::components::*;
 use super::super::constants::*;
 use super::super::resources::LichAssets;
 use crate::game::components::Velocity;
+use crate::game::units::boss::utils::{back_facing_for_velocity, sinusoidal_bob};
 use crate::game::units::components::{Corpse, FacingDirection, WalkingAnimation};
 
 /// Swaps the Lich's bound material to the casting sheet on the frame
@@ -53,11 +54,9 @@ pub(crate) fn update_lich_facing(
 
     for (velocity, mut facing, anim, material_handle) in &mut lich_query {
         let v = Vec3::new(velocity.x, 0.0, velocity.z);
-        let Some(new_facing) = crate::game::units::boss::utils::back_facing_for_velocity(
-            v,
-            cam_forward_xz,
-            LICH_BACK_FACING_THRESHOLD,
-        ) else {
+        let Some(new_facing) =
+            back_facing_for_velocity(v, cam_forward_xz, LICH_BACK_FACING_THRESHOLD)
+        else {
             continue;
         };
 
@@ -74,7 +73,7 @@ pub(crate) fn update_lich_float(
     time: Res<Time>,
     mut lich_query: Query<(&LichFloatBase, &mut Transform), (With<Lich>, Without<Corpse>)>,
 ) {
-    let bob = crate::game::units::boss::utils::sinusoidal_bob(
+    let bob = sinusoidal_bob(
         LICH_FLOAT_AMPLITUDE,
         LICH_FLOAT_FREQUENCY_HZ,
         time.elapsed_secs(),

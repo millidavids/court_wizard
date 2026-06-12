@@ -25,6 +25,11 @@ pub const SEED_PURPOSE_STAGING: u64 = 7951;
 
 /// Derives a deterministic sub-seed from a master seed, level, and purpose constant.
 /// Ensures different systems get independent RNG streams without order-dependency.
+///
+/// # Warning
+/// `purpose` must never be 0. Passing `purpose = 0` collapses the entire output to 0
+/// regardless of `master` or `level`, producing identical seeds across all systems.
+/// All `SEED_PURPOSE_*` constants are non-zero primes; always use one of them.
 pub fn derive_seed(master: u64, level: u32, purpose: u64) -> u64 {
     master
         .wrapping_mul(6364136223846793005)

@@ -10,7 +10,7 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::ObstacleChanged;
 use crate::game::units::components::{
     BattleHymnModifier, BerserkerRageModifier, Corpse, FogEvasionModifier, HasteModifier, Health,
-    MindControlled, Team, TemporaryHitPoints, apply_spell_damage,
+    MindControlled, Petrified, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
@@ -78,7 +78,7 @@ pub fn update_dispel_impacts(
             Has<BattleHymnModifier>,
             Has<FogEvasionModifier>,
             Has<MindControlled>,
-            Has<crate::game::units::components::Petrified>,
+            Has<Petrified>,
         ),
         (Without<Corpse>, Without<DispelImpact>),
     >,
@@ -282,9 +282,7 @@ pub fn update_dispel_impacts(
 
                 // Dispel cures petrified allies
                 if *team == Team::Defenders && has_petrified {
-                    commands
-                        .entity(unit_entity)
-                        .remove::<crate::game::units::components::Petrified>();
+                    commands.entity(unit_entity).remove::<Petrified>();
                 }
 
                 if Team::Defenders.is_enemy(team) {

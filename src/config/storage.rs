@@ -4,6 +4,9 @@ use super::error::ConfigResult;
 
 const CONFIG_FILENAME: &str = "config.toml";
 const PROGRESS_FILENAME: &str = "progress.dat";
+// NOTE: The ".json" extension is a historical artifact — the file actually contains
+// XOR-obfuscated TOML serialised to base64. Changing the filename would break
+// existing save files on disk, so the name is preserved as-is.
 pub(crate) const UNIFIED_SAVE_FILENAME: &str = "saves_v2.json";
 
 /// Returns the platform-appropriate data directory for Court Wizard.

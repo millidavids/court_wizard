@@ -12,7 +12,7 @@ use super::super::resources::{WizardType, deserialize_action_bar, serialize_acti
 pub(crate) use super::super::achievement_id::AchievementId;
 
 /// Unified save file containing all wizards and player meta-progression.
-/// Stored as a single entry in localStorage.
+/// Stored as a single file on disk (obfuscated TOML encoded as base64).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct UnifiedSaveFile {
     pub(crate) metadata: SaveMetadata,

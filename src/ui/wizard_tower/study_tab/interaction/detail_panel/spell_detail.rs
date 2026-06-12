@@ -12,6 +12,7 @@ use super::super::super::super::constants::*;
 use super::super::super::panels::*;
 use super::super::allocation::spawn_slider_row_with_buttons;
 use super::super::slider_interaction::spawn_detail_unified_slider;
+use super::insight_detail::NO_SELECTION_PLACEHOLDER;
 
 /// Updates the detail panel when a spell is selected.
 pub(crate) fn update_study_detail_panel(
@@ -43,7 +44,7 @@ pub(crate) fn update_study_detail_panel(
         // Show placeholder text when nothing is selected
         commands.entity(panel_entity).with_children(|panel| {
             panel.spawn((
-                Text::new("Select a spell or bonus to view details"),
+                Text::new(NO_SELECTION_PLACEHOLDER),
                 TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
                 TextColor(LOCKED_TEXT_COLOR),
             ));

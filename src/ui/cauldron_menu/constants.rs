@@ -48,7 +48,7 @@ pub const DETAIL_PADDING: f32 = 18.0;
 /// Font size for section labels in the detail panel.
 pub const DETAIL_LABEL_FONT_SIZE: f32 = 12.0;
 
-/// Color for section labels — warm amber.
+/// Color for section labels, ingredient-count-at-limit, and combo bonus text — soft purple.
 pub const DETAIL_LABEL_COLOR: Color = Color::hsla(270.0, 0.50, 0.60, 1.0);
 
 /// Font size for effect preview text.
@@ -66,8 +66,8 @@ pub const BREW_INFO_COLOR: Color = Color::srgb(0.7, 0.7, 0.5);
 /// Color for ingredient count text when under limit.
 pub const INGREDIENT_COUNT_COLOR: Color = Color::hsla(0.0, 0.0, 0.50, 1.0);
 
-/// Color for ingredient count text when at limit.
-pub const INGREDIENT_COUNT_FULL_COLOR: Color = Color::hsla(270.0, 0.50, 0.60, 1.0);
+/// Color for ingredient count text when at limit (same shade as `DETAIL_LABEL_COLOR`).
+pub const INGREDIENT_COUNT_FULL_COLOR: Color = DETAIL_LABEL_COLOR;
 
 /// Brewing status font size.
 pub const BREWING_STATUS_FONT_SIZE: f32 = 13.0;
@@ -84,8 +84,8 @@ pub const PLACEHOLDER_TEXT_COLOR: Color = TEXT_PLACEHOLDER;
 /// Font size for combo bonus text.
 pub const COMBO_FONT_SIZE: f32 = 11.0;
 
-/// Color for combo bonus text — gold.
-pub const COMBO_COLOR: Color = Color::hsla(270.0, 0.50, 0.60, 1.0);
+/// Color for combo bonus text (same shade as `DETAIL_LABEL_COLOR`).
+pub const COMBO_COLOR: Color = DETAIL_LABEL_COLOR;
 
 // ---------------------------------------------------------------------------
 // Ingredient list (right side)
@@ -213,9 +213,9 @@ pub const STONE_SELECTED_STYLE: ButtonStyle = ButtonStyle {
 
 /// Button style for the brew button (enabled).
 pub const BREW_BUTTON_STYLE: ButtonStyle = ButtonStyle {
-    width: 160.0,
-    height: 40.0,
-    border_width: 1.0,
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT,
+    border_width: BUTTON_BORDER_WIDTH,
     font_size: 13.0,
     background: Color::hsla(270.0, 0.20, 0.18, 0.75),
     border: Color::hsla(270.0, 0.50, 0.40, 1.0),
@@ -225,9 +225,9 @@ pub const BREW_BUTTON_STYLE: ButtonStyle = ButtonStyle {
 
 /// Button style for the cancel brew button.
 pub const CANCEL_BUTTON_STYLE: ButtonStyle = ButtonStyle {
-    width: 160.0,
-    height: 40.0,
-    border_width: 1.0,
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT,
+    border_width: BUTTON_BORDER_WIDTH,
     font_size: 11.0,
     background: Color::srgba(0.25, 0.08, 0.08, 0.75),
     border: Color::srgb(0.5, 0.15, 0.15),

@@ -68,13 +68,12 @@ pub(crate) fn find_nearest_corpse(
 ) -> Option<(Entity, Vec3)> {
     corpse_query
         .iter()
-        .filter(|(_, transform)| target_pos.distance(transform.translation) <= radius)
-        .min_by(|a, b| {
-            let dist_a = target_pos.distance(a.1.translation);
-            let dist_b = target_pos.distance(b.1.translation);
-            dist_a.partial_cmp(&dist_b).unwrap_or(Ordering::Equal)
+        .filter_map(|(entity, transform)| {
+            let dist = target_pos.distance(transform.translation);
+            (dist <= radius).then_some((entity, transform.translation, dist))
         })
-        .map(|(entity, transform)| (entity, transform.translation))
+        .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal))
+        .map(|(entity, pos, _)| (entity, pos))
 }
 
 /// Raises a corpse entity as undead infantry with talent components.

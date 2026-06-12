@@ -3,7 +3,7 @@ use super::super::components::WallOfStoneCaster;
 use crate::game::input::MouseButtonState;
 use bevy::prelude::*;
 
-/// Computes talent parameters from active talent selections.
+/// Cancels an in-progress wall drag on right-click and despawns the preview entity.
 pub fn handle_wall_of_stone_cancel(
     mut mouse_right_pressed: MessageReader<crate::game::input::messages::MouseRightPressed>,
     mut commands: Commands,

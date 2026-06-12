@@ -39,7 +39,7 @@ pub fn update_ray_beam_visuals(
     for (entity, mut beam) in &mut beams {
         beam.lifetime -= delta;
         if beam.lifetime <= 0.0 {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

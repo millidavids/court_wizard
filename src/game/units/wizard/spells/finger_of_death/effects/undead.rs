@@ -4,7 +4,7 @@ use super::super::components::*;
 use crate::game::units::components::{Corpse, PermanentCorpse, Team};
 use bevy::prelude::*;
 
-/// Computes talent-modified parameters for Finger of Death.
+/// Raises killed units as undead infantry when a PendingUndeadRaise resource is present.
 pub fn process_pending_undead_raises(
     mut commands: Commands,
     pending: Option<Res<PendingUndeadRaise>>,

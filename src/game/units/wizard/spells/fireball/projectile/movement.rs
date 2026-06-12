@@ -8,7 +8,7 @@ use crate::game::units::wizard::spells::visual_assets::FireExplosionSphereMateri
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use bevy::prelude::*;
 
-/// Local wizard fireball casting — reads mouse input.
+/// Integrates fireball velocity each frame, advancing the projectile position.
 #[allow(clippy::too_many_arguments)]
 pub fn move_fireballs(
     time: Res<Time>,

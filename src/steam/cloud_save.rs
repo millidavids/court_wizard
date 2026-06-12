@@ -81,7 +81,11 @@ pub(super) fn sync_save_to_steam_cloud(client: Res<Client>) {
 
     let data = match std::fs::read(&local_path) {
         Ok(d) => d,
-        Err(_) => return,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return,
+        Err(e) => {
+            warn!("Steam Cloud: could not read local save for upload: {e}");
+            return;
+        }
     };
 
     let remote = client.remote_storage();

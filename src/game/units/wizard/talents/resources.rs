@@ -90,6 +90,13 @@ impl BattleTalentProgress {
     /// that were crossed by this flush.
     pub fn flush_to_save(&self) -> Vec<(Spell, u8)> {
         let prev_values = save_data::add_spell_talent_progress_batch(&self.progress);
+        if prev_values.is_empty() && !self.progress.is_empty() {
+            warn!(
+                "flush_to_save: save I/O returned no prior values for {} spells; \
+                 tier-crossing notifications will be suppressed this battle.",
+                self.progress.len()
+            );
+        }
         let mut crossed = Vec::new();
         for (&spell, &prev) in &prev_values {
             let amount = self.progress.get(&spell).copied().unwrap_or(0);

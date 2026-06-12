@@ -144,7 +144,7 @@ pub fn josephina_leap(
                     transform.translation.z = target.z;
                     // Knockback is applied by josephina_leap_knockback system
                     *leap = LeapState::Landing {
-                        timer: 0.3,
+                        timer: LEAP_LANDING_PAUSE,
                         knockback_applied: false,
                     };
                     // Hold the third frame (index 2) of the attack sheet on landing.

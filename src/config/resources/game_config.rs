@@ -148,7 +148,7 @@ pub struct GameConfig {
     pub sfx_volume: f32,
     /// Global brightness multiplier (0.1 = darkest to prevent soft-lock, 1.0 = normal, 2.0 = brightest)
     pub brightness: f32,
-    /// Current level - restored on game start after page reload
+    /// Current level - persisted across sessions
     #[serde(default = "default_current_level")]
     pub current_level: u32,
     /// Highest level achieved across all playthroughs (high score marker)

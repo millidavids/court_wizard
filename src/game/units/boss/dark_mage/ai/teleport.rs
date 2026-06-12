@@ -7,8 +7,8 @@ use crate::config::GameConfig;
 use crate::game::constants::*;
 use crate::game::units::boss::utils::is_on_screen;
 use crate::game::units::components::{
-    BanishedModifier, Corpse, FrozenSolidModifier, Hitbox, RootedModifier, SickenedModifier,
-    SleepModifier, Sleepwalking, Team,
+    BanishedModifier, Corpse, FrozenSolidModifier, Hitbox, Petrified, RootedModifier,
+    SickenedModifier, SleepModifier, Sleepwalking, Stunned, Team,
 };
 use crate::game::units::wizard::spells::audio::{SpellSfxAssets, play_sfx_scaled};
 use crate::game::units::wizard::spells::teleport::vfx_systems::spawn_teleport_vfx;
@@ -41,8 +41,8 @@ pub fn dark_mage_teleport(
                 Option<&BanishedModifier>,
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
-                Option<&crate::game::units::components::Stunned>,
-                Option<&crate::game::units::components::Petrified>,
+                Option<&Stunned>,
+                Option<&Petrified>,
             ),
         ),
         (With<DarkMage>, Without<Corpse>),

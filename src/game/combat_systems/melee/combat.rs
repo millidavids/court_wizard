@@ -12,6 +12,8 @@ use super::super::super::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, EliteAttackSpeedBonus, EliteDamageBonus,
     Flying, Health, Hitbox, RetaliationTarget, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
+use super::super::super::units::wizard::spells::fog_cloud::constants::DISORIENTING_VAPORS_CHANCE;
+use super::super::super::units::wizard::spells::fog_cloud::systems::is_in_fog_zone;
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn combat(
@@ -273,25 +275,20 @@ pub fn combat(
                 // 20% chance to redirect the attack to a same-team ally
                 let mut actual_target = *target_entity;
                 if !disorienting_snapshot.is_empty() {
-                    use super::super::super::units::wizard::spells::fog_cloud::systems::is_in_fog_zone;
                     let attacker_pos = attacker_transform.translation;
                     if is_in_fog_zone(attacker_pos, &disorienting_snapshot)
-                        && game_rng.0.random::<f32>() < super::super::super::units::wizard::spells::fog_cloud::constants::DISORIENTING_VAPORS_CHANCE
+                        && game_rng.0.random::<f32>() < DISORIENTING_VAPORS_CHANCE
                     {
-                        // Find a random same-team unit to attack instead
-                        let count = units_snapshot
+                        // Find a random same-team unit to redirect the attack to.
+                        // Collect once to avoid iterating the snapshot twice.
+                        let candidates: Vec<Entity> = units_snapshot
                             .iter()
                             .filter(|(e, _, _, t)| *e != attacker_entity && *t == *attacker_team)
-                            .count();
-                        if count > 0 {
-                            let idx = game_rng.0.random_range(0..count);
-                            if let Some((e, _, _, _)) = units_snapshot
-                                .iter()
-                                .filter(|(e, _, _, t)| *e != attacker_entity && *t == *attacker_team)
-                                .nth(idx)
-                            {
-                                actual_target = *e;
-                            }
+                            .map(|(e, _, _, _)| *e)
+                            .collect();
+                        if !candidates.is_empty() {
+                            let idx = game_rng.0.random_range(0..candidates.len());
+                            actual_target = candidates[idx];
                         }
                     }
                 }

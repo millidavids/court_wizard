@@ -5,9 +5,8 @@ use super::super::constants::*;
 use crate::game::resources::KillStats;
 use crate::game::units::components::Corpse;
 
-/// Checks if it's time to spawn the Lich mid-game.
-/// The Lich spawns as an extra wave after all normal waves have been dispatched
-/// and every attacker (including staging) is dead.
+/// Accumulates soul power for the Lich by counting undead kills during the summoning phase.
+/// Soul power gates the transition from summoning to the full combat phase.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn track_soul_power(
     kill_stats: Res<KillStats>,

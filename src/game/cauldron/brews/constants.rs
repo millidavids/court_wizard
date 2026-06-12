@@ -82,7 +82,7 @@ pub(super) const NATRON_SALT_CONFIG: IngredientConfig = IngredientConfig {
     color: Color::srgb(0.92, 0.92, 0.90),
 };
 
-// ===== New Ingredient Configs =====
+// ===== Additional Ingredient Configs =====
 
 pub(super) const LAPIS_LAZULI_CONFIG: IngredientConfig = IngredientConfig {
     name: "Lapis Lazuli",

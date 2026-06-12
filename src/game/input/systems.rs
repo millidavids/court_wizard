@@ -14,6 +14,8 @@ use super::{
 };
 use crate::config::input_bindings::InputBindings;
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::archetypes::runes::messages::{ActivateRuneSequence, RunePressed};
+use crate::game::units::wizard::archetypes::runes::resources::Rune;
 
 /// Clears all mouse input state to prevent stale events from carrying across state transitions.
 ///
@@ -158,51 +160,29 @@ pub fn detect_keyboard_input(
 pub fn detect_rune_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     bindings: Res<InputBindings>,
-    mut rune_pressed: MessageWriter<
-        crate::game::units::wizard::archetypes::runes::messages::RunePressed,
-    >,
-    mut rune_activate: MessageWriter<
-        crate::game::units::wizard::archetypes::runes::messages::ActivateRuneSequence,
-    >,
+    mut rune_pressed: MessageWriter<RunePressed>,
+    mut rune_activate: MessageWriter<ActivateRuneSequence>,
 ) {
     // Activate key triggers rune sequence
     if let Some(activate_key) = bindings.universal.activate
         && keyboard.just_pressed(activate_key)
     {
-        rune_activate
-            .write(crate::game::units::wizard::archetypes::runes::messages::ActivateRuneSequence);
+        rune_activate.write(ActivateRuneSequence);
     }
 
     // Check rune keys, skipping unbound entries
-    let rune_keys: [(
-        Option<KeyCode>,
-        crate::game::units::wizard::archetypes::runes::resources::Rune,
-    ); 4] = [
-        (
-            bindings.rune_caster.rune_1,
-            crate::game::units::wizard::archetypes::runes::resources::Rune::Q,
-        ),
-        (
-            bindings.rune_caster.rune_2,
-            crate::game::units::wizard::archetypes::runes::resources::Rune::W,
-        ),
-        (
-            bindings.rune_caster.rune_3,
-            crate::game::units::wizard::archetypes::runes::resources::Rune::E,
-        ),
-        (
-            bindings.rune_caster.rune_4,
-            crate::game::units::wizard::archetypes::runes::resources::Rune::R,
-        ),
+    let rune_keys: [(Option<KeyCode>, Rune); 4] = [
+        (bindings.rune_caster.rune_1, Rune::Q),
+        (bindings.rune_caster.rune_2, Rune::W),
+        (bindings.rune_caster.rune_3, Rune::E),
+        (bindings.rune_caster.rune_4, Rune::R),
     ];
 
     for (key_opt, rune) in rune_keys {
         if let Some(key_code) = key_opt
             && keyboard.just_pressed(key_code)
         {
-            rune_pressed.write(
-                crate::game::units::wizard::archetypes::runes::messages::RunePressed { rune },
-            );
+            rune_pressed.write(RunePressed { rune });
         }
     }
 }

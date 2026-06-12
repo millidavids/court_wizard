@@ -8,6 +8,9 @@ use super::super::super::super::constants::*;
 use super::super::allocation::spawn_slider_row_with_buttons;
 use super::super::slider_interaction::spawn_insight_bonus_slider;
 
+/// Placeholder shown in the detail panel when no spell or bonus is selected.
+pub(super) const NO_SELECTION_PLACEHOLDER: &str = "Select a spell or bonus to view details";
+
 /// Updates the detail panel when an insight bonus is selected.
 pub(crate) fn update_insight_detail_panel(
     mut commands: Commands,
@@ -35,7 +38,7 @@ pub(crate) fn update_insight_detail_panel(
         // Show placeholder text when nothing is selected
         commands.entity(panel_entity).with_children(|panel| {
             panel.spawn((
-                Text::new("Select a spell or bonus to view details"),
+                Text::new(NO_SELECTION_PLACEHOLDER),
                 TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
                 TextColor(LOCKED_TEXT_COLOR),
             ));

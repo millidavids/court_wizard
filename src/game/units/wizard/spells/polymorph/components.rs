@@ -70,3 +70,9 @@ impl DireSheep {
         }
     }
 }
+
+impl Default for DireSheep {
+    fn default() -> Self {
+        Self::new()
+    }
+}

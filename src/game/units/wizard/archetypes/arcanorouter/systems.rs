@@ -78,7 +78,7 @@ pub(super) fn apply_bonuses_to_wizard_stats(
     mut wizard_query: Query<(&mut Wizard, &ArcanoRouterBonuses), Changed<ArcanoRouterBonuses>>,
     session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
-    const BASE_SPELL_RANGE: f32 = 3000.0;
+    let base_spell_range = crate::game::units::wizard::constants::DEFAULT_SPELL_RANGE;
 
     // Versus multiplayer grants every wizard +5% spell range. The Arcanorouter
     // fully owns its range here, so the buff must be re-applied each recompute.
@@ -92,7 +92,7 @@ pub(super) fn apply_bonuses_to_wizard_stats(
 
     for (mut wizard, bonuses) in wizard_query.iter_mut() {
         // Apply bonuses to wizard stats
-        wizard.spell_range = BASE_SPELL_RANGE * bonuses.get_range_multiplier() * mp_range_mult;
+        wizard.spell_range = base_spell_range * bonuses.get_range_multiplier() * mp_range_mult;
         wizard.mana_cost_multiplier = bonuses.get_mana_cost_multiplier();
         wizard.spell_power_multiplier = bonuses.get_spell_power_multiplier();
         wizard.cast_speed_multiplier = bonuses.get_cast_speed_multiplier();

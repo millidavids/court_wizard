@@ -48,7 +48,8 @@ pub(super) fn init_toggle_resources(
         .as_ref()
         .is_some_and(|t| t.is_active(ToggleModifier::WizardCycle))
     {
-        // Get unlocked wizard types from save data
+        // Get unlocked wizard types from save data.
+        // Returns empty list for new players (no save file yet), which is correct behaviour.
         let unlocked_names = crate::config::save_data::load_unified_save()
             .map(|s| s.player.unlocked_content.wizard_types)
             .unwrap_or_default();
@@ -218,9 +219,6 @@ pub(super) fn animate_fortified_horde_glow(
     shielded: Query<&MeshMaterial3d<StandardMaterial>, With<FortifiedHordeShield>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    if shielded.is_empty() {
-        return;
-    }
     let t = time.elapsed_secs();
     // Pulse between dim and bright yellow (2 Hz)
     let intensity = (t * std::f32::consts::TAU * 2.0).sin() * 0.5 + 0.5;

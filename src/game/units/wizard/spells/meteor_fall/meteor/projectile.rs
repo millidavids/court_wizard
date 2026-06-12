@@ -17,7 +17,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::local_player_team;
+use crate::game::units::wizard::spells::utils::{local_player_team, xz_distance};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::{
     FireExplosionSphereMaterial, SpellVisualAssets,
@@ -227,7 +227,7 @@ pub(crate) fn check_meteor_collisions(
                 {
                     let dx = unit_transform.translation.x - pos.x;
                     let dz = unit_transform.translation.z - pos.z;
-                    let dist = (dx * dx + dz * dz).sqrt();
+                    let dist = xz_distance(pos, unit_transform.translation);
                     if dist <= AFTERSHOCK_RADIUS {
                         // Apply bonus damage
                         apply_spell_damage_with_team(
@@ -259,9 +259,7 @@ pub(crate) fn check_meteor_collisions(
             // Volcanic Eruption: check nearby ground fires and trigger eruption
             if projectile.volcanic_eruption {
                 for mut fire in ground_fires.iter_mut() {
-                    let fire_dx = fire.origin.x - pos.x;
-                    let fire_dz = fire.origin.z - pos.z;
-                    let fire_dist = (fire_dx * fire_dx + fire_dz * fire_dz).sqrt();
+                    let fire_dist = xz_distance(pos, fire.origin);
                     if fire_dist <= VOLCANIC_ERUPTION_RADIUS {
                         fire.eruption_charges += 1;
                         let eruption_damage = (VOLCANIC_ERUPTION_BASE_DAMAGE

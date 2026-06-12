@@ -8,7 +8,7 @@ use crate::game::units::components::{
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::{
-    FireExplosionSphereMaterial, SpellVisualAssets, explosion_fade_opacity,
+    FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material, explosion_fade_opacity,
 };
 use bevy::prelude::*;
 
@@ -246,11 +246,10 @@ pub fn spawn_explosion_bubbles(
             let pos = transform.translation + bubble.direction * bubble.distance;
 
             // Per-entity material clone for independent fade
-            let mat = sphere_materials
-                .get(&visual_assets.fireball_explosion_sphere)
-                .expect("sphere material template")
-                .clone();
-            let mat_handle = sphere_materials.add(mat);
+            let mat_handle = clone_sphere_material(
+                &mut sphere_materials,
+                &visual_assets.fireball_explosion_sphere,
+            );
 
             // Duration = remaining time so it ends with the main explosion
             let remaining = (explosion.duration - explosion.time_alive).max(0.1);

@@ -6,10 +6,26 @@ use crate::game::input::messages::MouseClicked;
 use crate::ui::components::ButtonColors;
 
 use super::components::{SeedInputBox, SeedInputState, SeedInputText, SeedRandomButton};
-use super::constants::{LABEL_COLOR, MAX_SEED_CHARS};
+use super::constants::{LABEL_COLOR, MAX_SEED_CHARS, SEED_BORDER_FOCUSED, SEED_BORDER_UNFOCUSED};
 
 fn random_seed() -> u64 {
     rand::rng().random_range(0..super::constants::MAX_SEED)
+}
+
+/// Assigns a fresh random seed to both the UI state and the game config, then
+/// updates the visible seed text.  Shared by the click handler and the keyboard
+/// handler so the "text is empty on unfocus" path has one canonical implementation.
+fn apply_fresh_random_seed(
+    seed_state: &mut SeedInputState,
+    config: &mut GameConfig,
+    text_query: &mut Query<&mut Text, With<SeedInputText>>,
+) {
+    let new_seed = random_seed();
+    seed_state.text = new_seed.to_string();
+    config.seed = Some(new_seed);
+    for mut text in text_query {
+        text.0 = new_seed.to_string();
+    }
 }
 
 /// Spawns the seed input row with label, text input box, and Randomize button.
@@ -49,7 +65,7 @@ pub(super) fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text:
                     border_radius: BorderRadius::all(Val::Px(4.0)),
                     ..default()
                 },
-                BorderColor::all(Color::hsla(270.0, 0.35, 0.35, 1.0)),
+                BorderColor::all(SEED_BORDER_UNFOCUSED),
                 BackgroundColor(seed_bg),
                 SeedInputBox,
                 crate::ui::focus::Focusable,
@@ -76,11 +92,11 @@ pub(super) fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text:
                     border_radius: BorderRadius::all(Val::Px(4.0)),
                     ..default()
                 },
-                BorderColor::all(Color::hsla(270.0, 0.35, 0.35, 1.0)),
+                BorderColor::all(SEED_BORDER_UNFOCUSED),
                 BackgroundColor(Color::hsla(270.0, 0.08, 0.10, 1.0)),
                 ButtonColors {
                     background: Color::hsla(270.0, 0.08, 0.10, 1.0),
-                    border: Color::hsla(270.0, 0.35, 0.35, 1.0),
+                    border: SEED_BORDER_UNFOCUSED,
                 },
                 SeedRandomButton,
                 crate::ui::focus::Focusable,
@@ -105,6 +121,8 @@ pub(crate) fn seed_input_click(
     mut text_query: Query<&mut Text, With<SeedInputText>>,
     mut border_query: Query<&mut BorderColor, With<SeedInputBox>>,
 ) {
+    let focus_before = seed_state.focused;
+
     for event in button_clicked.read() {
         if input_boxes.get(event.button).is_ok() {
             seed_state.focused = !seed_state.focused;
@@ -115,32 +133,25 @@ pub(crate) fn seed_input_click(
                 }
             }
         } else if random_buttons.get(event.button).is_ok() {
-            let new_seed = random_seed();
-            seed_state.text = new_seed.to_string();
             seed_state.focused = false;
-            config.seed = Some(new_seed);
-            for mut text in &mut text_query {
-                text.0 = new_seed.to_string();
-            }
+            apply_fresh_random_seed(&mut seed_state, &mut config, &mut text_query);
         } else if seed_state.focused {
             seed_state.focused = false;
             if seed_state.text.is_empty() {
-                let new_seed = random_seed();
-                seed_state.text = new_seed.to_string();
-                config.seed = Some(new_seed);
-                for mut text in &mut text_query {
-                    text.0 = new_seed.to_string();
-                }
+                apply_fresh_random_seed(&mut seed_state, &mut config, &mut text_query);
             }
         }
     }
 
-    // Update border color to indicate focus
-    for mut border in &mut border_query {
-        if seed_state.focused {
-            *border = BorderColor::all(Color::hsla(270.0, 0.65, 0.55, 1.0));
+    // Update border color only when focus state changed
+    if seed_state.focused != focus_before {
+        let new_border = if seed_state.focused {
+            SEED_BORDER_FOCUSED
         } else {
-            *border = BorderColor::all(Color::hsla(270.0, 0.35, 0.35, 1.0));
+            SEED_BORDER_UNFOCUSED
+        };
+        for mut border in &mut border_query {
+            *border = BorderColor::all(new_border);
         }
     }
 }
@@ -230,19 +241,14 @@ pub(crate) fn seed_input_keyboard(
         changed = true;
     }
 
-    // Enter/Escape to unfocus
+    // Enter / Numpad Enter to unfocus
     if keyboard.just_pressed(KeyCode::Enter) || keyboard.just_pressed(KeyCode::NumpadEnter) {
         seed_state.focused = false;
         if seed_state.text.is_empty() {
-            let new_seed = random_seed();
-            seed_state.text = new_seed.to_string();
-            config.seed = Some(new_seed);
-            for mut text in &mut text_query {
-                text.0 = new_seed.to_string();
-            }
+            apply_fresh_random_seed(&mut seed_state, &mut config, &mut text_query);
         }
         for mut border in &mut border_query {
-            *border = BorderColor::all(Color::hsla(270.0, 0.35, 0.35, 1.0));
+            *border = BorderColor::all(SEED_BORDER_UNFOCUSED);
         }
         return;
     }

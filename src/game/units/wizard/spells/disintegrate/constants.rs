@@ -40,6 +40,11 @@ pub const CAST_TIME: f32 = 1.5;
 /// Time for beam to grow to full length (in seconds).
 pub const BEAM_GROWTH_TIME: f32 = 0.2;
 
+/// Fallback spell range used by the eclipse system when no Wizard entity is found.
+/// Matches a typical maximum spell range so the eclipse clips correctly even during
+/// edge-case frames where the wizard entity has not yet been spawned.
+pub(super) const ECLIPSE_FALLBACK_SPELL_RANGE: f32 = 500.0;
+
 /// Extra visual length past the beam tip on the ground surface.
 pub(super) const BEAM_VISUAL_OVERSHOOT: f32 = 300.0;
 
@@ -165,7 +170,7 @@ pub(super) const SEARING_FINALE_DURATION: f32 = 0.5;
 /// Width multiplier for the detonation.
 pub(super) const SEARING_FINALE_WIDTH_MULT: f32 = 2.0;
 
-// ── Talent: Beam Fireballs (T3-2) ───────────────────────────────────
+// ── Talent: Unstable Resonance (T3-2) ───────────────────────────────
 /// Time between mini-fireball spawns (seconds).
 pub(super) const MINI_FIREBALL_INTERVAL: f32 = 1.5;
 /// Fraction of fireball TOTAL_DAMAGE for each mini-fireball.

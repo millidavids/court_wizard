@@ -3,7 +3,7 @@ use super::super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::{
-    FireExplosionSphereMaterial, SpellVisualAssets,
+    FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material,
 };
 use bevy::prelude::*;
 
@@ -75,11 +75,10 @@ pub fn update_napalm_trails(
             );
             trail_explosion.duration = 1.0;
 
-            let mat = sphere_materials
-                .get(&visual_assets.fireball_explosion_sphere)
-                .expect("sphere material template")
-                .clone();
-            let mat_handle = sphere_materials.add(mat);
+            let mat_handle = clone_sphere_material(
+                &mut sphere_materials,
+                &visual_assets.fireball_explosion_sphere,
+            );
 
             commands.spawn((
                 Mesh3d(visual_assets.explosion_sphere.clone()),

@@ -5,6 +5,7 @@ use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::game_mode::components::ArchetypeUI;
 use crate::game::input::gamepad::resources::ActiveInputDevice;
+use crate::game::units::wizard::archetypes::roulette::constants::SPIN_DURATION;
 use crate::game::units::wizard::archetypes::roulette::resources::{RoulettePhase, RouletteState};
 use crate::game::units::wizard::components::Spell;
 use crate::ui::gamepad_glyphs::{CurrentControllerGlyphStyle, GamepadGlyphFonts, glyph_char};
@@ -172,9 +173,7 @@ pub(super) fn animate_wheel_spin(
         match &roulette_state.phase {
             RoulettePhase::Spinning { elapsed, .. } => {
                 // Calculate rotation speed with easing (fast at start, slow at end)
-                let progress = (*elapsed
-                    / crate::game::units::wizard::archetypes::roulette::constants::SPIN_DURATION)
-                    .min(1.0);
+                let progress = (*elapsed / SPIN_DURATION).min(1.0);
                 let speed = 20.0 * (1.0 - progress * progress); // Quadratic easing
 
                 // Accumulate rotation (clockwise in radians)

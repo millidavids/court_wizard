@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
+use bevy::log::warn;
 use crossbeam_channel::{Receiver, Sender};
 use tokio::sync::Notify;
-use tracing::warn;
 
 use super::helpers::send_event;
 use crate::networking::transport::codec;

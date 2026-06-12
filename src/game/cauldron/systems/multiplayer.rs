@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use super::super::components::*;
+use super::super::constants::{MAX_SHIELD_HP, SHIELD_KEEPALIVE_SECS};
 use super::super::resources::{CauldronArmyScalars, CauldronBuffs, RemoteCauldronBuffs};
 use crate::game::units::components::{Corpse, Effectiveness, Health, Team, TemporaryHitPoints};
 use crate::networking::protocol::NetworkMessage;
@@ -118,7 +119,6 @@ pub fn apply_guest_army_buffs(
     let s = remote.0;
     let heal = s.heal_per_second * time.delta_secs();
     let shield = s.shield_per_second * time.delta_secs();
-    const MAX_SHIELD: f32 = 20.0;
 
     // The guest Alchemist's army: their own Attackers in versus, the SHARED
     // Defender army in co-op.
@@ -154,13 +154,13 @@ pub fn apply_guest_army_buffs(
         if s.shield_per_second > 0.0 {
             match temp_hp {
                 Some(mut existing) => {
-                    existing.amount = (existing.amount + shield).min(MAX_SHIELD);
-                    existing.time_remaining = 5.0;
+                    existing.amount = (existing.amount + shield).min(MAX_SHIELD_HP);
+                    existing.time_remaining = SHIELD_KEEPALIVE_SECS;
                 }
                 None => {
                     commands
                         .entity(entity)
-                        .insert(TemporaryHitPoints::new(shield, 5.0));
+                        .insert(TemporaryHitPoints::new(shield, SHIELD_KEEPALIVE_SECS));
                 }
             }
         }

@@ -28,6 +28,11 @@ impl Plugin for DispelPlugin {
                 systems::update_dispel_impacts
                     .run_if(any_exist::<DispelImpact>())
                     .run_if(is_spell_effects_active),
+                // Intentionally uses `is_gameplay_running` instead of
+                // `is_spell_effects_active`: the null zone must continue to
+                // despawn spell effects and decrement its timer while the game
+                // is running, even if the spell-effects layer is otherwise
+                // paused (e.g. victory screen still ticking).
                 systems::update_null_zones
                     .run_if(any_exist::<NullZone>())
                     .run_if(is_gameplay_running),

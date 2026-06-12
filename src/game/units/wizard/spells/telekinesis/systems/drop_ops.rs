@@ -40,7 +40,12 @@ pub(super) fn find_nearest_drop<'a>(
         let distance = (dx * dx + dz * dz).sqrt();
 
         if distance <= pickup_radius
-            && (nearest.is_none() || distance < nearest.as_ref().expect("checked").3)
+            && (nearest.is_none()
+                || distance
+                    < nearest
+                        .as_ref()
+                        .expect("nearest is Some because is_none() was false")
+                        .3)
         {
             nearest = Some((entity, transform, drop, distance));
         }

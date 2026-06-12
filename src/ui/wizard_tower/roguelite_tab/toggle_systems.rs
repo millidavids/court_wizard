@@ -15,13 +15,12 @@ use super::toggle_spawn::spawn_unlock_popup;
 pub(crate) fn toggle_expand_action(
     mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
-    expand_buttons: Query<&ToggleExpandButton>,
     mut expanded: ResMut<ExpandedToggles>,
     mut descriptions: Query<(&ToggleDescriptionNode, &mut Node)>,
     expand_btn_entities: Query<(Entity, &ToggleExpandButton)>,
 ) {
     for event in button_clicked.read() {
-        let Ok(btn) = expand_buttons.get(event.button) else {
+        let Ok((_, btn)) = expand_btn_entities.get(event.button) else {
             continue;
         };
         let toggle = btn.0;

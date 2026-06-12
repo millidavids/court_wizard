@@ -25,12 +25,12 @@ pub(crate) fn spawn_boss_health_bar(
     ray_query: Query<Entity, (With<crate::game::units::boss::ray::Ray>, Without<Corpse>)>,
     bar_query: Query<Entity, With<BossHealthBarRoot>>,
 ) {
-    let boss_exists = boss_query.iter().next().is_some();
-    let bar_exists = bar_query.iter().next().is_some();
-    let is_hags = hag_query.iter().next().is_some();
-    let is_lich = lich_query.iter().next().is_some();
-    let is_dark_mage = dark_mage_query.iter().next().is_some();
-    let is_ray = ray_query.iter().next().is_some();
+    let boss_exists = !boss_query.is_empty();
+    let bar_exists = !bar_query.is_empty();
+    let is_hags = !hag_query.is_empty();
+    let is_lich = !lich_query.is_empty();
+    let is_dark_mage = !dark_mage_query.is_empty();
+    let is_ray = !ray_query.is_empty();
 
     if boss_exists && !bar_exists {
         // Top-center absolute container
@@ -120,18 +120,22 @@ pub(crate) fn spawn_boss_health_bar(
                         })
                         .with_children(|bar_row| {
                             let sections = [
-                                (RayEyeType::Petrification, "Pet", Color::srgb(0.7, 0.7, 0.7)),
+                                (
+                                    RayEyeType::Petrification,
+                                    "Pet",
+                                    RAY_EYE_PETRIFICATION_COLOR,
+                                ),
                                 (
                                     RayEyeType::Disintegration,
                                     "Dis",
-                                    Color::srgb(1.0, 0.6, 0.1),
+                                    RAY_EYE_DISINTEGRATION_COLOR,
                                 ),
-                                (RayEyeType::Fear, "Fear", Color::srgb(0.6, 0.0, 0.8)),
-                                (RayEyeType::MindControl, "MC", Color::srgb(1.0, 0.3, 0.6)),
+                                (RayEyeType::Fear, "Fear", RAY_EYE_FEAR_COLOR),
+                                (RayEyeType::MindControl, "MC", RAY_EYE_MIND_CONTROL_COLOR),
                                 (
                                     RayEyeType::Teleportation,
                                     "Tele",
-                                    Color::srgb(0.0, 1.0, 0.7),
+                                    RAY_EYE_TELEPORTATION_COLOR,
                                 ),
                             ];
                             for (eye_type, name, color) in sections {

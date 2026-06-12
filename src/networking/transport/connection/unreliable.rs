@@ -3,10 +3,10 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU16, Ordering};
 
+use bevy::log::warn;
 use crossbeam_channel::{Receiver, Sender};
 use iroh::endpoint::Connection;
 use tokio::sync::Notify;
-use tracing::warn;
 
 use super::endpoint::DEFAULT_MAX_DATAGRAM;
 use super::helpers::send_event;

@@ -16,7 +16,6 @@ use bevy::prelude::*;
 /// - `MetaGame` → `MainMenu`: Player clicks Return to Menu
 /// - `InGame` → `MainMenu`: Player quits from pause or score screen
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
-#[allow(dead_code)] // Variants will be used as game features are implemented
 pub enum AppState {
     /// Splash screen - shows studio name before main menu.
     #[default]
@@ -53,7 +52,6 @@ pub enum AppState {
 /// its default (Landing).
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]
 #[source(AppState = AppState::MainMenu)]
-#[allow(dead_code)] // Variants will be used as menu screens are implemented
 pub enum MenuState {
     /// Landing screen with Wizard Tower, Settings, and other buttons.
     #[default]

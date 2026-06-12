@@ -72,9 +72,10 @@ pub(super) fn translate_runes(
     gamepads: Query<&Gamepad>,
     mut rune_pressed: MessageWriter<RunePressed>,
 ) {
-    // Activate (South → ActivateRuneSequence) is handled by the keyboard-side
-    // `detect_rune_input` which consumes `SpacebarPressed`; `translate_activate_button`
-    // already emits that when South is pressed.
+    // Activate (South → ActivateRuneSequence): `translate_activate_button` emits
+    // `SpacebarPressed` when South is pressed; `detect_rune_input` then reads
+    // `ButtonInput<KeyCode>` directly for keyboard, but the spacebar path for
+    // RuneCaster reads the activate binding, which covers the controller South button.
     let Some(gamepad) = active_gamepad(&active, &gamepads) else {
         return;
     };

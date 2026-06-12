@@ -9,7 +9,9 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::pathfinding::StagingAttacker;
 use crate::game::pathfinding::resources::PathfindingGrid;
 use crate::game::units::boss::components::Boss;
-use crate::game::units::boss::utils::{despawn_indicators, indicator_rotation};
+use crate::game::units::boss::utils::{
+    animate_telegraph_material, despawn_indicators, indicator_rotation,
+};
 use crate::game::units::components::{
     BanishedModifier, Corpse, FrozenSolidModifier, Health, Hitbox, Knockback, RootedModifier,
     SickenedModifier, SleepModifier, Sleepwalking, Team, TemporaryHitPoints, apply_damage_to_unit,
@@ -253,9 +255,7 @@ pub fn ogre_charge_system(
 
                 // Emissive glow: ramps up with progress, pulses ominously on top
                 if let Some(mat) = materials.get_mut(&indicators.fill_material) {
-                    crate::game::units::boss::utils::animate_telegraph_material(
-                        mat, *elapsed, progress, 0.6,
-                    );
+                    animate_telegraph_material(mat, *elapsed, progress, 0.6);
                 }
 
                 if *elapsed >= OGRE_CHARGE_TELEGRAPH_DURATION {

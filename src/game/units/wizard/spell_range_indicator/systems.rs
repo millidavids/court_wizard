@@ -80,7 +80,7 @@ pub fn pulse_spell_range_indicator(
             let mut color = RANGE_DOT_COLOR;
             color.set_alpha(alpha);
             material.base_color = color;
-            material.alpha_mode = AlphaMode::Blend;
+            // alpha_mode is set to AlphaMode::Blend at spawn and never changes
         }
     }
 }
@@ -107,7 +107,7 @@ fn spawn_range_circle(
     // minor_radius = thickness of the ring itself
     let torus = Torus {
         major_radius: radius,
-        minor_radius: 2.5, // Thin ring, 5 units wide (half of previous 10)
+        minor_radius: 2.5, // Thin ring, 5 units wide
     };
     let torus_mesh = meshes.add(torus);
 

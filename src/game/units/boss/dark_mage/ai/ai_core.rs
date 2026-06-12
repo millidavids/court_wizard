@@ -10,8 +10,8 @@ use crate::config::GameConfig;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::boss::utils::{animate_telegraph_material, despawn_indicators};
 use crate::game::units::components::{
-    BanishedModifier, Corpse, FrozenSolidModifier, RootedModifier, SickenedModifier, SleepModifier,
-    Sleepwalking, Team,
+    BanishedModifier, Corpse, FrozenSolidModifier, Petrified, RootedModifier, SickenedModifier,
+    SleepModifier, Sleepwalking, Stunned, Team,
 };
 use crate::game::units::wizard::spells::audio::{SpellSfxAssets, play_sfx_scaled};
 use crate::game::units::wizard::spells::visual_assets::{
@@ -45,8 +45,8 @@ pub fn dark_mage_ai(
                 Option<&BanishedModifier>,
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
-                Option<&crate::game::units::components::Stunned>,
-                Option<&crate::game::units::components::Petrified>,
+                Option<&Stunned>,
+                Option<&Petrified>,
             ),
         ),
         (With<DarkMage>, Without<Corpse>),

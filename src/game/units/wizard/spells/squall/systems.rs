@@ -1,4 +1,4 @@
-//! Re-export hub for squall systems split (Phase 14).
+//! Re-export hub for squall sub-module systems.
 
 pub(super) use super::casting::*;
 pub(super) use super::shards::*;

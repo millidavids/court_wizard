@@ -7,7 +7,7 @@ use crate::ui::in_game::{HudButtonAction, KingHealthBarFill, ManaBarFill, WaveDi
 use crate::ui::spell_book::{DetailName, HotkeySlotButton, ScrollableSpellList};
 use crate::ui::wizard_tower::{
     InsightDisplay, LevelDisplay, SpellGraphArea, StudyButtonAction, StudyDetailPanel,
-    TimeTravelContainer, WizardTowerButtonAction,
+    TimeTravelContainer,
 };
 
 use super::components::TutorialHighlightable;
@@ -17,18 +17,14 @@ use super::definitions::HighlightTarget;
 // Trigger systems
 // ---------------------------------------------------------------------------
 
-/// Starts a tutorial if it hasn't been completed and tutorials are enabled.
-/// If another tutorial is already active, appends this one to
-/// `PendingTutorials` so it plays as soon as the current one finishes.
-/// `paused_gameplay` is honored only for the immediately-started case;
-/// queued tutorials run un-paused (they're already deep enough into a
-/// session that pausing again would be jarring).
+/// Tags Wizard Tower UI entities with `TutorialHighlightable` so the tutorial
+/// overlay system can highlight them. Runs continuously so that any entities
+/// added after the initial spawn are tagged on the next frame.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn tag_wizard_tower_entities(
     mut commands: Commands,
     level_displays: Query<Entity, (With<LevelDisplay>, Without<TutorialHighlightable>)>,
     insight_displays: Query<Entity, (With<InsightDisplay>, Without<TutorialHighlightable>)>,
-    _wt_buttons: Query<(Entity, &WizardTowerButtonAction), Without<TutorialHighlightable>>,
     tt_containers: Query<Entity, (With<TimeTravelContainer>, Without<TutorialHighlightable>)>,
     tab_rows: Query<
         Entity,

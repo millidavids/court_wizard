@@ -59,7 +59,7 @@ pub(crate) fn update_action_bar_slots(
         for (slot, mut border_color, colors) in &mut slot_button_query {
             let slot_idx = slot.slot as usize;
             if slot_idx < 5 && guns[slot_idx] == gs.selected_gun {
-                *border_color = BorderColor::all(Color::srgb(1.0, 0.8, 0.2));
+                *border_color = BorderColor::all(GUNSLINGER_SELECTED_COLOR);
             } else {
                 *border_color = BorderColor::all(colors.border);
             }

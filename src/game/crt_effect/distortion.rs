@@ -46,9 +46,9 @@ pub(super) fn update_lensing_positions(
     // screen-space distortion, matching the simpler single-player look.
     // The slots are left zeroed so the shader's branchless `step()` checks
     // ignore them.
-    let count = 0u32;
 
     // Slots 2-3: Dimensional Rift endpoints (lensing only, no darkening)
+
     let rift_radius =
         crate::game::units::wizard::spells::teleport::vfx_constants::RIFT_LENSING_RADIUS;
     let mut rift_slot = 2u32;
@@ -98,7 +98,7 @@ pub(super) fn update_lensing_positions(
     // lensing_count must reflect the highest occupied slot + 1, not total sources.
     // Rift endpoints live in slots 2-3, so even with 0 black holes we need count >= 3/4
     // for the shader's branchless step() checks to activate those slots.
-    let max_slot = if rift_slot > 2 { rift_slot } else { count };
+    let max_slot = if rift_slot > 2 { rift_slot } else { 0u32 };
     settings.lensing_count = max_slot as f32;
 }
 

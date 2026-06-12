@@ -150,28 +150,46 @@ pub(crate) fn rebuild_on_state_change(
 
     // Rebuild items list
     // Only rebuild the item list when the tab changes — not on item selection.
-    if tab_changed && let Ok(container) = items_container.single() {
-        commands.entity(container).despawn_related::<Children>();
-        commands
-            .entity(container)
-            .with_children(|parent| match state.active_tab {
-                CompendiumTab::Spells => {
-                    spawn_spell_items(parent, &unlocked_content.spells, &research_progress, &state)
-                }
-                CompendiumTab::Ingredients => {
-                    spawn_ingredient_items(parent, &unlocked_content.ingredients, &state)
-                }
-                CompendiumTab::Units => spawn_unit_items(parent, &unlocked_content.units, &state),
-                CompendiumTab::Wizards => {
-                    spawn_wizard_items(parent, &unlocked_content.wizard_types, &state)
-                }
-                CompendiumTab::Achievements => {
-                    spawn_achievement_items(parent, &unlocked_achievements, &state)
-                }
-                CompendiumTab::Stats => spawn_stats_items(parent, save.as_ref()),
-                CompendiumTab::Endless => spawn_endless_items(parent, save.as_ref(), &state),
-                CompendiumTab::Roguelite => spawn_roguelite_items(parent, save.as_ref(), &state),
-            });
+    if tab_changed {
+        match items_container.single() {
+            Err(_) => {
+                warn!(
+                    "rebuild_on_state_change: expected exactly one ItemsContainer but found none or multiple; skipping item list rebuild"
+                );
+            }
+            Ok(container) => {
+                commands.entity(container).despawn_related::<Children>();
+                commands
+                    .entity(container)
+                    .with_children(|parent| match state.active_tab {
+                        CompendiumTab::Spells => spawn_spell_items(
+                            parent,
+                            &unlocked_content.spells,
+                            &research_progress,
+                            &state,
+                        ),
+                        CompendiumTab::Ingredients => {
+                            spawn_ingredient_items(parent, &unlocked_content.ingredients, &state)
+                        }
+                        CompendiumTab::Units => {
+                            spawn_unit_items(parent, &unlocked_content.units, &state)
+                        }
+                        CompendiumTab::Wizards => {
+                            spawn_wizard_items(parent, &unlocked_content.wizard_types, &state)
+                        }
+                        CompendiumTab::Achievements => {
+                            spawn_achievement_items(parent, &unlocked_achievements, &state)
+                        }
+                        CompendiumTab::Stats => spawn_stats_items(parent, save.as_ref()),
+                        CompendiumTab::Endless => {
+                            spawn_endless_items(parent, save.as_ref(), &state)
+                        }
+                        CompendiumTab::Roguelite => {
+                            spawn_roguelite_items(parent, save.as_ref(), &state)
+                        }
+                    });
+            }
+        }
     }
 
     // Update detail panel (including icon)

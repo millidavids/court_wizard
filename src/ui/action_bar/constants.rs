@@ -13,7 +13,8 @@ pub(super) const SLOT_HEIGHT: f32 = 50.0;
 pub(super) const SLOT_GAP: f32 = 4.0;
 
 /// Font size for spell name text in action bar slots.
-/// Increased to 16.0 for better readability with multiline names.
+/// Spell names are no longer rendered in slots (icons are the identity);
+/// this value is kept for the radial animation scale calculation.
 pub(super) const SPELL_NAME_FONT_SIZE: f32 = 7.0;
 
 /// Font size for hotkey indicator text.
@@ -63,3 +64,5 @@ pub(super) const RADIAL_TRANSITION_SECS: f32 = 0.35;
 pub(super) const RADIAL_COMMIT_FLASH_SECS: f32 = 0.18;
 /// Border color shown on the radial slot the right stick is currently pointing at.
 pub(super) const RADIAL_HOVER_COLOR: Color = Color::srgba(1.0, 0.95, 0.4, 1.0);
+/// Border color for the gunslinger's currently selected gun slot.
+pub(super) const GUNSLINGER_SELECTED_COLOR: Color = Color::srgb(1.0, 0.8, 0.2);

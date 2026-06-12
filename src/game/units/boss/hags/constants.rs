@@ -152,6 +152,8 @@ pub const LEAP_KNOCKBACK_SPEED: f32 = 600.0;
 /// Leap knockback decay duration.
 pub const LEAP_KNOCKBACK_DURATION: f32 = 1.0;
 
+/// Pause duration after landing before Josephina attacks (seconds).
+pub const LEAP_LANDING_PAUSE: f32 = 0.3;
 /// Vicious mauling duration (seconds).
 pub const MAULING_DURATION: f32 = 1.0;
 /// Corpse consume duration (seconds).

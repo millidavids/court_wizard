@@ -1,6 +1,8 @@
 //! Units plugin module.
 //!
-//! Contains all game unit types: wizard, infantry, and archers.
+//! Contains all game unit types: wizard, infantry, archers, boss, brute,
+//! commander, assassin, aerialist, healer, shielder, dispeller, teleporter,
+//! elite, and undead.
 
 pub(crate) mod aerialist;
 pub(crate) mod animation;

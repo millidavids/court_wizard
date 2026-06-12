@@ -138,14 +138,8 @@ pub fn handle_berserker_rage_casting(
         }
     }
 
-    let completed = berserker_rage_casting_logic(
-        &input,
-        &time,
-        &mut casting_state,
-        &mut mana,
-        primed_spell,
-        clamped_cursor,
-    );
+    let completed =
+        berserker_rage_casting_logic(&input, &time, &mut casting_state, &mut mana, primed_spell);
 
     if completed {
         vfx::systems::spawn_school_flare_synced(
@@ -212,7 +206,6 @@ fn berserker_rage_casting_logic(
     casting_state: &mut CastingState,
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
-    _clamped_cursor: Option<Vec3>,
 ) -> bool {
     if input.just_released {
         return false;

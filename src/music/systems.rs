@@ -18,7 +18,7 @@ pub(super) fn load_music_assets(mut commands: Commands, asset_server: Res<AssetS
 }
 
 /// Maps an AppState to the appropriate music track.
-fn track_for_state(state: &AppState) -> MusicTrack {
+pub(super) fn track_for_state(state: &AppState) -> MusicTrack {
     match state {
         AppState::Splash | AppState::MainMenu | AppState::MetaGame => MusicTrack::Menu,
         AppState::Loading
@@ -44,6 +44,7 @@ pub(super) fn check_music_transition(
         return;
     };
     let Some(game_config) = game_config else {
+        warn!("check_music_transition: GameConfig not yet loaded — music transition deferred");
         return;
     };
 
