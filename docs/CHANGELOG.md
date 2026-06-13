@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Fixed
+- **Fixed rare crashes during spells** — units dying at just the wrong moment inside spell clouds, grease, and similar zone effects could occasionally crash the game. These are now handled safely, and the game is more resilient to this kind of timing hiccup overall.
+
 ## [v0.10.53] - 2026-06-13
 
 ### Added

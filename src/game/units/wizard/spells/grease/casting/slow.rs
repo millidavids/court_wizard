@@ -75,11 +75,7 @@ pub fn apply_grease_slow(
                     } else {
                         let modifier =
                             SlowMovementModifier::new(zone.slow_modifier, zone.slow_duration);
-                        commands
-                            .entity(entity)
-                            .queue_silenced(move |mut e: EntityWorldMut| {
-                                e.insert(modifier);
-                            });
+                        commands.entity(entity).try_insert(modifier);
                     }
                     units_slowed += 1;
 
@@ -91,13 +87,13 @@ pub fn apply_grease_slow(
                         if is_new {
                             commands
                                 .entity(entity)
-                                .insert(GreaseZonePresenceTracker { zone_entity });
+                                .try_insert(GreaseZonePresenceTracker { zone_entity });
 
                             // Talent: Slip and Fall — stun on zone entry
                             if zone.talent_params.slip_and_fall {
                                 let roll: f32 = rng.random_range(0.0..1.0);
                                 if roll < constants::SLIP_AND_FALL_CHANCE {
-                                    commands.entity(entity).insert(RootedModifier::new(
+                                    commands.entity(entity).try_insert(RootedModifier::new(
                                         constants::SLIP_AND_FALL_STUN_DURATION,
                                     ));
                                 }
@@ -109,7 +105,7 @@ pub fn apply_grease_slow(
                                 && let Some(ref mut health) = health
                             {
                                 health.spell_vulnerability += constants::OIL_SLICK_VULNERABILITY;
-                                commands.entity(entity).insert(GreaseOilSlickDebuff::new());
+                                commands.entity(entity).try_insert(GreaseOilSlickDebuff::new());
                             }
                         }
                     }
@@ -120,7 +116,7 @@ pub fn apply_grease_slow(
                     {
                         commands
                             .entity(entity)
-                            .remove::<GreaseZonePresenceTracker>();
+                            .try_remove::<GreaseZonePresenceTracker>();
 
                         // Remove Oil Slick vulnerability when leaving
                         if let Some(debuff) = has_oil_debuff {
@@ -128,7 +124,7 @@ pub fn apply_grease_slow(
                                 health.spell_vulnerability =
                                     (health.spell_vulnerability - debuff.vulnerability).max(0.0);
                             }
-                            commands.entity(entity).remove::<GreaseOilSlickDebuff>();
+                            commands.entity(entity).try_remove::<GreaseOilSlickDebuff>();
                         }
                     }
                 }

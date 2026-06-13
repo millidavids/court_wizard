@@ -180,7 +180,7 @@ pub fn check_grease_ignition(
         if let Some(ign_point) = ignition_pos {
             commands
                 .entity(zone_entity)
-                .insert(GreaseIgnited::new(ign_point));
+                .try_insert(GreaseIgnited::new(ign_point));
 
             // Talent: Lingering Flames — reset time_alive so fire burns for the full zone duration
             if zone.talent_params.lingering_flames {
@@ -217,7 +217,7 @@ pub fn check_grease_ignition(
                 {
                     let dist = xz_distance(zone.origin, transform.translation);
                     if dist <= zone.radius {
-                        commands.entity(entity).insert((
+                        commands.entity(entity).try_insert((
                             Airborne::new(
                                 constants::GEYSER_LAUNCH_VELOCITY,
                                 constants::GEYSER_GRAVITY,

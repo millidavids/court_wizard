@@ -126,7 +126,7 @@ pub fn chain_ward_on_death(
         if let Some((target_entity, _)) = nearest {
             commands
                 .entity(target_entity)
-                .insert(TemporaryHitPoints::new(
+                .try_insert(TemporaryHitPoints::new(
                     shielded.chain_ward_amount,
                     shielded.chain_ward_duration,
                 ));
@@ -134,7 +134,7 @@ pub fn chain_ward_on_death(
             // Clone and pass along with one fewer hop
             let mut chained = shielded.clone();
             chained.chain_ward_hops -= 1;
-            commands.entity(target_entity).insert(chained);
+            commands.entity(target_entity).try_insert(chained);
         }
 
         // One-shot: remove marker so chain ward doesn't fire again

@@ -73,7 +73,7 @@ pub fn apply_plague_wind_damage(
             if inside {
                 // Mark unit as inside cloud (for Plague Carrier tracking), skip if already marked
                 if has_plague_carrier && !already_marked {
-                    commands.entity(entity).insert(InsidePlagueCloud);
+                    commands.entity(entity).try_insert(InsidePlagueCloud);
                 }
 
                 if should_tick {
@@ -110,7 +110,7 @@ pub fn apply_plague_wind_damage(
 
                     // Choking Gas: slow enemies inside
                     if has_choking_gas {
-                        commands.entity(entity).insert(SlowMovementModifier::new(
+                        commands.entity(entity).try_insert(SlowMovementModifier::new(
                             constants::CHOKING_GAS_SLOW,
                             constants::CHOKING_GAS_SLOW_DURATION,
                         ));
@@ -189,10 +189,10 @@ pub fn track_plague_carrier(
         }
 
         if !still_inside {
-            commands.entity(entity).remove::<InsidePlagueCloud>();
+            commands.entity(entity).try_remove::<InsidePlagueCloud>();
 
             if carrier_damage > 0.0 {
-                commands.entity(entity).insert(PlagueCarrierDoT::new(
+                commands.entity(entity).try_insert(PlagueCarrierDoT::new(
                     carrier_damage,
                     constants::PLAGUE_CARRIER_TICK_INTERVAL,
                     constants::PLAGUE_CARRIER_DURATION,

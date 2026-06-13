@@ -236,7 +236,7 @@ pub(crate) fn update_psychic_shockwave(
 
             if dist_sq > prev_r_sq && dist_sq <= curr_r_sq && dist_sq > 0.001 {
                 let direction = Vec3::new(diff.x, 0.0, diff.z);
-                commands.entity(enemy_entity).insert(Knockback::new(
+                commands.entity(enemy_entity).try_insert(Knockback::new(
                     direction,
                     constants::SHOCKWAVE_KNOCKBACK_SPEED,
                     constants::SHOCKWAVE_KNOCKBACK_DURATION,

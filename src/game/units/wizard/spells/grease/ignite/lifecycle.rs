@@ -79,8 +79,8 @@ pub fn cleanup_grease_zone(
                 // Talent: Endless Oil — regenerate instead of despawning
                 if zone.talent_params.endless_oil {
                     // Remove ignited state and start regeneration
-                    commands.entity(entity).remove::<GreaseIgnited>();
-                    commands.entity(entity).insert(GreaseRegenerating::new());
+                    commands.entity(entity).try_remove::<GreaseIgnited>();
+                    commands.entity(entity).try_insert(GreaseRegenerating::new());
 
                     // Downgrade pathfinding from hazard back to slow terrain
                     write_grease_obstacle(
@@ -133,7 +133,7 @@ pub fn update_grease_regeneration(
             // Regeneration complete — restore to slippery state
             zone.time_alive = (zone.duration - constants::ENDLESS_OIL_EXTRA_DURATION).max(0.0);
             zone.time_since_last_tick = 0.0;
-            commands.entity(entity).remove::<GreaseRegenerating>();
+            commands.entity(entity).try_remove::<GreaseRegenerating>();
         }
     }
 }
@@ -157,13 +157,13 @@ pub fn cleanup_grease_debuffs(
         if zones.get(tracker.zone_entity).is_err() {
             commands
                 .entity(entity)
-                .remove::<GreaseZonePresenceTracker>();
+                .try_remove::<GreaseZonePresenceTracker>();
             if let Some(debuff) = oil_slick {
                 if let Some(ref mut health) = health {
                     health.spell_vulnerability =
                         (health.spell_vulnerability - debuff.vulnerability).max(0.0);
                 }
-                commands.entity(entity).remove::<GreaseOilSlickDebuff>();
+                commands.entity(entity).try_remove::<GreaseOilSlickDebuff>();
             }
         }
     }

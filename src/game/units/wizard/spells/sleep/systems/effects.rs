@@ -54,17 +54,17 @@ pub(crate) fn apply_sleep(
 
         // Night Terrors: minor DPS while sleeping
         if talent_params.night_terrors {
-            entity_commands.insert(NightTerrors::new(constants::NIGHT_TERRORS_DPS));
+            entity_commands.try_insert(NightTerrors::new(constants::NIGHT_TERRORS_DPS));
         }
 
         // Comatose: require 30% max HP damage to wake
         if talent_params.comatose {
-            entity_commands.insert(Comatose::new(constants::COMATOSE_WAKE_THRESHOLD));
+            entity_commands.try_insert(Comatose::new(constants::COMATOSE_WAKE_THRESHOLD));
         }
 
         // Narcoleptic Wave: spreading sleep after delay
         if talent_params.narcoleptic_wave {
-            entity_commands.insert(NarcolepticWave::new(
+            entity_commands.try_insert(NarcolepticWave::new(
                 constants::NARCOLEPTIC_SPREAD_DELAY,
                 constants::NARCOLEPTIC_SPREAD_RADIUS,
             ));
@@ -72,11 +72,11 @@ pub(crate) fn apply_sleep(
 
         // Dreamwalker: enemies sleepwalk back toward spawn
         if talent_params.dreamwalker {
-            entity_commands.insert(Sleepwalking::new(constants::DREAMWALKER_SPEED_MULT));
+            entity_commands.try_insert(Sleepwalking::new(constants::DREAMWALKER_SPEED_MULT));
             modifier.full_duration = constants::DREAMWALKER_DURATION;
         }
 
-        entity_commands.insert(modifier);
+        entity_commands.try_insert(modifier);
         hit_count += 1;
     }
 
@@ -129,7 +129,7 @@ pub fn update_night_terrors(
             apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), damage);
             terrors.tick_accumulator = 0.0;
             if health.current <= 0.0 {
-                commands.entity(entity).insert(Corpse);
+                commands.entity(entity).try_insert(Corpse);
             }
         }
     }
@@ -211,15 +211,15 @@ pub fn update_narcoleptic_wave(
             if dist <= event.radius {
                 let modifier = SleepModifier::new(event.duration, event.bonus_damage);
                 let mut entity_commands = commands.entity(entity);
-                entity_commands.insert(modifier);
+                entity_commands.try_insert(modifier);
                 if event.has_night_terrors {
-                    entity_commands.insert(NightTerrors::new(constants::NIGHT_TERRORS_DPS));
+                    entity_commands.try_insert(NightTerrors::new(constants::NIGHT_TERRORS_DPS));
                 }
                 if event.has_comatose {
-                    entity_commands.insert(Comatose::new(constants::COMATOSE_WAKE_THRESHOLD));
+                    entity_commands.try_insert(Comatose::new(constants::COMATOSE_WAKE_THRESHOLD));
                 }
                 if let Some(speed_mult) = event.sleepwalking {
-                    entity_commands.insert(Sleepwalking::new(speed_mult));
+                    entity_commands.try_insert(Sleepwalking::new(speed_mult));
                 }
             }
         }

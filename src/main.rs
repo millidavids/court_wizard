@@ -87,6 +87,15 @@ fn main() {
     ))
     .insert_resource(ClearColor(Color::BLACK));
 
+    // Don't let a stray command targeting an entity that despawned the same
+    // frame (e.g. a unit that died mid-tick inside a DoT/AoE zone) crash the
+    // player's game. Debug keeps Bevy's default `panic` so real logic bugs
+    // still surface during development; release downgrades to a logged warning.
+    #[cfg(not(debug_assertions))]
+    app.insert_resource(bevy::ecs::error::DefaultErrorHandler(
+        bevy::ecs::error::warn,
+    ));
+
     app.add_systems(Startup, setup)
         .add_systems(
             Update,
