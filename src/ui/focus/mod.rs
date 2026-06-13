@@ -16,8 +16,9 @@ pub(super) mod scroll;
 mod systems;
 
 pub(crate) use components::{
-    CrossRowHorizontalNav, Focusable, FocusableFlatBackground, GamepadFocused, GamepadScrollTarget,
-    ModalOverlay, NoGamepadFocus, ScrollRevealBounds, TabFocusable,
+    ConsumeHorizontalNav, CrossRowHorizontalNav, Focusable, FocusableFlatBackground,
+    GamepadFocused, GamepadScrollTarget, ModalOverlay, NoGamepadFocus, ScrollRevealBounds,
+    TabFocusable,
 };
 pub(crate) use plugin::FocusPlugin;
 pub(crate) use resources::FocusNavInhibit;

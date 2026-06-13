@@ -184,7 +184,16 @@ pub(super) fn autoscroll_to_focused(
             let max_scroll_phys = (content_size_y - container_size_y).max(0.0);
             let padding_physical = AUTOSCROLL_EDGE_PADDING;
 
-            let new_scroll_phys = if focus_top_content < viewport_top_content + padding_physical {
+            let new_scroll_phys = if reveal_entity == entity && reveal_size_y >= container_size_y {
+                // The FOCUSED element itself is taller than the viewport (e.g.
+                // the controller-binding diagram): pin its TOP so the header
+                // stays visible instead of pinning the bottom (which would push
+                // the header off-screen above). Scoped to `reveal_entity ==
+                // entity`: when a `ScrollRevealBounds` ancestor (e.g. an
+                // expanded wizard card) is the tall reveal target, fall through
+                // to the bottom-pin branch so the focused button stays visible.
+                (focus_top_content - padding_physical).clamp(0.0, max_scroll_phys)
+            } else if focus_top_content < viewport_top_content + padding_physical {
                 // Focus above viewport — pin its top to viewport top + pad.
                 (focus_top_content - padding_physical).max(0.0)
             } else if focus_bottom_content > viewport_bottom_content - padding_physical {

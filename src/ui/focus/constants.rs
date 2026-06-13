@@ -4,7 +4,7 @@ use std::time::Duration;
 
 /// Digital-direction threshold for left-stick navigation (stick must exceed this
 /// magnitude along a single axis to register as a direction press).
-pub(super) const STICK_DIRECTION_THRESHOLD: f32 = 0.55;
+pub(crate) const STICK_DIRECTION_THRESHOLD: f32 = 0.55;
 
 /// Delay between the first focus move and the start of hold-to-repeat.
 /// Holding a D-pad direction or stick past this duration starts stepping
@@ -17,7 +17,7 @@ pub(super) const FOCUS_REPEAT_INTERVAL: Duration = Duration::from_millis(260);
 
 /// Return-to-center threshold (stick must fall below this before another
 /// direction press can register, preventing runaway cursoring).
-pub(super) const STICK_RESET_THRESHOLD: f32 = 0.25;
+pub(crate) const STICK_RESET_THRESHOLD: f32 = 0.25;
 
 /// Two candidates within this many pixels of each other along the navigation
 /// direction are considered to be in the same row/column. Pick by perpendicular

@@ -11,11 +11,12 @@ use super::components::{
 use crate::ui::systems::{escape_to_landing, handle_scroll};
 
 use super::systems::{
-    capture_key_input, handle_confirmation_popup, handle_settings_tab_click,
-    key_binding_button_action, key_capture_inactive, option_button_action,
-    rebuild_settings_content, resolution_button_action, settings_button_action, setup_main_menu,
-    slider_button_action, slider_interaction, update_key_binding_text, update_resolution_selection,
-    update_resolution_visibility, update_selected_options, update_slider_text, update_sliders,
+    capture_key_input, cycle_controller_diagram_scheme, handle_confirmation_popup,
+    handle_settings_tab_click, key_binding_button_action, key_capture_inactive,
+    option_button_action, rebuild_settings_content, resolution_button_action,
+    settings_button_action, setup_main_menu, slider_button_action, slider_interaction,
+    update_key_binding_text, update_resolution_selection, update_resolution_visibility,
+    update_selected_options, update_slider_text, update_sliders,
 };
 
 /// Plugin that manages the settings menu UI.
@@ -64,6 +65,7 @@ impl Plugin for SettingsPlugin {
                     update_selected_options,
                     handle_confirmation_popup,
                     rebuild_settings_content,
+                    cycle_controller_diagram_scheme,
                     capture_key_input,
                     update_key_binding_text,
                     update_resolution_selection,

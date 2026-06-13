@@ -4,7 +4,7 @@
 
 pub(crate) mod components;
 mod constants;
-mod controller_diagrams;
+pub(crate) mod controller_diagrams;
 #[cfg(debug_assertions)]
 pub(crate) mod debug_unlock;
 pub(super) mod plugin;

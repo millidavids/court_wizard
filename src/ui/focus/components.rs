@@ -50,6 +50,13 @@ pub(crate) struct FocusableFlatBackground {
 #[derive(Component, Debug, Clone, Copy)]
 pub(crate) struct ModalOverlay;
 
+/// Marks a focused entity that should CONSUME Left/Right navigation instead of
+/// moving focus to a horizontal neighbor — for widgets that repurpose Left/Right
+/// while focused (e.g. the controller-binding diagram cycling vendor schemes).
+/// Up/Down still move focus normally, so the element is never a trap.
+#[derive(Component, Debug, Clone, Copy)]
+pub(crate) struct ConsumeHorizontalNav;
+
 /// Marks a focusable that should allow cross-row Left/Right navigation.
 /// Used for grid layouts (e.g. wizard cards) where expanding one item can
 /// push its column's siblings out of alignment with other columns — Left/Right

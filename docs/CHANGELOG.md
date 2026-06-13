@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Added
+- **Switch the controller button guide between layouts** — the controller diagram in Settings now lets you flip between Xbox, PlayStation, Switch, and Steam Deck button styles. Highlight it and press left or right; it starts on whatever controller you have connected.
+
+### Fixed
+- **The battle tutorial now works on a controller** — the in-battle walkthrough that points out your mana, action bar, spell book, and cauldron now appears (with controller button prompts) when you're playing on a controller, instead of only showing for mouse and keyboard.
+- **Reach the controller button guide with a controller** — the button guide at the bottom of Settings can now be scrolled to and selected with a controller; you no longer need a mouse to see it.
+- **Wizard descriptions no longer get cut off** — a wizard's full description now fits on screen when expanded, instead of being clipped at certain window sizes or in fullscreen.
+
 ## [v0.10.48] - 2026-06-12
 
 ### Changed

@@ -14,10 +14,10 @@ use crate::ui::main_menu::settings::components::{
     ConfirmationPopup, SettingsButtonAction, SettingsContentContainer,
 };
 use crate::ui::main_menu::settings::systems::{
-    capture_key_input, handle_confirmation_popup, handle_settings_tab_click,
-    key_binding_button_action, key_capture_inactive, option_button_action,
-    rebuild_settings_content, resolution_button_action, setup_pause_menu, slider_button_action,
-    slider_interaction, spawn_confirmation_popup, update_key_binding_text,
+    capture_key_input, cycle_controller_diagram_scheme, handle_confirmation_popup,
+    handle_settings_tab_click, key_binding_button_action, key_capture_inactive,
+    option_button_action, rebuild_settings_content, resolution_button_action, setup_pause_menu,
+    slider_button_action, slider_interaction, spawn_confirmation_popup, update_key_binding_text,
     update_resolution_selection, update_resolution_visibility, update_selected_options,
     update_slider_text, update_sliders,
 };
@@ -61,6 +61,7 @@ impl Plugin for MpPauseSettingsPlugin {
                     update_selected_options,
                     handle_confirmation_popup,
                     rebuild_settings_content,
+                    cycle_controller_diagram_scheme,
                     capture_key_input,
                     update_key_binding_text,
                     update_resolution_selection,

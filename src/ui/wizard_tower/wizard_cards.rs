@@ -5,6 +5,7 @@
 //! when the player clicks "Change Wizard Type" / "Switch Wizard Type".
 
 use bevy::prelude::*;
+use bevy::ui::ComputedNode;
 
 use crate::config::WizardType;
 use crate::config::save_data::load_unified_save;
@@ -94,9 +95,6 @@ pub(super) enum WizardCardAction {
 /// Marker for the expandable content section inside a card.
 #[derive(Component)]
 pub(super) struct CardExpandSection;
-
-/// The expanded section target height.
-const EXPANDED_SECTION_HEIGHT: f32 = 180.0;
 
 // ---------------------------------------------------------------------------
 // Grid builder
@@ -405,38 +403,63 @@ fn collapse_card(
 
 /// Triggers expand/collapse animation on CardExpandSection children
 /// when the parent card's ExpandedWizardCard marker changes.
+///
+/// The expanded target height is the section's measured content height
+/// (`ComputedNode::content_size`) rather than a fixed constant, so long
+/// descriptions never clip — at narrow card widths (e.g. fullscreen on a TV)
+/// the text wraps into more lines and the section grows to fit it.
 pub(super) fn animate_card_expand(
     time: Res<Time>,
     card_query: Query<(Has<ExpandedWizardCard>, &Children), With<WizardCardContainer>>,
-    mut section_query: Query<&mut Node, With<CardExpandSection>>,
+    mut section_query: Query<(&mut Node, &ComputedNode), With<CardExpandSection>>,
 ) {
     let dt = time.delta_secs();
     for (is_expanded, children) in &card_query {
-        let target = if is_expanded {
-            EXPANDED_SECTION_HEIGHT
-        } else {
-            0.0
-        };
-
         for child in children.iter() {
-            let Ok(mut node) = section_query.get_mut(child) else {
+            let Ok((mut node, computed)) = section_query.get_mut(child) else {
                 continue;
             };
+
             let current = match node.height {
                 Val::Px(h) => h,
                 _ => 0.0,
             };
 
+            // Collapsed and already closed (the common case for every card that
+            // isn't open): nothing to animate — skip before reading ComputedNode.
+            if !is_expanded && current == 0.0 {
+                continue;
+            }
+
+            // `content_size` is the laid-out height of the section's children
+            // (separator + long description + status) in physical pixels;
+            // convert to the logical pixels `Node::height` expects.
+            let inv_sf = computed.inverse_scale_factor();
+            if inv_sf <= 0.0 {
+                continue;
+            }
+            let target = if is_expanded {
+                computed.content_size().y * inv_sf
+            } else {
+                0.0
+            };
+
             let diff = target - current;
-            if diff.abs() < 1.0 {
-                node.height = Val::Px(target);
+            let new_height = if diff.abs() < 1.0 {
+                target
             } else {
                 let step = EXPAND_ANIM_SPEED * dt;
-                let new_height = if diff > 0.0 {
+                if diff > 0.0 {
                     (current + step).min(target)
                 } else {
                     (current - step).max(target)
-                };
+                }
+            };
+
+            // Only write when the value actually changes so collapsed cards
+            // (target == current == 0) don't mark their Node dirty and force a
+            // UI relayout every frame.
+            if node.height != Val::Px(new_height) {
                 node.height = Val::Px(new_height);
             }
         }

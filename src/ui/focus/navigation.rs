@@ -4,7 +4,8 @@ use bevy::prelude::*;
 use bevy::ui::ui_transform::UiGlobalTransform;
 
 use super::components::{
-    CrossRowHorizontalNav, Focusable, ModalOverlay, NoGamepadFocus, TabFocusable,
+    ConsumeHorizontalNav, CrossRowHorizontalNav, Focusable, ModalOverlay, NoGamepadFocus,
+    TabFocusable,
 };
 use super::constants::{
     FOCUS_REPEAT_INITIAL_DELAY, FOCUS_REPEAT_INTERVAL, PANEL_COLUMN_TOLERANCE, SAME_ROW_TOLERANCE,
@@ -305,6 +306,7 @@ pub(super) fn focus_navigation(
     focusables: BodyFocusableQuery,
     modals: Query<Entity, With<ModalOverlay>>,
     cross_row: Query<Entity, With<CrossRowHorizontalNav>>,
+    consume_horizontal: Query<Entity, With<ConsumeHorizontalNav>>,
     child_of: Query<&ChildOf>,
     mut focused: ResMut<FocusedEntity>,
     mut stick_latched: Local<Option<Vec2>>,
@@ -320,6 +322,19 @@ pub(super) fn focus_navigation(
     };
 
     let raw_direction = resolve_nav_direction(gamepad, &mut stick_latched);
+
+    // A focused `ConsumeHorizontalNav` element (the controller-binding diagram)
+    // eats Left/Right so it can repurpose them — e.g. cycle vendor schemes —
+    // without focus hopping to a neighbor. Up/Down still navigate away, so it's
+    // never a trap. Checked before the hold-repeat update below so consumed
+    // presses don't advance the repeat timer.
+    if let Some(dir) = raw_direction
+        && dir.x.abs() > dir.y.abs()
+        && focused.0.is_some_and(|e| consume_horizontal.contains(e))
+    {
+        return;
+    }
+
     let now = time.elapsed();
 
     let fire_direction: Option<Vec2> = match raw_direction {

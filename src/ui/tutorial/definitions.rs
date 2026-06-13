@@ -135,7 +135,14 @@ impl TutorialId {
     /// Returns the input modality this tutorial is tailored for.
     pub(crate) fn modality(&self) -> TutorialModality {
         match self {
-            TutorialId::KbmMenusIntro | TutorialId::InGameIntro => TutorialModality::MouseKeyboard,
+            // The KBM menus primer ("click buttons, hover for tooltips, Esc to
+            // back out") is meaningless on a controller, so it stays
+            // KBM-only. Every other tutorial — including the in-game intro —
+            // adapts its text per-device via `text`/`text_kbm`, so it runs on
+            // both. (The in-game intro used to be KBM-only too, which meant a
+            // controller-first player never saw it: the modality enforcer
+            // dismissed it the instant it fired.)
+            TutorialId::KbmMenusIntro => TutorialModality::MouseKeyboard,
             _ => TutorialModality::Any,
         }
     }
@@ -371,8 +378,10 @@ static IN_GAME_STEPS: &[TutorialStep] = &[
     },
     TutorialStep {
         target: HighlightTarget::ActionBar,
-        text: "This is your action bar where you can assign spells for quick selection. Press keys 1-5 to select a spell, then click the battlefield to cast.",
-        text_kbm: None,
+        text: "This is your action bar. Point the {rstick} at a spell and pull {rt} to select it, then aim with the {lstick} and pull {rt} to cast.",
+        text_kbm: Some(
+            "This is your action bar where you can assign spells for quick selection. Press keys 1-5 to select a spell, then click the battlefield to cast.",
+        ),
         anchor: PanelAnchor::CenterRight,
     },
     TutorialStep {
@@ -389,14 +398,16 @@ static IN_GAME_STEPS: &[TutorialStep] = &[
     },
     TutorialStep {
         target: HighlightTarget::SpellBookButton,
-        text: "Need a different spell? Open your spell book here to swap hotkeys.",
-        text_kbm: None,
+        text: "Need a different spell? Press {west} to open your spell book and swap hotkeys.",
+        text_kbm: Some("Need a different spell? Open your spell book here to swap hotkeys."),
         anchor: PanelAnchor::CenterRight,
     },
     TutorialStep {
         target: HighlightTarget::CauldronButton,
-        text: "Open the cauldron here to brew powerful buffs from ingredients dropped by enemies.",
-        text_kbm: None,
+        text: "Press {north} to open the cauldron and brew powerful buffs from ingredients dropped by enemies.",
+        text_kbm: Some(
+            "Open the cauldron here to brew powerful buffs from ingredients dropped by enemies.",
+        ),
         anchor: PanelAnchor::CenterRight,
     },
 ];
