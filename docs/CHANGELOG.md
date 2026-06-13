@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.10.53] - 2026-06-13
 
 ### Added
 - **Switch the controller button guide between layouts** — the controller diagram in Settings now lets you flip between Xbox, PlayStation, Switch, and Steam Deck button styles. Highlight it and press left or right; it starts on whatever controller you have connected.
