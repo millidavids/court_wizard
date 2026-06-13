@@ -14,6 +14,9 @@ use super::super::super::materials::{
     StarSkyData, StarSkyMaterial,
 };
 use super::helpers::{is_prereq_met, is_spell_unlocked};
+// Debug-only marker: defined and used only under `debug_assertions`, so the
+// import must be gated too or release builds fail with an unresolved import.
+#[cfg(debug_assertions)]
 use super::spawn::DebugInsightButton;
 
 /// Spawns study tab content into the wizard tower's left and right panels.
