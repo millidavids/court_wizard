@@ -8,7 +8,7 @@ use super::super::spells::magic_missile_constants;
 use crate::config::{GameConfig, WizardType};
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::constants::WIZARD_POSITION;
-use crate::game::units::components::{Health, Hitbox, MovementSpeed, Team};
+use crate::game::units::components::{Health, Hitbox, Invulnerable, MovementSpeed, Team};
 
 /// Sets up the wizard when entering the InGame state.
 ///
@@ -86,6 +86,12 @@ pub fn setup_wizard(
         Transform::from_translation(WIZARD_POSITION),
         hitbox,
         Health::new(constants::HEALTH),
+        // The wizard is a non-combatant caster: it can never take damage or die.
+        // `enforce_invulnerability` snapshots and restores its health every frame,
+        // before corpse conversion can ever see it as dead.
+        Invulnerable {
+            health_snapshot: constants::HEALTH,
+        },
         MovementSpeed(0.0), // Wizard doesn't move
         Mana::new(constants::MANA),
         ManaRegen::new(constants::MANA_REGEN),

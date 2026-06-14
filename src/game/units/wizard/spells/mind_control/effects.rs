@@ -9,6 +9,7 @@ use crate::game::units::components::{
     AttackTiming, Corpse, FlockingVelocity, Health, Hitbox, MindControlled, TargetingVelocity,
     Team, TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::wizard::components::Wizard;
 
 /// Computes talent parameters from active talent selections.
 pub(super) fn update_traitors_mark_aura(
@@ -73,6 +74,7 @@ fn confused_combat_attack(
         (
             Without<Corpse>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<Wizard>,
         ),
     >,
 ) {
@@ -151,6 +153,7 @@ pub(super) fn tick_amnesia_effect(
         (
             Without<Corpse>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<Wizard>,
         ),
     >,
 ) {
@@ -179,6 +182,7 @@ pub(super) fn tick_amnesia_effect(
 }
 
 /// Sleeper Agent: ticks the delay timer and triggers betrayal attack.
+#[allow(clippy::type_complexity)]
 pub(super) fn tick_sleeper_agent(
     time: Res<Time>,
     mut commands: Commands,
@@ -199,6 +203,7 @@ pub(super) fn tick_sleeper_agent(
             Without<Corpse>,
             Without<SleeperAgentActive>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<Wizard>,
         ),
     >,
 ) {
@@ -262,6 +267,7 @@ pub(super) fn update_mass_hysteria_targeting(
             Without<Corpse>,
             // Exclude ghost mirror-images so hysteria steers toward real combatants.
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<Wizard>,
         ),
     >,
 ) {

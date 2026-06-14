@@ -12,6 +12,7 @@ use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::vfx;
@@ -25,7 +26,10 @@ pub fn move_magic_missiles(
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut missiles: Query<(&mut Transform, &mut MagicMissile)>,
-    targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
+    targets: Query<
+        (Entity, &Transform, &Team),
+        (Without<MagicMissile>, Without<Corpse>, Without<Wizard>),
+    >,
     crystal_transforms: Query<&Transform, (With<ArcaneCrystal>, Without<MagicMissile>)>,
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
@@ -210,7 +214,7 @@ pub fn move_magic_missiles(
 /// Checks for magic missile collisions with enemies (Attackers and Undead).
 ///
 /// When a missile hits an enemy, it deals 50 damage and despawns.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn check_magic_missile_collisions(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
@@ -224,7 +228,7 @@ pub fn check_magic_missile_collisions(
             &Team,
             Has<SpellShield>,
         ),
-        (Without<MagicMissile>, Without<Corpse>),
+        (Without<MagicMissile>, Without<Corpse>, Without<Wizard>),
     >,
     walls: Query<&WallOfStone>,
     rocks: Query<&crate::game::terrain::boulder::components::Boulder>,

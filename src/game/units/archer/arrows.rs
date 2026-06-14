@@ -10,6 +10,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::units::components::{
     Corpse, Health, Hitbox, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
 /// Spawns an arrow projectile entity at `origin` aimed at `target`.
@@ -96,6 +97,7 @@ pub fn move_arrows(time: Res<Time>, mut arrows: Query<(&mut Transform, &mut Arro
 }
 
 /// Checks arrow collisions with units and ground.
+#[allow(clippy::type_complexity)]
 pub fn check_arrow_collisions(
     mut commands: Commands,
     arrows: Query<(Entity, &Transform, &Arrow)>,
@@ -109,7 +111,7 @@ pub fn check_arrow_collisions(
             Has<crate::game::units::shielder::components::ShielderDamageReduction>,
             Has<crate::game::units::assassin::Assassin>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<Wizard>),
     >,
     walls: Query<&WallOfStone>,
     rocks: Query<&crate::game::terrain::boulder::components::Boulder>,

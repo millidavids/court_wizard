@@ -12,6 +12,7 @@ use super::super::super::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, EliteAttackSpeedBonus, EliteDamageBonus,
     Flying, Health, Hitbox, RetaliationTarget, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
+use super::super::super::units::wizard::components::Wizard;
 use super::super::super::units::wizard::spells::fog_cloud::constants::DISORIENTING_VAPORS_CHANCE;
 use super::super::super::units::wizard::spells::fog_cloud::systems::is_in_fog_zone;
 
@@ -68,6 +69,7 @@ pub fn combat(
             Without<Boss>,
             Without<Flying>,
             Without<super::super::super::units::components::MindControlled>,
+            Without<Wizard>,
         ),
     >,
     boss_units: Query<(Entity, &Transform, &Hitbox, &Team), (With<Boss>, Without<Corpse>)>,
@@ -92,7 +94,7 @@ pub fn combat(
             Has<super::super::super::units::archer::Archer>,
             Option<&super::super::super::units::components::MeleeDamageReduction>,
         ),
-    )>,
+    ), Without<Wizard>>,
     // Fog Cloud talent zones
     disorienting_zones: Query<
         &super::super::super::units::wizard::spells::fog_cloud::components::FogCloudZone,

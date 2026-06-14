@@ -5,6 +5,7 @@ use super::super::constants::*;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{Corpse, FearModifier, Hitbox, Petrified, Team};
 use crate::game::units::king::components::King;
+use crate::game::units::wizard::components::Wizard;
 
 /// Nearest defender position, filtered query (excludes King and KingsGuard).
 #[allow(clippy::type_complexity)]
@@ -20,6 +21,7 @@ pub(crate) fn find_nearest_defender_position_filtered(
             Without<King>,
             Without<crate::game::units::components::KingsGuard>,
             Without<Petrified>,
+            Without<Wizard>,
         ),
     >,
     team_query: &Query<&Team>,
@@ -71,6 +73,7 @@ pub(crate) fn find_units_in_cone_filtered(
             Without<King>,
             Without<crate::game::units::components::KingsGuard>,
             Without<Petrified>,
+            Without<Wizard>,
         ),
     >,
     team_query: &Query<&Team>,

@@ -16,6 +16,7 @@ use crate::game::units::components::{
     BanishedModifier, Corpse, FrozenSolidModifier, Health, Hitbox, Knockback, RootedModifier,
     SickenedModifier, SleepModifier, Sleepwalking, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::wizard::components::Wizard;
 
 /// Spawns the ogre at one of the tunnel spawn points.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -53,6 +54,7 @@ pub fn ogre_charge_system(
             Without<BanishedModifier>,
             Without<StagingAttacker>,
             Without<OgreChargeIndicator>,
+            Without<Wizard>,
         ),
     >,
     mut charge_targets: Query<
@@ -69,6 +71,7 @@ pub fn ogre_charge_system(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<OgreChargeIndicator>,
+            Without<Wizard>,
         ),
     >,
     mut indicator_query: Query<&mut Transform, (With<OgreChargeIndicator>, Without<Boss>)>,

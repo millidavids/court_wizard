@@ -4,6 +4,7 @@ use super::super::components::*;
 use super::super::constants::*;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{BanishedModifier, Corpse, Team};
+use crate::game::units::wizard::components::Wizard;
 
 /// Returns the telegraph duration for a given spell type.
 pub(crate) fn telegraph_duration(spell: DarkMageSpellType) -> f32 {
@@ -35,6 +36,7 @@ pub(crate) fn find_spell_target(
             Without<Corpse>,
             Without<Boss>,
             Without<BanishedModifier>,
+            Without<Wizard>,
         ),
     >,
 ) -> Option<(Vec3, Option<Vec3>)> {

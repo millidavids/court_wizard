@@ -4,6 +4,7 @@ use crate::game::units::components::{
     Comatose, Corpse, Health, NarcolepticWave, NightTerrors, SleepModifier, Sleepwalking, Team,
     TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::wizard::components::Wizard;
 use bevy::prelude::*;
 
 /// Apply sleep to all targets in radius, returning the number of enemies hit.
@@ -12,7 +13,7 @@ pub(crate) fn apply_sleep(
     circle_pos: Vec3,
     radius: f32,
     empowerment: f32,
-    targets: &Query<(Entity, &Transform, &Health, &Team), Without<Corpse>>,
+    targets: &Query<(Entity, &Transform, &Health, &Team), (Without<Corpse>, Without<Wizard>)>,
     talent_params: &SleepTalentParams,
 ) -> u32 {
     let duration = constants::SLEEP_DURATION * empowerment * talent_params.duration_mult;

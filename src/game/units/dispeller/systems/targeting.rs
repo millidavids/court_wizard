@@ -8,6 +8,7 @@ use crate::game::units::components::{
     BanishedModifier, Corpse, MindControlled, TargetingVelocity, Team,
 };
 use crate::game::units::infantry::components::DefendersActivated;
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::dispel::systems::{is_dispellable, spell_edge_distance};
 use crate::game::units::wizard::spells::grease::components::{GreaseIgnited, GreaseZone};
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
@@ -31,6 +32,7 @@ pub fn update_dispeller_targeting(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<StagingAttacker>,
+            Without<Wizard>,
         ),
     >,
     // Spell-specific queries for volume-aware distance

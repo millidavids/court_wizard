@@ -17,6 +17,7 @@ use crate::game::units::dispeller::components::Dispeller;
 use crate::game::units::healer::components::Healer;
 use crate::game::units::healer::constants::HEAL_RANGE;
 use crate::game::units::infantry::components::DefendersActivated;
+use crate::game::units::wizard::components::Wizard;
 
 /// Updates healer targeting — seeks hurt same-team allies, or falls back to following army.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -39,7 +40,7 @@ pub fn update_healer_targeting(
             Option<&Dispeller>,
             Option<&Healer>,
         ),
-        (Without<Corpse>, Without<BanishedModifier>),
+        (Without<Corpse>, Without<BanishedModifier>, Without<Wizard>),
     >,
     all_units: Query<
         (Entity, &Transform, &Team),
@@ -47,6 +48,7 @@ pub fn update_healer_targeting(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<StagingAttacker>,
+            Without<Wizard>,
         ),
     >,
 ) {

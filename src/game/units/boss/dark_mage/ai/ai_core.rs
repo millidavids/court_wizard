@@ -13,6 +13,7 @@ use crate::game::units::components::{
     BanishedModifier, Corpse, FrozenSolidModifier, Petrified, RootedModifier, SickenedModifier,
     SleepModifier, Sleepwalking, Stunned, Team,
 };
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::audio::{SpellSfxAssets, play_sfx_scaled};
 use crate::game::units::wizard::spells::visual_assets::{
     FireExplosionSphereMaterial, SpellVisualAssets,
@@ -58,6 +59,7 @@ pub fn dark_mage_ai(
             Without<Corpse>,
             Without<Boss>,
             Without<BanishedModifier>,
+            Without<Wizard>,
         ),
     >,
 ) {

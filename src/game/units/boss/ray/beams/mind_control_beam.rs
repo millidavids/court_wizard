@@ -13,6 +13,7 @@ use crate::game::units::components::{
     Corpse, FearModifier, Hitbox, MindControlled, Petrified, Team,
 };
 use crate::game::units::king::components::King;
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::audio::SpellSfxAssets;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
@@ -36,6 +37,7 @@ pub fn ray_mind_control_beam(
             Without<King>,
             Without<crate::game::units::components::KingsGuard>,
             Without<Petrified>,
+            Without<Wizard>,
         ),
     >,
     team_query: Query<&Team>,
@@ -49,6 +51,7 @@ pub fn ray_mind_control_beam(
             Without<King>,
             Without<crate::game::units::components::KingsGuard>,
             Without<Petrified>,
+            Without<Wizard>,
         ),
     >,
     ray_assets: Res<RayAssets>,

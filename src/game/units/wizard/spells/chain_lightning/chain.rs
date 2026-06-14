@@ -16,6 +16,7 @@ use crate::game::units::components::{
     apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
 use crate::game::units::wizard::spells::utils::local_player_team;
@@ -25,7 +26,7 @@ use crate::game::units::wizard::talents::resources::BattleTalentProgress;
 use crate::networking::session::MultiplayerSession;
 use bevy::prelude::*;
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn process_chain_lightning_bounces(
     time: Res<Time>,
     mut commands: Commands,
@@ -47,6 +48,7 @@ pub fn process_chain_lightning_bounces(
         (
             Without<Corpse>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<Wizard>,
         ),
     >,
     mut rods: Query<(Entity, &Transform, &mut LightningRod)>,
@@ -356,6 +358,7 @@ fn find_next_bounce_targets(
         (
             Without<Corpse>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<Wizard>,
         ),
     >,
     rods: &Query<(Entity, &Transform, &mut LightningRod)>,

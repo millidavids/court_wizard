@@ -9,6 +9,7 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::units::components::{BanishedModifier, Corpse, SleepModifier, Team};
 use crate::game::units::ranged_bolt::RangedAttackTimer;
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::dispel::systems::is_dispellable;
 use crate::game::units::wizard::spells::vfx::channel::ChannelingCast;
 
@@ -33,7 +34,10 @@ pub fn dispeller_ranged_combat(
         ),
         (With<Dispeller>, Without<Corpse>),
     >,
-    targets: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
+    targets: Query<
+        (Entity, &Transform, &Team),
+        (Without<Corpse>, Without<BanishedModifier>, Without<Wizard>),
+    >,
 ) {
     // Only fire bolts when no dispellable spell effects exist
     let has_spell_targets = spell_effects.iter().any(|nse| is_dispellable(nse.kind));

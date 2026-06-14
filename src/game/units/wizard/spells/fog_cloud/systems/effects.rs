@@ -4,6 +4,7 @@ use super::super::components::{
 use super::super::constants;
 use crate::game::multiplayer::components::{GhostEntity, GhostSpellEffect};
 use crate::game::units::components::{Corpse, FogEvasionModifier, Health, Team};
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::utils::xz_distance;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -16,7 +17,7 @@ pub fn apply_fog_cloud_evasion(
     mut zones: Query<&mut FogCloudZone, Without<GhostSpellEffect>>,
     mut targets: Query<
         (Entity, &Transform, Option<&mut FogEvasionModifier>),
-        (Without<Corpse>, Without<GhostEntity>),
+        (Without<Corpse>, Without<GhostEntity>, Without<Wizard>),
     >,
 ) {
     let delta = time.delta_secs();
@@ -49,7 +50,7 @@ pub fn apply_blinding_mist(
     zones: Query<(&FogCloudZone, &BlindingMistZone), Without<GhostSpellEffect>>,
     mut targets: Query<
         (Entity, &Transform, Option<&mut BlindingMistDebuff>),
-        (Without<Corpse>, Without<GhostEntity>),
+        (Without<Corpse>, Without<GhostEntity>, Without<Wizard>),
     >,
 ) {
     for (zone, _) in &zones {
@@ -87,7 +88,10 @@ pub fn tick_blinding_mist_debuff(
 pub fn apply_choking_fog_damage(
     time: Res<Time>,
     mut zones: Query<(&FogCloudZone, &mut ChokingFogZone), Without<GhostSpellEffect>>,
-    mut targets: Query<(&Transform, &Team, &mut Health), (Without<Corpse>, Without<GhostEntity>)>,
+    mut targets: Query<
+        (&Transform, &Team, &mut Health),
+        (Without<Corpse>, Without<GhostEntity>, Without<Wizard>),
+    >,
 ) {
     // Multiplayer setup stage: units are immune to damage.
     if crate::game::units::components::is_setup_immune() {

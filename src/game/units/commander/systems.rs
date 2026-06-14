@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use super::components::*;
 use crate::game::units::components::{CommanderAuraSpeedModifier, Corpse, DamageMultiplier, Team};
+use crate::game::units::wizard::components::Wizard;
 
 /// Generic commander aura system.
 ///
@@ -23,7 +24,7 @@ pub fn apply_commander_auras(
         ),
         Without<Corpse>,
     >,
-    affected_units: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    affected_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<Wizard>)>,
     // Reused across frames so we don't heap-allocate a fresh map every tick.
     mut units_in_aura: Local<HashMap<Entity, (Option<f32>, Option<f32>)>>,
 ) {

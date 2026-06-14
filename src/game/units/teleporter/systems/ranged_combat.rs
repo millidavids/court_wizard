@@ -8,6 +8,7 @@ use crate::game::units::ranged_bolt::RangedAttackTimer;
 use crate::game::units::teleporter::components::{Teleporter, TeleporterState};
 use crate::game::units::teleporter::constants::*;
 use crate::game::units::teleporter::resources::TeleporterAssets;
+use crate::game::units::wizard::components::Wizard;
 
 #[allow(clippy::type_complexity)]
 pub(crate) fn teleporter_ranged_combat(
@@ -28,7 +29,10 @@ pub(crate) fn teleporter_ranged_combat(
         ),
         (With<Teleporter>, Without<Corpse>),
     >,
-    targets: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
+    targets: Query<
+        (Entity, &Transform, &Team),
+        (Without<Corpse>, Without<BanishedModifier>, Without<Wizard>),
+    >,
 ) {
     let delta = time.delta_secs();
 

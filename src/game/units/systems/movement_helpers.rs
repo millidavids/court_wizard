@@ -10,6 +10,7 @@ use crate::game::constants::{
     VELOCITY_DAMPING,
 };
 use crate::game::pathfinding::FlowFieldVelocity;
+use crate::game::units::wizard::components::Wizard;
 
 /// Returns true if the unit is immobilized by any crowd control effect.
 /// Centralizes CC checks so new CC types only need updating here.
@@ -291,6 +292,7 @@ pub fn find_closest_enemy_in_range(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<crate::game::pathfinding::StagingAttacker>,
+            Without<Wizard>,
         ),
     >,
 ) -> Option<Vec3> {

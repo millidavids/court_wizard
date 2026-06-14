@@ -10,6 +10,7 @@ use crate::game::units::components::{
     PolymorphedModifier, RetaliationTarget, RootedModifier, RoughTerrainModifier, SickenedModifier,
     SleepModifier, Sleepwalking, SlowMovementModifier, TargetingVelocity, Team,
 };
+use crate::game::units::wizard::components::Wizard;
 
 /// Updates brute targeting velocity toward nearest enemy.
 pub(in crate::game) fn update_brute_targeting(
@@ -31,6 +32,7 @@ pub(in crate::game) fn update_brute_targeting(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<StagingAttacker>,
+            Without<Wizard>,
         ),
     >,
 ) {

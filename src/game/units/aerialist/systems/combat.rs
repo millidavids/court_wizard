@@ -7,6 +7,7 @@ use crate::game::units::components::{
     AttackTiming, BanishedModifier, Corpse, Flying, FrozenSolidModifier, MindControlled,
     SleepModifier, TargetingVelocity, Team,
 };
+use crate::game::units::wizard::components::Wizard;
 
 /// Aerialist targeting: find nearest ground enemy and set targeting velocity.
 /// Flying units ignore wall LOS since they fly above obstacles.
@@ -23,6 +24,7 @@ pub(crate) fn update_aerialist_targeting(
             Without<BanishedModifier>,
             Without<Flying>,
             Without<crate::game::pathfinding::StagingAttacker>,
+            Without<Wizard>,
         ),
     >,
 ) {
@@ -85,7 +87,10 @@ pub(crate) fn aerialist_combat(
         ),
         (With<Aerialist>, Without<Corpse>),
     >,
-    targets: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<Flying>)>,
+    targets: Query<
+        (Entity, &Transform, &Team),
+        (Without<Corpse>, Without<Flying>, Without<Wizard>),
+    >,
 ) {
     let current_time = attack_cycle.current_time;
     // `previous_time` is the cycle position before the most recent `tick()` —

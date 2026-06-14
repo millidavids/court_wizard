@@ -9,6 +9,7 @@ use crate::game::units::components::{
     BerserkerRageModifier, Corpse, FearModifier, Hitbox, MindControlled, Team,
 };
 use crate::game::units::king::components::King;
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 #[allow(clippy::too_many_arguments)]
@@ -35,6 +36,7 @@ pub fn ray_fear_beam(
             Without<Boss>,
             Without<RayEye>,
             Without<King>,
+            Without<Wizard>,
         ),
     >,
     team_query: Query<&Team>,

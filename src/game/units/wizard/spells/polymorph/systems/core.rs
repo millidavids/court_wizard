@@ -1,6 +1,8 @@
 use std::cmp::Ordering;
 
-use super::super::super::super::components::{CastingState, Mana, PrimedSpell, WizardInput};
+use super::super::super::super::components::{
+    CastingState, Mana, PrimedSpell, Wizard, WizardInput,
+};
 use super::super::components::{
     ContagiousBaas, DireSheep, ExplosiveSheep, PermanentLivestock, PigForm, PolymorphTalentParams,
 };
@@ -110,7 +112,11 @@ pub(crate) fn polymorph_casting_logic(
             &Mesh3d,
             &Team,
         ),
-        (Without<Corpse>, Without<PolymorphedModifier>),
+        (
+            Without<Corpse>,
+            Without<PolymorphedModifier>,
+            Without<Wizard>,
+        ),
     >,
     talent_params: &PolymorphTalentParams,
     visual_assets: &SpellVisualAssets,

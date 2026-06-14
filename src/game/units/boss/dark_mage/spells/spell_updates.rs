@@ -8,6 +8,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::visual_assets::{
     FireExplosionSphereMaterial, explosion_fade_opacity,
 };
@@ -43,6 +44,7 @@ pub fn update_meteor_explosions(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<DarkMageMeteorExplosion>,
+            Without<Wizard>,
         ),
     >,
 ) {
@@ -124,6 +126,7 @@ pub fn update_lightning_strikes(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<DarkMageLightningStrike>,
+            Without<Wizard>,
         ),
     >,
 ) {
@@ -200,6 +203,7 @@ pub fn update_plague_clouds(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<DarkMagePlagueCloud>,
+            Without<Wizard>,
         ),
     >,
 ) {

@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 
 use crate::game::components::Billboard;
-use crate::game::units::components::{Health, Hitbox, MovementSpeed};
+use crate::game::units::components::{Health, Hitbox, Invulnerable, MovementSpeed};
 use crate::game::units::wizard::components::*;
 use crate::game::units::wizard::constants;
 use crate::game::units::wizard::spells::magic_missile_constants;
@@ -85,6 +85,10 @@ pub(in crate::game) fn spawn_mp_wizard(
         Transform::from_translation(position),
         hitbox,
         Health::new(constants::HEALTH),
+        // The wizard can never take damage or die (mirrors SP `setup_wizard`).
+        Invulnerable {
+            health_snapshot: constants::HEALTH,
+        },
         MovementSpeed(0.0),
         Mana::new(constants::MANA),
         ManaRegen::new(constants::MANA_REGEN),

@@ -12,6 +12,7 @@ use crate::game::units::components::{
     BanishedModifier, Corpse, Health, Hitbox, Knockback, TargetingVelocity, Team,
     TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::wizard::components::Wizard;
 
 /// Updates ogre targeting velocity toward nearest enemy.
 pub fn update_ogre_targeting(
@@ -27,6 +28,7 @@ pub fn update_ogre_targeting(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<StagingAttacker>,
+            Without<Wizard>,
         ),
     >,
 ) {
@@ -82,7 +84,12 @@ pub fn ogre_combat(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        (Without<Boss>, Without<Corpse>, Without<BanishedModifier>),
+        (
+            Without<Boss>,
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<Wizard>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();

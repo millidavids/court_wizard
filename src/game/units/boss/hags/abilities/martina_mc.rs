@@ -9,6 +9,7 @@ use crate::game::units::components::{
     MovementSpeed, Petrified, RetaliationTarget, RootedModifier, Stunned, TargetingVelocity, Team,
     TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::wizard::components::Wizard;
 
 /// Filter for `mind_controlled_pursue_allies`: controlled units that aren't ghosts
 /// and aren't crowd-controlled (rooted/stunned/frozen/banished/petrified).
@@ -210,6 +211,7 @@ pub fn mind_controlled_combat(
             Without<MindControlled>,
             Without<BanishedModifier>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<Wizard>,
         ),
     >,
 ) {

@@ -65,6 +65,9 @@ pub fn convert_dead_to_corpses(
         (
             Without<Corpse>,
             Without<super::super::super::units::wizard::spells::fog_cloud::components::PhantomUnit>,
+            // The wizard is invulnerable and must never be converted to a corpse,
+            // even if a future code path zeroes its health before the rollback.
+            Without<super::super::super::units::wizard::components::Wizard>,
         ),
     >,
     death_assets: (

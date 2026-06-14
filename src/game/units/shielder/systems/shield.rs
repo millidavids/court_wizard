@@ -8,6 +8,7 @@ use crate::game::units::shielder::components::{
 };
 use crate::game::units::shielder::constants::{SHIELD_COOLDOWN, SHIELDER_CAST_DURATION};
 use crate::game::units::shielder::systems::targeting::find_shielder_target;
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::vfx::channel::ChannelingCast;
 
 /// Starts a 5-second shield channel when cooldown is ready and a target is in range.
@@ -36,6 +37,7 @@ pub fn shielder_start_shield_channel(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<Shielder>,
+            Without<Wizard>,
         ),
     >,
 ) {
@@ -105,6 +107,7 @@ pub fn shielder_tick_shield_channel(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<Shielder>,
+            Without<Wizard>,
         ),
     >,
 ) {

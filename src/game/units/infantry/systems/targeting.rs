@@ -10,12 +10,14 @@ use crate::game::units::components::{
     RoughTerrainModifier, SickenedModifier, SleepModifier, Sleepwalking, SlowMovementModifier,
     TargetingVelocity, Team,
 };
+use crate::game::units::wizard::components::Wizard;
 
 /// Updates infantry targeting velocity toward nearest enemy.
 ///
 /// Infantry always move directly toward the nearest enemy.
 /// Also sets InMelee component if an enemy is within melee range.
 /// Defender infantry are gated by the DefendersActivated resource.
+#[allow(clippy::type_complexity)]
 pub fn update_infantry_targeting(
     defenders_activated: Res<DefendersActivated>,
     mut commands: Commands,
@@ -41,6 +43,7 @@ pub fn update_infantry_targeting(
             Without<crate::game::units::assassin::Assassin>,
             Without<StagingAttacker>,
             Without<crate::game::units::components::Flying>,
+            Without<Wizard>,
         ),
     >,
 ) {

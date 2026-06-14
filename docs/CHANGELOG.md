@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Fixed
+- **Your wizard is now completely untargetable** — attacks could accidentally target your wizard and harm (or even instantly destroy) your character, making it vanish from the battle. Your wizard can no longer be damaged or killed, and nothing on the battlefield will target, chase, or single it out — not enemy attacks, not friendly helpers, not even your own spells. It simply stays safely in place doing what it does best: casting.
+
 ## [v0.10.55] - 2026-06-13
 
 ### Fixed

@@ -5,6 +5,7 @@ use super::super::constants::*;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{Corpse, Health, Hitbox, Team, TemporaryHitPoints};
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::components::Wizard;
 
 pub fn update_ray_disintegrate_visuals(
     time: Res<Time>,
@@ -71,7 +72,13 @@ pub(crate) fn find_units_in_cone(
             Option<&SpellShield>,
             Option<&mut TemporaryHitPoints>,
         ),
-        (With<Team>, Without<Corpse>, Without<Boss>, Without<RayEye>),
+        (
+            With<Team>,
+            Without<Corpse>,
+            Without<Boss>,
+            Without<RayEye>,
+            Without<Wizard>,
+        ),
     >,
     team_query: &Query<&Team>,
 ) -> Vec<Entity> {
@@ -119,7 +126,13 @@ pub(crate) fn find_nearest_defender_direction_from(
             Option<&SpellShield>,
             Option<&mut TemporaryHitPoints>,
         ),
-        (With<Team>, Without<Corpse>, Without<Boss>, Without<RayEye>),
+        (
+            With<Team>,
+            Without<Corpse>,
+            Without<Boss>,
+            Without<RayEye>,
+            Without<Wizard>,
+        ),
     >,
     team_query: &Query<&Team>,
 ) -> Option<Vec2> {
@@ -158,7 +171,13 @@ pub(crate) fn find_nearest_defender_position(
             Option<&SpellShield>,
             Option<&mut TemporaryHitPoints>,
         ),
-        (With<Team>, Without<Corpse>, Without<Boss>, Without<RayEye>),
+        (
+            With<Team>,
+            Without<Corpse>,
+            Without<Boss>,
+            Without<RayEye>,
+            Without<Wizard>,
+        ),
     >,
     team_query: &Query<&Team>,
 ) -> Option<Vec3> {

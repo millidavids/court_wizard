@@ -11,6 +11,7 @@ use crate::game::seeded_rng::resources::GameRng;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{Corpse, FearModifier, MindControlled, Petrified, Team};
 use crate::game::units::king::components::King;
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::audio::SpellSfxAssets;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
@@ -40,6 +41,7 @@ pub fn ray_teleport_eye(
             Without<Boss>,
             Without<RayEye>,
             Without<King>,
+            Without<Wizard>,
         ),
     >,
     team_query: Query<&Team>,

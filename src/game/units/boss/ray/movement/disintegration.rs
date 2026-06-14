@@ -15,6 +15,7 @@ use crate::game::units::components::apply_spell_damage;
 use crate::game::units::components::{Corpse, Health, Hitbox, Team, TemporaryHitPoints};
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::audio::SpellSfxAssets;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
@@ -63,7 +64,13 @@ pub fn ray_disintegration_sweep(
             Option<&SpellShield>,
             Option<&mut TemporaryHitPoints>,
         ),
-        (With<Team>, Without<Corpse>, Without<Boss>, Without<RayEye>),
+        (
+            With<Team>,
+            Without<Corpse>,
+            Without<Boss>,
+            Without<RayEye>,
+            Without<Wizard>,
+        ),
     >,
     team_query: Query<&Team>,
     ray_assets: Res<RayAssets>,

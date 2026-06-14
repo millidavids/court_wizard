@@ -12,6 +12,7 @@ use crate::game::units::components::{
     AttackTiming, BanishedModifier, Corpse, Effectiveness, Health, Hitbox, SleepModifier, Team,
     TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::wizard::components::Wizard;
 
 use super::ranged::is_valid_target;
 
@@ -40,7 +41,7 @@ pub fn archer_melee_combat(
     >,
     targets: Query<
         (Entity, &Transform, &Hitbox, &Team),
-        (Without<Corpse>, Without<BanishedModifier>),
+        (Without<Corpse>, Without<BanishedModifier>, Without<Wizard>),
     >,
     mut health_query: Query<(
         &mut Health,

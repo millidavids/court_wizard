@@ -8,6 +8,7 @@ use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::shielder::components::Shielder;
 use crate::game::units::shielder::constants::SHIELD_RANGE;
+use crate::game::units::wizard::components::Wizard;
 
 /// Finds the nearest unshielded ally within shield range, if any.
 pub(super) fn find_shielder_target(
@@ -47,6 +48,7 @@ pub fn update_shielder_targeting(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<Shielder>,
+            Without<Wizard>,
         ),
     >,
     all_units: Query<
@@ -55,6 +57,7 @@ pub fn update_shielder_targeting(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<StagingAttacker>,
+            Without<Wizard>,
         ),
     >,
 ) {

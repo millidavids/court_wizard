@@ -12,12 +12,14 @@ use crate::game::units::components::{
     RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier, Sleepwalking,
     SlowMovementModifier, TargetingVelocity, Team,
 };
+use crate::game::units::wizard::components::Wizard;
 
 /// Updates King targeting velocity toward nearest enemy.
 ///
 /// The King always moves directly toward the nearest enemy.
 /// Also sets InMelee component if an enemy is within melee range.
 /// King is gated by the DefendersActivated resource.
+#[allow(clippy::type_complexity)]
 pub fn update_king_targeting(
     defenders_activated: Res<crate::game::units::infantry::components::DefendersActivated>,
     mut commands: Commands,
@@ -39,6 +41,7 @@ pub fn update_king_targeting(
             Without<crate::game::units::assassin::Assassin>,
             Without<StagingAttacker>,
             Without<crate::game::units::components::Flying>,
+            Without<Wizard>,
         ),
     >,
 ) {

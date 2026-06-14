@@ -15,6 +15,7 @@ use crate::game::units::healer::constants::{
     HEAL_BOLT_LIFETIME, HEAL_BOLT_SPEED, HEAL_COOLDOWN, HEAL_RANGE,
 };
 use crate::game::units::healer::resources::HealerAssets;
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::vfx::channel::ChannelingCast;
 
 /// Starts a 5-second heal channel when cooldown is ready and a valid target is in range.
@@ -49,7 +50,7 @@ pub fn healer_start_heal_channel(
             Option<&Dispeller>,
             Option<&Healer>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<Wizard>),
     >,
 ) {
     let delta = time.delta_secs();
@@ -157,7 +158,7 @@ pub fn healer_tick_heal_channel(
             Option<&Dispeller>,
             Option<&Healer>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<Wizard>),
     >,
 ) {
     let delta = time.delta_secs();

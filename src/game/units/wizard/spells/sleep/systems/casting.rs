@@ -96,7 +96,7 @@ pub fn handle_sleep_casting(
     ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
-    targets_query: Query<(Entity, &Transform, &Health, &Team), Without<Corpse>>,
+    targets_query: Query<(Entity, &Transform, &Health, &Team), (Without<Corpse>, Without<Wizard>)>,
     sfx_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),
     talent_resources: (
         Option<Res<ActiveTalents>>,
@@ -168,7 +168,7 @@ fn sleep_casting_logic(
     primed_spell: &PrimedSpell,
     caster_query: &Query<&SpellCaster>,
     indicator_query: &mut Query<&mut SpellCircleIndicator>,
-    targets_query: &Query<(Entity, &Transform, &Health, &Team), Without<Corpse>>,
+    targets_query: &Query<(Entity, &Transform, &Health, &Team), (Without<Corpse>, Without<Wizard>)>,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     meshes: &mut Assets<Mesh>,

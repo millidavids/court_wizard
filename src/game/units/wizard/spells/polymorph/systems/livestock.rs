@@ -10,6 +10,7 @@ use crate::game::units::components::{
     apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::local_player_team;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -58,7 +59,11 @@ pub fn tick_polymorphed_units(
             &Mesh3d,
             &Team,
         ),
-        (Without<Corpse>, Without<PolymorphedModifier>),
+        (
+            Without<Corpse>,
+            Without<PolymorphedModifier>,
+            Without<Wizard>,
+        ),
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     mut pending_cast_events: ResMut<crate::game::multiplayer::spell_sync::PendingCastEvents>,

@@ -8,6 +8,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::shielder::components::ShielderDamageReduction;
 use crate::game::units::shielder::constants::SHIELDER_DAMAGE_REDUCTION;
+use crate::game::units::wizard::components::Wizard;
 
 #[derive(Component)]
 pub(in crate::game) struct RangedAttackTimer {
@@ -88,7 +89,7 @@ pub(in crate::game) fn check_magic_bolt_collisions(
             Option<&mut TemporaryHitPoints>,
             Has<ShielderDamageReduction>,
         ),
-        (Without<Corpse>, Without<BanishedModifier>),
+        (Without<Corpse>, Without<BanishedModifier>, Without<Wizard>),
     >,
 ) {
     for (bolt_entity, bolt_transform, bolt) in &bolts {

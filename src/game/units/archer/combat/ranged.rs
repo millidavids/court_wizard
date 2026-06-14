@@ -10,6 +10,7 @@ use crate::game::components::Velocity;
 use crate::game::constants::*;
 use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::units::components::{BanishedModifier, Corpse, Hitbox, SleepModifier, Team};
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
 /// Updates archer movement timers to track time since stopped moving.
@@ -124,7 +125,7 @@ pub fn archer_ranged_combat(
             Option<&crate::game::units::components::InMelee>,
             Has<crate::game::units::boss::components::Boss>,
         ),
-        (Without<Corpse>, Without<BanishedModifier>),
+        (Without<Corpse>, Without<BanishedModifier>, Without<Wizard>),
     >,
     walls: Query<&WallOfStone>,
     rocks_query: Query<&crate::game::terrain::boulder::components::Boulder>,

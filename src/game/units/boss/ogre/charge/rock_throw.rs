@@ -13,6 +13,7 @@ use crate::game::units::components::{
     BanishedModifier, CombatAnimation, Corpse, FrozenSolidModifier, PolymorphedModifier,
     RootedModifier, SickenedModifier, SleepModifier, Sleepwalking, Team,
 };
+use crate::game::units::wizard::components::Wizard;
 
 /// Ogre rock throw — picks a target enemy within range and starts the throwing animation.
 /// The boulder is launched when the animation finishes (see `ogre_throw_release`).
@@ -55,6 +56,7 @@ pub fn ogre_rock_throw(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<StagingAttacker>,
+            Without<Wizard>,
         ),
     >,
 ) {

@@ -20,6 +20,7 @@ use crate::game::units::infantry::constants::UNDEAD_SPRITE_TINT;
 use crate::game::units::random_position_in_cell;
 use crate::game::units::systems::create_default_sprite_material;
 use crate::game::units::undead::resources::UndeadAssets;
+use crate::game::units::wizard::components::Wizard;
 
 /// Minimum elapsed time (seconds) after `waves_complete` becomes true before
 /// the Lich is allowed to spawn. The wave-spawning system sets `waves_complete`
@@ -206,6 +207,7 @@ pub(super) fn resolve_raise_dead(
             With<Corpse>,
             Without<crate::game::units::components::PermanentCorpse>,
             Without<Lich>,
+            Without<Wizard>,
         ),
     >,
     undead_assets: &UndeadAssets,

@@ -95,7 +95,11 @@ pub fn handle_polymorph_casting(
             &Mesh3d,
             &Team,
         ),
-        (Without<Corpse>, Without<PolymorphedModifier>),
+        (
+            Without<Corpse>,
+            Without<PolymorphedModifier>,
+            Without<Wizard>,
+        ),
     >,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,

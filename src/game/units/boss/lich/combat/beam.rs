@@ -11,6 +11,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::undead::resources::UndeadAssets;
+use crate::game::units::wizard::components::Wizard;
 
 type LichBeamTargetData = (
     Entity,
@@ -21,7 +22,12 @@ type LichBeamTargetData = (
     Option<&'static mut TemporaryHitPoints>,
     Has<crate::game::units::king::components::King>,
 );
-type LichBeamTargetFilter = (Without<Corpse>, Without<Lich>, Without<Boss>);
+type LichBeamTargetFilter = (
+    Without<Corpse>,
+    Without<Lich>,
+    Without<Boss>,
+    Without<Wizard>,
+);
 
 /// Phase 2: Ticks the Finger of Death cooldown and starts a beam cast wind-up
 /// when ready. The actual beam fire is deferred to `tick_lich_casting`. The
@@ -84,7 +90,7 @@ fn resolve_finger_of_death(
     lich_hitbox: &Hitbox,
     target: Entity,
     spell_assets: &crate::game::units::wizard::spells::visual_assets::SpellVisualAssets,
-    target_query: &Query<&Transform, Without<Lich>>,
+    target_query: &Query<&Transform, (Without<Lich>, Without<Wizard>)>,
     materials: &mut Assets<StandardMaterial>,
     desaturate: &mut MessageWriter<crate::game::crt_effect::ScreenDesaturateMessage>,
     target_health: &mut Query<LichBeamTargetData, LichBeamTargetFilter>,
@@ -199,11 +205,12 @@ pub(crate) fn tick_lich_casting(
             With<Corpse>,
             Without<crate::game::units::components::PermanentCorpse>,
             Without<Lich>,
+            Without<Wizard>,
         ),
     >,
     undead_assets: Res<UndeadAssets>,
     spell_assets: Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
-    target_query: Query<&Transform, Without<Lich>>,
+    target_query: Query<&Transform, (Without<Lich>, Without<Wizard>)>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut desaturate: MessageWriter<crate::game::crt_effect::ScreenDesaturateMessage>,
     mut target_health: Query<LichBeamTargetData, LichBeamTargetFilter>,

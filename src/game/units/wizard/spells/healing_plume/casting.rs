@@ -296,6 +296,7 @@ pub fn apply_healing_plume_heal(
         (
             Without<Corpse>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<Wizard>,
         ),
     >,
     mut commands: Commands,
@@ -399,7 +400,7 @@ pub fn apply_cleansing_plume(
             Has<RootedModifier>,
             Has<MarkedForDeathModifier>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<Wizard>),
     >,
     mut commands: Commands,
 ) {

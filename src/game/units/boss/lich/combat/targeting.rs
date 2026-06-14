@@ -6,6 +6,7 @@ use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{
     BanishedModifier, Corpse, SleepModifier, TargetingVelocity, Team,
 };
+use crate::game::units::wizard::components::Wizard;
 
 /// Phase 2 targeting: Updates the Lich's movement targeting toward nearest enemy.
 /// Only runs in Combat phase.
@@ -23,7 +24,12 @@ pub(crate) fn update_lich_targeting(
     >,
     all_units: Query<
         (Entity, &Transform, &Team),
-        (Without<Lich>, Without<Corpse>, Without<BanishedModifier>),
+        (
+            Without<Lich>,
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<Wizard>,
+        ),
     >,
 ) {
     let unit_snapshot: Vec<_> = all_units
@@ -52,6 +58,7 @@ pub(crate) fn update_lich_targeting(
 /// Phase 2: Selects a random defender as the beam target.
 /// The King is excluded until he is the last living defender — guards and any
 /// other defender are valid targets in the meantime.
+#[allow(clippy::type_complexity)]
 pub(crate) fn lich_combat_targeting(
     kill_stats: Res<KillStats>,
     mut lich_query: Query<(&mut LichFingerOfDeath, &LichPhase), (With<Lich>, Without<Corpse>)>,
@@ -63,6 +70,7 @@ pub(crate) fn lich_combat_targeting(
             Without<Boss>,
             Without<SleepModifier>,
             Without<BanishedModifier>,
+            Without<Wizard>,
         ),
     >,
     king_query: Query<

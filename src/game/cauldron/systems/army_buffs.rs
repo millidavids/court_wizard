@@ -4,7 +4,7 @@ use super::super::components::*;
 use super::super::constants::{MAX_SHIELD_HP, SHIELD_KEEPALIVE_SECS};
 use super::super::resources::CauldronBuffs;
 use crate::game::units::components::{Corpse, Effectiveness, Health, Team, TemporaryHitPoints};
-use crate::game::units::wizard::components::{LocalWizard, Mana};
+use crate::game::units::wizard::components::{LocalWizard, Mana, Wizard};
 
 /// Heals all living defender units based on the active DefenderHealPerSecond buff.
 pub fn heal_defenders(
@@ -16,7 +16,7 @@ pub fn heal_defenders(
             &Team,
             Has<crate::game::units::wizard::archetypes::meteorologist::components::DryModifier>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<Wizard>),
     >,
 ) {
     use crate::game::units::wizard::archetypes::meteorologist::systems::apply_dry_healing_reduction;
@@ -37,7 +37,10 @@ pub fn heal_defenders(
 pub fn buff_defender_damage(
     mut commands: Commands,
     cauldron_buffs: Res<CauldronBuffs>,
-    defenders: Query<(Entity, &Team, Option<&CauldronDamageBonus>), Without<Corpse>>,
+    defenders: Query<
+        (Entity, &Team, Option<&CauldronDamageBonus>),
+        (Without<Corpse>, Without<Wizard>),
+    >,
 ) {
     let bonus = cauldron_buffs.defender_damage_bonus();
     for (entity, team, existing) in &defenders {
@@ -57,7 +60,10 @@ pub fn buff_defender_damage(
 pub fn buff_defender_resistance(
     mut commands: Commands,
     cauldron_buffs: Res<CauldronBuffs>,
-    defenders: Query<(Entity, &Team, Option<&CauldronDamageResistance>), Without<Corpse>>,
+    defenders: Query<
+        (Entity, &Team, Option<&CauldronDamageResistance>),
+        (Without<Corpse>, Without<Wizard>),
+    >,
 ) {
     let resistance = cauldron_buffs.damage_resistance_percent();
     for (entity, team, existing) in &defenders {
@@ -89,7 +95,10 @@ pub fn apply_cauldron_speed_modifiers(
     cauldron_buffs: Res<CauldronBuffs>,
     remote: Res<super::super::resources::RemoteCauldronBuffs>,
     session: Option<Res<crate::networking::session::MultiplayerSession>>,
-    units: Query<(Entity, &Team, Option<&CauldronSpeedModifier>), Without<Corpse>>,
+    units: Query<
+        (Entity, &Team, Option<&CauldronSpeedModifier>),
+        (Without<Corpse>, Without<Wizard>),
+    >,
 ) {
     let defender_bonus = cauldron_buffs.defender_speed_bonus();
     let attacker_slow = cauldron_buffs.attacker_slow_percent();
@@ -160,7 +169,7 @@ pub fn cleanup_cauldron_buff_components(
             Option<&CauldronDamageResistance>,
             Option<&CauldronSpeedModifier>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<Wizard>),
     >,
     mut wizard: Query<&mut Mana, With<LocalWizard>>,
 ) {
@@ -199,7 +208,10 @@ pub fn cleanup_cauldron_buff_components(
 pub fn shield_defenders(
     time: Res<Time>,
     cauldron_buffs: Res<CauldronBuffs>,
-    mut defenders: Query<(Entity, &Team, Option<&mut TemporaryHitPoints>), Without<Corpse>>,
+    mut defenders: Query<
+        (Entity, &Team, Option<&mut TemporaryHitPoints>),
+        (Without<Corpse>, Without<Wizard>),
+    >,
     mut commands: Commands,
 ) {
     let shield_per_second = cauldron_buffs.defender_shield_per_second();

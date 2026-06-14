@@ -11,6 +11,7 @@ use crate::game::units::components::{
     BanishedModifier, Corpse, FrozenSolidModifier, PolymorphedModifier, RootedModifier,
     SickenedModifier, SleepModifier, Sleepwalking, Team,
 };
+use crate::game::units::wizard::components::Wizard;
 
 /// Brute rock throw — picks a target enemy within range and throws a rock at them.
 #[allow(clippy::type_complexity)]
@@ -43,6 +44,7 @@ pub(in crate::game) fn brute_rock_throw(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<StagingAttacker>,
+            Without<Wizard>,
         ),
     >,
 ) {

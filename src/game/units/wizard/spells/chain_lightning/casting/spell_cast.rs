@@ -20,6 +20,7 @@ use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
@@ -51,7 +52,7 @@ pub fn handle_chain_lightning_casting(
         Res<TargetAssistWorldPos>,
         Res<LocalSpellOrigin>,
     ),
-    enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    enemies_query: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<Wizard>)>,
     rods_query: Query<(Entity, &Transform, &mut LightningRod)>,
     crystals_query: Query<(Entity, &Transform), With<ArcaneCrystal>>,
     mut health_query: Query<(
@@ -138,7 +139,7 @@ fn chain_lightning_casting_logic(
     primed_spell: &PrimedSpell,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    enemies_query: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    enemies_query: &Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<Wizard>)>,
     rods_query: &Query<(Entity, &Transform, &mut LightningRod)>,
     crystals_query: &Query<(Entity, &Transform), With<ArcaneCrystal>>,
     health_query: &mut Query<(
@@ -288,7 +289,7 @@ fn chain_lightning_casting_logic(
 /// Note: position should be at Y=0 (battlefield plane). Uses XZ distance for targeting.
 fn find_target_near_position_excluding(
     position: Vec3,
-    enemies: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    enemies: &Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<Wizard>)>,
     rods: &Query<(Entity, &Transform, &mut LightningRod)>,
     crystals: &Query<(Entity, &Transform), With<ArcaneCrystal>>,
     exclude: &[Entity],
