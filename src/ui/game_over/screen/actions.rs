@@ -33,6 +33,20 @@ pub(crate) fn handle_button_actions(
         if let Ok(action) = button_query.get(event.button) {
             channel_change.write(ChannelChangeMessage);
             match action {
+                GameOverButtonAction::NextLevel => {
+                    kill_stats.reset();
+                    // Persist roguelite progress so the run can be resumed if
+                    // the player quits during the next level. No-op in Endless.
+                    save_dormant_roguelite_run(
+                        &active_save,
+                        &roguelite_run,
+                        &config,
+                        &roguelite_modifiers,
+                        &active_toggles,
+                        &game_seed,
+                    );
+                    next_app_state.set(AppState::Loading);
+                }
                 GameOverButtonAction::PlayAgain => {
                     if let Some(ref tt) = time_travel {
                         if game_outcome.is_defeat() {

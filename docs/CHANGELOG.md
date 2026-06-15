@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [pending]
 
+### Changed
+- **Jump straight into the next battle** — the victory screen now has a **Next Level** button that takes you right into the next fight, so you can keep playing without stopping at the Wizard Tower every time. The **Wizard Tower** button is still there whenever you want to head back and spend your insight.
+
 ### Fixed
 - **Your wizard is now completely untargetable** — attacks could accidentally target your wizard and harm (or even instantly destroy) your character, making it vanish from the battle. Your wizard can no longer be damaged or killed, and nothing on the battlefield will target, chase, or single it out — not enemy attacks, not friendly helpers, not even your own spells. It simply stays safely in place doing what it does best: casting.
 

@@ -18,8 +18,9 @@ use super::super::constants::*;
 
 /// Spawns the game-over / score screen UI.
 ///
-/// Runs on `OnEnter(InGameState::ScoreScreen)` and `OnEnter(MultiplayerGameState::ScoreScreen)`.
-/// Displays outcome (victory/defeat), kill stats, insight earned, and seed.
+/// Runs on `OnEnter(InGameState::ScoreScreen)` (single-player only). Multiplayer has its own
+/// score screen (`setup_mp_score_screen`). Displays outcome (victory/defeat), kill stats,
+/// insight earned, and seed.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn setup_game_over_screen(
     mut commands: Commands,
@@ -134,16 +135,23 @@ pub(crate) fn setup_game_over_screen(
                         &BUTTON_STYLE,
                     );
                 } else if is_roguelite {
-                    // Roguelite mid-run victory — continue to next level
+                    // Roguelite mid-run victory — jump straight to the next
+                    // level, or detour to the tower to spend insight.
                     spawn_button(
                         buttons,
-                        "Continue",
-                        GameOverButtonAction::PlayAgain,
+                        "Next Level",
+                        GameOverButtonAction::NextLevel,
+                        &BUTTON_STYLE,
+                    );
+                    spawn_button(
+                        buttons,
+                        "Wizard Tower",
+                        GameOverButtonAction::ReturnToTower,
                         &BUTTON_STYLE,
                     );
                 } else if is_time_travel {
-                    // Time travel: victory shows only "Return to Tower"
-                    // Defeat shows retry + return to tower
+                    // Time travel: victory shows only "Wizard Tower"
+                    // Defeat shows retry + wizard tower
                     if game_outcome.is_defeat() {
                         spawn_button(
                             buttons,
@@ -155,36 +163,44 @@ pub(crate) fn setup_game_over_screen(
 
                     spawn_button(
                         buttons,
-                        "Return to Tower",
+                        "Wizard Tower",
                         GameOverButtonAction::ReturnToTower,
                         &BUTTON_STYLE,
                     );
                 } else {
                     // Normal Endless flow
-                    let button_text = if game_outcome.is_defeat() {
-                        format!("Time Rewind (Level {})", current_level.0)
-                    } else {
-                        "Continue".to_string()
-                    };
-
-                    spawn_button(
-                        buttons,
-                        &button_text,
-                        GameOverButtonAction::PlayAgain,
-                        &BUTTON_STYLE,
-                    );
-
-                    // Return to Tower button (only on defeat)
                     if game_outcome.is_defeat() {
+                        // Retry the same level, or head back to the tower.
                         spawn_button(
                             buttons,
-                            "Return to Tower",
+                            &format!("Time Rewind (Level {})", current_level.0),
+                            GameOverButtonAction::PlayAgain,
+                            &BUTTON_STYLE,
+                        );
+                        spawn_button(
+                            buttons,
+                            "Wizard Tower",
+                            GameOverButtonAction::ReturnToTower,
+                            &BUTTON_STYLE,
+                        );
+                    } else {
+                        // Victory — jump straight to the next level, or detour
+                        // to the tower to spend insight.
+                        spawn_button(
+                            buttons,
+                            "Next Level",
+                            GameOverButtonAction::NextLevel,
+                            &BUTTON_STYLE,
+                        );
+                        spawn_button(
+                            buttons,
+                            "Wizard Tower",
                             GameOverButtonAction::ReturnToTower,
                             &BUTTON_STYLE,
                         );
                     }
 
-                    // Return to Menu button
+                    // Return to Menu button (both outcomes)
                     spawn_button(
                         buttons,
                         "Return to Menu",
