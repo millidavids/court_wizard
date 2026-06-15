@@ -3,8 +3,8 @@
 use bevy::prelude::*;
 
 use crate::config::save_data::{
-    accumulate_kill_stats, get_total_levels_completed, grant_insight, increment_games_played,
-    increment_levels_completed, unlock_achievement,
+    accumulate_engagement_stats, accumulate_kill_stats, get_total_levels_completed, grant_insight,
+    increment_games_played, increment_levels_completed, unlock_achievement,
 };
 use crate::config::{GameConfig, WizardType};
 use crate::game::messages::{AchievementUnlockedMessage, TalentTierUnlockedMessage};
@@ -49,6 +49,7 @@ pub(crate) fn send_battle_ended(
     current_level: Res<CurrentLevel>,
     config: Res<GameConfig>,
     kill_stats: Res<KillStats>,
+    bosses_seen: Res<BossesSeenThisBattle>,
     mut retry_tracker: ResMut<RetryTracker>,
     mut message: MessageWriter<BattleEndedMessage>,
     mut battle_insight: ResMut<BattleInsightData>,
@@ -66,6 +67,16 @@ pub(crate) fn send_battle_ended(
         kill_stats.defenders_killed,
         kill_stats.attackers_killed,
         kill_stats.undead_killed,
+    );
+
+    // Engagement counters (mirrored to Steam stats). Bosses count only on victory:
+    // a win means every boss that appeared this battle was defeated.
+    let bosses_defeated = if is_victory { bosses_seen.count() } else { 0 };
+    accumulate_engagement_stats(
+        kill_stats.defenders_killed_by_spell,
+        kill_stats.spells_cast,
+        bosses_defeated,
+        kill_stats.elapsed_time,
     );
 
     if is_victory {

@@ -110,10 +110,12 @@ pub fn apply_plague_wind_damage(
 
                     // Choking Gas: slow enemies inside
                     if has_choking_gas {
-                        commands.entity(entity).try_insert(SlowMovementModifier::new(
-                            constants::CHOKING_GAS_SLOW,
-                            constants::CHOKING_GAS_SLOW_DURATION,
-                        ));
+                        commands
+                            .entity(entity)
+                            .try_insert(SlowMovementModifier::new(
+                                constants::CHOKING_GAS_SLOW,
+                                constants::CHOKING_GAS_SLOW_DURATION,
+                            ));
                     }
                 }
             }

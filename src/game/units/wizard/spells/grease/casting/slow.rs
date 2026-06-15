@@ -105,7 +105,9 @@ pub fn apply_grease_slow(
                                 && let Some(ref mut health) = health
                             {
                                 health.spell_vulnerability += constants::OIL_SLICK_VULNERABILITY;
-                                commands.entity(entity).try_insert(GreaseOilSlickDebuff::new());
+                                commands
+                                    .entity(entity)
+                                    .try_insert(GreaseOilSlickDebuff::new());
                             }
                         }
                     }

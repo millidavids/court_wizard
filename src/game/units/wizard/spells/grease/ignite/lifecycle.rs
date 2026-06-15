@@ -80,7 +80,9 @@ pub fn cleanup_grease_zone(
                 if zone.talent_params.endless_oil {
                     // Remove ignited state and start regeneration
                     commands.entity(entity).try_remove::<GreaseIgnited>();
-                    commands.entity(entity).try_insert(GreaseRegenerating::new());
+                    commands
+                        .entity(entity)
+                        .try_insert(GreaseRegenerating::new());
 
                     // Downgrade pathfinding from hazard back to slow terrain
                     write_grease_obstacle(

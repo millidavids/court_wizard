@@ -157,6 +157,16 @@ pub(crate) struct BossesSeenThisBattle {
     pub ray: bool,
 }
 
+impl BossesSeenThisBattle {
+    /// Number of distinct bosses seen this battle.
+    pub(crate) fn count(&self) -> u32 {
+        [self.hag, self.ogre, self.lich, self.dark_mage, self.ray]
+            .iter()
+            .filter(|&&seen| seen)
+            .count() as u32
+    }
+}
+
 /// Run condition: returns true when the achievement resource is still locked.
 pub(crate) fn achievement_locked<T: AchievementResource>(res: Res<T>) -> bool {
     res.is_locked()

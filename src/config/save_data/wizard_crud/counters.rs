@@ -1,6 +1,8 @@
 use super::super::save_cache::{load_unified_save, new_unified_save, save_unified};
-use super::super::save_structs::EndlessLevelBest;
+use super::super::save_structs::{EndlessLevelBest, UnifiedSaveFile};
 use crate::config::resources::ActiveSave;
+use crate::game::game_mode::components::ROGUELITE_MAX_LEVEL;
+use crate::game::insight_bonuses::InsightBonusStat;
 
 // ---------------------------------------------------------------------------
 // Endless best stats
@@ -103,6 +105,11 @@ pub(crate) fn record_coop_guest_level_end(
     save_file.player.total_defenders_killed += defenders_killed;
     save_file.player.total_attackers_killed += attackers_killed;
     save_file.player.total_undead_killed += undead_killed;
+    // Play time is the one engagement counter already carried over the wire
+    // (CoopLevelOver.elapsed_time). The others (friendly-fire / spells cast / bosses
+    // defeated) need those fields added to the co-op level-over message before the
+    // guest can credit them — tracked as a follow-up wire-protocol change.
+    save_file.player.total_play_time_secs += elapsed_time as f64;
     if victory {
         save_file.player.total_levels_completed += 1;
     }
@@ -186,4 +193,145 @@ pub(crate) fn get_total_levels_completed() -> u32 {
     load_unified_save()
         .map(|s| s.player.total_levels_completed)
         .unwrap_or(0)
+}
+
+// ---------------------------------------------------------------------------
+// Engagement / Steam-stat counters
+// ---------------------------------------------------------------------------
+
+/// Accumulate per-battle engagement counters into lifetime totals. Flushed once at
+/// run end (score-screen entry) — never per cast — since each call clones+rewrites
+/// the whole save cache.
+pub(crate) fn accumulate_engagement_stats(
+    friendly_fire: u32,
+    spells_cast: u32,
+    bosses_defeated: u32,
+    play_time_secs: f32,
+) {
+    let Some(mut save_file) = load_unified_save() else {
+        return;
+    };
+    save_file.player.total_defenders_killed_by_spell = save_file
+        .player
+        .total_defenders_killed_by_spell
+        .saturating_add(friendly_fire);
+    save_file.player.total_spells_cast = save_file
+        .player
+        .total_spells_cast
+        .saturating_add(spells_cast);
+    save_file.player.total_bosses_defeated = save_file
+        .player
+        .total_bosses_defeated
+        .saturating_add(bosses_defeated);
+    save_file.player.total_play_time_secs += play_time_secs as f64;
+    save_unified(&save_file);
+}
+
+/// Snapshot of every lifetime total surfaced as a Steam stat. Save-domain type
+/// (Steam-agnostic); the steam module maps each field to its `STAT_*` API name.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct LifetimeStatTotals {
+    pub(crate) total_victories: u32,
+    pub(crate) total_battles: u32,
+    pub(crate) attackers_killed: u32,
+    pub(crate) defenders_lost: u32,
+    pub(crate) undead_killed: u32,
+    pub(crate) highest_endless_level: u32,
+    pub(crate) roguelite_clears: u32,
+    pub(crate) wizards_unlocked: u32,
+    pub(crate) friendly_fire_kills: u32,
+    pub(crate) bosses_defeated: u32,
+    pub(crate) spells_cast: u32,
+    pub(crate) play_time_secs: f64,
+    pub(crate) insight_bonuses_maxed: u32,
+    pub(crate) spells_unlocked: u32,
+}
+
+/// Reads the save cache and computes the current value of every lifetime stat.
+/// Returns all-zero defaults if no save is loaded.
+pub(crate) fn lifetime_stat_totals() -> LifetimeStatTotals {
+    load_unified_save()
+        .as_ref()
+        .map(compute_lifetime_stats)
+        .unwrap_or_default()
+}
+
+fn compute_lifetime_stats(save: &UnifiedSaveFile) -> LifetimeStatTotals {
+    let p = &save.player;
+    LifetimeStatTotals {
+        total_victories: p.total_levels_completed,
+        total_battles: p.total_games_played,
+        attackers_killed: p.total_attackers_killed,
+        defenders_lost: p.total_defenders_killed,
+        undead_killed: p.total_undead_killed,
+        highest_endless_level: highest_level(save.wizards.iter().map(|w| w.highest_level_achieved)),
+        // Persisted counter is authoritative and lossless going forward; max() with
+        // the (FIFO-trimmed) run-history scan backfills clears recorded before the
+        // counter existed without ever exceeding the true total.
+        roguelite_clears: p.total_roguelite_clears.max(count_full_clears(
+            save.wizards
+                .iter()
+                .flat_map(|w| w.roguelite.run_history.iter())
+                .map(|r| (r.victory, r.levels_completed)),
+        )),
+        wizards_unlocked: p.unlocked_content.wizard_types.len() as u32,
+        friendly_fire_kills: p.total_defenders_killed_by_spell,
+        bosses_defeated: p.total_bosses_defeated,
+        spells_cast: p.total_spells_cast,
+        play_time_secs: p.total_play_time_secs,
+        insight_bonuses_maxed: count_maxed_bonuses(
+            InsightBonusStat::all()
+                .iter()
+                .map(|s| p.insight_bonuses.get(s.id()).copied().unwrap_or(0)),
+            InsightBonusStat::max_level(),
+        ),
+        spells_unlocked: p.unlocked_content.spells.len() as u32,
+    }
+}
+
+/// Highest endless level across all wizards (0 when none have played).
+fn highest_level(levels: impl Iterator<Item = u32>) -> u32 {
+    levels.max().unwrap_or(0)
+}
+
+/// Count of roguelite runs that fully cleared: a victory reaching the max level.
+fn count_full_clears(runs: impl Iterator<Item = (bool, u32)>) -> u32 {
+    runs.filter(|&(victory, levels)| victory && levels >= ROGUELITE_MAX_LEVEL)
+        .count() as u32
+}
+
+/// Count of insight-bonus stats sitting at (or above) max level.
+fn count_maxed_bonuses(levels: impl Iterator<Item = u8>, max_level: u8) -> u32 {
+    levels.filter(|&level| level >= max_level).count() as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn highest_level_is_max_or_zero() {
+        assert_eq!(highest_level(std::iter::empty()), 0);
+        assert_eq!(highest_level([3, 17, 9].into_iter()), 17);
+    }
+
+    #[test]
+    fn full_clears_require_victory_at_max_level() {
+        let runs = [
+            (true, ROGUELITE_MAX_LEVEL),       // counts
+            (true, ROGUELITE_MAX_LEVEL + 5),   // counts (>= max)
+            (true, ROGUELITE_MAX_LEVEL - 1),   // too few levels
+            (false, ROGUELITE_MAX_LEVEL),      // not a victory
+            (false, ROGUELITE_MAX_LEVEL + 10), // not a victory
+        ];
+        assert_eq!(count_full_clears(runs.into_iter()), 2);
+    }
+
+    #[test]
+    fn maxed_bonuses_counts_at_or_above_max() {
+        assert_eq!(count_maxed_bonuses(std::iter::empty(), 5), 0);
+        // max level 5: only 5 (and any overflow) count, 4 does not.
+        assert_eq!(count_maxed_bonuses([5u8, 4, 5, 0].into_iter(), 5), 2);
+        assert_eq!(count_maxed_bonuses([0u8, 0, 0, 0].into_iter(), 5), 0);
+    }
 }

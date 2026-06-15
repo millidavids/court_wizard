@@ -23,6 +23,8 @@ pub struct KillStats {
     pub king_killed_by_spell: bool,
     /// Whether any wizard spell dealt damage to an attacker or undead unit this battle.
     pub wizard_damaged_enemies: bool,
+    /// Number of spells the local player cast this battle.
+    pub spells_cast: u32,
     /// True once the first wave of attackers has been activated (reached staging point).
     /// The elapsed game timer doesn't start until this is true.
     pub battle_started: bool,

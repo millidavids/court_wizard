@@ -1,13 +1,15 @@
 use bevy::prelude::*;
-use bevy_steamworks::SteamworksPlugin;
+use bevy_steamworks::{Client, SteamworksPlugin};
 
-use crate::state::AppState;
+use crate::game::achievements::systems::send_battle_ended;
+use crate::state::{AppState, InGameState};
 
 use super::achievements::sync_achievements_to_steam;
 use super::cloud_save::{restore_save_from_steam_cloud, sync_save_to_steam_cloud};
 use super::constants::APP_ID;
 use super::leaderboards::LeaderboardsPlugin;
 use super::multiplayer::SteamMultiplayerPlugin;
+use super::stats::sync_stats_to_steam;
 
 /// Bevy plugin that integrates Steam features (achievements, cloud saves, overlay).
 ///
@@ -35,6 +37,26 @@ impl Plugin for SteamPlugin {
                 // Sync save file to Steam Cloud at natural save checkpoints.
                 app.add_systems(OnEnter(AppState::MainMenu), sync_save_to_steam_cloud);
                 app.add_systems(OnEnter(AppState::MetaGame), sync_save_to_steam_cloud);
+
+                // Mirror lifetime totals to Steam stats. Absolute/idempotent, so it's
+                // safe to push at several checkpoints; the redundancy also self-heals
+                // an early no-op before Steam has delivered current-user stats. The
+                // score-screen push runs after send_battle_ended so it sees the run
+                // just recorded into the save.
+                app.add_systems(
+                    OnEnter(AppState::MainMenu),
+                    sync_stats_to_steam.run_if(resource_exists::<Client>),
+                );
+                app.add_systems(
+                    OnEnter(AppState::MetaGame),
+                    sync_stats_to_steam.run_if(resource_exists::<Client>),
+                );
+                app.add_systems(
+                    OnEnter(InGameState::ScoreScreen),
+                    sync_stats_to_steam
+                        .after(send_battle_ended)
+                        .run_if(resource_exists::<Client>),
+                );
             }
             Err(e) => {
                 warn!("Steam initialization failed: {e}. Running without Steam features.");

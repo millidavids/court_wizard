@@ -4,9 +4,9 @@ use bevy::prelude::*;
 use crate::config::WizardType;
 use crate::config::save_data::grant_achievement_insight;
 use crate::game::messages::AchievementUnlockedMessage;
-use crate::game::resources::BattleInsightData;
+use crate::game::resources::{BattleInsightData, KillStats};
 use crate::game::units::components::{Corpse, Team};
-use crate::game::units::wizard::components::{CastingState, PrimedSpell, Wizard};
+use crate::game::units::wizard::components::{CastingState, GuestWizard, PrimedSpell, Wizard};
 use crate::ui::main_menu::settings::components::SliderAdjusted;
 
 use super::super::messages::{
@@ -79,15 +79,22 @@ pub(crate) fn check_slider_fiddler(
 /// Also records the damage type of the cast spell for Insight tracking.
 pub(crate) fn detect_spell_cast(
     wizard_query: Query<
-        (&CastingState, Option<&PrimedSpell>),
+        (&CastingState, Option<&PrimedSpell>, Option<&GuestWizard>),
         (With<Wizard>, Changed<CastingState>),
     >,
     mut msg: MessageWriter<SpellCastMessage>,
     mut battle_insight: ResMut<BattleInsightData>,
+    mut kill_stats: ResMut<KillStats>,
 ) {
-    for (casting_state, primed_spell) in &wizard_query {
+    for (casting_state, primed_spell, guest_proxy) in &wizard_query {
         if matches!(casting_state, CastingState::Casting { .. }) {
             msg.write(SpellCastMessage);
+            // Count only the local player's casts. On the host, the guest's proxy
+            // wizard (GuestWizard) is also driven through this query, so it must not
+            // inflate the local spell-cast counter.
+            if guest_proxy.is_none() {
+                kill_stats.spells_cast += 1;
+            }
             if let Some(primed) = primed_spell {
                 battle_insight
                     .damage_types_used

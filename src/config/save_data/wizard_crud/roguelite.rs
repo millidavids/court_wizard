@@ -5,14 +5,19 @@ use crate::config::resources::ActiveSave;
 /// Save a completed roguelite run to the wizard's run history.
 /// Caps at MAX_ROGUELITE_RUN_HISTORY entries (FIFO).
 pub(crate) fn save_roguelite_run(active_save: &ActiveSave, run: RogueliteRun) {
-    use crate::game::game_mode::components::MAX_ROGUELITE_RUN_HISTORY;
+    use crate::game::game_mode::components::{MAX_ROGUELITE_RUN_HISTORY, ROGUELITE_MAX_LEVEL};
 
     let Some(wizard_id) = &active_save.0 else {
         return;
     };
 
+    // Captured before the run is moved into history. Backs STAT_ROGUELITE_CLEARS
+    // with a monotonic lifetime counter so it survives run-history FIFO trimming.
+    let is_full_clear = run.victory && run.levels_completed >= ROGUELITE_MAX_LEVEL;
+
     let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
 
+    let mut recorded = false;
     if let Some(wizard) = save_file.wizards.iter_mut().find(|w| &w.id == wizard_id) {
         wizard.roguelite.run_history.push(run);
         // Trim oldest unsaved runs when over limit (single pass)
@@ -34,6 +39,12 @@ pub(crate) fn save_roguelite_run(active_save: &ActiveSave, run: RogueliteRun) {
                 }
             });
         }
+        recorded = true;
+    }
+
+    if recorded && is_full_clear {
+        save_file.player.total_roguelite_clears =
+            save_file.player.total_roguelite_clears.saturating_add(1);
     }
 
     save_unified(&save_file);

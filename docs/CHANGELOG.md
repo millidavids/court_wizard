@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.10.67] - 2026-06-15
+
+### Added
+- **Your lifetime feats now track on Steam** — milestones like total victories, battles fought, enemies slain, friendly-fire mishaps, bosses defeated, spells cast, and time played are now recorded to your Steam profile. Many milestone achievements also show your live progress toward the next tier, and existing players keep credit for everything they've already accomplished.
+
 ## [v0.10.64] - 2026-06-15
 
 ### Changed

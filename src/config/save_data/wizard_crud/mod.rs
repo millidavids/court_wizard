@@ -5,9 +5,9 @@ mod roguelite;
 mod unlocks;
 
 pub(crate) use counters::{
-    accumulate_kill_stats, get_endless_best_stats, get_total_levels_completed,
-    increment_games_played, increment_levels_completed, record_coop_guest_level_end,
-    update_endless_best_stats,
+    accumulate_engagement_stats, accumulate_kill_stats, get_endless_best_stats,
+    get_total_levels_completed, increment_games_played, increment_levels_completed,
+    lifetime_stat_totals, record_coop_guest_level_end, update_endless_best_stats,
 };
 pub(crate) use crud::{
     load_level_terrain_into_config, load_or_create_wizard, save_config_to_active_wizard,

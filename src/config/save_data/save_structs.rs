@@ -43,6 +43,23 @@ pub(crate) struct PlayerMetaProgress {
     pub(crate) total_attackers_killed: u32,
     #[serde(default)]
     pub(crate) total_undead_killed: u32,
+    /// Lifetime count of defenders killed by the player's own spells (friendly fire).
+    #[serde(default)]
+    pub(crate) total_defenders_killed_by_spell: u32,
+    /// Lifetime count of spells cast.
+    #[serde(default)]
+    pub(crate) total_spells_cast: u32,
+    /// Lifetime count of bosses defeated (counted on victory for each boss present).
+    #[serde(default)]
+    pub(crate) total_bosses_defeated: u32,
+    /// Lifetime full roguelite clears (victory reaching the max level). Persisted
+    /// monotonically so it survives run-history FIFO trimming.
+    #[serde(default)]
+    pub(crate) total_roguelite_clears: u32,
+    /// Lifetime in-battle play time, in seconds. `f64` to avoid integer-precision
+    /// loss as the total grows large.
+    #[serde(default)]
+    pub(crate) total_play_time_secs: f64,
     #[serde(default)]
     pub(crate) unlocked_achievements: Vec<String>,
     #[serde(default)]
