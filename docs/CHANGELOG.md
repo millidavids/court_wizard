@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.10.64] - 2026-06-15
 
 ### Changed
 - **Talent unlock pacing tuned** — Fireball's talent tiers now unlock at a steady pace through real use instead of almost immediately, while Telekinesis talents now unlock a little sooner.
