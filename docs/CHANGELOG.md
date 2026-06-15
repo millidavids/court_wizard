@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.10.61] - 2026-06-15
 
 ### Changed
 - **Jump straight into the next battle** — the victory screen now has a **Next Level** button that takes you right into the next fight, so you can keep playing without stopping at the Wizard Tower every time. The **Wizard Tower** button is still there whenever you want to head back and spend your insight.
