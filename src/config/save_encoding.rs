@@ -7,6 +7,8 @@ use super::progress::keyed_hash;
 // ---------------------------------------------------------------------------
 
 /// Simple XOR cipher for obfuscating save data.
+/// NOTE: obfuscation, not encryption — the seed and keyed-hash are public in this
+/// open-source repo, so this only deters casual save edits, not determined ones.
 pub(crate) fn obfuscate(data: &[u8]) -> Vec<u8> {
     let seed = b"unified_save_v2";
     let key_hash = keyed_hash(seed);

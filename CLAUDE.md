@@ -247,7 +247,7 @@ cargo fmt --check
 
 ### Git Workflow
 - Never commit unless explicitly instructed
-- This file (CLAUDE.md) is gitignored - it's for development reference only
+- This file (CLAUDE.md) is checked into the repo as development reference; it ships publicly with the open-source release, so keep it free of secrets and private machine details
 
 ## MCP Usage
 - Context7 for fetching documentation

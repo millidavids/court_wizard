@@ -6,7 +6,11 @@ use serde::{Deserialize, Serialize};
 
 use super::storage;
 
-/// Secret key constants for the keyed hash.
+/// Keyed-hash constants used to sign local save/progress files.
+/// NOTE: client-side, best-effort tamper-resistance only. These constants (and the
+/// signing algorithm) ship inside the distributed binary and are public in this
+/// open-source repo, so a determined user can forge a valid signature. Saves are
+/// therefore not trusted input; any authoritative validation must be server-side.
 const KEY_A: u64 = 0x9E37_79B9_7F4A_7C15;
 const KEY_B: u64 = 0x6A09_E667_F3BC_C908;
 

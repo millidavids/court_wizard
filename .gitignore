@@ -15,3 +15,22 @@ multiplayer_problems
 /audit/
 /TECH_DEBT_AUDIT.md
 /.claude/workflows/
+
+# Credential / secret safety net (defense-in-depth for the public repo).
+# Nothing matching exists today; these rules just prevent accidental commits.
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+id_rsa
+id_ed25519
+*.ovpn
+service-account*.json
+credentials.json
+secrets.toml
+config.vdf
+ssfn*
