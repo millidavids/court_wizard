@@ -50,6 +50,10 @@ pub const OGRE_CHARGE_TELEGRAPH_DURATION: f32 = 3.0;
 pub const OGRE_CHARGE_SPEED: f32 = 1200.0;
 /// Charge travels further than the targeting range so the ogre overshoots the target.
 pub const OGRE_CHARGE_MAX_DISTANCE: f32 = OGRE_CHARGE_TARGET_MAX_DISTANCE * 1.2;
+/// NDC margin for the on-screen check on a charge's end point. Matches the Dark
+/// Mage's teleport margin (0.85 = stay within the inner 85% of the screen) so the
+/// ogre never charges to the very edge. 1.0 = hard screen edge; lower insets more.
+pub const OGRE_CHARGE_NDC_MARGIN: f32 = 0.85;
 pub const OGRE_CHARGE_DAMAGE: f32 = 80.0;
 pub const OGRE_CHARGE_KNOCKBACK_SPEED: f32 = 1000.0;
 pub const OGRE_CHARGE_KNOCKBACK_DURATION: f32 = 1.0;

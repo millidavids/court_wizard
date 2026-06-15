@@ -5,7 +5,7 @@ use crate::game::units::wizard::components::Spell;
 pub(crate) fn tier_thresholds(spell: Spell) -> [u32; 3] {
     match spell {
         Spell::MagicMissile => [50, 400, 1000],
-        Spell::Fireball => [1, 2, 3],
+        Spell::Fireball => [20, 70, 200],
         Spell::BattleHymn => [20, 75, 200],
         // Offense spells
         Spell::Disintegrate => [40, 120, 350],
@@ -35,7 +35,7 @@ pub(crate) fn tier_thresholds(spell: Spell) -> [u32; 3] {
         Spell::FogCloud => [10, 50, 100],
         Spell::BerserkerRage => [10, 70, 300],
         // Utility spells
-        Spell::Telekinesis => [1, 5, 10],
+        Spell::Telekinesis => [1, 2, 3],
         Spell::Banishment => [5, 20, 50],
         Spell::ArcaneCrystal => [50, 500, 1500],
         Spell::Dispel => [5, 20, 70],

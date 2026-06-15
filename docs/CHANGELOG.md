@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Changed
+- **Talent unlock pacing tuned** — Fireball's talent tiers now unlock at a steady pace through real use instead of almost immediately, while Telekinesis talents now unlock a little sooner.
+
+### Fixed
+- **The Ogre stays on the battlefield** — the Ogre boss could sometimes charge clear off the edge of the screen and wander out of view. It now only charges toward spots that keep it on-screen.
+
 ## [v0.10.61] - 2026-06-15
 
 ### Changed

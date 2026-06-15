@@ -10,7 +10,7 @@ use crate::game::pathfinding::StagingAttacker;
 use crate::game::pathfinding::resources::PathfindingGrid;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::boss::utils::{
-    animate_telegraph_material, despawn_indicators, indicator_rotation,
+    animate_telegraph_material, despawn_indicators, indicator_rotation, is_on_screen,
 };
 use crate::game::units::components::{
     BanishedModifier, Corpse, FrozenSolidModifier, Health, Hitbox, Knockback, RootedModifier,
@@ -27,6 +27,7 @@ pub fn ogre_charge_system(
     game_config: Res<crate::config::GameConfig>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     pathfinding: Res<PathfindingGrid>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     mut bosses: Query<
         (
             Entity,
@@ -77,6 +78,10 @@ pub fn ogre_charge_system(
     mut indicator_query: Query<&mut Transform, (With<OgreChargeIndicator>, Without<Boss>)>,
 ) {
     let delta = time.delta_secs();
+    // Used to keep a charge's end point on-screen during target selection. If the
+    // camera is somehow absent the filter is skipped (charge behaves as before)
+    // rather than freezing the ogre's other charge states.
+    let camera = camera_query.single().ok();
 
     for (
         _boss_entity,
@@ -97,7 +102,7 @@ pub fn ogre_charge_system(
             OgreChargeState::Targeting => {
                 let boss_pos = boss_transform.translation;
 
-                let mut best_target: Option<(Vec3, f32)> = None;
+                let mut best_target: Option<(f32, Vec3)> = None;
                 for (_entity, target_transform, target_team) in &potential_targets {
                     if !boss_team.is_enemy(target_team) {
                         continue;
@@ -112,16 +117,22 @@ pub fn ogre_charge_system(
                         continue;
                     }
 
-                    if best_target.is_none_or(|(_, d)| distance < d) {
-                        best_target = Some((target_transform.translation, distance));
+                    let direction = Vec3::new(dx, 0.0, dz).normalize_or_zero();
+
+                    // Reject targets whose full charge would carry the ogre off-screen.
+                    if let Some((camera, camera_global)) = camera {
+                        let endpoint = boss_pos + direction * OGRE_CHARGE_MAX_DISTANCE;
+                        if !is_on_screen(camera, camera_global, endpoint, OGRE_CHARGE_NDC_MARGIN) {
+                            continue;
+                        }
+                    }
+
+                    if best_target.is_none_or(|(d, _)| distance < d) {
+                        best_target = Some((distance, direction));
                     }
                 }
 
-                if let Some((target_pos, _)) = best_target {
-                    let direction =
-                        Vec3::new(target_pos.x - boss_pos.x, 0.0, target_pos.z - boss_pos.z)
-                            .normalize_or_zero();
-
+                if let Some((_, direction)) = best_target {
                     let charge_distance = OGRE_CHARGE_MAX_DISTANCE;
                     let rotation = indicator_rotation(direction);
                     let perp = Vec3::new(-direction.z, 0.0, direction.x);
