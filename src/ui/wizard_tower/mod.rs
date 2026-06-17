@@ -23,7 +23,7 @@ pub(crate) use components::{SelectedStudySpell, StudyAllocAdjustButton, TalentCa
 pub(crate) use layout::{
     RightPanelView, WizardTowerLeftPanel, WizardTowerRightPanel, WizardTowerTab, WizardTowerTabRow,
 };
-pub(crate) use multiplayer_tab::MultiplayerLobby;
+pub(crate) use multiplayer_tab::{MultiplayerLobby, force_mp_tab};
 pub(crate) use roguelite_tab::{RogueliteScrollableLeft, SeedInputBox};
 pub(crate) use study_tab::is_spell_unlocked;
 pub(crate) use wizard_cards::WizardCardScrollContainer;

@@ -34,6 +34,16 @@ pub(super) fn mp_tab_selected(tab: Option<Res<WizardTowerTab>>) -> bool {
     tab.is_some_and(|t| matches!(*t, WizardTowerTab::Multiplayer | WizardTowerTab::Vs))
 }
 
+/// Force the Multiplayer tab active: mutate the `WizardTowerTab` resource if it
+/// exists, otherwise insert it. Shared by the rematch routing and the
+/// Steam-invite routing (`route_pending_steam_join`).
+pub(crate) fn force_mp_tab(tab: &mut Option<ResMut<WizardTowerTab>>, commands: &mut Commands) {
+    match tab.as_deref_mut() {
+        Some(t) => *t = WizardTowerTab::Multiplayer,
+        None => commands.insert_resource(WizardTowerTab::Multiplayer),
+    }
+}
+
 /// When returning to WizardTower with a `PendingRematch`, set the Multiplayer
 /// tab active and pre-populate the lobby into `WizardSelect` phase so the
 /// player skips the Connect screen.
@@ -51,11 +61,7 @@ pub(super) fn handle_pending_rematch_on_enter(
     commands.remove_resource::<PendingRematch>();
 
     // Set the Multiplayer tab active
-    if let Some(ref mut t) = tab {
-        **t = WizardTowerTab::Multiplayer;
-    } else {
-        commands.insert_resource(WizardTowerTab::Multiplayer);
-    }
+    force_mp_tab(&mut tab, &mut commands);
 
     // Pre-populate WizardSelect from the previous session. Keep the wizard the
     // player chose last match (the `MultiplayerSession` survives a rematch), only

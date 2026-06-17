@@ -1,7 +1,17 @@
 use crate::config::save_data::AchievementId;
 
-/// Steam App ID for Court Wizard.
-/// Replace with the real App ID once obtained from Steamworks.
+/// Dev/command-line fallback Steam App ID for Court Wizard (the main app).
+///
+/// This is ONLY used as a debug-build fallback when the game is launched outside
+/// Steam with no `steam_appid.txt` in the working directory (see
+/// `init_steam_plugin` in `plugin.rs`). The real app id for shipped builds is
+/// provided by Steam at launch — `4550880` for the main app, `4820340` for the
+/// Playtest — so a single binary serves both. Do NOT use this constant as the
+/// source of truth for "which app are we"; read `client.utils().app_id()` instead.
+///
+/// Only compiled into debug builds — release builds never use the hardcoded id
+/// (they always take the Steam-provided one), so it would be dead code there.
+#[cfg(debug_assertions)]
 pub(crate) const APP_ID: u32 = 4550880;
 
 /// Maps an in-game AchievementId to its Steam API name string.

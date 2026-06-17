@@ -1,6 +1,7 @@
 //! Multiplayer game systems (init, cleanup, score screen, pause, disconnect).
 
 mod disconnected;
+mod invite_abandon;
 mod lifecycle;
 mod pause_menu;
 mod score_screen_handlers;
@@ -34,3 +35,6 @@ pub(super) use disconnected::{
     cleanup_mp_disconnected, detect_mp_disconnect, detect_mp_loading_disconnect,
     handle_mp_disconnected_buttons, setup_mp_disconnected,
 };
+
+// ── invite_abandon ───────────────────────────────────────────────────────────
+pub(super) use invite_abandon::abandon_run_for_steam_invite;

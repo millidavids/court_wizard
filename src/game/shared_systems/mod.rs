@@ -10,8 +10,8 @@ pub use combat_state::{
     wizard_has_not_damaged_enemies,
 };
 pub use lifecycle::{
-    cleanup_for_replay, cleanup_game, init_level_from_config, reset_resources_for_replay,
-    stop_all_sfx,
+    abandon_run_to_main_menu, cleanup_for_replay, cleanup_game, init_level_from_config,
+    reset_resources_for_replay, stop_all_sfx,
 };
 pub use shadows::{
     ShadowAssets, ShadowMaterial, preload_shadow_assets, spawn_terrain_shadow, spawn_unit_shadows,

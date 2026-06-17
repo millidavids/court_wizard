@@ -43,11 +43,11 @@ pub fn button_action(
                     next_pause_menu_state.set(PauseMenuState::Compendium);
                 }
                 PauseMenuButtonAction::Exit => {
-                    channel_change.write(ChannelChangeMessage);
-                    // Abandon any in-progress roguelite run (exiting mid-level)
-                    crate::config::save_data::clear_current_roguelite_run(&active_save);
-                    active_save.0 = None;
-                    next_app_state.set(AppState::MainMenu);
+                    crate::game::shared_systems::abandon_run_to_main_menu(
+                        &mut active_save,
+                        &mut channel_change,
+                        &mut next_app_state,
+                    );
                 }
             }
         }

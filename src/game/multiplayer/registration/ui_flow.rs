@@ -6,12 +6,13 @@ use bevy::prelude::*;
 use crate::game::multiplayer::host_systems;
 use crate::game::multiplayer::score_stats;
 use crate::game::multiplayer::systems::{
-    cleanup_mp_disconnected, cleanup_mp_pause_menu, cleanup_mp_score_screen, detect_mp_disconnect,
-    detect_mp_loading_disconnect, handle_mp_disconnected_buttons, handle_mp_forfeit_confirm,
-    handle_mp_pause_buttons, handle_mp_score_buttons, handle_mp_score_messages, in_mp_disconnected,
-    in_mp_paused, in_mp_running, in_mp_score_screen, mp_escape_key_handler,
-    mp_score_escape_handler, relabel_mp_resume_for_coop, setup_mp_disconnected,
-    setup_mp_pause_menu, setup_mp_score_screen, update_mp_stat_values,
+    abandon_run_for_steam_invite, cleanup_mp_disconnected, cleanup_mp_pause_menu,
+    cleanup_mp_score_screen, detect_mp_disconnect, detect_mp_loading_disconnect,
+    handle_mp_disconnected_buttons, handle_mp_forfeit_confirm, handle_mp_pause_buttons,
+    handle_mp_score_buttons, handle_mp_score_messages, in_mp_disconnected, in_mp_paused,
+    in_mp_running, in_mp_score_screen, mp_escape_key_handler, mp_score_escape_handler,
+    relabel_mp_resume_for_coop, setup_mp_disconnected, setup_mp_pause_menu, setup_mp_score_screen,
+    update_mp_stat_values,
 };
 use crate::networking::session::is_multiplayer_host;
 use crate::state::{AppState, MultiplayerGameState};
@@ -109,5 +110,18 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
     app.add_systems(
         Update,
         detect_mp_loading_disconnect.run_if(in_state(AppState::MultiplayerLoading)),
+    );
+
+    // ── Accept-invite-from-anywhere: abandon an active run ────────
+    // When a Steam invite is accepted mid-run, tear the player's own match down
+    // to the main menu so the steam-side `route_pending_steam_join` can then route
+    // into the multiplayer tab and connect. Gated on the intent existing AND being
+    // in an active run; the system body branches InGame vs MultiplayerGame.
+    app.add_systems(
+        Update,
+        abandon_run_for_steam_invite.run_if(
+            resource_exists::<crate::steam::multiplayer::PendingSteamJoin>
+                .and(in_state(AppState::InGame).or(in_state(AppState::MultiplayerGame))),
+        ),
     );
 }

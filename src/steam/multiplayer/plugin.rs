@@ -3,8 +3,11 @@
 //! resource is guaranteed present when this plugin builds.
 
 use bevy::prelude::*;
+use bevy_steamworks::SteamworksEvent;
 
-use super::join_requests::{consume_pending_join_in_main_menu, parse_launch_command_at_startup};
+use super::join_requests::{
+    PendingSteamJoin, parse_launch_command_at_startup, route_pending_steam_join,
+};
 use super::lobby_state::SteamLobbyState;
 use super::lobby_systems::{
     init_relay_network_access, init_steam_lobby_bridge, process_create_lobby_result,
@@ -35,9 +38,12 @@ impl Plugin for SteamMultiplayerPlugin {
                     process_create_lobby_result,
                     process_join_lobby_result,
                     process_lobby_chat_updates,
-                    process_game_lobby_join_requested,
-                    process_game_rich_presence_join_requested,
-                    consume_pending_join_in_main_menu,
+                    // Only poll the Steam callback bus when there's actually a
+                    // callback waiting — these would otherwise drain an empty
+                    // reader every frame in every state.
+                    process_game_lobby_join_requested.run_if(on_message::<SteamworksEvent>),
+                    process_game_rich_presence_join_requested.run_if(on_message::<SteamworksEvent>),
+                    route_pending_steam_join.run_if(resource_exists::<PendingSteamJoin>),
                     drive_steam_listen_socket,
                     poll_steam_guest_connection_state,
                     steam_transport_bridge_system,

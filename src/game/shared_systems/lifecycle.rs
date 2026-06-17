@@ -4,6 +4,23 @@ use super::super::cauldron::resources::CauldronBuffs;
 use super::super::resources::CurrentLevel;
 use super::super::units::king::components::KingSpawned;
 
+/// Abandon the in-progress single-player run and return to the main menu:
+/// trigger the CRT channel-change wipe, discard any dormant roguelite run, drop
+/// the active save slot, and request the `MainMenu` transition. Going through
+/// `MainMenu` ensures `cleanup_game_mode` (on `OnEnter(MainMenu)`) fully tears the
+/// run down. Shared by the pause-menu "Exit" button and the Steam-invite mid-run
+/// abandon so the teardown lives in one place.
+pub fn abandon_run_to_main_menu(
+    active_save: &mut crate::config::ActiveSave,
+    channel_change: &mut MessageWriter<crate::game::crt_effect::ChannelChangeMessage>,
+    next_app_state: &mut NextState<crate::state::AppState>,
+) {
+    channel_change.write(crate::game::crt_effect::ChannelChangeMessage);
+    crate::config::save_data::clear_current_roguelite_run(active_save);
+    active_save.0 = None;
+    next_app_state.set(crate::state::AppState::MainMenu);
+}
+
 /// Initializes the current level from saved config.
 ///
 /// This system runs on OnEnter(AppState::InGame) to restore the player's

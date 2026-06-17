@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Added
+- **Jump into a friend's game from anywhere** — accepting a Steam invite now takes you straight to the multiplayer screen and connects you automatically: from the menus, from the middle of your own battle (you'll leave your current run), or even with the game closed, where Steam launches it and connects you for you. Joining from the Steam friends list works too.
+
 ## [v0.10.67] - 2026-06-15
 
 ### Added

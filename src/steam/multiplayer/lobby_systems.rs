@@ -6,8 +6,6 @@
 //! tab translates into `LobbyPhase` changes. That keeps the UI module's
 //! internals encapsulated.
 
-use std::str::FromStr;
-
 use bevy::prelude::*;
 use bevy_steamworks::{CallbackResult, ChatMemberStateChange, Client, LobbyId, SteamworksEvent};
 
@@ -85,10 +83,14 @@ pub(super) fn process_create_lobby_result(
                 );
 
                 // Set rich-presence "connect" key so friends can right-click → Join Game
-                // from their friend list (fires `GameRichPresenceJoinRequested` on accept).
+                // from their friend list. Steam hands this string back verbatim — on the
+                // command line for a cold launch (`GetLaunchCommandLine`), or via the
+                // `GameRichPresenceJoinRequested` callback if the game is already running.
+                // So it must BE a launch command line: `+connect_lobby <id>`, parsed by
+                // the same `parse_connect_lobby` used for cold-start joins.
                 client.friends().set_rich_presence(
                     RICH_PRESENCE_CONNECT_KEY,
-                    Some(&lobby_id.raw().to_string()),
+                    Some(&format!("+connect_lobby {}", lobby_id.raw())),
                 );
 
                 // Open the Steam friends overlay so the host can pick whom to invite.
@@ -274,26 +276,16 @@ pub(super) fn process_lobby_chat_updates(
     }
 }
 
-/// Friend clicked "Join Game" on a lobby invite (or accepted an invite
-/// overlay) while our game is already running. Steam delivers the lobby ID
-/// directly.
+/// Friend clicked "Join Game" on a lobby invite (or accepted an invite overlay)
+/// while our game is already running. Steam delivers the lobby ID directly. We
+/// just record the intent in `PendingSteamJoin`; the routing pipeline
+/// (`abandon_run_for_steam_invite` + `route_pending_steam_join`) handles
+/// abandoning any active run, navigating to the multiplayer tab, and connecting
+/// — so this works from any game state, not just the menus.
 pub(super) fn process_game_lobby_join_requested(
     mut events: MessageReader<SteamworksEvent>,
-    client: Option<Res<Client>>,
-    bridge: Option<Res<SteamLobbyBridge>>,
-    mut lobby_state: Option<ResMut<SteamLobbyState>>,
-    mut connection: ResMut<NetworkConnection>,
+    mut commands: Commands,
 ) {
-    let (Some(client), Some(bridge), Some(lobby_state)) = (
-        client.as_deref(),
-        bridge.as_deref(),
-        lobby_state.as_deref_mut(),
-    ) else {
-        // Still drain the events so they don't pile up.
-        events.read().for_each(|_| {});
-        return;
-    };
-
     for evt in events.read() {
         let SteamworksEvent::CallbackResult(CallbackResult::GameLobbyJoinRequested(req)) = evt
         else {
@@ -304,55 +296,39 @@ pub(super) fn process_game_lobby_join_requested(
             req.lobby_steam_id.raw(),
             req.friend_steam_id.raw()
         );
-        accept_incoming_join(
-            client,
-            bridge,
-            lobby_state,
-            &mut connection,
-            req.lobby_steam_id,
-        );
+        commands.insert_resource(super::join_requests::PendingSteamJoin {
+            lobby_id: req.lobby_steam_id,
+        });
     }
 }
 
 /// Friend right-clicked our name and hit "Join Game" from their friend list
 /// while our game is running. Steam delivers the `connect` string we set via
-/// rich presence — we parse the lobby ID back out.
+/// rich presence (`+connect_lobby <id>`); we parse the lobby ID back out with the
+/// same helper used for cold-start launches, then record the intent.
 pub(super) fn process_game_rich_presence_join_requested(
     mut events: MessageReader<SteamworksEvent>,
-    client: Option<Res<Client>>,
-    bridge: Option<Res<SteamLobbyBridge>>,
-    mut lobby_state: Option<ResMut<SteamLobbyState>>,
-    mut connection: ResMut<NetworkConnection>,
+    mut commands: Commands,
 ) {
-    let (Some(client), Some(bridge), Some(lobby_state)) = (
-        client.as_deref(),
-        bridge.as_deref(),
-        lobby_state.as_deref_mut(),
-    ) else {
-        events.read().for_each(|_| {});
-        return;
-    };
-
     for evt in events.read() {
         let SteamworksEvent::CallbackResult(CallbackResult::GameRichPresenceJoinRequested(req)) =
             evt
         else {
             continue;
         };
-        let Ok(raw) = u64::from_str(&req.connect) else {
+        let Some(lobby_id) = super::join_requests::parse_connect_lobby(&req.connect) else {
             warn!(
-                "[Steam MP] Could not parse rich-presence connect string '{}' as lobby id",
+                "[Steam MP] Could not parse rich-presence connect string '{}' (expected '+connect_lobby <id>')",
                 req.connect
             );
             continue;
         };
-        let lobby_id = LobbyId::from_raw(raw);
         info!(
             "[Steam MP] GameRichPresenceJoinRequested: lobby={} (from friend={})",
             lobby_id.raw(),
             req.friend_steam_id.raw()
         );
-        accept_incoming_join(client, bridge, lobby_state, &mut connection, lobby_id);
+        commands.insert_resource(super::join_requests::PendingSteamJoin { lobby_id });
     }
 }
 
@@ -365,12 +341,17 @@ pub(super) fn accept_incoming_join(
     connection: &mut NetworkConnection,
     lobby_id: LobbyId,
 ) {
-    // Refuse if we're already mid-session — Steam should never deliver this
-    // mid-game in practice but be defensive.
+    // Refuse if we already have any session/lobby in flight. Includes Creating /
+    // Hosting so a stray invite can't make us join while we're hosting our own
+    // lobby (which would orphan it on Steam). Callers that intend to REPLACE an
+    // existing lobby must `leave_steam_lobby` (→ Idle) first.
     if connection.state == ConnectionState::Connected
         || matches!(
             lobby_state,
-            SteamLobbyState::Joined { .. } | SteamLobbyState::AwaitingJoin { .. }
+            SteamLobbyState::Creating
+                | SteamLobbyState::Hosting { .. }
+                | SteamLobbyState::Joined { .. }
+                | SteamLobbyState::AwaitingJoin { .. }
         )
     {
         warn!("[Steam MP] Ignoring join request — session already in flight");

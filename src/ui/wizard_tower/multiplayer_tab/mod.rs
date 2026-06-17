@@ -21,3 +21,4 @@ pub(super) mod text_input;
 
 pub(crate) use plugin::MultiplayerTabPlugin;
 pub(crate) use state::{CoopHostSelection, MultiplayerLobby};
+pub(crate) use systems::force_mp_tab;

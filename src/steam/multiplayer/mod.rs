@@ -12,6 +12,7 @@ mod lobby_systems;
 mod plugin;
 mod sockets;
 
+pub(crate) use join_requests::PendingSteamJoin;
 pub(crate) use lobby_state::{
     SteamLobbyBridge, SteamLobbyState, leave_steam_lobby, request_steam_invite,
     shutdown_steam_session,
