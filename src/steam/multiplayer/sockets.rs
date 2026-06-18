@@ -251,37 +251,50 @@ pub(super) fn steam_transport_bridge_system(
         return;
     }
 
+    // Drain the outgoing queues only when they actually hold something. The
+    // `is_empty()` checks go through `Deref` (immutable), so an idle frame never
+    // touches `NetworkConnection` mutably — without this guard, `drain(..)` would
+    // mark the resource changed EVERY frame, and the multiplayer tab's
+    // `rebuild_multiplayer_on_lobby_change` (gated on `resource_changed::<NetworkConnection>`)
+    // would despawn + respawn its panels every frame, destroying button entities
+    // before a click (press one frame, release the next) could ever complete. The
+    // iroh bridge guards the same way (see `transport/bridge.rs`).
+
     // --- Send outgoing reliable -------------------------------------------
-    let outgoing_msgs: Vec<NetworkMessage> = connection.outgoing_messages.drain(..).collect();
-    for msg in outgoing_msgs {
-        match bincode::serialize(&msg) {
-            Ok(payload) => {
-                let mut framed = Vec::with_capacity(payload.len() + 1);
-                framed.push(TAG_RELIABLE);
-                framed.extend_from_slice(&payload);
-                if let Some(net_conn) = socket.connection.as_ref()
-                    && let Err(err) = net_conn.send_message(&framed, SendFlags::RELIABLE)
-                {
-                    warn!("[Steam MP] send_message (reliable) failed: {err:?}");
+    if !connection.outgoing_messages.is_empty() {
+        let outgoing_msgs: Vec<NetworkMessage> = connection.outgoing_messages.drain(..).collect();
+        for msg in outgoing_msgs {
+            match bincode::serialize(&msg) {
+                Ok(payload) => {
+                    let mut framed = Vec::with_capacity(payload.len() + 1);
+                    framed.push(TAG_RELIABLE);
+                    framed.extend_from_slice(&payload);
+                    if let Some(net_conn) = socket.connection.as_ref()
+                        && let Err(err) = net_conn.send_message(&framed, SendFlags::RELIABLE)
+                    {
+                        warn!("[Steam MP] send_message (reliable) failed: {err:?}");
+                    }
                 }
-            }
-            Err(err) => {
-                warn!("[Steam MP] Failed to serialize outgoing message: {err}");
+                Err(err) => {
+                    warn!("[Steam MP] Failed to serialize outgoing message: {err}");
+                }
             }
         }
     }
 
     // --- Send outgoing unreliable -----------------------------------------
-    let outgoing_unrel: Vec<Vec<u8>> = connection.outgoing_unreliable.drain(..).collect();
-    for payload in outgoing_unrel {
-        let mut framed = Vec::with_capacity(payload.len() + 1);
-        framed.push(TAG_UNRELIABLE);
-        framed.extend_from_slice(&payload);
-        if let Some(net_conn) = socket.connection.as_ref()
-            && let Err(err) =
-                net_conn.send_message(&framed, SendFlags::UNRELIABLE | SendFlags::NO_NAGLE)
-        {
-            warn!("[Steam MP] send_message (unreliable) failed: {err:?}");
+    if !connection.outgoing_unreliable.is_empty() {
+        let outgoing_unrel: Vec<Vec<u8>> = connection.outgoing_unreliable.drain(..).collect();
+        for payload in outgoing_unrel {
+            let mut framed = Vec::with_capacity(payload.len() + 1);
+            framed.push(TAG_UNRELIABLE);
+            framed.extend_from_slice(&payload);
+            if let Some(net_conn) = socket.connection.as_ref()
+                && let Err(err) =
+                    net_conn.send_message(&framed, SendFlags::UNRELIABLE | SendFlags::NO_NAGLE)
+            {
+                warn!("[Steam MP] send_message (unreliable) failed: {err:?}");
+            }
         }
     }
 
