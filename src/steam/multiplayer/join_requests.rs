@@ -22,16 +22,38 @@ pub(crate) struct PendingSteamJoin {
 /// Inspect Steam's command-line invite parameter at boot. If it's
 /// `+connect_lobby <u64>`, stash the lobby id for the main-menu consumer to
 /// pick up once we're past Splash / Studio screens.
+///
+/// A cold-launch lobby invite ("Join Game" while the game is closed) is delivered
+/// by Steam as `+connect_lobby <id>` on the **OS process command line (argv)** —
+/// NOT through `ISteamApps::GetLaunchCommandLine()`, which only returns the
+/// connect string when the "Use launch command line" install option is enabled
+/// (the rich-presence path). So we check argv FIRST, then fall back to the Steam
+/// API string, so cold-launch joins work regardless of that dashboard setting.
 pub(super) fn parse_launch_command_at_startup(mut commands: Commands, client: Option<Res<Client>>) {
-    let Some(client) = client else {
-        return;
-    };
-    let cmdline = client.apps().launch_command_line();
-    if cmdline.is_empty() {
-        return;
+    // Skip argv[0] (the exe path): it's never part of the invite, keeps the
+    // player's filesystem path out of logs, and avoids a contrived false match if
+    // the install path itself contained the token. `args_os` + lossy conversion so
+    // a non-Unicode argument can't panic at boot — `std::env::args()` is documented
+    // to panic on invalid Unicode, which at Startup would crash the game on launch.
+    let os_cmdline = std::env::args_os()
+        .skip(1)
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let steam_cmdline = client
+        .as_deref()
+        .map(|c| c.apps().launch_command_line())
+        .unwrap_or_default();
+
+    // Log whatever Steam handed us (only when non-empty, so normal launches stay
+    // quiet) so a cold-launch that still fails to route is diagnosable from the log.
+    if !os_cmdline.is_empty() || !steam_cmdline.is_empty() {
+        info!("[Steam MP] Launch args (argv={os_cmdline:?}, steam_cmdline={steam_cmdline:?})");
     }
-    info!("[Steam MP] Launch command line: {cmdline:?}");
-    let Some(lobby_id) = parse_connect_lobby(&cmdline) else {
+
+    let Some(lobby_id) =
+        parse_connect_lobby(&os_cmdline).or_else(|| parse_connect_lobby(&steam_cmdline))
+    else {
         return;
     };
     info!(
