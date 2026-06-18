@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.10.72] - 2026-06-18
 
 ### Fixed
 - **Multiplayer menu buttons work for the joining player** — after joining a friend's game through Steam, the buttons on the multiplayer screen (switch wizard, ready up, disconnect) were unresponsive. They now work as expected.
