@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.10.71] - 2026-06-18
 
 ### Fixed
 - **Steam invites now connect when the game is closed** — accepting a friend's Steam invite while Court Wizard isn't running now launches the game and drops you straight into the multiplayer match, instead of stopping at the main menu.
