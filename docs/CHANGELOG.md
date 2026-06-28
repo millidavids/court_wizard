@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.10.73] - 2026-06-28
 
 ### Added
 - **Full Steam controller support** — the game now runs through Steam Input, so PlayStation, Nintendo Switch, and Steam Deck controllers are supported alongside Xbox pads, and you can remap any control from Steam's controller settings. On-screen button prompts match your controller and your own bindings, controllers rumble at the end of a battle, and a new **Configure Controller** button in Settings → Controls opens Steam's binding screen.
