@@ -228,34 +228,37 @@ fn populate_controller_diagram(
 /// unaffected. Registered per settings context (Menu / Pause / MP).
 pub(crate) fn cycle_controller_diagram_scheme(
     active: Res<crate::game::input::gamepad::resources::ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    action_state: Res<crate::game::input::action_state::GamepadActionState>,
     focused: Res<crate::ui::focus::resources::FocusedEntity>,
     glyph_fonts: Option<Res<GamepadGlyphFonts>>,
     mut commands: Commands,
     mut diagram: Query<(Entity, &mut ControllerDiagramScheme), With<ControllerDiagram>>,
     mut stick_armed: Local<bool>,
 ) {
-    // Acquire the active gamepad and confirm the diagram is the focused element.
-    // If not (no gamepad, fonts not loaded, or focus elsewhere), re-arm the stick
+    use crate::game::input::action_state::GamepadAction;
+
+    // Confirm a controller is active and the diagram is the focused element. If
+    // not (no controller, fonts not loaded, or focus elsewhere), re-arm the stick
     // latch so the first push after (re)focusing the diagram always registers,
     // then bail. (`focus.0` navigates to the diagram vertically, so the stick is
     // near-center on arrival and re-arming doesn't cause a spurious cycle.)
-    let gamepad = active.gamepad_entity().and_then(|e| gamepads.get(e).ok());
     let focused_diagram = focused.0.filter(|&e| diagram.contains(e));
-    let (Some((gamepad, focused_entity)), Some(fonts)) =
-        (gamepad.zip(focused_diagram), glyph_fonts.as_deref())
-    else {
+    let (Some(focused_entity), Some(fonts)) = (focused_diagram, glyph_fonts.as_deref()) else {
         *stick_armed = true;
         return;
     };
+    if !active.is_gamepad() {
+        *stick_armed = true;
+        return;
+    }
 
     // D-pad is inherently edge-triggered; the left stick fires once per push and
     // re-arms only after returning near center (so a held stick doesn't spin).
     // Thresholds are shared with focus navigation for a consistent feel.
-    let lx = gamepad.get(GamepadAxis::LeftStickX).unwrap_or(0.0);
-    let mut delta: i32 = if gamepad.just_pressed(GamepadButton::DPadRight) {
+    let lx = action_state.left_stick.x;
+    let mut delta: i32 = if action_state.just_pressed(GamepadAction::AbilityRight) {
         1
-    } else if gamepad.just_pressed(GamepadButton::DPadLeft) {
+    } else if action_state.just_pressed(GamepadAction::AbilityLeft) {
         -1
     } else {
         0

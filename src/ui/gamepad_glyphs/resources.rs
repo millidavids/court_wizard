@@ -1,7 +1,26 @@
+use std::collections::HashMap;
+
 use bevy::input::gamepad::GamepadButton;
 use bevy::prelude::*;
 
 use crate::config::ControllerGlyphStyle;
+use crate::game::input::action_state::GamepadAction;
+
+/// Official Steam Input glyph images for the *active controller's current
+/// bindings*, keyed by action. Empty when no Steam Input controller is active or
+/// a PNG couldn't be loaded — callers then fall back to the Kenney font glyph
+/// (the placeholder). Populated by `steam::input`'s `refresh_steam_glyphs`.
+#[derive(Resource, Default)]
+pub(crate) struct SteamGlyphs {
+    pub by_action: HashMap<GamepadAction, Handle<Image>>,
+}
+
+impl SteamGlyphs {
+    /// The Steam glyph image for an action, if one is loaded.
+    pub(crate) fn get(&self, action: GamepadAction) -> Option<Handle<Image>> {
+        self.by_action.get(&action).cloned()
+    }
+}
 
 /// Loaded handles for the four Kenney input fonts. One entry per vendor
 /// style; consumers pick a handle via `font_for`.

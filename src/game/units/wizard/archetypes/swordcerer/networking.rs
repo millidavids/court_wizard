@@ -90,7 +90,7 @@ pub(crate) fn send_swordcerer_avatar_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     bindings: Res<crate::config::input_bindings::InputBindings>,
     active_device: Res<crate::game::input::gamepad::resources::ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    action_state: Res<crate::game::input::action_state::GamepadActionState>,
     aim_settings: Res<crate::game::input::gamepad::resources::GamepadAimSettings>,
     mut fire_pressed: MessageReader<crate::game::input::messages::MouseRightPressed>,
     mut swing_pressed: MessageReader<crate::game::input::messages::MouseLeftPressed>,
@@ -147,17 +147,12 @@ pub(crate) fn send_swordcerer_avatar_input(
     }
 
     // Gamepad left stick overrides keyboard when active and deflected (mirrors
-    // the host avatar's `player_movement`).
-    if let Some(gamepad_entity) = active_device.gamepad_entity()
-        && let Ok(gamepad) = gamepads.get(gamepad_entity)
-    {
-        let lx = gamepad.get(GamepadAxis::LeftStickX).unwrap_or(0.0);
-        let ly = gamepad.get(GamepadAxis::LeftStickY).unwrap_or(0.0);
-        // Negate Y so stick-up is -Z (forward toward the battlefield).
-        let shaped = crate::game::input::gamepad::systems::apply_deadzone_and_curve(
-            Vec2::new(lx, -ly),
-            aim_settings.deadzone,
-            aim_settings.response_curve,
+    // the host avatar's `player_movement`). `shape_stick` negates Y so stick-up
+    // is -Z (forward toward the battlefield).
+    if active_device.is_gamepad() {
+        let shaped = crate::game::input::gamepad::systems::shape_stick(
+            action_state.left_stick,
+            &aim_settings,
         );
         if shaped != Vec2::ZERO {
             input = shaped;

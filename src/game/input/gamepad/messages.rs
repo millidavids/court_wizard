@@ -6,6 +6,22 @@
 //! of the older keyboard-only handlers.
 
 use bevy::prelude::*;
+use std::time::Duration;
+
+/// Requests a rumble pulse on the active **Steam Input** controller. Written by
+/// the gamepad rumble systems when a Steam Input pad is active (gilrs's own
+/// `GamepadRumbleRequest` can't reach a Steam-captured pad); consumed by
+/// `steam::input` which drives the `TriggerVibration` FFI. Registered always so
+/// the writer is valid even without Steam; only consumed when Steam is running.
+#[derive(Message, Debug, Clone, Copy)]
+pub(crate) struct ControllerRumbleMessage {
+    /// Strong (low-frequency) motor intensity, 0..=1.
+    pub strong: f32,
+    /// Weak (high-frequency) motor intensity, 0..=1.
+    pub weak: f32,
+    /// How long the pulse lasts before it is stopped.
+    pub duration: Duration,
+}
 
 /// Emitted when the user requests a "back" action via the gamepad
 /// (East face button / B / Circle, or the Start button as fallback).

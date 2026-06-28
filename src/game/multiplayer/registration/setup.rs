@@ -1,14 +1,31 @@
 //! Span A: multiplayer loading, camera, and resource init/cleanup.
 
+use bevy::ecs::schedule::common_conditions::on_message;
 use bevy::prelude::*;
 
 use crate::game::multiplayer::loading;
+use crate::game::multiplayer::pause_request::{self, RequestGamePauseMessage};
 use crate::game::multiplayer::systems::{
     cleanup_mp_game, init_mp_game, sync_wizard_type_from_session,
 };
 use crate::state::AppState;
 
 pub(in crate::game::multiplayer) fn register(app: &mut App) {
+    // ── Auto-pause request bus ───────────────────────────────────
+    // A single message + consumer that turns any "input was taken away" trigger
+    // (Steam overlay, controller unplug, focus loss) into the correct pause for
+    // the current mode (single-player / co-op sync / versus no-op). Registered
+    // here in Span A because the consumer is cross-cutting — it handles
+    // single-player too, not just co-op. `MultiplayerGamePlugin` is added
+    // unconditionally, so this exists in every mode. Gated ONLY on the message
+    // (not `is_gameplay_active`, which would exclude the co-op guest); the
+    // consumer self-gates on the `Option` state resources.
+    app.add_message::<RequestGamePauseMessage>();
+    app.add_systems(
+        Update,
+        pause_request::apply_pause_requests.run_if(on_message::<RequestGamePauseMessage>),
+    );
+
     // ── Multiplayer Loading ──────────────────────────────────────
     app.add_systems(
         OnEnter(AppState::MultiplayerLoading),

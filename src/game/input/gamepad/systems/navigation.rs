@@ -7,6 +7,7 @@ use super::super::messages::{GamepadConfirmPressed, MenuBackPressed};
 use super::super::resources::{
     ActiveInputDevice, GamepadAimSettings, RadialHoveredSlot, VirtualCursorPosition,
 };
+use crate::game::input::action_state::{GamepadAction, GamepadActionState};
 use crate::game::input::messages::{
     ActionBarKeyPressed, MouseLeftHeld, MouseLeftPressed, MouseLeftReleased, MouseRightHeld,
     MouseRightPressed, MouseRightReleased,
@@ -21,17 +22,16 @@ use crate::game::input::messages::{
 /// suppressed for the lifetime of that RT hold, and the hovered slot is
 /// emitted as `ActionBarKeyPressed`.
 ///
-/// Custom trigger threshold comes from `GamepadAimSettings`, so we can't use
-/// Bevy's built-in digital `just_pressed`/`just_released` on these buttons —
-/// hence the `Local` edge tracking.
+/// `PrimaryCast`/`SecondaryCast` are digital actions (the active producer applies
+/// the trigger threshold), so edge detection comes from `GamepadActionState`'s
+/// `ButtonInput` — no manual `Local` trigger tracking. The `commit_armed` `Local`
+/// still suppresses `MouseLeftPressed/Held/Released` for the lifetime of a radial
+/// commit press.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn translate_triggers_to_mouse_messages(
-    active: Res<ActiveInputDevice>,
-    aim: Res<GamepadAimSettings>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     hovered_slot: Res<RadialHoveredSlot>,
     virtual_cursor: Res<VirtualCursorPosition>,
-    mut prev_triggers: Local<(bool, bool)>,
     mut commit_armed: Local<bool>,
     mut action_bar: MessageWriter<ActionBarKeyPressed>,
     mut left_pressed: MessageWriter<MouseLeftPressed>,
@@ -41,59 +41,37 @@ pub(crate) fn translate_triggers_to_mouse_messages(
     mut right_held: MessageWriter<MouseRightHeld>,
     mut right_released: MessageWriter<MouseRightReleased>,
 ) {
-    let Some(gamepad_entity) = active.gamepad_entity() else {
-        *prev_triggers = (false, false);
-        *commit_armed = false;
-        return;
-    };
-    let Ok(gamepad) = gamepads.get(gamepad_entity) else {
-        return;
-    };
-
-    let rt_now = gamepad.get(GamepadButton::RightTrigger2).unwrap_or(0.0) >= aim.trigger_threshold;
-    let lt_now = gamepad.get(GamepadButton::LeftTrigger2).unwrap_or(0.0) >= aim.trigger_threshold;
-    let (rt_prev, lt_prev) = *prev_triggers;
-    *prev_triggers = (rt_now, lt_now);
-
     let cursor_position = Some(virtual_cursor.screen_pos);
 
-    match (rt_prev, rt_now) {
-        (false, true) => {
-            if let Some(slot) = hovered_slot.0 {
-                action_bar.write(ActionBarKeyPressed { slot });
-                *commit_armed = true;
-            } else {
-                left_pressed.write(MouseLeftPressed { cursor_position });
-                left_held.write(MouseLeftHeld { cursor_position });
-            }
+    // Right trigger → primary cast → left mouse (or radial commit).
+    if state.just_pressed(GamepadAction::PrimaryCast) {
+        if let Some(slot) = hovered_slot.0 {
+            action_bar.write(ActionBarKeyPressed { slot });
+            *commit_armed = true;
+        } else {
+            left_pressed.write(MouseLeftPressed { cursor_position });
+            left_held.write(MouseLeftHeld { cursor_position });
         }
-        (true, true) => {
-            if !*commit_armed {
-                left_held.write(MouseLeftHeld { cursor_position });
-            }
+    } else if state.pressed(GamepadAction::PrimaryCast) {
+        if !*commit_armed {
+            left_held.write(MouseLeftHeld { cursor_position });
         }
-        (true, false) => {
-            if *commit_armed {
-                *commit_armed = false;
-            } else {
-                left_released.write(MouseLeftReleased);
-            }
+    } else if state.just_released(GamepadAction::PrimaryCast) {
+        if *commit_armed {
+            *commit_armed = false;
+        } else {
+            left_released.write(MouseLeftReleased);
         }
-        (false, false) => {}
     }
 
-    match (lt_prev, lt_now) {
-        (false, true) => {
-            right_pressed.write(MouseRightPressed { cursor_position });
-            right_held.write(MouseRightHeld { cursor_position });
-        }
-        (true, true) => {
-            right_held.write(MouseRightHeld { cursor_position });
-        }
-        (true, false) => {
-            right_released.write(MouseRightReleased);
-        }
-        (false, false) => {}
+    // Left trigger → secondary cast → right mouse.
+    if state.just_pressed(GamepadAction::SecondaryCast) {
+        right_pressed.write(MouseRightPressed { cursor_position });
+        right_held.write(MouseRightHeld { cursor_position });
+    } else if state.pressed(GamepadAction::SecondaryCast) {
+        right_held.write(MouseRightHeld { cursor_position });
+    } else if state.just_released(GamepadAction::SecondaryCast) {
+        right_released.write(MouseRightReleased);
     }
 }
 
@@ -117,25 +95,17 @@ pub(crate) fn right_stick_to_slot(stick: Vec2, deadzone: f32) -> Option<u8> {
 /// Reads the right stick each frame and updates `RadialHoveredSlot`.
 pub(crate) fn update_radial_hovered_slot(
     active: Res<ActiveInputDevice>,
+    state: Res<GamepadActionState>,
     aim: Res<GamepadAimSettings>,
-    gamepads: Query<&Gamepad>,
     mut hovered: ResMut<RadialHoveredSlot>,
 ) {
-    let Some(gamepad_entity) = active.gamepad_entity() else {
+    if !active.is_gamepad() {
         if hovered.0.is_some() {
             hovered.0 = None;
         }
         return;
-    };
-    let Ok(gamepad) = gamepads.get(gamepad_entity) else {
-        return;
-    };
-
-    let stick = Vec2::new(
-        gamepad.get(GamepadAxis::RightStickX).unwrap_or(0.0),
-        gamepad.get(GamepadAxis::RightStickY).unwrap_or(0.0),
-    );
-    let new_slot = right_stick_to_slot(stick, aim.deadzone);
+    }
+    let new_slot = right_stick_to_slot(state.right_stick, aim.deadzone);
     if new_slot != hovered.0 {
         hovered.0 = new_slot;
     }
@@ -169,21 +139,14 @@ pub(crate) fn sync_gamepad_settings(
 /// East (B/Circle) or Start. Downstream focus-navigation and escape-handlers
 /// consume these.
 pub(crate) fn emit_ui_confirm_back_messages(
-    active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     mut confirm: MessageWriter<GamepadConfirmPressed>,
     mut back: MessageWriter<MenuBackPressed>,
 ) {
-    let Some(gamepad_entity) = active.gamepad_entity() else {
-        return;
-    };
-    let Ok(gamepad) = gamepads.get(gamepad_entity) else {
-        return;
-    };
-    if gamepad.just_pressed(GamepadButton::South) {
+    if state.just_pressed(GamepadAction::UIConfirm) {
         confirm.write(GamepadConfirmPressed);
     }
-    if gamepad.just_pressed(GamepadButton::East) || gamepad.just_pressed(GamepadButton::Start) {
+    if state.just_pressed(GamepadAction::UIBack) {
         back.write(MenuBackPressed);
     }
 }

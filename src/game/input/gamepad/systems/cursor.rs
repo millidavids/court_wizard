@@ -3,6 +3,7 @@ use bevy::window::PrimaryWindow;
 
 use super::super::resources::{ActiveInputDevice, GamepadAimSettings, VirtualCursorPosition};
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::input::action_state::GamepadActionState;
 
 /// Integrates the left stick into a screen-space virtual cursor and overwrites
 /// `CorrectedCursorPosition` during gameplay.
@@ -18,17 +19,17 @@ use crate::game::crt_effect::CorrectedCursorPosition;
 pub(crate) fn update_virtual_cursor(
     time: Res<Time>,
     active: Res<ActiveInputDevice>,
+    state: Res<GamepadActionState>,
     aim: Res<GamepadAimSettings>,
-    gamepads: Query<&Gamepad>,
     windows: Query<&Window, With<PrimaryWindow>>,
     in_game: Option<Res<State<crate::state::InGameState>>>,
     mp_game: Option<Res<State<crate::state::MultiplayerGameState>>>,
     mut virtual_cursor: ResMut<VirtualCursorPosition>,
     mut corrected: ResMut<CorrectedCursorPosition>,
 ) {
-    let Some(gamepad_entity) = active.gamepad_entity() else {
+    if !active.is_gamepad() {
         return;
-    };
+    }
 
     // Active gameplay in single-player OR multiplayer (in MP, `InGameState`
     // doesn't exist — `MultiplayerGameState` does — so without this the virtual
@@ -46,14 +47,11 @@ pub(crate) fn update_virtual_cursor(
         return;
     }
 
-    let Ok(gamepad) = gamepads.get(gamepad_entity) else {
-        return;
-    };
     let Ok(window) = windows.single() else {
         return;
     };
 
-    let delta = read_left_stick_shaped(gamepad, &aim);
+    let delta = shape_stick(state.left_stick, &aim);
 
     let dt = time.delta_secs();
     virtual_cursor.screen_pos.x += delta.x * aim.sensitivity.x * dt;
@@ -70,13 +68,13 @@ pub(crate) fn update_virtual_cursor(
 ///
 /// Returns a vector with magnitude rescaled from `[deadzone, 1.0]` → `[0.0, 1.0]`
 /// then raised to `curve` (e.g. 2.2 = ease-out). Keeps the original direction.
-/// Reads the left-stick axes, flips Y so "stick up" maps to screen-up (-Y),
-/// and routes through `apply_deadzone_and_curve`. Shared by gameplay's
-/// virtual cursor and the Study tab's spell-web cursor/edge-scroll.
-pub(crate) fn read_left_stick_shaped(gamepad: &Gamepad, aim: &GamepadAimSettings) -> Vec2 {
-    let lx = gamepad.get(GamepadAxis::LeftStickX).unwrap_or(0.0);
-    let ly = gamepad.get(GamepadAxis::LeftStickY).unwrap_or(0.0);
-    apply_deadzone_and_curve(Vec2::new(lx, -ly), aim.deadzone, aim.response_curve)
+/// Shapes a raw left-stick vector for cursor-style movement: flips Y so "stick
+/// up" maps to screen-up (-Y), then routes through `apply_deadzone_and_curve`.
+/// Shared by gameplay's virtual cursor and the Study tab's spell-web
+/// cursor/edge-scroll. Takes the raw stick from `GamepadActionState` so it works
+/// for both the Steam Input and gilrs producers.
+pub(crate) fn shape_stick(raw: Vec2, aim: &GamepadAimSettings) -> Vec2 {
+    apply_deadzone_and_curve(Vec2::new(raw.x, -raw.y), aim.deadzone, aim.response_curve)
 }
 
 pub(crate) fn apply_deadzone_and_curve(input: Vec2, deadzone: f32, curve: f32) -> Vec2 {

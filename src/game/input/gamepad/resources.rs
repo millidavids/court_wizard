@@ -12,22 +12,32 @@ use super::constants::{
 /// Drives OS cursor visibility, button-glyph style, and the focus
 /// navigation system's auto-activation. Updated every frame by
 /// `detect_active_input_device`.
+///
+/// `SteamInputPad` is a controller whose physical device is captured by Steam
+/// Input (so there is no gilrs `Entity` for it); its handle and details live in
+/// [`crate::game::input::action_state::GamepadActionState`]. `Gamepad(Entity)` is
+/// a controller read through the gilrs fallback path.
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Default)]
 pub(crate) enum ActiveInputDevice {
     #[default]
     MouseKeyboard,
     Gamepad(Entity),
+    SteamInputPad,
 }
 
 impl ActiveInputDevice {
+    /// True for any controller (Steam Input or gilrs) — drives the "controller
+    /// is active" UI layer (radial action bar, glyph prompts, focus navigation).
     pub fn is_gamepad(&self) -> bool {
-        matches!(self, Self::Gamepad(_))
+        matches!(self, Self::Gamepad(_) | Self::SteamInputPad)
     }
 
+    /// The gilrs `Gamepad` entity, only on the fallback path (`None` for a
+    /// Steam-captured pad or mouse/keyboard).
     pub fn gamepad_entity(&self) -> Option<Entity> {
         match self {
             Self::Gamepad(e) => Some(*e),
-            Self::MouseKeyboard => None,
+            Self::MouseKeyboard | Self::SteamInputPad => None,
         }
     }
 }

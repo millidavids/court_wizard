@@ -27,6 +27,7 @@ impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(GamepadInputPlugin)
             // Initialize input resources
+            .init_resource::<super::action_state::GamepadActionState>()
             .init_resource::<MouseButtonState>()
             .init_resource::<SpellInputBlockedThisFrame>()
             .init_resource::<MouseLeftHeldThisFrame>()

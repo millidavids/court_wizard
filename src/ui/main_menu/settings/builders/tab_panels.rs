@@ -5,8 +5,14 @@ use bevy::prelude::*;
 use crate::config::SavedWindowedGeometry;
 use crate::config::{ColorblindType, ControllerGlyphStyle, DisplayMode, GameConfig, VsyncMode};
 
-use super::super::components::{OptionButtonValue, ResolutionPreset, ResolutionRow, SliderValue};
-use super::super::constants::{LABEL_FONT_SIZE, MARGIN_SMALL, RESOLUTION_PRESETS, TEXT_COLOR};
+use super::super::components::{
+    ButtonColors, ConfigureControllerButton, OptionButtonValue, ResolutionPreset, ResolutionRow,
+    SliderValue,
+};
+use super::super::constants::{
+    BUTTON_BACKGROUND, BUTTON_BORDER, BUTTON_BORDER_WIDTH, BUTTON_FONT_SIZE, LABEL_FONT_SIZE,
+    MARGIN_SMALL, OPTION_BUTTON_HEIGHT, OPTION_BUTTON_WIDTH, RESOLUTION_PRESETS, TEXT_COLOR,
+};
 use super::super::controller_diagrams::spawn_controller_diagram_section;
 use super::setup::{spawn_dot_leader, spawn_option_button, spawn_option_row, spawn_slider_control};
 use crate::ui::gamepad_glyphs::GamepadGlyphFonts;
@@ -311,6 +317,55 @@ pub(super) fn spawn_controller_tab(
                 !game_config.rumble_enabled,
             );
         });
+
+        // Configure Controller: opens Steam's binding panel (Steam Input only;
+        // no-op when running without Steam or no Steam pad is active).
+        section
+            .spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::FlexEnd,
+                ..default()
+            })
+            .with_children(|row| {
+                row.spawn((
+                    Text::new("Configure Controller:"),
+                    TextFont::from_font_size(LABEL_FONT_SIZE),
+                    TextColor(TEXT_COLOR),
+                    Node {
+                        flex_shrink: 0.0,
+                        ..default()
+                    },
+                ));
+                spawn_dot_leader(row);
+                row.spawn((
+                    Button,
+                    Node {
+                        width: Val::Px(OPTION_BUTTON_WIDTH),
+                        height: Val::Px(OPTION_BUTTON_HEIGHT),
+                        border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        border_radius: BorderRadius::all(Val::Px(4.0)),
+                        ..default()
+                    },
+                    BorderColor::all(BUTTON_BORDER),
+                    BackgroundColor(BUTTON_BACKGROUND),
+                    ButtonColors {
+                        background: BUTTON_BACKGROUND,
+                        border: BUTTON_BORDER,
+                    },
+                    crate::ui::focus::Focusable,
+                    ConfigureControllerButton,
+                ))
+                .with_children(|button| {
+                    button.spawn((
+                        Text::new("Open"),
+                        TextFont::from_font_size(BUTTON_FONT_SIZE),
+                        TextColor(TEXT_COLOR),
+                    ));
+                });
+            });
 
         if let Some(fonts) = glyph_fonts {
             spawn_controller_diagram_section(section, fonts, glyph_style);

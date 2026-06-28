@@ -202,6 +202,12 @@ pub struct GameConfig {
     /// Whether to auto-pause when the game window loses focus
     #[serde(default)]
     pub auto_pause_on_focus_loss: bool,
+    /// Whether to auto-pause when the Steam overlay is opened
+    #[serde(default = "default_true")]
+    pub pause_on_steam_overlay: bool,
+    /// Whether to auto-pause when the active controller disconnects mid-match
+    #[serde(default = "default_true")]
+    pub pause_on_controller_disconnect: bool,
     /// High contrast effect strength (0.0 = off, 1.0 = full)
     #[serde(default)]
     pub high_contrast_strength: f32,
@@ -283,6 +289,8 @@ impl Default for GameConfig {
             crt_enabled: true,
             game_speed: 1.0,
             auto_pause_on_focus_loss: false,
+            pause_on_steam_overlay: true,
+            pause_on_controller_disconnect: true,
             high_contrast_strength: 0.0,
             aim_assist: false,
             gamepad_sensitivity_x: 1.0,

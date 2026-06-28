@@ -81,6 +81,36 @@ pub(super) fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &Ga
             );
         });
 
+        spawn_option_row(section, "Pause on Steam Overlay:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "On",
+                OptionButtonValue::PauseOnSteamOverlay(true),
+                game_config.pause_on_steam_overlay,
+            );
+            spawn_option_button(
+                buttons,
+                "Off",
+                OptionButtonValue::PauseOnSteamOverlay(false),
+                !game_config.pause_on_steam_overlay,
+            );
+        });
+
+        spawn_option_row(section, "Pause on Disconnect:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "On",
+                OptionButtonValue::PauseOnControllerDisconnect(true),
+                game_config.pause_on_controller_disconnect,
+            );
+            spawn_option_button(
+                buttons,
+                "Off",
+                OptionButtonValue::PauseOnControllerDisconnect(false),
+                !game_config.pause_on_controller_disconnect,
+            );
+        });
+
         // Reset Tutorials button
         section
             .spawn(Node {

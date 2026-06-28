@@ -197,6 +197,19 @@ fn spawn_rune_button(row: &mut ChildSpawnerCommands, rune: Rune) {
                     TextColor(RUNE_BUTTON_STYLE.text_color),
                     RuneButtonLabel { rune },
                 ));
+                // Hidden by default; shown (in place of the text) by
+                // `adapt_rune_labels_to_input_device` when an official Steam Input
+                // glyph is available for this rune's action.
+                front.spawn((
+                    ImageNode::new(Handle::default()),
+                    Node {
+                        width: Val::Px(RUNE_BUTTON_STYLE.font_size * 1.4),
+                        height: Val::Px(RUNE_BUTTON_STYLE.font_size * 1.4),
+                        display: Display::None,
+                        ..default()
+                    },
+                    RuneButtonGlyphImage { rune },
+                ));
             });
     });
 }

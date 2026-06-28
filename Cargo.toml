@@ -1,6 +1,6 @@
 [package]
 name = "court_wizard"
-version = "0.10.72"
+version = "0.10.73"
 edition = "2024"
 default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"
@@ -74,6 +74,12 @@ rand = "0.9"
 tracing = { version = "0.1", features = ["max_level_debug", "release_max_level_warn"] }
 dirs = "6.0"
 bevy-steamworks = "0.16"
+# Direct handles to the exact versions bevy-steamworks 0.16 already resolves, so
+# we can name `steamworks::InputType` and call the Steam Input haptics FFI
+# (`steamworks-sys`) the safe `Input` wrapper doesn't expose. Exact-pinned so the
+# FFI surface can't drift.
+steamworks = "=0.12.2"
+steamworks-sys = "=0.12.2"
 iroh = "0.98"
 tokio = { version = "1", features = ["rt", "sync", "time"] }
 crossbeam-channel = "0.5"

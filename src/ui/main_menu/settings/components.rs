@@ -35,6 +35,10 @@ pub enum OptionButtonValue {
     CrtEnabled(bool),
     /// Auto-pause on focus loss toggle
     AutoPauseOnFocusLoss(bool),
+    /// Auto-pause when the Steam overlay opens toggle
+    PauseOnSteamOverlay(bool),
+    /// Auto-pause when the active controller disconnects toggle
+    PauseOnControllerDisconnect(bool),
     /// Aim assist toggle
     AimAssist(bool),
     /// Controller rumble toggle
@@ -55,6 +59,10 @@ impl OptionButtonValue {
             OptionButtonValue::ReduceMotion(v) => config.reduce_motion == *v,
             OptionButtonValue::CrtEnabled(v) => config.crt_enabled == *v,
             OptionButtonValue::AutoPauseOnFocusLoss(v) => config.auto_pause_on_focus_loss == *v,
+            OptionButtonValue::PauseOnSteamOverlay(v) => config.pause_on_steam_overlay == *v,
+            OptionButtonValue::PauseOnControllerDisconnect(v) => {
+                config.pause_on_controller_disconnect == *v
+            }
             OptionButtonValue::AimAssist(v) => config.aim_assist == *v,
             OptionButtonValue::RumbleEnabled(v) => config.rumble_enabled == *v,
         }
@@ -73,6 +81,10 @@ impl OptionButtonValue {
             OptionButtonValue::ReduceMotion(v) => config.reduce_motion = *v,
             OptionButtonValue::CrtEnabled(v) => config.crt_enabled = *v,
             OptionButtonValue::AutoPauseOnFocusLoss(v) => config.auto_pause_on_focus_loss = *v,
+            OptionButtonValue::PauseOnSteamOverlay(v) => config.pause_on_steam_overlay = *v,
+            OptionButtonValue::PauseOnControllerDisconnect(v) => {
+                config.pause_on_controller_disconnect = *v
+            }
             OptionButtonValue::AimAssist(v) => config.aim_assist = *v,
             OptionButtonValue::RumbleEnabled(v) => config.rumble_enabled = *v,
         }
@@ -91,6 +103,11 @@ pub enum SettingsButtonAction {
     /// Button to reset all key bindings to defaults
     ResetControls,
 }
+
+/// Marker for the "Configure Controller" button (opens Steam's binding panel for
+/// the active Steam Input controller). Handled by `steam::input`.
+#[derive(Component)]
+pub(crate) struct ConfigureControllerButton;
 
 /// Re-export shared ButtonColors for settings use.
 pub use crate::ui::components::ButtonColors;

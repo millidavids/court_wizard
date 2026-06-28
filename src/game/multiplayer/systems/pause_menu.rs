@@ -36,17 +36,15 @@ const PAUSE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
 pub(crate) fn mp_escape_key_handler(
     keyboard: Res<ButtonInput<KeyCode>>,
     active: Res<crate::game::input::gamepad::resources::ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    action_state: Res<crate::game::input::action_state::GamepadActionState>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     mut next_mp_state: ResMut<NextState<MultiplayerGameState>>,
     session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
     // The gamepad Start button toggles the pause menu, same as Escape (mirrors the
     // single-player `keyboard_input` handler).
-    let gamepad_start = active
-        .gamepad_entity()
-        .and_then(|e| gamepads.get(e).ok())
-        .is_some_and(|g| g.just_pressed(GamepadButton::Start));
+    let gamepad_start = active.is_gamepad()
+        && action_state.just_pressed(crate::game::input::action_state::GamepadAction::Pause);
     if !keyboard.just_pressed(KeyCode::Escape) && !gamepad_start {
         return;
     }

@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 use bevy::ui::ui_transform::UiGlobalTransform;
 
+use crate::game::input::action_state::{GamepadAction, GamepadActionState};
 use crate::game::input::gamepad::resources::{ActiveInputDevice, GamepadAimSettings};
-use crate::game::input::gamepad::systems::read_left_stick_shaped;
+use crate::game::input::gamepad::systems::shape_stick;
 use crate::game::input::messages::MouseClicked;
 
 use super::super::super::components::*;
@@ -90,22 +91,19 @@ pub(crate) fn spawn_study_cursor_on_area_added(
 pub(crate) fn update_study_cursor(
     time: Res<Time>,
     active: Res<ActiveInputDevice>,
+    state: Res<GamepadActionState>,
     aim: Res<GamepadAimSettings>,
-    gamepads: Query<&Gamepad>,
     graph_area: Query<&ComputedNode, With<SpellGraphArea>>,
     mut cursor: ResMut<StudyCursorMode>,
 ) {
-    let Some(gp_entity) = active.gamepad_entity() else {
+    if !active.is_gamepad() {
         return;
-    };
-    let Ok(gamepad) = gamepads.get(gp_entity) else {
-        return;
-    };
+    }
     let Ok(area_node) = graph_area.single() else {
         return;
     };
 
-    let shaped = read_left_stick_shaped(gamepad, &aim);
+    let shaped = shape_stick(state.left_stick, &aim);
     let delta = shaped * STUDY_CURSOR_SPEED * time.delta_secs();
     if delta == Vec2::ZERO && !cursor.is_added() {
         return;
@@ -219,20 +217,13 @@ pub(crate) fn update_reticle_appearance(
 /// just-pressed. The existing `handle_graph_node_clicks` system consumes it.
 pub(crate) fn study_cursor_confirm(
     cursor: Res<StudyCursorMode>,
-    active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     mut clicks: MessageWriter<MouseClicked>,
 ) {
     let Some(target) = cursor.hovered else {
         return;
     };
-    let Some(gp_entity) = active.gamepad_entity() else {
-        return;
-    };
-    let Ok(gamepad) = gamepads.get(gp_entity) else {
-        return;
-    };
-    if gamepad.just_pressed(GamepadButton::South) {
+    if state.just_pressed(GamepadAction::StudyConfirm) {
         clicks.write(MouseClicked { button: target });
     }
 }
@@ -244,8 +235,8 @@ pub(crate) fn study_cursor_confirm(
 pub(crate) fn study_cursor_edge_scroll(
     time: Res<Time>,
     active: Res<ActiveInputDevice>,
+    state: Res<GamepadActionState>,
     aim: Res<GamepadAimSettings>,
-    gamepads: Query<&Gamepad>,
     cursor: Res<StudyCursorMode>,
     mut view: ResMut<GraphViewState>,
     bounds: Option<Res<GraphBounds>>,
@@ -254,12 +245,9 @@ pub(crate) fn study_cursor_edge_scroll(
     const EDGE_SCROLL_THRESHOLD: f32 = 60.0; // logical px from edge
     const EDGE_SCROLL_SPEED: f32 = 700.0; // logical px/sec at the edge
 
-    let Some(gp_entity) = active.gamepad_entity() else {
+    if !active.is_gamepad() {
         return;
-    };
-    let Ok(gamepad) = gamepads.get(gp_entity) else {
-        return;
-    };
+    }
     let Ok(area_node) = graph_area.single() else {
         return;
     };
@@ -267,7 +255,7 @@ pub(crate) fn study_cursor_edge_scroll(
     // Stick input: only scroll while the player is actively pushing toward
     // the edge — letting go of the stick while the cursor rests at the edge
     // should stop the pan.
-    let stick = read_left_stick_shaped(gamepad, &aim);
+    let stick = shape_stick(state.left_stick, &aim);
     if stick == Vec2::ZERO {
         return;
     }
@@ -320,7 +308,7 @@ pub(crate) fn study_cursor_edge_scroll(
 pub(crate) fn study_cursor_trigger_zoom(
     time: Res<Time>,
     active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     cursor: Res<StudyCursorMode>,
     mut commands: Commands,
     mut view: ResMut<GraphViewState>,
@@ -330,20 +318,11 @@ pub(crate) fn study_cursor_trigger_zoom(
     const TRIGGER_DEADZONE: f32 = 0.08;
     const TRIGGER_ZOOM_RATE: f32 = 2.4; // exp rate/sec at full trigger
 
-    let Some(gp_entity) = active.gamepad_entity() else {
+    if !active.is_gamepad() {
         return;
-    };
-    let Ok(gamepad) = gamepads.get(gp_entity) else {
-        return;
-    };
-    let rt = gamepad
-        .get(GamepadButton::RightTrigger2)
-        .unwrap_or(0.0)
-        .max(0.0);
-    let lt = gamepad
-        .get(GamepadButton::LeftTrigger2)
-        .unwrap_or(0.0)
-        .max(0.0);
+    }
+    let rt = state.right_trigger.max(0.0);
+    let lt = state.left_trigger.max(0.0);
     let rt = if rt >= TRIGGER_DEADZONE { rt } else { 0.0 };
     let lt = if lt >= TRIGGER_DEADZONE { lt } else { 0.0 };
     let signed = rt - lt; // +1 zoom in, -1 zoom out

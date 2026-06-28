@@ -20,6 +20,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
+use crate::game::input::action_state::{GamepadAction, GamepadActionState};
 use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{NetworkConnection, PeerRole};
@@ -149,13 +150,13 @@ pub(crate) fn reset_coop_pause_state(mut pause: ResMut<CoopPauseState>) {
 // ── Local input (owns the Running↔Paused toggle in co-op) ───────────
 
 /// Classification of the local gameplay state for the active peer.
-enum LocalState {
+pub(crate) enum LocalState {
     Running,
     Paused,
     Other,
 }
 
-fn local_state_host(state: Option<&State<InGameState>>) -> LocalState {
+pub(crate) fn local_state_host(state: Option<&State<InGameState>>) -> LocalState {
     match state.map(|s| *s.get()) {
         Some(InGameState::Running) => LocalState::Running,
         Some(InGameState::Paused) => LocalState::Paused,
@@ -163,7 +164,7 @@ fn local_state_host(state: Option<&State<InGameState>>) -> LocalState {
     }
 }
 
-fn local_state_guest(state: Option<&State<MultiplayerGameState>>) -> LocalState {
+pub(crate) fn local_state_guest(state: Option<&State<MultiplayerGameState>>) -> LocalState {
     match state.map(|s| *s.get()) {
         Some(MultiplayerGameState::Running) => LocalState::Running,
         Some(MultiplayerGameState::Paused) => LocalState::Paused,
@@ -182,7 +183,7 @@ fn local_state_guest(state: Option<&State<MultiplayerGameState>>) -> LocalState 
 pub(crate) fn coop_pause_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     active_device: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    action_state: Res<GamepadActionState>,
     session: Res<MultiplayerSession>,
     mut pause: ResMut<CoopPauseState>,
     mut connection: ResMut<NetworkConnection>,
@@ -191,10 +192,8 @@ pub(crate) fn coop_pause_input(
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     mut next_mp: Option<ResMut<NextState<MultiplayerGameState>>>,
 ) {
-    let gamepad_start = active_device
-        .gamepad_entity()
-        .and_then(|e| gamepads.get(e).ok())
-        .is_some_and(|g| g.just_pressed(GamepadButton::Start));
+    let gamepad_start =
+        active_device.is_gamepad() && action_state.just_pressed(GamepadAction::Pause);
     if !keyboard.just_pressed(KeyCode::Escape) && !gamepad_start {
         return;
     }
@@ -207,17 +206,6 @@ pub(crate) fn coop_pause_input(
         local_state_guest(mp_state.as_deref())
     };
 
-    let set_paused =
-        |next_sp: &mut Option<ResMut<NextState<InGameState>>>,
-         next_mp: &mut Option<ResMut<NextState<MultiplayerGameState>>>| {
-            if is_host {
-                if let Some(n) = next_sp {
-                    n.set(InGameState::Paused);
-                }
-            } else if let Some(n) = next_mp {
-                n.set(MultiplayerGameState::Paused);
-            }
-        };
     let set_running =
         |next_sp: &mut Option<ResMut<NextState<InGameState>>>,
          next_mp: &mut Option<ResMut<NextState<MultiplayerGameState>>>| {
@@ -232,16 +220,14 @@ pub(crate) fn coop_pause_input(
 
     match local_state {
         LocalState::Running if !pause.active => {
-            pause.active = true;
-            pause.initiator = Some(local);
-            pause.heartbeat.reset();
-            set_paused(&mut next_sp, &mut next_mp);
-            connection
-                .outgoing_messages
-                .push(NetworkMessage::CoopPauseSync {
-                    paused: true,
-                    initiator_is_host: is_host,
-                });
+            do_initiate_pause(
+                is_host,
+                local,
+                &mut pause,
+                &mut connection,
+                &mut next_sp,
+                &mut next_mp,
+            );
         }
         LocalState::Paused if pause.active && pause.initiator == Some(local) => {
             pause.active = false;
@@ -256,6 +242,39 @@ pub(crate) fn coop_pause_input(
         }
         _ => {}
     }
+}
+
+/// Performs the local side-effects of initiating a co-op sync-pause: marks
+/// [`CoopPauseState`], transitions the local peer's state to `Paused`, and
+/// broadcasts the authoritative `CoopPauseSync`. Shared by the manual
+/// Escape/Start handler ([`coop_pause_input`]) and the auto-pause request
+/// consumer (`pause_request::apply_pause_requests`) so the co-op initiation
+/// logic lives in exactly one place. Callers must ensure no pause is already
+/// active and that the local peer is in its `Running` state.
+pub(crate) fn do_initiate_pause(
+    is_host: bool,
+    local: PeerRole,
+    pause: &mut CoopPauseState,
+    connection: &mut NetworkConnection,
+    next_sp: &mut Option<ResMut<NextState<InGameState>>>,
+    next_mp: &mut Option<ResMut<NextState<MultiplayerGameState>>>,
+) {
+    pause.active = true;
+    pause.initiator = Some(local);
+    pause.heartbeat.reset();
+    if is_host {
+        if let Some(n) = next_sp {
+            n.set(InGameState::Paused);
+        }
+    } else if let Some(n) = next_mp {
+        n.set(MultiplayerGameState::Paused);
+    }
+    connection
+        .outgoing_messages
+        .push(NetworkMessage::CoopPauseSync {
+            paused: true,
+            initiator_is_host: is_host,
+        });
 }
 
 // ── Receive (apply the remote peer's authoritative pause state) ─────

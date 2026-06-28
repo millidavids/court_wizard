@@ -72,16 +72,15 @@ pub fn escape_to_pause_main(
 pub fn escape_to_running(
     keyboard: Res<ButtonInput<KeyCode>>,
     active: Res<crate::game::input::gamepad::resources::ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    action_state: Res<crate::game::input::action_state::GamepadActionState>,
     mut next_in_game_state: Option<ResMut<NextState<InGameState>>>,
     mut next_mp_state: Option<ResMut<NextState<MultiplayerGameState>>>,
 ) {
-    let gamepad_back = active
-        .gamepad_entity()
-        .and_then(|e| gamepads.get(e).ok())
-        .is_some_and(|g| {
-            g.just_pressed(GamepadButton::East) || g.just_pressed(GamepadButton::Start)
-        });
+    // `UIBack` is East or Start. Reading the action's `just_pressed` (recomputed
+    // fresh each frame by the active producer) avoids the extra-frame persistence
+    // of the `MenuBackPressed` message that would re-fire and flip Paused→Running.
+    let gamepad_back = active.is_gamepad()
+        && action_state.just_pressed(crate::game::input::action_state::GamepadAction::UIBack);
     if keyboard.just_pressed(KeyCode::Escape) || gamepad_back {
         if let Some(ref mut next_sp) = next_in_game_state {
             next_sp.set(InGameState::Running);

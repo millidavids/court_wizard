@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Added
+- **Full Steam controller support** — the game now runs through Steam Input, so PlayStation, Nintendo Switch, and Steam Deck controllers are supported alongside Xbox pads, and you can remap any control from Steam's controller settings. On-screen button prompts match your controller and your own bindings, controllers rumble at the end of a battle, and a new **Configure Controller** button in Settings → Controls opens Steam's binding screen.
+- **The game pauses itself when you step away** — opening the Steam Overlay or unplugging your controller in the middle of a battle now pauses the game automatically, so you won't come back to a lost run. In a co-op match, both players pause together. You can switch either option on or off under Settings → Gameplay.
+
 ## [v0.10.72] - 2026-06-18
 
 ### Fixed

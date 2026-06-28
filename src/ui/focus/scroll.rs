@@ -13,6 +13,7 @@ use super::components::{
 };
 use super::constants::{ANIM_CANCEL_THRESHOLD, AUTOSCROLL_EDGE_PADDING, RIGHT_STICK_SCROLL_SPEED};
 use super::resources::{FocusedEntity, ScreenFocusMemory, ScreenKey};
+use crate::game::input::action_state::{GamepadAction, GamepadActionState};
 use crate::game::input::gamepad::messages::MenuBackPressed;
 use crate::game::input::gamepad::resources::{ActiveInputDevice, GamepadAimSettings};
 use crate::game::input::gamepad::systems::apply_deadzone_and_curve;
@@ -20,17 +21,14 @@ use crate::state::{AppState, InGameState, MenuState, MetaGameState, PauseMenuSta
 
 pub(super) fn override_focused_interaction(
     active: Res<ActiveInputDevice>,
+    state: Res<GamepadActionState>,
     focused: Res<FocusedEntity>,
-    gamepads: Query<&Gamepad>,
     mut commands: Commands,
     mut last_focused: Local<Option<Entity>>,
     mut confirm_armed: Local<bool>,
     mut interactions: Query<(Entity, &mut Interaction), (With<Focusable>, Without<NoGamepadFocus>)>,
 ) {
-    let confirm_held = active
-        .gamepad_entity()
-        .and_then(|e| gamepads.get(e).ok())
-        .is_some_and(|g| g.pressed(GamepadButton::South));
+    let confirm_held = active.is_gamepad() && state.pressed(GamepadAction::UIConfirm);
 
     let current = if active.is_gamepad() { focused.0 } else { None };
 
@@ -248,18 +246,15 @@ pub(super) fn animate_scroll(
 pub(super) fn right_stick_scroll(
     time: Res<Time>,
     active: Res<ActiveInputDevice>,
+    state: Res<GamepadActionState>,
     aim: Res<GamepadAimSettings>,
-    gamepads: Query<&Gamepad>,
     mut commands: Commands,
     mut targets: Query<(Entity, &mut ScrollPosition, &ComputedNode), With<GamepadScrollTarget>>,
 ) {
-    let Some(gamepad_entity) = active.gamepad_entity() else {
+    if !active.is_gamepad() {
         return;
-    };
-    let Ok(gamepad) = gamepads.get(gamepad_entity) else {
-        return;
-    };
-    let ry = gamepad.get(GamepadAxis::RightStickY).unwrap_or(0.0);
+    }
+    let ry = state.right_stick.y;
     // Stick up (positive Y) scrolls content up (decrease scroll.y); negate so
     // the mapping feels natural. Route through `apply_deadzone_and_curve` so
     // scroll uses the same deadzone + response curve as the virtual cursor.

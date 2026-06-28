@@ -12,6 +12,7 @@ use super::constants::{
     STICK_DIRECTION_THRESHOLD, STICK_RESET_THRESHOLD,
 };
 use super::resources::{FocusedEntity, PreModalFocus, ScreenKey};
+use crate::game::input::action_state::{GamepadAction, GamepadActionState};
 use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{AppState, InGameState, MenuState, MetaGameState, PauseMenuState};
@@ -263,22 +264,25 @@ pub(super) struct FocusHoldState {
 /// Stick latches direction once past `STICK_DIRECTION_THRESHOLD` and holds it
 /// until the stick returns below `STICK_RESET_THRESHOLD` — prevents diagonal
 /// wobble from flipping up↔right mid-hold.
-fn resolve_nav_direction(gamepad: &Gamepad, stick_latched: &mut Option<Vec2>) -> Option<Vec2> {
-    if gamepad.pressed(GamepadButton::DPadUp) {
+fn resolve_nav_direction(
+    state: &GamepadActionState,
+    stick_latched: &mut Option<Vec2>,
+) -> Option<Vec2> {
+    if state.pressed(GamepadAction::AbilityUp) {
         return Some(Vec2::new(0.0, -1.0));
     }
-    if gamepad.pressed(GamepadButton::DPadDown) {
+    if state.pressed(GamepadAction::AbilityDown) {
         return Some(Vec2::new(0.0, 1.0));
     }
-    if gamepad.pressed(GamepadButton::DPadLeft) {
+    if state.pressed(GamepadAction::AbilityLeft) {
         return Some(Vec2::new(-1.0, 0.0));
     }
-    if gamepad.pressed(GamepadButton::DPadRight) {
+    if state.pressed(GamepadAction::AbilityRight) {
         return Some(Vec2::new(1.0, 0.0));
     }
 
-    let lx = gamepad.get(GamepadAxis::LeftStickX).unwrap_or(0.0);
-    let ly = gamepad.get(GamepadAxis::LeftStickY).unwrap_or(0.0);
+    let lx = state.left_stick.x;
+    let ly = state.left_stick.y;
     let mag = (lx * lx + ly * ly).sqrt();
 
     if mag < STICK_RESET_THRESHOLD {
@@ -302,7 +306,7 @@ fn resolve_nav_direction(gamepad: &Gamepad, stick_latched: &mut Option<Vec2>) ->
 pub(super) fn focus_navigation(
     time: Res<Time>,
     active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     focusables: BodyFocusableQuery,
     modals: Query<Entity, With<ModalOverlay>>,
     cross_row: Query<Entity, With<CrossRowHorizontalNav>>,
@@ -312,16 +316,13 @@ pub(super) fn focus_navigation(
     mut stick_latched: Local<Option<Vec2>>,
     mut hold_state: Local<Option<FocusHoldState>>,
 ) {
-    let Some(gamepad_entity) = active.gamepad_entity() else {
+    if !active.is_gamepad() {
         *stick_latched = None;
         *hold_state = None;
         return;
-    };
-    let Ok(gamepad) = gamepads.get(gamepad_entity) else {
-        return;
-    };
+    }
 
-    let raw_direction = resolve_nav_direction(gamepad, &mut stick_latched);
+    let raw_direction = resolve_nav_direction(&state, &mut stick_latched);
 
     // A focused `ConsumeHorizontalNav` element (the controller-binding diagram)
     // eats Left/Right so it can repurpose them — e.g. cycle vendor schemes —
@@ -409,7 +410,7 @@ pub(super) fn focus_navigation(
 /// cycle starts from the first tab in screen order.
 pub(super) fn tab_cycle(
     active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     tabs: Query<
         (
             Entity,
@@ -421,15 +422,12 @@ pub(super) fn tab_cycle(
     >,
     mut clicks: MessageWriter<MouseClicked>,
 ) {
-    let Some(gamepad_entity) = active.gamepad_entity() else {
+    if !active.is_gamepad() {
         return;
-    };
-    let Ok(gamepad) = gamepads.get(gamepad_entity) else {
-        return;
-    };
+    }
 
-    let forward = gamepad.just_pressed(GamepadButton::RightTrigger);
-    let back = gamepad.just_pressed(GamepadButton::LeftTrigger);
+    let forward = state.just_pressed(GamepadAction::TabNext);
+    let back = state.just_pressed(GamepadAction::TabPrev);
     if !forward && !back {
         return;
     }

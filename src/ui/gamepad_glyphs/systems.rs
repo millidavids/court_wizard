@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::resources::{CurrentControllerGlyphStyle, GamepadGlyphFonts};
 use crate::config::{ControllerGlyphStyle, GameConfig};
+use crate::game::input::action_state::{ControllerKind, GamepadActionState};
 use crate::game::input::gamepad::resources::ActiveInputDevice;
 
 /// Loads the four Kenney controller fonts at startup.
@@ -15,16 +16,24 @@ pub(super) fn load_glyph_fonts(mut commands: Commands, asset_server: Res<AssetSe
 }
 
 /// Keeps `CurrentControllerGlyphStyle` synced with the user's preference
-/// (`GameConfig.controller_glyph_style`) and, when set to `Auto`, with the
-/// active gamepad's vendor.
+/// (`GameConfig.controller_glyph_style`) and, when set to `Auto`, with the active
+/// controller's type. The active producer (Steam Input poll or gilrs adapter)
+/// resolves `GamepadActionState.controller_kind` — from Steam's
+/// `GetInputTypeForHandle` or the USB vendor id respectively — so this is correct
+/// on both paths.
 pub(super) fn resolve_glyph_style(
     config: Res<GameConfig>,
     active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    action_state: Res<GamepadActionState>,
     mut current: ResMut<CurrentControllerGlyphStyle>,
 ) {
     let style = match config.controller_glyph_style {
-        ControllerGlyphStyle::Auto => auto_detect(&active, &gamepads),
+        ControllerGlyphStyle::Auto if active.is_gamepad() => {
+            kind_to_style(action_state.controller_kind)
+        }
+        // Mouse/keyboard (no controller) falls back to the broadly-recognized
+        // A/B/X/Y convention.
+        ControllerGlyphStyle::Auto => ControllerGlyphStyle::Xbox,
         explicit => explicit,
     };
     if current.0 != style {
@@ -32,22 +41,11 @@ pub(super) fn resolve_glyph_style(
     }
 }
 
-/// Best-effort vendor sniff via USB vendor id. Bevy's `Gamepad` exposes
-/// `vendor_id()` but doesn't expose a display name, so we rely on the
-/// well-known vendor IDs for the platforms we support. Anything else falls
-/// back to Xbox glyphs since the A/B/X/Y convention is broadly recognized.
-fn auto_detect(active: &ActiveInputDevice, gamepads: &Query<&Gamepad>) -> ControllerGlyphStyle {
-    let entity = match active {
-        ActiveInputDevice::Gamepad(e) => *e,
-        ActiveInputDevice::MouseKeyboard => return ControllerGlyphStyle::Xbox,
-    };
-    let Ok(gamepad) = gamepads.get(entity) else {
-        return ControllerGlyphStyle::Xbox;
-    };
-    match gamepad.vendor_id() {
-        Some(0x054C) => ControllerGlyphStyle::PlayStation, // Sony
-        Some(0x057E) => ControllerGlyphStyle::Switch,      // Nintendo
-        Some(0x28DE) => ControllerGlyphStyle::SteamDeck,   // Valve
-        _ => ControllerGlyphStyle::Xbox,
+fn kind_to_style(kind: ControllerKind) -> ControllerGlyphStyle {
+    match kind {
+        ControllerKind::Xbox => ControllerGlyphStyle::Xbox,
+        ControllerKind::PlayStation => ControllerGlyphStyle::PlayStation,
+        ControllerKind::Switch => ControllerGlyphStyle::Switch,
+        ControllerKind::SteamDeck => ControllerGlyphStyle::SteamDeck,
     }
 }

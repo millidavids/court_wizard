@@ -1,5 +1,6 @@
+use bevy::ecs::schedule::common_conditions::on_message;
 use bevy::prelude::*;
-use bevy_steamworks::Client;
+use bevy_steamworks::{Client, SteamworksEvent};
 
 use crate::game::achievements::systems::send_battle_ended;
 use crate::state::{AppState, InGameState};
@@ -7,8 +8,10 @@ use crate::state::{AppState, InGameState};
 use super::achievements::sync_achievements_to_steam;
 use super::cloud_save::{restore_save_from_steam_cloud, sync_save_to_steam_cloud};
 use super::init::init_steam_plugin;
+use super::input::SteamInputPlugin;
 use super::leaderboards::LeaderboardsPlugin;
 use super::multiplayer::SteamMultiplayerPlugin;
+use super::overlay_pause::pause_on_steam_overlay;
 use super::stats::sync_stats_to_steam;
 
 /// Bevy plugin that integrates Steam features (achievements, cloud saves, overlay).
@@ -34,6 +37,7 @@ impl Plugin for SteamPlugin {
                 }
                 app.add_plugins(LeaderboardsPlugin);
                 app.add_plugins(SteamMultiplayerPlugin);
+                app.add_plugins(SteamInputPlugin);
 
                 // Restore cloud saves before the game loads save data.
                 app.add_systems(Startup, restore_save_from_steam_cloud);
@@ -42,6 +46,13 @@ impl Plugin for SteamPlugin {
                 // states because some achievements (e.g. SliderFiddler) fire in
                 // menus, not just gameplay.
                 app.add_systems(Update, sync_achievements_to_steam);
+
+                // Pause the game when the Steam overlay is opened. Only polls the
+                // callback bus when an event is actually waiting.
+                app.add_systems(
+                    Update,
+                    pause_on_steam_overlay.run_if(on_message::<SteamworksEvent>),
+                );
 
                 // Sync save file to Steam Cloud at natural save checkpoints.
                 app.add_systems(OnEnter(AppState::MainMenu), sync_save_to_steam_cloud);

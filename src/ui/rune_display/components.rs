@@ -41,6 +41,13 @@ pub(super) struct RuneButtonLabel {
     pub(super) rune: Rune,
 }
 
+/// Sibling image node inside a rune button, shown (in place of the text label)
+/// when an official Steam Input glyph is available for that rune's action.
+#[derive(Component, Debug, Clone, Copy)]
+pub(super) struct RuneButtonGlyphImage {
+    pub(super) rune: Rune,
+}
+
 /// Timer component for spell name fade-out animation.
 #[derive(Component)]
 pub(super) struct SpellNameFadeTimer {

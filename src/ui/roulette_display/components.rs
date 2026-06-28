@@ -20,6 +20,11 @@ pub(super) struct RouletteSelectedText;
 #[derive(Component)]
 pub(super) struct RoulettePromptText;
 
+/// Sibling image node for the spin prompt, shown (in place of the text glyph)
+/// when an official Steam Input glyph is available for the spin action.
+#[derive(Component)]
+pub(super) struct RoulettePromptGlyphImage;
+
 /// Timer for fading the selected spell name display.
 #[derive(Component)]
 pub(super) struct SelectedSpellFadeTimer {

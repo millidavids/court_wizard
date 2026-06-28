@@ -4,11 +4,14 @@ use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::game_mode::components::ArchetypeUI;
+use crate::game::input::action_state::GamepadAction;
 use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::units::wizard::archetypes::roulette::constants::SPIN_DURATION;
 use crate::game::units::wizard::archetypes::roulette::resources::{RoulettePhase, RouletteState};
 use crate::game::units::wizard::components::Spell;
-use crate::ui::gamepad_glyphs::{CurrentControllerGlyphStyle, GamepadGlyphFonts, glyph_char};
+use crate::ui::gamepad_glyphs::{
+    CurrentControllerGlyphStyle, GamepadGlyphFonts, SteamGlyphs, glyph_char,
+};
 
 /// Returns the display name for a spell with newlines replaced by spaces.
 fn spell_display_name(spell: &Spell) -> String {
@@ -88,6 +91,18 @@ pub(crate) fn spawn_roulette_display(mut commands: Commands, asset_server: Res<A
                 TextFont::from_font_size(PROMPT_FONT_SIZE),
                 TextColor(PROMPT_COLOR),
                 RoulettePromptText,
+            ));
+            // Hidden image, shown in place of the text glyph when an official
+            // Steam Input glyph is available for the spin action.
+            parent.spawn((
+                ImageNode::new(Handle::default()),
+                Node {
+                    width: Val::Px(PROMPT_FONT_SIZE * 1.8),
+                    height: Val::Px(PROMPT_FONT_SIZE * 1.8),
+                    display: Display::None,
+                    ..default()
+                },
+                RoulettePromptGlyphImage,
             ));
         });
 }
@@ -223,23 +238,63 @@ pub(super) fn update_selected_spell_fade(
 /// mouse/keyboard and shows the gamepad's "South" glyph (A / ✕ / etc.) from
 /// the Kenney controller font when a gamepad is the active input device.
 /// Runs every frame but cheaply bails if nothing changed.
+#[allow(clippy::type_complexity)]
 pub(super) fn adapt_prompt_to_input_device(
     roulette_state: Res<RouletteState>,
     active: Res<ActiveInputDevice>,
     style: Res<CurrentControllerGlyphStyle>,
+    steam: Res<SteamGlyphs>,
     fonts: Option<Res<GamepadGlyphFonts>>,
     mut prompt_query: Query<
-        (&mut Text, &mut TextFont),
-        (With<RoulettePromptText>, Without<RouletteSelectedText>),
+        (&mut Text, &mut TextFont, &mut Node),
+        (With<RoulettePromptText>, Without<RoulettePromptGlyphImage>),
+    >,
+    mut image_query: Query<
+        (&mut ImageNode, &mut Node),
+        (With<RoulettePromptGlyphImage>, Without<RoulettePromptText>),
     >,
 ) {
     if !matches!(roulette_state.phase, RoulettePhase::Idle) {
         return;
     }
-    let Ok((mut text, mut font)) = prompt_query.single_mut() else {
+    let Ok((mut text, mut font, mut text_node)) = prompt_query.single_mut() else {
         return;
     };
     let gamepad = active.is_gamepad();
+    // Spin is the `Activate` action (default South).
+    let steam_glyph = gamepad
+        .then(|| steam.get(GamepadAction::Activate))
+        .flatten();
+
+    if let Ok((mut image_node, mut img_node_style)) = image_query.single_mut() {
+        match &steam_glyph {
+            Some(handle) => {
+                if image_node.image != *handle {
+                    image_node.image = handle.clone();
+                }
+                if img_node_style.display != Display::Flex {
+                    img_node_style.display = Display::Flex;
+                }
+            }
+            None => {
+                if img_node_style.display != Display::None {
+                    img_node_style.display = Display::None;
+                }
+            }
+        }
+    }
+
+    if steam_glyph.is_some() {
+        // Steam image is showing; hide the text.
+        if text_node.display != Display::None {
+            text_node.display = Display::None;
+        }
+        return;
+    }
+    if text_node.display != Display::Flex {
+        text_node.display = Display::Flex;
+    }
+
     if gamepad && let Some(fonts) = fonts {
         if let Some(glyph) = glyph_char(GamepadButton::South, style.0) {
             let glyph_str = glyph.to_string();

@@ -9,7 +9,7 @@
 
 use bevy::prelude::*;
 
-use super::resources::ActiveInputDevice;
+use crate::game::input::action_state::{GamepadAction, GamepadActionState};
 use crate::game::input::messages::{SpacebarHeld, SpacebarPressed, SpacebarReleased};
 use crate::game::units::wizard::archetypes::arcanorouter::{
     messages::SliderAdjustMessage, resources::SliderType,
@@ -27,38 +27,25 @@ use crate::game::units::wizard::components::{LocalWizard, Mana, Wizard};
 /// ArcanoRouter slider increment per D-pad press.
 const ARCANOROUTER_STEP: f32 = 0.05;
 
-/// Returns the currently active gamepad component, or `None` when mouse/keyboard is active.
-fn active_gamepad<'a>(
-    active: &ActiveInputDevice,
-    gamepads: &'a Query<&Gamepad>,
-) -> Option<&'a Gamepad> {
-    active.gamepad_entity().and_then(|e| gamepads.get(e).ok())
-}
-
 // ---------------------------------------------------------------------------
 // Universal Activate (Spacebar analog) → A button
 // ---------------------------------------------------------------------------
 
-/// Mirrors the keyboard "Activate" key onto the South face button (A/Cross).
+/// Mirrors the keyboard "Activate" key onto the `Activate` action (default South).
 /// Emits `SpacebarPressed/Held/Released` just like the keyboard path.
 pub(super) fn translate_activate_button(
-    active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     mut pressed: MessageWriter<SpacebarPressed>,
     mut held: MessageWriter<SpacebarHeld>,
     mut released: MessageWriter<SpacebarReleased>,
 ) {
-    let Some(gamepad) = active_gamepad(&active, &gamepads) else {
-        return;
-    };
-    let button = GamepadButton::South;
-    if gamepad.just_pressed(button) {
+    if state.just_pressed(GamepadAction::Activate) {
         pressed.write(SpacebarPressed);
     }
-    if gamepad.pressed(button) {
+    if state.pressed(GamepadAction::Activate) {
         held.write(SpacebarHeld);
     }
-    if gamepad.just_released(button) {
+    if state.just_released(GamepadAction::Activate) {
         released.write(SpacebarReleased);
     }
 }
@@ -68,25 +55,17 @@ pub(super) fn translate_activate_button(
 // ---------------------------------------------------------------------------
 
 pub(super) fn translate_runes(
-    active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     mut rune_pressed: MessageWriter<RunePressed>,
 ) {
-    // Activate (South → ActivateRuneSequence): `translate_activate_button` emits
-    // `SpacebarPressed` when South is pressed; `detect_rune_input` then reads
-    // `ButtonInput<KeyCode>` directly for keyboard, but the spacebar path for
-    // RuneCaster reads the activate binding, which covers the controller South button.
-    let Some(gamepad) = active_gamepad(&active, &gamepads) else {
-        return;
-    };
-    let rune_bindings: [(GamepadButton, Rune); 4] = [
-        (GamepadButton::DPadUp, Rune::Q),
-        (GamepadButton::DPadDown, Rune::W),
-        (GamepadButton::DPadRight, Rune::E),
-        (GamepadButton::DPadLeft, Rune::R),
+    let rune_bindings: [(GamepadAction, Rune); 4] = [
+        (GamepadAction::AbilityUp, Rune::Q),
+        (GamepadAction::AbilityDown, Rune::W),
+        (GamepadAction::AbilityRight, Rune::E),
+        (GamepadAction::AbilityLeft, Rune::R),
     ];
-    for (button, rune) in rune_bindings {
-        if gamepad.just_pressed(button) {
+    for (action, rune) in rune_bindings {
+        if state.just_pressed(action) {
             rune_pressed.write(RunePressed { rune });
         }
     }
@@ -97,14 +76,10 @@ pub(super) fn translate_runes(
 // ---------------------------------------------------------------------------
 
 pub(super) fn translate_roulette(
-    active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     mut spin: MessageWriter<RouletteSpinMessage>,
 ) {
-    let Some(gamepad) = active_gamepad(&active, &gamepads) else {
-        return;
-    };
-    if gamepad.just_pressed(GamepadButton::DPadUp) {
+    if state.just_pressed(GamepadAction::AbilityUp) {
         spin.write(RouletteSpinMessage);
     }
 }
@@ -114,23 +89,19 @@ pub(super) fn translate_roulette(
 // ---------------------------------------------------------------------------
 
 pub(super) fn translate_weather(
-    active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     mut weather: ResMut<WeatherState>,
     mut mana_query: Query<&mut Mana, (With<Wizard>, With<LocalWizard>)>,
     mut writer: MessageWriter<WeatherChangedMessage>,
 ) {
-    let Some(gamepad) = active_gamepad(&active, &gamepads) else {
-        return;
-    };
-    let weather_bindings: [(GamepadButton, WeatherType); 3] = [
-        (GamepadButton::DPadUp, WeatherType::Storm),
-        (GamepadButton::DPadDown, WeatherType::Blizzard),
-        (GamepadButton::DPadRight, WeatherType::Drought),
+    let weather_bindings: [(GamepadAction, WeatherType); 3] = [
+        (GamepadAction::AbilityUp, WeatherType::Storm),
+        (GamepadAction::AbilityDown, WeatherType::Blizzard),
+        (GamepadAction::AbilityRight, WeatherType::Drought),
     ];
     let mut requested = None;
-    for (button, weather_type) in weather_bindings {
-        if gamepad.just_pressed(button) {
+    for (action, weather_type) in weather_bindings {
+        if state.just_pressed(action) {
             requested = Some(weather_type);
             break;
         }
@@ -152,14 +123,10 @@ pub(super) fn translate_weather(
 // ---------------------------------------------------------------------------
 
 pub(super) fn translate_warglock(
-    active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     mut reload: MessageWriter<ReloadMessage>,
 ) {
-    let Some(gamepad) = active_gamepad(&active, &gamepads) else {
-        return;
-    };
-    if gamepad.just_pressed(GamepadButton::DPadUp) {
+    if state.just_pressed(GamepadAction::AbilityUp) {
         reload.write(ReloadMessage);
     }
 }
@@ -169,21 +136,17 @@ pub(super) fn translate_warglock(
 // ---------------------------------------------------------------------------
 
 pub(super) fn translate_arcanorouter(
-    active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     mut adjust: MessageWriter<SliderAdjustMessage>,
 ) {
-    let Some(gamepad) = active_gamepad(&active, &gamepads) else {
-        return;
-    };
-    let adjustments: [(GamepadButton, SliderType); 4] = [
-        (GamepadButton::DPadUp, SliderType::Range),
-        (GamepadButton::DPadDown, SliderType::Mana),
-        (GamepadButton::DPadRight, SliderType::Power),
-        (GamepadButton::DPadLeft, SliderType::Speed),
+    let adjustments: [(GamepadAction, SliderType); 4] = [
+        (GamepadAction::AbilityUp, SliderType::Range),
+        (GamepadAction::AbilityDown, SliderType::Mana),
+        (GamepadAction::AbilityRight, SliderType::Power),
+        (GamepadAction::AbilityLeft, SliderType::Speed),
     ];
-    for (button, slider) in adjustments {
-        if gamepad.just_pressed(button) {
+    for (action, slider) in adjustments {
+        if state.just_pressed(action) {
             adjust.write(SliderAdjustMessage {
                 slider,
                 delta: ARCANOROUTER_STEP,

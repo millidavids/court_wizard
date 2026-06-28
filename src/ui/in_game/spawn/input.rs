@@ -3,6 +3,7 @@ use bevy::prelude::*;
 
 use super::super::components::*;
 use crate::config::GameConfig;
+use crate::game::input::action_state::{GamepadAction, GamepadActionState};
 use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::state::{InGameState, MultiplayerGameState};
@@ -34,7 +35,7 @@ pub(crate) fn block_spell_input_on_button_interaction(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn gamepad_hud_shortcuts(
     active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     current_state: Option<Res<State<InGameState>>>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     config: Res<crate::config::GameConfig>,
@@ -52,13 +53,12 @@ pub(crate) fn gamepad_hud_shortcuts(
     if !sp_running && !mp_running {
         return;
     }
-    let Some(gp_entity) = active.gamepad_entity() else {
+    if !active.is_gamepad() {
         return;
-    };
-    let Ok(gamepad) = gamepads.get(gp_entity) else {
-        return;
-    };
-    if gamepad.just_pressed(GamepadButton::West) && !config.wizard_type.uses_exclusive_casting() {
+    }
+    if state.just_pressed(GamepadAction::OpenSpellBook)
+        && !config.wizard_type.uses_exclusive_casting()
+    {
         if let Some(ref mut next_sp) = next_in_game_state {
             next_sp.set(InGameState::SpellBook);
         }
@@ -66,7 +66,7 @@ pub(crate) fn gamepad_hud_shortcuts(
             next_mp.set(MultiplayerGameState::SpellBook);
         }
     }
-    if gamepad.just_pressed(GamepadButton::North) {
+    if state.just_pressed(GamepadAction::OpenCauldron) {
         if let Some(ref mut next_sp) = next_in_game_state {
             next_sp.set(InGameState::CauldronMenu);
         }
@@ -84,7 +84,7 @@ pub(crate) fn gamepad_hud_shortcuts(
 pub(crate) fn keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     active: Res<ActiveInputDevice>,
-    gamepads: Query<&Gamepad>,
+    state: Res<GamepadActionState>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     current_state: Option<Res<State<InGameState>>>,
     next_in_game_state: Option<ResMut<NextState<InGameState>>>,
@@ -101,10 +101,7 @@ pub(crate) fn keyboard_input(
     if *current_state.get() != InGameState::Running {
         return;
     }
-    let gamepad_start = active
-        .gamepad_entity()
-        .and_then(|e| gamepads.get(e).ok())
-        .is_some_and(|g| g.just_pressed(GamepadButton::Start));
+    let gamepad_start = active.is_gamepad() && state.just_pressed(GamepadAction::Pause);
     if keyboard.just_pressed(KeyCode::Escape) || gamepad_start {
         next_in_game_state.set(InGameState::Paused);
     }

@@ -11,4 +11,6 @@ mod resources;
 mod systems;
 
 pub(crate) use plugin::GamepadGlyphsPlugin;
-pub(crate) use resources::{CurrentControllerGlyphStyle, GamepadGlyphFonts, glyph_char};
+pub(crate) use resources::{
+    CurrentControllerGlyphStyle, GamepadGlyphFonts, SteamGlyphs, glyph_char,
+};

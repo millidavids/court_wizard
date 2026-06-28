@@ -83,6 +83,8 @@ pub(crate) fn load_and_apply_config(
         crt_enabled: config_file.game.crt_enabled,
         game_speed: config_file.game.game_speed.clamp(0.5, 2.0),
         auto_pause_on_focus_loss: config_file.game.auto_pause_on_focus_loss,
+        pause_on_steam_overlay: config_file.game.pause_on_steam_overlay,
+        pause_on_controller_disconnect: config_file.game.pause_on_controller_disconnect,
         high_contrast_strength: config_file.game.high_contrast_strength,
         aim_assist: config_file.game.aim_assist,
         gamepad_sensitivity_x: config_file.game.gamepad_sensitivity_x,

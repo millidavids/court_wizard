@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::resources::CurrentControllerGlyphStyle;
+use super::resources::{CurrentControllerGlyphStyle, SteamGlyphs};
 use super::systems::{load_glyph_fonts, resolve_glyph_style};
 use crate::config::GameConfig;
 use crate::game::input::gamepad::resources::ActiveInputDevice;
@@ -13,6 +13,9 @@ pub(crate) struct GamepadGlyphsPlugin;
 impl Plugin for GamepadGlyphsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CurrentControllerGlyphStyle>()
+            // Populated by `steam::input` when a Steam pad is active; empty
+            // otherwise (callers fall back to the Kenney font placeholder).
+            .init_resource::<SteamGlyphs>()
             .add_systems(Startup, load_glyph_fonts)
             // Only re-resolve when the user's glyph preference changes or the
             // active gamepad swaps. Otherwise the resource is already correct.

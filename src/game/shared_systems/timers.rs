@@ -29,13 +29,18 @@ pub(crate) fn apply_game_speed(
 }
 
 /// Pauses gameplay when the window loses focus.
+///
+/// Routes through [`RequestGamePauseMessage`](crate::game::multiplayer::pause_request::RequestGamePauseMessage)
+/// rather than setting `InGameState::Paused` directly, so the single mode-aware
+/// consumer handles the co-op case correctly (a co-op host losing focus must sync
+/// the pause to the guest, not freeze locally and strand them).
 pub(crate) fn auto_pause_on_focus_loss(
     mut focus_events: MessageReader<bevy::window::WindowFocused>,
-    mut next_state: ResMut<NextState<crate::state::InGameState>>,
+    mut pause_writer: MessageWriter<
+        crate::game::multiplayer::pause_request::RequestGamePauseMessage,
+    >,
 ) {
-    for event in focus_events.read() {
-        if !event.focused {
-            next_state.set(crate::state::InGameState::Paused);
-        }
+    if focus_events.read().any(|event| !event.focused) {
+        pause_writer.write(crate::game::multiplayer::pause_request::RequestGamePauseMessage);
     }
 }

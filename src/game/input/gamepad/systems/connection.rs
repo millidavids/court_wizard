@@ -1,10 +1,13 @@
+use bevy::input::gamepad::GamepadConnectionEvent;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 use bevy::window::{CursorMoved, CursorOptions, PrimaryWindow};
 
 use super::super::resources::{ActiveInputDevice, VirtualCursorPosition};
+use crate::config::GameConfig;
 use crate::game::input::components::MouseButtonState;
+use crate::game::multiplayer::pause_request::RequestGamePauseMessage;
 
 use super::super::constants::DEVICE_SWITCH_STICK_MAGNITUDE;
 
@@ -48,7 +51,7 @@ pub(crate) fn detect_active_input_device(
         if any_button || stick_active {
             let should_switch = match *active {
                 ActiveInputDevice::Gamepad(e) => e != entity,
-                ActiveInputDevice::MouseKeyboard => true,
+                ActiveInputDevice::MouseKeyboard | ActiveInputDevice::SteamInputPad => true,
             };
             if should_switch {
                 *active = ActiveInputDevice::Gamepad(entity);
@@ -80,7 +83,7 @@ pub(crate) fn toggle_cursor_visibility(
     };
 
     match *active {
-        ActiveInputDevice::Gamepad(_) => {
+        ActiveInputDevice::Gamepad(_) | ActiveInputDevice::SteamInputPad => {
             cursor.visible = false;
             // Start the virtual cursor at screen center so the player doesn't have to hunt for it.
             if let Ok(window) = windows.single() {
@@ -94,4 +97,33 @@ pub(crate) fn toggle_cursor_visibility(
 
     mouse.clear();
     mouse_state.left_consumed = false;
+}
+
+/// Pauses the game when the *active* controller disconnects mid-match, and falls
+/// back to mouse/keyboard so the pause menu stays usable.
+///
+/// On disconnect Bevy removes the `Gamepad` component (leaving the entity alive),
+/// so every gamepad reader would early-return on the now-dead handle and the OS
+/// cursor would stay hidden. Resetting `ActiveInputDevice` is unconditional
+/// robustness; only the pause itself is behind the config flag, routed through
+/// the shared `RequestGamePauseMessage` consumer so co-op pauses both peers.
+pub(crate) fn pause_on_controller_unplug(
+    mut events: MessageReader<GamepadConnectionEvent>,
+    mut active: ResMut<ActiveInputDevice>,
+    config: Res<GameConfig>,
+    mut pause_writer: MessageWriter<RequestGamePauseMessage>,
+) {
+    let active_entity = active.gamepad_entity();
+    let mut active_lost = false;
+    for event in events.read() {
+        if event.disconnected() && Some(event.gamepad) == active_entity {
+            active_lost = true;
+        }
+    }
+    if active_lost {
+        *active = ActiveInputDevice::MouseKeyboard;
+        if config.pause_on_controller_disconnect {
+            pause_writer.write(RequestGamePauseMessage);
+        }
+    }
 }
