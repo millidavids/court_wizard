@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use super::super::components::*;
 use super::super::constants::*;
 use crate::config::input_bindings::InputBindings;
+use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::input::messages::MouseClicked;
 use crate::game::units::wizard::archetypes::runes::resources::Rune;
 use crate::game::units::wizard::archetypes::runes::{LastActivatedSpell, RuneSequence};
@@ -11,6 +12,7 @@ use crate::ui::components::{ButtonAnimState, ButtonColors, ButtonEdge, ButtonFro
 use crate::ui::constants::{
     BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_PRESSED_OUTLINE, BUTTON_REST_OUTLINE,
 };
+use crate::ui::gamepad_glyphs::{CurrentControllerGlyphStyle, GamepadGlyphFonts, glyph_char};
 
 /// Animates a rune button when its rune key (Q/W/E/R) is held — mirrors the action
 /// bar's keyboard-driven press visuals (`update_action_bar`). The rune buttons are
@@ -97,25 +99,38 @@ pub(crate) fn handle_rune_button_click(
 
 /// Updates the rune sequence display text based on current sequence.
 /// Shows spell name briefly when a valid sequence is activated, then fades out.
+#[allow(clippy::type_complexity)]
 pub(crate) fn update_rune_display(
     sequence: Res<RuneSequence>,
+    active: Res<ActiveInputDevice>,
+    style: Res<CurrentControllerGlyphStyle>,
+    fonts: Option<Res<GamepadGlyphFonts>>,
     mut commands: Commands,
     mut sequence_text_query: Query<
         (
             Entity,
             &mut Text,
+            &mut TextFont,
             Option<&SpellNameFadeTimer>,
             &mut TextColor,
         ),
         With<RuneSequenceText>,
     >,
-    mut shadow_query: Query<&mut Text, (With<RuneSequenceTextShadow>, Without<RuneSequenceText>)>,
+    mut shadow_query: Query<
+        (&mut Text, &mut TextFont),
+        (With<RuneSequenceTextShadow>, Without<RuneSequenceText>),
+    >,
 ) {
-    if !sequence.is_changed() {
+    // The rendered form depends on the sequence AND (on a controller) the active
+    // device + glyph style, so re-render when any of them changes — otherwise
+    // plugging in a controller mid-sequence leaves stale letters.
+    if !sequence.is_changed() && !active.is_changed() && !style.is_changed() {
         return;
     }
 
-    if let Ok((entity, mut text, fade_timer, mut color)) = sequence_text_query.single_mut() {
+    if let Ok((entity, mut text, mut font, fade_timer, mut color)) =
+        sequence_text_query.single_mut()
+    {
         if !sequence.is_empty() && fade_timer.is_some() {
             commands.entity(entity).remove::<SpellNameFadeTimer>();
             color.0.set_alpha(1.0);
@@ -125,14 +140,43 @@ pub(crate) fn update_rune_display(
             return;
         }
 
-        let new_text = if sequence.is_empty() {
-            "".to_string()
+        // On a controller the sequence renders as inline D-pad glyphs (the Kenney
+        // font — image glyphs can't be inlined in a text string), sized up a bit
+        // so they read clearly. The Q↔D-pad mapping lives on `Rune`.
+        let (new_text, want_font, want_size) = if sequence.is_empty() {
+            (
+                String::new(),
+                Handle::<Font>::default(),
+                RUNE_SEQUENCE_FONT_SIZE,
+            )
+        } else if active.is_gamepad()
+            && let Some(glyph_font) = fonts.as_ref().map(|f| f.font_for(style.0))
+        {
+            let glyphs: String = sequence
+                .runes
+                .iter()
+                .filter_map(|&rune| glyph_char(rune.dpad_button(), style.0))
+                .collect();
+            (glyphs, glyph_font, RUNE_SEQUENCE_FONT_SIZE * 1.5)
         } else {
-            format!("{}", *sequence)
+            (
+                format!("{}", *sequence),
+                Handle::<Font>::default(),
+                RUNE_SEQUENCE_FONT_SIZE,
+            )
         };
+
         **text = new_text.clone();
-        if let Ok(mut shadow) = shadow_query.single_mut() {
+        if font.font != want_font || font.font_size != want_size {
+            font.font = want_font.clone();
+            font.font_size = want_size;
+        }
+        if let Ok((mut shadow, mut shadow_font)) = shadow_query.single_mut() {
             **shadow = new_text;
+            if shadow_font.font != want_font || shadow_font.font_size != want_size {
+                shadow_font.font = want_font;
+                shadow_font.font_size = want_size;
+            }
         }
     }
 }

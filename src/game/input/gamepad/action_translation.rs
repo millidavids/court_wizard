@@ -58,14 +58,8 @@ pub(super) fn translate_runes(
     state: Res<GamepadActionState>,
     mut rune_pressed: MessageWriter<RunePressed>,
 ) {
-    let rune_bindings: [(GamepadAction, Rune); 4] = [
-        (GamepadAction::AbilityUp, Rune::Q),
-        (GamepadAction::AbilityDown, Rune::W),
-        (GamepadAction::AbilityRight, Rune::E),
-        (GamepadAction::AbilityLeft, Rune::R),
-    ];
-    for (action, rune) in rune_bindings {
-        if state.just_pressed(action) {
+    for rune in Rune::ALL {
+        if state.just_pressed(rune.dpad_action()) {
             rune_pressed.write(RunePressed { rune });
         }
     }

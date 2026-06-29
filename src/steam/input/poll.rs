@@ -37,6 +37,7 @@ fn kind_from_input_type(t: InputType) -> ControllerKind {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn poll_steam_input(
     client: Res<Client>,
     handles: Res<SteamInputHandles>,
@@ -44,6 +45,7 @@ pub(crate) fn poll_steam_input(
     mut state: ResMut<GamepadActionState>,
     mut active: ResMut<ActiveInputDevice>,
     mut pause_writer: MessageWriter<RequestGamePauseMessage>,
+    mut last_count: Local<Option<usize>>,
 ) {
     if !handles.resolved {
         return;
@@ -51,12 +53,24 @@ pub(crate) fn poll_steam_input(
     let input = client.input();
     let controllers = input.get_connected_controllers();
 
+    // Diagnostic: log whenever Steam's view of the connected-controller count
+    // changes — so a controller power-off should print "0 controllers". If it
+    // doesn't print, Steam itself didn't notice the disconnect.
+    if *last_count != Some(controllers.len()) {
+        info!("[Steam Input] connected controllers: {}", controllers.len());
+        *last_count = Some(controllers.len());
+    }
+
     // Disconnect of the controller we were driving: reset to mouse/keyboard and
     // (if configured) request the auto-pause. gilrs's unplug handler never fires
     // for a Steam-captured pad, so the Steam path must do this itself.
     if let Some(h) = state.active_steam_handle
         && !controllers.contains(&h)
     {
+        info!(
+            "[Steam Input] active controller disconnected; reset + pause (enabled={})",
+            config.pause_on_controller_disconnect
+        );
         state.clear_inputs();
         if matches!(*active, ActiveInputDevice::SteamInputPad) {
             *active = ActiveInputDevice::MouseKeyboard;

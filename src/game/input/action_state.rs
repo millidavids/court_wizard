@@ -28,8 +28,8 @@ use bevy::prelude::*;
 /// raw D-pad reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum GamepadAction {
-    /// Primary "activate" button (default South / A / Cross): cast, rune activate,
-    /// roulette fire.
+    /// Primary "activate" button (default South / A / Cross): cast / rune
+    /// activate. (The Randomancer's roulette spins on D-pad Up — `AbilityUp`.)
     Activate,
     /// Primary cast trigger (default Right Trigger).
     PrimaryCast,

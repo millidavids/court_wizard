@@ -11,6 +11,9 @@ pub enum Rune {
 }
 
 impl Rune {
+    /// All runes in canonical (Q, W, E, R) order.
+    pub const ALL: [Rune; 4] = [Rune::Q, Rune::W, Rune::E, Rune::R];
+
     /// Returns the display character for this rune.
     pub const fn as_char(&self) -> char {
         match self {
@@ -18,6 +21,30 @@ impl Rune {
             Rune::W => 'W',
             Rune::E => 'E',
             Rune::R => 'R',
+        }
+    }
+
+    /// The D-pad direction this rune is bound to on a controller:
+    /// **Q=Up, W=Right, E=Down, R=Left**. Single source of truth shared by the
+    /// gameplay binding ([`translate_runes`](crate::game::input::gamepad)) and
+    /// every prompt/glyph that renders a rune.
+    pub const fn dpad_button(self) -> GamepadButton {
+        match self {
+            Rune::Q => GamepadButton::DPadUp,
+            Rune::W => GamepadButton::DPadRight,
+            Rune::E => GamepadButton::DPadDown,
+            Rune::R => GamepadButton::DPadLeft,
+        }
+    }
+
+    /// The controller action this rune is bound to (1:1 with [`Self::dpad_button`]).
+    pub const fn dpad_action(self) -> crate::game::input::action_state::GamepadAction {
+        use crate::game::input::action_state::GamepadAction;
+        match self {
+            Rune::Q => GamepadAction::AbilityUp,
+            Rune::W => GamepadAction::AbilityRight,
+            Rune::E => GamepadAction::AbilityDown,
+            Rune::R => GamepadAction::AbilityLeft,
         }
     }
 }

@@ -97,8 +97,8 @@ pub(crate) fn spawn_roulette_display(mut commands: Commands, asset_server: Res<A
             parent.spawn((
                 ImageNode::new(Handle::default()),
                 Node {
-                    width: Val::Px(PROMPT_FONT_SIZE * 1.8),
-                    height: Val::Px(PROMPT_FONT_SIZE * 1.8),
+                    width: Val::Px(40.0),
+                    height: Val::Px(40.0),
                     display: Display::None,
                     ..default()
                 },
@@ -234,10 +234,12 @@ pub(super) fn update_selected_spell_fade(
     }
 }
 
-/// Re-renders the idle-phase prompt so it reads "Press SPACE to spin" under
-/// mouse/keyboard and shows the gamepad's "South" glyph (A / ✕ / etc.) from
-/// the Kenney controller font when a gamepad is the active input device.
-/// Runs every frame but cheaply bails if nothing changed.
+/// Renders the spin prompt. While **idle**: the bound D-pad-Up glyph (Steam art
+/// when available, else the Kenney font) on a controller, or "Press SPACE to
+/// spin" on mouse/keyboard. During non-idle phases (`update_roulette_display`
+/// owns the "Spinning…"/"Cast…" status text) the glyph image is hidden and the
+/// text shown in the default font. Runs every frame but bails cheaply when
+/// nothing changed.
 #[allow(clippy::type_complexity)]
 pub(super) fn adapt_prompt_to_input_device(
     roulette_state: Res<RouletteState>,
@@ -254,57 +256,72 @@ pub(super) fn adapt_prompt_to_input_device(
         (With<RoulettePromptGlyphImage>, Without<RoulettePromptText>),
     >,
 ) {
-    if !matches!(roulette_state.phase, RoulettePhase::Idle) {
-        return;
-    }
-    let Ok((mut text, mut font, mut text_node)) = prompt_query.single_mut() else {
-        return;
-    };
+    let idle = matches!(roulette_state.phase, RoulettePhase::Idle);
     let gamepad = active.is_gamepad();
-    // Spin is the `Activate` action (default South).
-    let steam_glyph = gamepad
-        .then(|| steam.get(GamepadAction::Activate))
+    // Spin = D-pad Up (`AbilityUp`); the Steam image only stands in for the idle prompt.
+    let steam_glyph = (idle && gamepad)
+        .then(|| steam.get(GamepadAction::AbilityUp))
         .flatten();
 
-    if let Ok((mut image_node, mut img_node_style)) = image_query.single_mut() {
+    // The image is visible iff the idle prompt is showing a Steam glyph; hidden
+    // in every other case (mouse/keyboard, Kenney fallback, or non-idle phases).
+    if let Ok((mut image_node, mut img_style)) = image_query.single_mut() {
         match &steam_glyph {
             Some(handle) => {
                 if image_node.image != *handle {
                     image_node.image = handle.clone();
                 }
-                if img_node_style.display != Display::Flex {
-                    img_node_style.display = Display::Flex;
+                if img_style.display != Display::Flex {
+                    img_style.display = Display::Flex;
                 }
             }
             None => {
-                if img_node_style.display != Display::None {
-                    img_node_style.display = Display::None;
+                if img_style.display != Display::None {
+                    img_style.display = Display::None;
                 }
             }
         }
     }
 
+    let Ok((mut text, mut font, mut text_node)) = prompt_query.single_mut() else {
+        return;
+    };
+
+    // Text is hidden exactly when the Steam image is showing.
+    let want_display = if steam_glyph.is_some() {
+        Display::None
+    } else {
+        Display::Flex
+    };
+    if text_node.display != want_display {
+        text_node.display = want_display;
+    }
     if steam_glyph.is_some() {
-        // Steam image is showing; hide the text.
-        if text_node.display != Display::None {
-            text_node.display = Display::None;
+        return;
+    }
+
+    // Non-idle: `update_roulette_display` owns the status text; just ensure the
+    // font is the default (not a leftover glyph font) and leave the content.
+    if !idle {
+        if font.font != Handle::<Font>::default() {
+            font.font = Handle::<Font>::default();
+            font.font_size = PROMPT_FONT_SIZE;
         }
         return;
     }
-    if text_node.display != Display::Flex {
-        text_node.display = Display::Flex;
-    }
 
     if gamepad && let Some(fonts) = fonts {
-        if let Some(glyph) = glyph_char(GamepadButton::South, style.0) {
+        if let Some(glyph) = glyph_char(GamepadButton::DPadUp, style.0) {
             let glyph_str = glyph.to_string();
             if **text != glyph_str {
                 **text = glyph_str;
             }
             let want_font = fonts.font_for(style.0);
-            if font.font != want_font {
+            // Match the 40px Steam image so the two paths don't visually jump.
+            let want_size = 40.0;
+            if font.font != want_font || font.font_size != want_size {
                 font.font = want_font;
-                font.font_size = PROMPT_FONT_SIZE * 1.8;
+                font.font_size = want_size;
             }
         }
     } else {

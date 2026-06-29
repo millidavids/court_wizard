@@ -2,7 +2,6 @@ use bevy::prelude::*;
 
 use super::super::components::*;
 use super::super::constants::*;
-use crate::game::input::action_state::GamepadAction;
 use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::units::wizard::archetypes::runes::resources::Rune;
 use crate::ui::gamepad_glyphs::{
@@ -46,9 +45,9 @@ pub(crate) fn update_spell_name_fade(
     }
 }
 
-/// Swaps each rune button's "Q/W/E/R" label for a D-pad direction glyph
-/// when a gamepad is the active input device. Mapping matches the gameplay
-/// binding laid out in the controller plan: Q=Up, W=Down, E=Right, R=Left.
+/// Swaps each rune button's "Q/W/E/R" label for the bound D-pad direction glyph
+/// (Steam art when available, else the Kenney font) when a gamepad is active. The
+/// rune↔D-pad mapping (Q=Up, W=Right, E=Down, R=Left) lives on [`Rune`].
 #[allow(clippy::type_complexity)]
 pub(crate) fn adapt_rune_labels_to_input_device(
     active: Res<ActiveInputDevice>,
@@ -62,14 +61,8 @@ pub(crate) fn adapt_rune_labels_to_input_device(
     mut images: Query<(&RuneButtonGlyphImage, &mut ImageNode, &mut Node), Without<RuneButtonLabel>>,
 ) {
     let gamepad = active.is_gamepad();
-    let rune_action = |rune: Rune| match rune {
-        Rune::Q => GamepadAction::AbilityUp,
-        Rune::W => GamepadAction::AbilityDown,
-        Rune::E => GamepadAction::AbilityRight,
-        Rune::R => GamepadAction::AbilityLeft,
-    };
     let steam_glyph = |rune: Rune| -> Option<Handle<Image>> {
-        gamepad.then(|| steam.get(rune_action(rune))).flatten()
+        gamepad.then(|| steam.get(rune.dpad_action())).flatten()
     };
 
     // Steam glyph available → show the official image in place of the text.
@@ -104,21 +97,18 @@ pub(crate) fn adapt_rune_labels_to_input_device(
             node.display = Display::Flex;
         }
         if gamepad && let Some(ref fonts) = fonts {
-            let button = match label.rune {
-                Rune::Q => GamepadButton::DPadUp,
-                Rune::W => GamepadButton::DPadDown,
-                Rune::E => GamepadButton::DPadRight,
-                Rune::R => GamepadButton::DPadLeft,
-            };
-            if let Some(glyph) = glyph_char(button, style.0) {
+            if let Some(glyph) = glyph_char(label.rune.dpad_button(), style.0) {
                 let s = glyph.to_string();
                 if **text != s {
                     **text = s;
                 }
                 let want = fonts.font_for(style.0);
-                if font.font != want {
+                // Match the Steam image glyph size so the two render paths don't
+                // visually jump when glyphs load/unload.
+                let want_size = RUNE_BUTTON_HEIGHT * 0.72;
+                if font.font != want || font.font_size != want_size {
                     font.font = want;
-                    font.font_size = RUNE_BUTTON_STYLE.font_size * 1.4;
+                    font.font_size = want_size;
                 }
             }
         } else {

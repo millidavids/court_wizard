@@ -203,8 +203,8 @@ fn spawn_rune_button(row: &mut ChildSpawnerCommands, rune: Rune) {
                 front.spawn((
                     ImageNode::new(Handle::default()),
                     Node {
-                        width: Val::Px(RUNE_BUTTON_STYLE.font_size * 1.4),
-                        height: Val::Px(RUNE_BUTTON_STYLE.font_size * 1.4),
+                        width: Val::Px(RUNE_BUTTON_HEIGHT * 0.72),
+                        height: Val::Px(RUNE_BUTTON_HEIGHT * 0.72),
                         display: Display::None,
                         ..default()
                     },

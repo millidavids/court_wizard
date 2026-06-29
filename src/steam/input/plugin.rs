@@ -56,7 +56,8 @@ impl Plugin for SteamInputPlugin {
         app.add_systems(
             Update,
             (
-                refresh_steam_glyphs,
+                // Only once the action manifest has loaded (handles resolved).
+                refresh_steam_glyphs.run_if(|h: Res<SteamInputHandles>| h.resolved),
                 apply_steam_rumble.run_if(on_message::<ControllerRumbleMessage>),
                 tick_steam_rumble_stop.run_if(resource_exists::<SteamRumbleStop>),
                 open_binding_panel_on_click.run_if(on_message::<MouseClicked>),

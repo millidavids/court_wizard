@@ -5,8 +5,13 @@
 //! `assets/`, so the `AssetServer` can't load them). The result is cached in
 //! [`SteamGlyphs`] keyed by action; UI prompts use it when present and fall back
 //! to the Kenney font glyph (the placeholder) otherwise.
+//!
+//! We use the newer `GetGlyphPNGForActionOrigin` (per-direction D-pad art, sized)
+//! via raw FFI — the safe `Input` wrapper only exposes the *legacy* variant, whose
+//! D-pad glyph is a single generic "+" for every direction.
 
 use std::collections::HashMap;
+use std::ffi::CStr;
 
 use bevy::asset::RenderAssetUsages;
 use bevy::image::{CompressedImageFormats, ImageSampler, ImageType};
@@ -64,10 +69,12 @@ pub(crate) fn refresh_steam_glyphs(
     if *last_key == Some(key) {
         return;
     }
-    *last_key = Some(key);
 
-    for (_, h) in glyphs.by_action.drain() {
-        images.remove(&h);
+    // Fetch the Steam Input interface once for the whole refresh.
+    // SAFETY: only reached once handles resolved (i.e. after Steam Input init).
+    let iface = unsafe { steamworks_sys::SteamAPI_SteamInput_v006() };
+    if iface.is_null() {
+        return;
     }
 
     let input = client.input();
@@ -76,22 +83,29 @@ pub(crate) fn refresh_steam_glyphs(
         let Some(&action_handle) = handles.digital.get(&action) else {
             continue;
         };
+        // An action can have several origins (e.g. a keyboard fallback alongside
+        // the D-pad binding); take the first that yields a real glyph PNG.
         let origins = input.get_digital_action_origins(handle, set, action_handle);
-        let Some(&origin) = origins.first() else {
-            continue; // action not bound in this set
+        let Some(path) = origins
+            .iter()
+            .find_map(|&origin| glyph_png_path(iface, origin))
+        else {
+            continue; // action not bound to anything glyph-able in this set
         };
-        let path = input.get_glyph_for_action_origin(origin);
-        if path.is_empty() {
-            continue;
-        }
-        let Ok(bytes) = std::fs::read(&path) else {
-            continue;
+        let bytes = match std::fs::read(&path) {
+            Ok(bytes) => bytes,
+            // Steam may not have finished downloading the glyph PNG yet; since we
+            // don't commit `last_key` on an empty load, this retries next frame.
+            Err(e) => {
+                debug!("[Steam Input] glyph '{path}' not readable yet: {e}");
+                continue;
+            }
         };
         match Image::from_buffer(
             &bytes,
             ImageType::Extension("png"),
             CompressedImageFormats::NONE,
-            true,
+            true, // Steam glyph PNGs are sRGB display art.
             ImageSampler::Default,
             RenderAssetUsages::default(),
         ) {
@@ -101,5 +115,44 @@ pub(crate) fn refresh_steam_glyphs(
             Err(e) => warn!("[Steam Input] failed to decode glyph '{path}': {e:?}"),
         }
     }
+
+    // Only commit (swap in the new textures + cache the key) once at least one
+    // glyph actually loaded — otherwise a not-yet-downloaded set would cache an
+    // empty result for the session. On an empty load we keep the previous glyphs
+    // visible and retry next frame.
+    if loaded.is_empty() {
+        return;
+    }
+    for (_, h) in glyphs.by_action.drain() {
+        images.remove(&h);
+    }
     glyphs.by_action = loaded;
+    *last_key = Some(key);
+}
+
+/// Absolute path to the official Steam Input glyph PNG for an action origin, via
+/// the newer per-direction API (`GetGlyphPNGForActionOrigin`). The safe `Input`
+/// wrapper only exposes the legacy generic-D-pad variant, so we go through
+/// `steamworks-sys` (same pattern as the haptics FFI). Medium (128px) is ample
+/// for our ≤40px UI slots and a quarter of Large's texture footprint.
+fn glyph_png_path(
+    iface: *mut steamworks_sys::ISteamInput,
+    origin: steamworks_sys::EInputActionOrigin,
+) -> Option<String> {
+    // SAFETY: `iface` is the initialized Steam Input interface (null-checked by
+    // the caller). The returned C string is owned by Steam; we copy it out
+    // immediately.
+    unsafe {
+        let ptr = steamworks_sys::SteamAPI_ISteamInput_GetGlyphPNGForActionOrigin(
+            iface,
+            origin,
+            steamworks_sys::ESteamInputGlyphSize::k_ESteamInputGlyphSize_Medium,
+            0,
+        );
+        if ptr.is_null() {
+            return None;
+        }
+        let s = CStr::from_ptr(ptr).to_string_lossy().into_owned();
+        (!s.is_empty()).then_some(s)
+    }
 }
