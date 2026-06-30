@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Fixed
+- **Controller D-pad hints now show the actual direction** — the on-screen glyphs for direction-based abilities point the correct way (up/down/left/right) instead of showing the whole D-pad, so it's clear which way to press.
+
 ## [v0.10.75] - 2026-06-30
 
 ### Changed

@@ -80,16 +80,32 @@ pub(crate) fn refresh_steam_glyphs(
     let input = client.input();
     let mut loaded: HashMap<GamepadAction, Handle<Image>> = HashMap::new();
     for action in GamepadAction::ALL {
-        let Some(&action_handle) = handles.digital.get(&action) else {
-            continue;
+        let path = if let Some(xbox) = dpad_xbox_origin(action) {
+            // Directional D-pad abilities: force the per-direction origin. The
+            // actual binding usually resolves to the WHOLE d-pad (`DPad_Move`),
+            // whose glyph can't show a direction. `GetActionOriginFromXboxOrigin`
+            // maps the abstract direction to this controller's specific
+            // per-direction origin (PS5 d-pad up, Xbox d-pad up, …).
+            // SAFETY: `iface` is null-checked above; `handle` is the active
+            // controller handle.
+            let origin = unsafe {
+                steamworks_sys::SteamAPI_ISteamInput_GetActionOriginFromXboxOrigin(
+                    iface, handle, xbox,
+                )
+            };
+            glyph_png_path(iface, origin)
+        } else {
+            let Some(&action_handle) = handles.digital.get(&action) else {
+                continue;
+            };
+            // An action can have several origins (e.g. a keyboard fallback
+            // alongside the binding); take the first that yields a glyph PNG.
+            let origins = input.get_digital_action_origins(handle, set, action_handle);
+            origins
+                .iter()
+                .find_map(|&origin| glyph_png_path(iface, origin))
         };
-        // An action can have several origins (e.g. a keyboard fallback alongside
-        // the D-pad binding); take the first that yields a real glyph PNG.
-        let origins = input.get_digital_action_origins(handle, set, action_handle);
-        let Some(path) = origins
-            .iter()
-            .find_map(|&origin| glyph_png_path(iface, origin))
-        else {
+        let Some(path) = path else {
             continue; // action not bound to anything glyph-able in this set
         };
         let bytes = match std::fs::read(&path) {
@@ -128,6 +144,20 @@ pub(crate) fn refresh_steam_glyphs(
     }
     glyphs.by_action = loaded;
     *last_key = Some(key);
+}
+
+/// The abstract Xbox D-pad direction for a directional ability action, or `None`
+/// for non-directional actions. Used to force a per-direction glyph instead of
+/// the whole-d-pad glyph the binding usually resolves to. Up=North, Down=South,
+/// Left=West, Right=East — matching `GamepadAction::default_button`.
+fn dpad_xbox_origin(action: GamepadAction) -> Option<steamworks_sys::EXboxOrigin> {
+    match action {
+        GamepadAction::AbilityUp => Some(steamworks_sys::EXboxOrigin::k_EXboxOrigin_DPad_North),
+        GamepadAction::AbilityDown => Some(steamworks_sys::EXboxOrigin::k_EXboxOrigin_DPad_South),
+        GamepadAction::AbilityLeft => Some(steamworks_sys::EXboxOrigin::k_EXboxOrigin_DPad_West),
+        GamepadAction::AbilityRight => Some(steamworks_sys::EXboxOrigin::k_EXboxOrigin_DPad_East),
+        _ => None,
+    }
 }
 
 /// Absolute path to the official Steam Input glyph PNG for an action origin, via
