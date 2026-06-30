@@ -33,7 +33,7 @@ mod splash_screen;
 pub(crate) mod systems;
 pub(crate) mod tutorial;
 mod version;
-mod weather_bar;
+pub(crate) mod weather_bar;
 pub(crate) mod wizard_tower;
 
 pub(crate) use game_over::accumulate_mode_level_stats;

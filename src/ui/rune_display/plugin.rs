@@ -31,7 +31,6 @@ impl Plugin for RuneDisplayPlugin {
                 systems::show_spell_name_on_activation,
                 systems::update_rune_display,
                 systems::update_spell_name_fade.run_if(any_with_component::<SpellNameFadeTimer>),
-                systems::adapt_rune_labels_to_input_device,
             )
                 .run_if(is_local_wizard_active)
                 .run_if(run_conditions::is_rune_caster),

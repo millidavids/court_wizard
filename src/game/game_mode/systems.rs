@@ -302,6 +302,7 @@ pub(super) fn tick_wizard_cycle(
     arcanorouter_state: Option<
         Res<crate::game::units::wizard::archetypes::arcanorouter::resources::ArcanoRouterState>,
     >,
+    bindings: Res<crate::config::input_bindings::InputBindings>,
     wizard_entity_query: Query<Entity, With<crate::game::units::wizard::components::LocalWizard>>,
 ) {
     let Some(ref mut timer) = cycle_timer else {
@@ -350,6 +351,7 @@ pub(super) fn tick_wizard_cycle(
                 crate::ui::arcanorouter_display::systems::spawn_arcanorouter_display(
                     commands.reborrow(),
                     Res::clone(state),
+                    Res::clone(&bindings),
                 );
             }
             // Ensure the wizard entity has ArcanoRouterBonuses
@@ -358,6 +360,12 @@ pub(super) fn tick_wizard_cycle(
                     crate::game::units::wizard::archetypes::arcanorouter::ArcanoRouterBonuses::default(),
                 );
             }
+        }
+        crate::config::WizardType::Meteorologist => {
+            crate::ui::weather_bar::systems::spawn_weather_bar(
+                commands.reborrow(),
+                Res::clone(&bindings),
+            );
         }
         crate::config::WizardType::Swordcerer => {
             crate::game::units::wizard::archetypes::swordcerer::systems::spawn_enter_fray_button(

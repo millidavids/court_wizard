@@ -12,7 +12,11 @@ use crate::ui::systems::spawn_button;
 ///
 /// Like `spawn_hud` but without the Cauldron button, level display, and past victory display
 /// (those are single-player only concepts).
-pub(crate) fn spawn_mp_hud(mut commands: Commands, config: Res<GameConfig>) {
+pub(crate) fn spawn_mp_hud(
+    mut commands: Commands,
+    config: Res<GameConfig>,
+    bindings: Res<crate::config::input_bindings::InputBindings>,
+) {
     commands
         .spawn((
             Node {
@@ -140,6 +144,8 @@ pub(crate) fn spawn_mp_hud(mut commands: Commands, config: Res<GameConfig>) {
                                 ));
                             }
                         });
+                        // Reload hint below the ammo row.
+                        super::super::bars::spawn_reload_prompt(bars, &bindings);
                     } else {
                         // Mana bar — matches the SP layout (Row flex with a
                         // current-mana child and a reserved-mana partition for

@@ -21,6 +21,29 @@ impl SliderType {
             SliderType::Speed,
         ]
     }
+
+    /// The controller D-pad action that raises this slider (matches
+    /// `translate_arcanorouter`): Range=Up, Mana=Down, Power=Right, Speed=Left.
+    pub(crate) const fn dpad_action(self) -> crate::game::input::action_state::GamepadAction {
+        use crate::game::input::action_state::GamepadAction;
+        match self {
+            SliderType::Range => GamepadAction::AbilityUp,
+            SliderType::Mana => GamepadAction::AbilityDown,
+            SliderType::Power => GamepadAction::AbilityRight,
+            SliderType::Speed => GamepadAction::AbilityLeft,
+        }
+    }
+
+    /// The rebindable keyboard action that raises this slider (Settings → Controls).
+    pub(crate) const fn binding_action(self) -> crate::config::input_bindings::BindingAction {
+        use crate::config::input_bindings::BindingAction;
+        match self {
+            SliderType::Range => BindingAction::RangeUp,
+            SliderType::Mana => BindingAction::ManaUp,
+            SliderType::Power => BindingAction::PowerUp,
+            SliderType::Speed => BindingAction::SpeedUp,
+        }
+    }
 }
 
 /// Captures the Arcanorouter's `range_allocation` at multiplayer match start so

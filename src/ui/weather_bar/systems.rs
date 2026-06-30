@@ -2,7 +2,12 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
+use crate::config::input_bindings::{
+    BindingAction, BindingContext, InputBindings, key_display_name,
+};
 use crate::game::components::OnGameplayScreen;
+use crate::game::game_mode::components::ArchetypeUI;
+use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::input::messages::MouseClicked;
 use crate::game::units::wizard::archetypes::meteorologist::constants::{
     BLIZZARD_COLOR, DROUGHT_COLOR, STORM_COLOR,
@@ -11,6 +16,7 @@ use crate::game::units::wizard::archetypes::meteorologist::messages::WeatherChan
 use crate::game::units::wizard::archetypes::meteorologist::resources::{WeatherState, WeatherType};
 use crate::game::units::wizard::archetypes::meteorologist::systems::try_switch_weather;
 use crate::game::units::wizard::components::{LocalWizard, Mana};
+use crate::ui::gamepad_glyphs::{ButtonPrompt, ButtonPromptImage, PromptKey};
 use crate::ui::systems::scale_font_by_text_width;
 
 /// Returns the theme color for a weather type.
@@ -23,7 +29,7 @@ fn weather_color(weather: &WeatherType) -> Color {
 }
 
 /// Spawns the weather bar UI.
-pub(super) fn spawn_weather_bar(mut commands: Commands) {
+pub(crate) fn spawn_weather_bar(mut commands: Commands, bindings: Res<InputBindings>) {
     // Root container: full-width bar at bottom, content centered
     commands
         .spawn((
@@ -39,6 +45,9 @@ pub(super) fn spawn_weather_bar(mut commands: Commands) {
             },
             WeatherBarRoot,
             OnGameplayScreen,
+            // Despawned + respawned by the wizard-cycle handler like other
+            // archetype HUDs.
+            ArchetypeUI,
             Pickable::IGNORE,
         ))
         .with_children(|parent| {
@@ -85,7 +94,7 @@ pub(super) fn spawn_weather_bar(mut commands: Commands) {
                         })
                         .with_children(|row| {
                             for weather in WeatherType::all() {
-                                spawn_weather_button(row, *weather);
+                                spawn_weather_button(row, *weather, &bindings);
                             }
                         });
                 });
@@ -93,7 +102,11 @@ pub(super) fn spawn_weather_bar(mut commands: Commands) {
 }
 
 /// Spawns a single weather button.
-fn spawn_weather_button(parent: &mut ChildSpawnerCommands, weather: WeatherType) {
+fn spawn_weather_button(
+    parent: &mut ChildSpawnerCommands,
+    weather: WeatherType,
+    bindings: &InputBindings,
+) {
     let color = weather_color(&weather);
 
     parent
@@ -120,11 +133,36 @@ fn spawn_weather_button(parent: &mut ChildSpawnerCommands, weather: WeatherType)
             Interaction::default(),
         ))
         .with_children(|btn| {
-            // Hotkey label (top-left)
+            // Key/glyph hint (top): bound keyboard key, or the controller glyph —
+            // kept in sync by the shared `adapt_button_prompts` system.
+            let action = weather.binding_action();
+            let prompt = btn
+                .spawn((
+                    Text::new(key_display_name(
+                        bindings.get(BindingContext::Meteorologist, action),
+                    )),
+                    TextFont::from_font_size(HOTKEY_FONT_SIZE),
+                    TextColor(Color::srgba(0.6, 0.6, 0.6, 0.8)),
+                    ButtonPrompt {
+                        action: weather.dpad_action(),
+                        key: PromptKey::Binding(BindingContext::Meteorologist, action),
+                        glyph_px: WEATHER_GLYPH_SIZE,
+                        keyboard_px: HOTKEY_FONT_SIZE,
+                    },
+                    Pickable::IGNORE,
+                ))
+                .id();
+            // Controller glyph image, occupying the same top slot (hidden until a
+            // Steam glyph is active).
             btn.spawn((
-                Text::new(weather.hotkey()),
-                TextFont::from_font_size(HOTKEY_FONT_SIZE),
-                TextColor(Color::srgba(0.6, 0.6, 0.6, 0.8)),
+                ImageNode::new(Handle::default()),
+                Node {
+                    width: Val::Px(WEATHER_GLYPH_SIZE),
+                    height: Val::Px(WEATHER_GLYPH_SIZE),
+                    display: Display::None,
+                    ..default()
+                },
+                ButtonPromptImage { text: prompt },
                 Pickable::IGNORE,
             ));
 
@@ -181,6 +219,8 @@ pub(super) fn handle_weather_button_click(
 /// Updates weather button visuals based on active weather and hover state.
 pub(super) fn update_weather_buttons(
     weather: Res<WeatherState>,
+    input_device: Res<ActiveInputDevice>,
+    bindings: Res<InputBindings>,
     mut buttons: Query<(
         &WeatherButton,
         &mut BorderColor,
@@ -240,8 +280,23 @@ pub(super) fn update_weather_buttons(
             None => {
                 if weather.cooldown > 0.0 {
                     **text = format!("Changing... ({:.1}s)", weather.cooldown);
+                } else if input_device.is_gamepad() {
+                    // On a controller the per-button glyphs show the directions.
+                    **text = "Clear Skies — pick a weather".to_string();
                 } else {
-                    **text = "Clear Skies — Press Q/W/E".to_string();
+                    // Show the player's actual bound keys, not hardcoded Q/W/E.
+                    **text = format!(
+                        "Clear Skies — Press {}/{}/{}",
+                        key_display_name(
+                            bindings.get(BindingContext::Meteorologist, BindingAction::Weather1)
+                        ),
+                        key_display_name(
+                            bindings.get(BindingContext::Meteorologist, BindingAction::Weather2)
+                        ),
+                        key_display_name(
+                            bindings.get(BindingContext::Meteorologist, BindingAction::Weather3)
+                        ),
+                    );
                 }
             }
         }

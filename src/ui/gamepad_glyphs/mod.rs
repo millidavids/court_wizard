@@ -7,10 +7,14 @@
 //! `glyph_char` / `glyph_font` when they want to render a button prompt.
 
 mod plugin;
+mod prompt;
 mod resources;
 mod systems;
 
 pub(crate) use plugin::GamepadGlyphsPlugin;
+pub(crate) use prompt::{
+    ButtonPrompt, ButtonPromptImage, GlyphContext, PromptKey, apply_button_glyph,
+};
 pub(crate) use resources::{
     CurrentControllerGlyphStyle, GamepadGlyphFonts, SteamGlyphs, glyph_char,
 };

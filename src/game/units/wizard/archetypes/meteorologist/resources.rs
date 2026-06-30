@@ -30,12 +30,24 @@ impl WeatherType {
         }
     }
 
-    /// Hotkey label for the UI.
-    pub const fn hotkey(&self) -> &'static str {
+    /// The controller D-pad action that invokes this weather (matches
+    /// `translate_weather`): Storm=Up, Blizzard=Down, Drought=Right.
+    pub(crate) const fn dpad_action(self) -> crate::game::input::action_state::GamepadAction {
+        use crate::game::input::action_state::GamepadAction;
         match self {
-            WeatherType::Storm => "Q",
-            WeatherType::Blizzard => "W",
-            WeatherType::Drought => "E",
+            WeatherType::Storm => GamepadAction::AbilityUp,
+            WeatherType::Blizzard => GamepadAction::AbilityDown,
+            WeatherType::Drought => GamepadAction::AbilityRight,
+        }
+    }
+
+    /// The rebindable keyboard action for this weather (Settings → Controls).
+    pub(crate) const fn binding_action(self) -> crate::config::input_bindings::BindingAction {
+        use crate::config::input_bindings::BindingAction;
+        match self {
+            WeatherType::Storm => BindingAction::Weather1,
+            WeatherType::Blizzard => BindingAction::Weather2,
+            WeatherType::Drought => BindingAction::Weather3,
         }
     }
 

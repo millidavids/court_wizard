@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Changed
+- **Controller button hints for every wizard type** — the weather, resource-slider, and reload controls now show your controller's button glyphs (and the correct directions) when you play on a gamepad, matching the rune and spin prompts. On-screen key hints also reflect whatever keys you've bound in Settings → Controls.
+
 ## [v0.10.74] - 2026-06-28
 
 ### Changed

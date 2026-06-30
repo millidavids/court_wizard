@@ -81,6 +81,29 @@ impl GamepadAction {
         GamepadAction::StudyConfirm,
     ];
 
+    /// The default physical button this action maps to — used to pick the Kenney
+    /// fallback glyph (`glyph_char`) when no Steam glyph is available. Mirrors the
+    /// gilrs adapter's button→action layout.
+    pub(crate) fn default_button(self) -> GamepadButton {
+        match self {
+            GamepadAction::Activate | GamepadAction::UIConfirm | GamepadAction::StudyConfirm => {
+                GamepadButton::South
+            }
+            GamepadAction::PrimaryCast => GamepadButton::RightTrigger2,
+            GamepadAction::SecondaryCast => GamepadButton::LeftTrigger2,
+            GamepadAction::OpenSpellBook => GamepadButton::West,
+            GamepadAction::OpenCauldron => GamepadButton::North,
+            GamepadAction::Pause => GamepadButton::Start,
+            GamepadAction::AbilityUp => GamepadButton::DPadUp,
+            GamepadAction::AbilityDown => GamepadButton::DPadDown,
+            GamepadAction::AbilityLeft => GamepadButton::DPadLeft,
+            GamepadAction::AbilityRight => GamepadButton::DPadRight,
+            GamepadAction::UIBack => GamepadButton::East,
+            GamepadAction::TabNext => GamepadButton::RightTrigger,
+            GamepadAction::TabPrev => GamepadButton::LeftTrigger,
+        }
+    }
+
     /// The action name as it appears in the Steam Input IGA manifest. MUST match
     /// `assets/controller_config/game_actions_4550880.vdf` exactly.
     pub(crate) fn manifest_name(self) -> &'static str {

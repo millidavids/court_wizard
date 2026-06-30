@@ -2,12 +2,18 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
-use crate::config::input_bindings::InputBindings;
+use crate::config::input_bindings::{BindingContext, InputBindings, key_display_name};
 use crate::game::components::OnGameplayScreen;
 use crate::game::game_mode::components::ArchetypeUI;
 use crate::game::units::wizard::archetypes::arcanorouter::{
     ArcanoRouterState, SliderAdjustMessage, SliderType,
 };
+use crate::ui::gamepad_glyphs::{ButtonPrompt, ButtonPromptImage, PromptKey};
+
+/// The keyboard key bound to raising a given slider.
+fn slider_key(bindings: &InputBindings, slider: SliderType) -> Option<KeyCode> {
+    bindings.get(BindingContext::ArcanoRouter, slider.binding_action())
+}
 
 /// Returns the color for a slider type
 fn slider_color(slider_type: SliderType) -> Color {
@@ -30,7 +36,11 @@ fn slider_label(slider_type: SliderType) -> &'static str {
 }
 
 /// Spawns the Arcanorouter display with 4 vertical sliders
-pub(crate) fn spawn_arcanorouter_display(mut commands: Commands, state: Res<ArcanoRouterState>) {
+pub(crate) fn spawn_arcanorouter_display(
+    mut commands: Commands,
+    state: Res<ArcanoRouterState>,
+    bindings: Res<InputBindings>,
+) {
     // Root container - absolute positioned at bottom center
     commands
         .spawn((
@@ -71,6 +81,38 @@ pub(crate) fn spawn_arcanorouter_display(mut commands: Commands, state: Res<Arca
                                 ..default()
                             })
                             .with_children(|slider_parent| {
+                                // Key/glyph hint (top): bound key or controller
+                                // glyph — kept in sync by `adapt_button_prompts`.
+                                let action = slider_type.binding_action();
+                                let prompt = slider_parent
+                                    .spawn((
+                                        Text::new(key_display_name(
+                                            bindings.get(BindingContext::ArcanoRouter, action),
+                                        )),
+                                        TextFont::from_font_size(LABEL_FONT_SIZE),
+                                        TextColor(TEXT_COLOR),
+                                        ButtonPrompt {
+                                            action: slider_type.dpad_action(),
+                                            key: PromptKey::Binding(
+                                                BindingContext::ArcanoRouter,
+                                                action,
+                                            ),
+                                            glyph_px: SLIDER_GLYPH_SIZE,
+                                            keyboard_px: LABEL_FONT_SIZE,
+                                        },
+                                    ))
+                                    .id();
+                                slider_parent.spawn((
+                                    ImageNode::new(Handle::default()),
+                                    Node {
+                                        width: Val::Px(SLIDER_GLYPH_SIZE),
+                                        height: Val::Px(SLIDER_GLYPH_SIZE),
+                                        display: Display::None,
+                                        ..default()
+                                    },
+                                    ButtonPromptImage { text: prompt },
+                                ));
+
                                 // Bar container (background + fill)
                                 slider_parent
                                     .spawn((
@@ -143,15 +185,8 @@ pub(super) fn handle_slider_interaction(
 ) {
     let sensitivity = 10.0;
 
-    let slider_keys: [(Option<KeyCode>, SliderType); 4] = [
-        (bindings.arcanorouter.range_up, SliderType::Range),
-        (bindings.arcanorouter.mana_up, SliderType::Mana),
-        (bindings.arcanorouter.power_up, SliderType::Power),
-        (bindings.arcanorouter.speed_up, SliderType::Speed),
-    ];
-
-    for (key_opt, slider) in slider_keys {
-        if let Some(key) = key_opt
+    for slider in SliderType::all() {
+        if let Some(key) = slider_key(&bindings, slider)
             && keyboard.just_pressed(key)
         {
             writer.write(SliderAdjustMessage {

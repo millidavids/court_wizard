@@ -70,6 +70,7 @@ pub(crate) fn spawn_hud(
     current_level: Res<CurrentLevel>,
     config: Res<GameConfig>,
     wave_state: Res<WaveState>,
+    bindings: Res<crate::config::input_bindings::InputBindings>,
 ) {
     // Root HUD container (fullscreen with margins)
     commands
@@ -250,6 +251,8 @@ pub(crate) fn spawn_hud(
                                 ));
                             }
                         });
+                        // Reload hint below the ammo row.
+                        super::super::bars::spawn_reload_prompt(bars, &bindings);
                     } else {
                         // Standard mana bar container (background)
                         bars.spawn((

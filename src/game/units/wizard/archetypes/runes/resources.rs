@@ -24,6 +24,16 @@ impl Rune {
         }
     }
 
+    /// The rune's display letter as a static string (for button prompts).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Rune::Q => "Q",
+            Rune::W => "W",
+            Rune::E => "E",
+            Rune::R => "R",
+        }
+    }
+
     /// The D-pad direction this rune is bound to on a controller:
     /// **Q=Up, W=Right, E=Down, R=Left**. Single source of truth shared by the
     /// gameplay binding ([`translate_runes`](crate::game::input::gamepad)) and

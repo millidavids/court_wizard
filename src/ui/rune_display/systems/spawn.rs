@@ -9,6 +9,7 @@ use crate::ui::button_systems::{edge_color, opaque};
 use crate::ui::components::{ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront};
 use crate::ui::constants::{BUTTON_3D_OFFSET_REST, BUTTON_SHADOW_COLOR};
 use crate::ui::focus::Focusable;
+use crate::ui::gamepad_glyphs::{ButtonPrompt, ButtonPromptImage, PromptKey};
 
 /// Spawns the rune display UI with 4 clickable buttons and sequence text above.
 pub(crate) fn spawn_rune_display(mut commands: Commands) {
@@ -191,15 +192,21 @@ fn spawn_rune_button(row: &mut ChildSpawnerCommands, rune: Rune) {
                 BorderColor::all(RUNE_BUTTON_STYLE.border),
             ))
             .with_children(|front| {
-                front.spawn((
-                    Text::new(format!("{}", rune.as_char())),
-                    TextFont::from_font_size(RUNE_BUTTON_STYLE.font_size),
-                    TextColor(RUNE_BUTTON_STYLE.text_color),
-                    RuneButtonLabel { rune },
-                ));
-                // Hidden by default; shown (in place of the text) by
-                // `adapt_rune_labels_to_input_device` when an official Steam Input
-                // glyph is available for this rune's action.
+                // The button's letter, or its D-pad glyph on a controller — kept
+                // in sync by the shared `adapt_button_prompts` system.
+                let prompt = front
+                    .spawn((
+                        Text::new(rune.as_str()),
+                        TextFont::from_font_size(RUNE_BUTTON_STYLE.font_size),
+                        TextColor(RUNE_BUTTON_STYLE.text_color),
+                        ButtonPrompt {
+                            action: rune.dpad_action(),
+                            key: PromptKey::Static(rune.as_str()),
+                            glyph_px: RUNE_BUTTON_HEIGHT * 0.72,
+                            keyboard_px: RUNE_BUTTON_STYLE.font_size,
+                        },
+                    ))
+                    .id();
                 front.spawn((
                     ImageNode::new(Handle::default()),
                     Node {
@@ -208,7 +215,7 @@ fn spawn_rune_button(row: &mut ChildSpawnerCommands, rune: Rune) {
                         display: Display::None,
                         ..default()
                     },
-                    RuneButtonGlyphImage { rune },
+                    ButtonPromptImage { text: prompt },
                 ));
             });
     });

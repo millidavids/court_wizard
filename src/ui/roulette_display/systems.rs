@@ -10,7 +10,7 @@ use crate::game::units::wizard::archetypes::roulette::constants::SPIN_DURATION;
 use crate::game::units::wizard::archetypes::roulette::resources::{RoulettePhase, RouletteState};
 use crate::game::units::wizard::components::Spell;
 use crate::ui::gamepad_glyphs::{
-    CurrentControllerGlyphStyle, GamepadGlyphFonts, SteamGlyphs, glyph_char,
+    CurrentControllerGlyphStyle, GamepadGlyphFonts, GlyphContext, SteamGlyphs, apply_button_glyph,
 };
 
 /// Returns the display name for a spell with newlines replaced by spaces.
@@ -240,6 +240,9 @@ pub(super) fn update_selected_spell_fade(
 /// owns the "Spinning…"/"Cast…" status text) the glyph image is hidden and the
 /// text shown in the default font. Runs every frame but bails cheaply when
 /// nothing changed.
+/// On-screen size of the roulette spin glyph (image + Kenney font).
+const ROULETTE_GLYPH_SIZE: f32 = 40.0;
+
 #[allow(clippy::type_complexity)]
 pub(super) fn adapt_prompt_to_input_device(
     roulette_state: Res<RouletteState>,
@@ -256,53 +259,22 @@ pub(super) fn adapt_prompt_to_input_device(
         (With<RoulettePromptGlyphImage>, Without<RoulettePromptText>),
     >,
 ) {
-    let idle = matches!(roulette_state.phase, RoulettePhase::Idle);
-    let gamepad = active.is_gamepad();
-    // Spin = D-pad Up (`AbilityUp`); the Steam image only stands in for the idle prompt.
-    let steam_glyph = (idle && gamepad)
-        .then(|| steam.get(GamepadAction::AbilityUp))
-        .flatten();
+    let Ok((text, mut font, mut text_node)) = prompt_query.single_mut() else {
+        return;
+    };
+    let Ok((image, mut image_node)) = image_query.single_mut() else {
+        return;
+    };
 
-    // The image is visible iff the idle prompt is showing a Steam glyph; hidden
-    // in every other case (mouse/keyboard, Kenney fallback, or non-idle phases).
-    if let Ok((mut image_node, mut img_style)) = image_query.single_mut() {
-        match &steam_glyph {
-            Some(handle) => {
-                if image_node.image != *handle {
-                    image_node.image = handle.clone();
-                }
-                if img_style.display != Display::Flex {
-                    img_style.display = Display::Flex;
-                }
-            }
-            None => {
-                if img_style.display != Display::None {
-                    img_style.display = Display::None;
-                }
-            }
+    // Non-idle phases: `update_roulette_display` owns the status text. Hide the
+    // glyph image and show the text in the default font.
+    if !matches!(roulette_state.phase, RoulettePhase::Idle) {
+        if image_node.display != Display::None {
+            image_node.display = Display::None;
         }
-    }
-
-    let Ok((mut text, mut font, mut text_node)) = prompt_query.single_mut() else {
-        return;
-    };
-
-    // Text is hidden exactly when the Steam image is showing.
-    let want_display = if steam_glyph.is_some() {
-        Display::None
-    } else {
-        Display::Flex
-    };
-    if text_node.display != want_display {
-        text_node.display = want_display;
-    }
-    if steam_glyph.is_some() {
-        return;
-    }
-
-    // Non-idle: `update_roulette_display` owns the status text; just ensure the
-    // font is the default (not a leftover glyph font) and leave the content.
-    if !idle {
+        if text_node.display != Display::Flex {
+            text_node.display = Display::Flex;
+        }
         if font.font != Handle::<Font>::default() {
             font.font = Handle::<Font>::default();
             font.font_size = PROMPT_FONT_SIZE;
@@ -310,28 +282,18 @@ pub(super) fn adapt_prompt_to_input_device(
         return;
     }
 
-    if gamepad && let Some(fonts) = fonts {
-        if let Some(glyph) = glyph_char(GamepadButton::DPadUp, style.0) {
-            let glyph_str = glyph.to_string();
-            if **text != glyph_str {
-                **text = glyph_str;
-            }
-            let want_font = fonts.font_for(style.0);
-            // Match the 40px Steam image so the two paths don't visually jump.
-            let want_size = 40.0;
-            if font.font != want_font || font.font_size != want_size {
-                font.font = want_font;
-                font.font_size = want_size;
-            }
-        }
-    } else {
-        let default_text = "Press SPACE to spin";
-        if **text != default_text {
-            **text = default_text.to_string();
-        }
-        if font.font != Handle::<Font>::default() {
-            font.font = Handle::<Font>::default();
-            font.font_size = PROMPT_FONT_SIZE;
-        }
-    }
+    // Idle: the shared toggle — Steam glyph / Kenney glyph / "Press SPACE to spin".
+    let ctx = GlyphContext::from_res(&active, &style, fonts.as_deref(), &steam);
+    apply_button_glyph(
+        &ctx,
+        GamepadAction::AbilityUp,
+        "Press SPACE to spin",
+        ROULETTE_GLYPH_SIZE,
+        PROMPT_FONT_SIZE,
+        text,
+        font,
+        text_node,
+        image,
+        image_node,
+    );
 }

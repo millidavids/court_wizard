@@ -21,3 +21,7 @@ pub(super) const SPEED_COLOR: Color = Color::srgba(0.2, 0.4, 0.2, 0.8); // Muted
 // Text - smaller fonts
 pub(super) const LABEL_FONT_SIZE: f32 = 9.0;
 pub(super) const TEXT_COLOR: Color = Color::WHITE;
+
+/// On-screen size of the controller glyph above each slider (a bit larger than
+/// the key text so the D-pad direction reads).
+pub(super) const SLIDER_GLYPH_SIZE: f32 = 16.0;

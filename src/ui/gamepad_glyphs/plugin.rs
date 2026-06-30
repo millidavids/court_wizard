@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use super::prompt::{ButtonPromptImage, adapt_button_prompts};
 use super::resources::{CurrentControllerGlyphStyle, SteamGlyphs};
 use super::systems::{load_glyph_fonts, resolve_glyph_style};
 use crate::config::GameConfig;
@@ -24,6 +25,12 @@ impl Plugin for GamepadGlyphsPlugin {
                 resolve_glyph_style.run_if(
                     resource_changed::<GameConfig>.or(resource_changed::<ActiveInputDevice>),
                 ),
+            )
+            // One generic system drives every archetype's button prompts; runs
+            // only while prompts exist on screen.
+            .add_systems(
+                Update,
+                adapt_button_prompts.run_if(any_with_component::<ButtonPromptImage>),
             );
     }
 }

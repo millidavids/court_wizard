@@ -19,6 +19,11 @@ pub(super) const LABEL_FONT_SIZE: f32 = 8.0;
 /// Font size for the hotkey indicator.
 pub(super) const HOTKEY_FONT_SIZE: f32 = 7.0;
 
+/// On-screen size of the controller glyph that replaces the hotkey on a pad.
+/// Sized to fit the small 28px button's ≈18px content area alongside the name
+/// line (which can be ~9.6px tall) without the name clipping under overflow.
+pub(super) const WEATHER_GLYPH_SIZE: f32 = 9.0;
+
 /// Font size for the status text.
 pub(super) const STATUS_FONT_SIZE: f32 = 8.0;
 
