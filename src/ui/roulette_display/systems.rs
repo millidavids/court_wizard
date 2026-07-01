@@ -87,9 +87,10 @@ pub(crate) fn spawn_roulette_display(mut commands: Commands, asset_server: Res<A
                         })
                         .with_children(|overlay| {
                             overlay.spawn((
-                                Text::new("Press SPACE to spin"),
+                                Text::new("Press Space"),
                                 TextFont::from_font_size(PROMPT_FONT_SIZE),
                                 TextColor(PROMPT_COLOR),
+                                TextLayout::new_with_justify(Justify::Center),
                                 RoulettePromptText,
                             ));
                             overlay.spawn((
@@ -284,7 +285,7 @@ pub(super) fn adapt_prompt_to_input_device(
     apply_button_glyph(
         &ctx,
         GamepadAction::AbilityUp,
-        "Press SPACE to spin",
+        "Press Space",
         ROULETTE_GLYPH_SIZE,
         PROMPT_FONT_SIZE,
         text,
