@@ -163,10 +163,31 @@ if [ -n "$STEAM_BUILD_DIR" ]; then
     esac
 fi
 
+# steam_appid.txt next to the binary lets a LOCAL build connect to the running
+# Steam client (Steam Input, achievements, …) without going through Steam's
+# library install — run the exe directly with Steam open, or drop the build into
+# the app's install folder to launch it through Steam.
+#
+# DEBUG (`dev`) builds ONLY. NEVER for `release`: that binary ships to the Steam
+# depots, where a bundled steam_appid.txt would FORCE app 4550880 onto Playtest
+# testers (app 4820340) who have no license for it — the exact bug `src/steam/
+# init.rs` guards against. Release builds must use the app id Steam provides.
+if [ "$PROFILE" = "dev" ]; then
+    if [ -f "./steam_appid.txt" ]; then
+        cp "./steam_appid.txt" "$BIN_DIR/"
+    else
+        # Fall back to the main app id (matches APP_ID in src/steam/constants.rs)
+        # if the git-ignored root file is absent (e.g. a fresh checkout).
+        echo "4550880" > "$BIN_DIR/steam_appid.txt"
+    fi
+    echo "steam_appid.txt copied (debug only — local Steam connect, no deploy)."
+fi
+
 echo ""
 echo "To run:"
 if [[ "$TARGET" == *"windows"* ]]; then
-    echo "  Copy $BIN_DIR/$BIN_NAME and $ASSET_DST/ to a Windows machine and run."
+    echo "  Copy the whole $BIN_DIR/ folder (exe + assets/ + steam_api64.dll"
+    echo "  + steam_appid.txt on debug) to Windows and run with Steam open."
     echo "  Or from WSL2: $BIN_DIR/$BIN_NAME"
 else
     echo "  cd $BIN_DIR && ./$BIN_NAME"

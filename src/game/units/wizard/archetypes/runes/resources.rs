@@ -34,20 +34,10 @@ impl Rune {
         }
     }
 
-    /// The D-pad direction this rune is bound to on a controller:
-    /// **Q=Up, W=Right, E=Down, R=Left**. Single source of truth shared by the
-    /// gameplay binding ([`translate_runes`](crate::game::input::gamepad)) and
-    /// every prompt/glyph that renders a rune.
-    pub const fn dpad_button(self) -> GamepadButton {
-        match self {
-            Rune::Q => GamepadButton::DPadUp,
-            Rune::W => GamepadButton::DPadRight,
-            Rune::E => GamepadButton::DPadDown,
-            Rune::R => GamepadButton::DPadLeft,
-        }
-    }
-
-    /// The controller action this rune is bound to (1:1 with [`Self::dpad_button`]).
+    /// The controller D-pad action this rune is bound to: **Q=Up, W=Right,
+    /// E=Down, R=Left**. Single source of truth shared by the gameplay binding
+    /// ([`translate_runes`](crate::game::input::gamepad)) and every prompt/glyph
+    /// that renders a rune.
     pub const fn dpad_action(self) -> crate::game::input::action_state::GamepadAction {
         use crate::game::input::action_state::GamepadAction;
         match self {

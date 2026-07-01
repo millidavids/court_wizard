@@ -1,3 +1,8 @@
+/// Allocation units a slider moves per key press / D-pad press. Shared by the
+/// keyboard handler and the controller path so the two can't drift (the range is
+/// [MIN_ALLOCATION, MAX_ALLOCATION], i.e. 25–200).
+pub(crate) const SLIDER_KEY_STEP: f32 = 10.0;
+
 /// Minimum allocation percentage for any slider (prevents disabling stats completely)
 pub(super) const MIN_ALLOCATION: f32 = 25.0;
 

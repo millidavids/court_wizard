@@ -12,7 +12,6 @@ use crate::ui::components::{ButtonAnimState, ButtonColors, ButtonEdge, ButtonFro
 use crate::ui::constants::{
     BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_PRESSED_OUTLINE, BUTTON_REST_OUTLINE,
 };
-use crate::ui::gamepad_glyphs::{CurrentControllerGlyphStyle, GamepadGlyphFonts, glyph_char};
 
 /// Animates a rune button when its rune key (Q/W/E/R) is held — mirrors the action
 /// bar's keyboard-driven press visuals (`update_action_bar`). The rune buttons are
@@ -103,8 +102,6 @@ pub(crate) fn handle_rune_button_click(
 pub(crate) fn update_rune_display(
     sequence: Res<RuneSequence>,
     active: Res<ActiveInputDevice>,
-    style: Res<CurrentControllerGlyphStyle>,
-    fonts: Option<Res<GamepadGlyphFonts>>,
     mut commands: Commands,
     mut sequence_text_query: Query<
         (
@@ -122,9 +119,9 @@ pub(crate) fn update_rune_display(
     >,
 ) {
     // The rendered form depends on the sequence AND (on a controller) the active
-    // device + glyph style, so re-render when any of them changes — otherwise
-    // plugging in a controller mid-sequence leaves stale letters.
-    if !sequence.is_changed() && !active.is_changed() && !style.is_changed() {
+    // device, so re-render when either changes — otherwise plugging in a
+    // controller mid-sequence leaves stale letters.
+    if !sequence.is_changed() && !active.is_changed() {
         return;
     }
 
@@ -140,41 +137,30 @@ pub(crate) fn update_rune_display(
             return;
         }
 
-        // On a controller the sequence renders as inline D-pad glyphs (the Kenney
-        // font — image glyphs can't be inlined in a text string), sized up a bit
-        // so they read clearly. The Q↔D-pad mapping lives on `Rune`.
-        let (new_text, want_font, want_size) = if sequence.is_empty() {
-            (
-                String::new(),
-                Handle::<Font>::default(),
-                RUNE_SEQUENCE_FONT_SIZE,
-            )
-        } else if active.is_gamepad()
-            && let Some(glyph_font) = fonts.as_ref().map(|f| f.font_for(style.0))
-        {
-            let glyphs: String = sequence
+        // On a controller the sequence renders as inline direction arrows (the
+        // same `GamepadAction::direction_arrow` mapping as the rune buttons),
+        // sized up a bit so they read clearly. Both arrows and letters render in
+        // the default pixel font, so no font swap is needed.
+        let (new_text, want_size) = if sequence.is_empty() {
+            (String::new(), RUNE_SEQUENCE_FONT_SIZE)
+        } else if active.is_gamepad() {
+            let arrows: String = sequence
                 .runes
                 .iter()
-                .filter_map(|&rune| glyph_char(rune.dpad_button(), style.0))
+                .filter_map(|&rune| rune.dpad_action().direction_arrow())
                 .collect();
-            (glyphs, glyph_font, RUNE_SEQUENCE_FONT_SIZE * 1.5)
+            (arrows, RUNE_SEQUENCE_FONT_SIZE * 1.5)
         } else {
-            (
-                format!("{}", *sequence),
-                Handle::<Font>::default(),
-                RUNE_SEQUENCE_FONT_SIZE,
-            )
+            (format!("{}", *sequence), RUNE_SEQUENCE_FONT_SIZE)
         };
 
         **text = new_text.clone();
-        if font.font != want_font || font.font_size != want_size {
-            font.font = want_font.clone();
+        if font.font_size != want_size {
             font.font_size = want_size;
         }
         if let Ok((mut shadow, mut shadow_font)) = shadow_query.single_mut() {
             **shadow = new_text;
-            if shadow_font.font != want_font || shadow_font.font_size != want_size {
-                shadow_font.font = want_font;
+            if shadow_font.font_size != want_size {
                 shadow_font.font_size = want_size;
             }
         }

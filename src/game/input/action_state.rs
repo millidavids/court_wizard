@@ -104,6 +104,20 @@ impl GamepadAction {
         }
     }
 
+    /// A bold direction arrow for the four directional D-pad abilities — shown in
+    /// place of the d-pad glyph (an unreadable cross at button size) on both the
+    /// ability buttons and the rune-sequence popup. `None` for non-directional
+    /// actions. Single source of truth for the arrow mapping.
+    pub(crate) fn direction_arrow(self) -> Option<&'static str> {
+        match self {
+            GamepadAction::AbilityUp => Some("↑"),
+            GamepadAction::AbilityDown => Some("↓"),
+            GamepadAction::AbilityLeft => Some("←"),
+            GamepadAction::AbilityRight => Some("→"),
+            _ => None,
+        }
+    }
+
     /// The action name as it appears in the Steam Input IGA manifest. MUST match
     /// `assets/controller_config/game_actions_4550880.vdf` exactly.
     pub(crate) fn manifest_name(self) -> &'static str {

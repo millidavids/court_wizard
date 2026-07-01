@@ -2,10 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.10.76] - 2026-06-30
 
 ### Fixed
-- **Controller D-pad hints now show the actual direction** — the on-screen glyphs for direction-based abilities point the correct way (up/down/left/right) instead of showing the whole D-pad, so it's clear which way to press.
+- **Cast rune spells with a controller** — build a rune sequence with the D-pad, then press the confirm button to cast it. This wasn't working on a controller before.
+- **Arcanorouter sliders respond to a controller** — the D-pad now adjusts the resource sliders properly instead of barely moving them.
+
+### Changed
+- **Clearer controller direction prompts** — abilities that use a direction (runes, weather, resource sliders, reload, and the spin wheel) now show plain up / down / left / right arrows on a controller, so it's obvious which way to press. The Randomancer's spin prompt also sits on the wheel now and clears out of the way while it spins.
 
 ## [v0.10.75] - 2026-06-30
 

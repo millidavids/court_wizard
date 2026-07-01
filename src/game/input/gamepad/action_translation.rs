@@ -12,7 +12,7 @@ use bevy::prelude::*;
 use crate::game::input::action_state::{GamepadAction, GamepadActionState};
 use crate::game::input::messages::{SpacebarHeld, SpacebarPressed, SpacebarReleased};
 use crate::game::units::wizard::archetypes::arcanorouter::{
-    messages::SliderAdjustMessage, resources::SliderType,
+    constants::SLIDER_KEY_STEP, messages::SliderAdjustMessage, resources::SliderType,
 };
 use crate::game::units::wizard::archetypes::gunslinger::messages::ReloadMessage;
 use crate::game::units::wizard::archetypes::meteorologist::{
@@ -20,12 +20,9 @@ use crate::game::units::wizard::archetypes::meteorologist::{
     resources::{WeatherState, WeatherType},
 };
 use crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage;
-use crate::game::units::wizard::archetypes::runes::messages::RunePressed;
+use crate::game::units::wizard::archetypes::runes::messages::{ActivateRuneSequence, RunePressed};
 use crate::game::units::wizard::archetypes::runes::resources::Rune;
 use crate::game::units::wizard::components::{LocalWizard, Mana, Wizard};
-
-/// ArcanoRouter slider increment per D-pad press.
-const ARCANOROUTER_STEP: f32 = 0.05;
 
 // ---------------------------------------------------------------------------
 // Universal Activate (Spacebar analog) → A button
@@ -51,17 +48,24 @@ pub(super) fn translate_activate_button(
 }
 
 // ---------------------------------------------------------------------------
-// RuneCaster: D-pad → runes (A handled by translate_activate_button)
+// RuneCaster: D-pad → runes, Activate (A/South) → invoke the sequence
 // ---------------------------------------------------------------------------
 
 pub(super) fn translate_runes(
     state: Res<GamepadActionState>,
     mut rune_pressed: MessageWriter<RunePressed>,
+    mut rune_activate: MessageWriter<ActivateRuneSequence>,
 ) {
     for rune in Rune::ALL {
         if state.just_pressed(rune.dpad_action()) {
             rune_pressed.write(RunePressed { rune });
         }
+    }
+    // A / South invokes the built sequence — mirrors the keyboard activate key,
+    // which writes `ActivateRuneSequence` in `detect_rune_input`. (The matching
+    // `SpacebarPressed` that drives the cast comes from `translate_activate_button`.)
+    if state.just_pressed(GamepadAction::Activate) {
+        rune_activate.write(ActivateRuneSequence);
     }
 }
 
@@ -143,7 +147,7 @@ pub(super) fn translate_arcanorouter(
         if state.just_pressed(action) {
             adjust.write(SliderAdjustMessage {
                 slider,
-                delta: ARCANOROUTER_STEP,
+                delta: SLIDER_KEY_STEP,
             });
         }
     }

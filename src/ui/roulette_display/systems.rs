@@ -49,19 +49,63 @@ pub(crate) fn spawn_roulette_display(mut commands: Commands, asset_server: Res<A
                 RouletteSelectedText,
             ));
 
-            // The spinning wheel image with UiTransform for rotation
-            parent.spawn((
-                ImageNode::new(wheel_texture),
-                Node {
+            // Wheel with the spin prompt overlaid on top of it, so the prompt
+            // adds no height to the column and stays out of the play area.
+            parent
+                .spawn(Node {
                     width: Val::Px(WHEEL_RADIUS * 2.0),
                     height: Val::Px(WHEEL_RADIUS * 2.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
                     ..default()
-                },
-                UiTransform::default(),
-                RouletteWheelMesh,
-            ));
+                })
+                .with_children(|wheel| {
+                    // The spinning wheel image (rotated by `spin_wheel`).
+                    wheel.spawn((
+                        ImageNode::new(wheel_texture),
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            ..default()
+                        },
+                        UiTransform::default(),
+                        RouletteWheelMesh,
+                    ));
+                    // Spin prompt, centered over the wheel in an absolute layer.
+                    // Shown only while idle — `adapt_prompt_to_input_device` hides
+                    // it entirely while the wheel is spinning.
+                    wheel
+                        .spawn(Node {
+                            position_type: PositionType::Absolute,
+                            top: Val::Px(0.0),
+                            bottom: Val::Px(0.0),
+                            left: Val::Px(0.0),
+                            right: Val::Px(0.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        })
+                        .with_children(|overlay| {
+                            overlay.spawn((
+                                Text::new("Press SPACE to spin"),
+                                TextFont::from_font_size(PROMPT_FONT_SIZE),
+                                TextColor(PROMPT_COLOR),
+                                RoulettePromptText,
+                            ));
+                            overlay.spawn((
+                                ImageNode::new(Handle::default()),
+                                Node {
+                                    width: Val::Px(ROULETTE_GLYPH_SIZE),
+                                    height: Val::Px(ROULETTE_GLYPH_SIZE),
+                                    display: Display::None,
+                                    ..default()
+                                },
+                                RoulettePromptGlyphImage,
+                            ));
+                        });
+                });
 
-            // Triangle indicator pointing up
+            // Triangle indicator below the wheel.
             parent.spawn((
                 Node {
                     width: Val::Px(0.0),
@@ -84,40 +128,13 @@ pub(crate) fn spawn_roulette_display(mut commands: Commands, asset_server: Res<A
                 },
                 RoulettePointer,
             ));
-
-            // Prompt text (below wheel)
-            parent.spawn((
-                Text::new("Press SPACE to spin"),
-                TextFont::from_font_size(PROMPT_FONT_SIZE),
-                TextColor(PROMPT_COLOR),
-                RoulettePromptText,
-            ));
-            // Hidden image, shown in place of the text glyph when an official
-            // Steam Input glyph is available for the spin action.
-            parent.spawn((
-                ImageNode::new(Handle::default()),
-                Node {
-                    width: Val::Px(40.0),
-                    height: Val::Px(40.0),
-                    display: Display::None,
-                    ..default()
-                },
-                RoulettePromptGlyphImage,
-            ));
         });
 }
 
 /// Updates text based on roulette state.
 pub(super) fn update_roulette_display(
     roulette_state: Res<RouletteState>,
-    mut selected_text_query: Query<
-        &mut Text,
-        (With<RouletteSelectedText>, Without<RoulettePromptText>),
-    >,
-    mut prompt_query: Query<
-        (&mut Text, &mut TextColor),
-        (With<RoulettePromptText>, Without<RouletteSelectedText>),
-    >,
+    mut selected_text_query: Query<&mut Text, With<RouletteSelectedText>>,
     mut commands: Commands,
     selected_text_entity_query: Query<
         (Entity, Option<&SelectedSpellFadeTimer>),
@@ -136,11 +153,6 @@ pub(super) fn update_roulette_display(
             {
                 **text = "".to_string();
             }
-
-            if let Ok((mut text, mut color)) = prompt_query.single_mut() {
-                **text = "Press SPACE to spin".to_string();
-                color.0 = PROMPT_COLOR;
-            }
         }
         RoulettePhase::Spinning { .. } => {
             if let Ok((entity, fade_timer)) = selected_text_entity_query.single()
@@ -150,11 +162,6 @@ pub(super) fn update_roulette_display(
             }
             if let Ok(mut text) = selected_text_query.single_mut() {
                 **text = "".to_string();
-            }
-
-            if let Ok((mut text, mut color)) = prompt_query.single_mut() {
-                **text = "Spinning...".to_string();
-                color.0 = SELECTED_SPELL_COLOR;
             }
         }
         RoulettePhase::Selected { spell } => {
@@ -168,11 +175,6 @@ pub(super) fn update_roulette_display(
                     elapsed: 0.0,
                     duration: SELECTED_FADE_DURATION,
                 });
-            }
-
-            if let Ok((mut text, mut color)) = prompt_query.single_mut() {
-                **text = "Cast your spell!".to_string();
-                color.0 = SELECTED_SPELL_COLOR;
             }
         }
     }
@@ -234,15 +236,13 @@ pub(super) fn update_selected_spell_fade(
     }
 }
 
-/// Renders the spin prompt. While **idle**: the bound D-pad-Up glyph (Steam art
-/// when available, else the Kenney font) on a controller, or "Press SPACE to
-/// spin" on mouse/keyboard. During non-idle phases (`update_roulette_display`
-/// owns the "Spinning…"/"Cast…" status text) the glyph image is hidden and the
-/// text shown in the default font. Runs every frame but bails cheaply when
-/// nothing changed.
-/// On-screen size of the roulette spin glyph (image + Kenney font).
-const ROULETTE_GLYPH_SIZE: f32 = 40.0;
+/// On-screen size of the roulette spin glyph/arrow, overlaid on the 80px wheel.
+const ROULETTE_GLYPH_SIZE: f32 = 28.0;
 
+/// Renders the spin prompt overlaid on the wheel while **idle** — the D-pad-Up
+/// arrow on a controller, or "Press SPACE to spin" on mouse/keyboard. While the
+/// wheel is spinning (or a spell is selected) the prompt is hidden entirely so
+/// the wheel stays clear. Runs every frame but bails cheaply.
 #[allow(clippy::type_complexity)]
 pub(super) fn adapt_prompt_to_input_device(
     roulette_state: Res<RouletteState>,
@@ -259,25 +259,22 @@ pub(super) fn adapt_prompt_to_input_device(
         (With<RoulettePromptGlyphImage>, Without<RoulettePromptText>),
     >,
 ) {
-    let Ok((text, mut font, mut text_node)) = prompt_query.single_mut() else {
+    let Ok((text, font, mut text_node)) = prompt_query.single_mut() else {
         return;
     };
     let Ok((image, mut image_node)) = image_query.single_mut() else {
         return;
     };
 
-    // Non-idle phases: `update_roulette_display` owns the status text. Hide the
-    // glyph image and show the text in the default font.
+    // Non-idle phases (spinning / selected): hide the prompt entirely so it
+    // doesn't clutter the wheel. The selected spell name above the wheel conveys
+    // the result.
     if !matches!(roulette_state.phase, RoulettePhase::Idle) {
         if image_node.display != Display::None {
             image_node.display = Display::None;
         }
-        if text_node.display != Display::Flex {
-            text_node.display = Display::Flex;
-        }
-        if font.font != Handle::<Font>::default() {
-            font.font = Handle::<Font>::default();
-            font.font_size = PROMPT_FONT_SIZE;
+        if text_node.display != Display::None {
+            text_node.display = Display::None;
         }
         return;
     }

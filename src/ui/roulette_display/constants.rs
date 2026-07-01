@@ -12,8 +12,9 @@ pub(super) const SELECTED_SPELL_FONT_SIZE: f32 = 16.0;
 /// Font size for the "Press SPACE" prompt.
 pub(super) const PROMPT_FONT_SIZE: f32 = 12.0;
 
-/// Color for the "Press SPACE" prompt.
-pub(super) const PROMPT_COLOR: Color = Color::srgba(0.8, 0.8, 0.9, 1.0);
+/// Color for the spin prompt. Black for contrast against the bright wheel it's
+/// overlaid on.
+pub(super) const PROMPT_COLOR: Color = Color::BLACK;
 
 /// Color for the selected spell name display.
 pub(super) const SELECTED_SPELL_COLOR: Color = Color::srgba(1.0, 0.85, 0.3, 1.0);

@@ -183,15 +183,13 @@ pub(super) fn handle_slider_interaction(
     bindings: Res<InputBindings>,
     mut writer: MessageWriter<SliderAdjustMessage>,
 ) {
-    let sensitivity = 10.0;
-
     for slider in SliderType::all() {
         if let Some(key) = slider_key(&bindings, slider)
             && keyboard.just_pressed(key)
         {
             writer.write(SliderAdjustMessage {
                 slider,
-                delta: sensitivity,
+                delta: crate::game::units::wizard::archetypes::arcanorouter::constants::SLIDER_KEY_STEP,
             });
         }
     }

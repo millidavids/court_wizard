@@ -1,5 +1,5 @@
 mod components;
-mod constants;
+pub(crate) mod constants;
 pub(crate) mod messages;
 mod plugin;
 pub(crate) mod resources;

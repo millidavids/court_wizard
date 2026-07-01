@@ -129,6 +129,25 @@ pub(crate) fn apply_button_glyph(
     mut image: Mut<ImageNode>,
     mut image_node: Mut<Node>,
 ) {
+    // Directional D-pad abilities: a bold arrow reads far better than a d-pad
+    // glyph. Steam's and Kenney's d-pad glyphs are both near-identical crosses
+    // with one subtly-filled arm — indistinguishable at button size. An arrow
+    // doesn't depend on Steam, the controller type, or the Kenney font.
+    if ctx.gamepad
+        && let Some(arrow) = action.direction_arrow()
+    {
+        if **text != *arrow {
+            **text = arrow.to_string();
+        }
+        if text_font.font != Handle::<Font>::default() || text_font.font_size != glyph_px {
+            text_font.font = Handle::<Font>::default();
+            text_font.font_size = glyph_px;
+        }
+        set_display(&mut image_node, Display::None);
+        set_display(&mut text_node, Display::Flex);
+        return;
+    }
+
     // Steam image when on a controller and a glyph is loaded for this action.
     if let Some(handle) = ctx.gamepad.then(|| ctx.steam.get(action)).flatten() {
         if image.image != handle {
