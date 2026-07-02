@@ -101,6 +101,18 @@ cp "$BIN_DIR/$BIN_NAME" "$STAGING/court_wizard/"
 cp -r "$BIN_DIR/assets" "$STAGING/court_wizard/"
 cp docs/PLAYER_README.txt "$STAGING/court_wizard/README.txt"
 
+# Steam auto-discovers the In-Game Actions manifest at the depot/install ROOT:
+# controller_config/game_actions_<appid>.vdf. The .vdf files also live under
+# assets/ (the runtime SetInputActionManifestFilePath fallback), but Steam only
+# looks at the root — so ship a copy there too. Both the main app and the
+# Playtest read the same depot, so we include every game_actions_*.vdf and each
+# app picks the one named for its own id.
+if [ -d "./assets/controller_config" ]; then
+    mkdir -p "$STAGING/court_wizard/controller_config"
+    cp ./assets/controller_config/*.vdf "$STAGING/court_wizard/controller_config/" 2>/dev/null || true
+    echo "Included install-root controller_config/ (Steam IGA auto-discovery)."
+fi
+
 # Steam redistributable library
 if [ -f "$BIN_DIR/$STEAM_LIB" ]; then
     cp "$BIN_DIR/$STEAM_LIB" "$STAGING/court_wizard/"

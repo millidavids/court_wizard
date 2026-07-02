@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Fixed
+- **Controller setup in Steam** — the game now hands Steam the correct controller layout, so its controls can be recognized and adjusted in Steam's controller settings.
+
 ## [v0.10.77] - 2026-07-01
 
 ### Changed
