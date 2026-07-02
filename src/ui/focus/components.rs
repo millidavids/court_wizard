@@ -16,6 +16,12 @@ pub(crate) struct Focusable;
 #[derive(Component, Debug, Clone, Copy)]
 pub(crate) struct TabFocusable;
 
+/// Marks a tab that is currently disabled (locked / unavailable). Click handling
+/// and LB/RB tab cycling both skip it, so bumper navigation steps over a disabled
+/// tab instead of stalling on it.
+#[derive(Component, Debug, Clone, Copy)]
+pub(crate) struct DisabledTab;
+
 /// Marks a button that should NOT participate in gamepad D-pad focus
 /// navigation. Used for header "Back" buttons, which are reachable on
 /// controller only via the B/East button (`MenuBackPressed`).

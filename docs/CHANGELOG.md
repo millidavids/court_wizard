@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Added
+- **Deeper Steam controller support** — controllers now run through Steam's controller system, so on-screen prompts and controls match your actual pad, with support reaching beyond Xbox to PlayStation, Switch, and Steam Deck controllers.
+
+### Fixed
+- **Controller navigation skips locked tabs** — in the wizard tower, the shoulder buttons now step over unavailable tabs (like Versus when you're not in a match) instead of getting stuck on them.
+- **Select study nodes with a controller** — you can now confirm a node on the study screen with a controller.
+
+### Changed
+- **Steadier study cursor** — the study-screen cursor moves at a more controllable speed on a controller.
+
 ## [v0.10.78] - 2026-07-02
 
 ### Fixed

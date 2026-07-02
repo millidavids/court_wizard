@@ -1,0 +1,470 @@
+"controller_mappings"
+{
+	"version"		"3"
+	"title"		"Court Wizard"
+	"description"		"Default gamepad bindings for Court Wizard."
+	"controller_type"		"controller_xboxone"
+	"actions"
+	{
+		"GameplayControls"
+		{
+			"title"		"Gameplay"
+			"legacy_set"		"0"
+			"StickPadGyro"
+			{
+				"AimStick"
+				{
+					"title"		"Aim Cursor"
+					"input_mode"		"joystick_move"
+				}
+				"Camera"
+				{
+					"title"		"Select Spell"
+					"input_mode"		"joystick_move"
+				}
+			}
+			"Button"
+			{
+				"Activate"		"Cast / Activate"
+				"PrimaryCast"		"Primary Cast"
+				"SecondaryCast"		"Secondary Cast"
+				"OpenSpellBook"		"Spell Book"
+				"OpenCauldron"		"Cauldron"
+				"Pause"		"Pause"
+				"AbilityUp"		"Ability Up"
+				"AbilityDown"		"Ability Down"
+				"AbilityLeft"		"Ability Left"
+				"AbilityRight"		"Ability Right"
+			}
+		}
+		"MenuControls"
+		{
+			"title"		"Menus & Wizard Tower"
+			"legacy_set"		"0"
+			"StickPadGyro"
+			{
+				"AimStick"
+				{
+					"title"		"Navigate"
+					"input_mode"		"joystick_move"
+				}
+				"Camera"
+				{
+					"title"		"Scroll"
+					"input_mode"		"joystick_move"
+				}
+			}
+			"AnalogTrigger"
+			{
+				"ZoomIn"		"Zoom In"
+				"ZoomOut"		"Zoom Out"
+			}
+			"Button"
+			{
+				"UIConfirm"		"Confirm"
+				"UIBack"		"Back"
+				"TabNext"		"Next Tab"
+				"TabPrev"		"Previous Tab"
+				"Pause"		"Pause"
+				"StudyConfirm"		"Select Node"
+				"AbilityUp"		"Navigate Up"
+				"AbilityDown"		"Navigate Down"
+				"AbilityLeft"		"Navigate Left"
+				"AbilityRight"		"Navigate Right"
+			}
+		}
+	}
+	"action_layers"
+	{
+	}
+	"group"
+	{
+		"id"		"0"
+		"mode"		"four_buttons"
+		"inputs"
+		{
+			"button_a"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action GameplayControls Activate, Cast"
+						}
+					}
+				}
+			}
+			"button_x"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action GameplayControls OpenSpellBook, Spell Book"
+						}
+					}
+				}
+			}
+			"button_y"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action GameplayControls OpenCauldron, Cauldron"
+						}
+					}
+				}
+			}
+		}
+	}
+	"group"
+	{
+		"id"		"1"
+		"mode"		"dpad"
+		"inputs"
+		{
+			"dpad_north"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action GameplayControls AbilityUp"
+						}
+					}
+				}
+			}
+			"dpad_south"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action GameplayControls AbilityDown"
+						}
+					}
+				}
+			}
+			"dpad_east"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action GameplayControls AbilityRight"
+						}
+					}
+				}
+			}
+			"dpad_west"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action GameplayControls AbilityLeft"
+						}
+					}
+				}
+			}
+		}
+	}
+	"group"
+	{
+		"id"		"2"
+		"mode"		"trigger"
+		"inputs"
+		{
+			"click"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action GameplayControls SecondaryCast, Secondary Cast"
+						}
+					}
+				}
+			}
+		}
+	}
+	"group"
+	{
+		"id"		"3"
+		"mode"		"trigger"
+		"inputs"
+		{
+			"click"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action GameplayControls PrimaryCast, Primary Cast"
+						}
+					}
+				}
+			}
+		}
+	}
+	"group"
+	{
+		"id"		"4"
+		"mode"		"switches"
+		"inputs"
+		{
+			"button_escape"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action GameplayControls Pause, Pause"
+						}
+					}
+				}
+			}
+		}
+	}
+	"group"
+	{
+		"id"		"5"
+		"mode"		"joystick_move"
+		"inputs"
+		{
+		}
+		"gameactions"
+		{
+			"GameplayControls"		"AimStick"
+		}
+	}
+	"group"
+	{
+		"id"		"6"
+		"mode"		"joystick_move"
+		"inputs"
+		{
+		}
+		"gameactions"
+		{
+			"GameplayControls"		"Camera"
+		}
+	}
+	"group"
+	{
+		"id"		"10"
+		"mode"		"four_buttons"
+		"inputs"
+		{
+			"button_a"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action MenuControls UIConfirm, Confirm"
+						}
+					}
+				}
+			}
+			"button_b"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action MenuControls UIBack, Back"
+						}
+					}
+				}
+			}
+		}
+	}
+	"group"
+	{
+		"id"		"11"
+		"mode"		"dpad"
+		"inputs"
+		{
+			"dpad_north"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action MenuControls AbilityUp"
+						}
+					}
+				}
+			}
+			"dpad_south"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action MenuControls AbilityDown"
+						}
+					}
+				}
+			}
+			"dpad_east"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action MenuControls AbilityRight"
+						}
+					}
+				}
+			}
+			"dpad_west"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action MenuControls AbilityLeft"
+						}
+					}
+				}
+			}
+		}
+	}
+	"group"
+	{
+		"id"		"14"
+		"mode"		"switches"
+		"inputs"
+		{
+			"button_escape"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action MenuControls Pause, Pause"
+						}
+					}
+				}
+			}
+			"left_bumper"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action MenuControls TabPrev, Previous Tab"
+						}
+					}
+				}
+			}
+			"right_bumper"
+			{
+				"activators"
+				{
+					"Full_Press"
+					{
+						"bindings"
+						{
+							"binding"		"game_action MenuControls TabNext, Next Tab"
+						}
+					}
+				}
+			}
+		}
+	}
+	"group"
+	{
+		"id"		"15"
+		"mode"		"joystick_move"
+		"inputs"
+		{
+		}
+		"gameactions"
+		{
+			"MenuControls"		"AimStick"
+		}
+	}
+	"group"
+	{
+		"id"		"16"
+		"mode"		"joystick_move"
+		"inputs"
+		{
+		}
+		"gameactions"
+		{
+			"MenuControls"		"Camera"
+		}
+	}
+	"preset"
+	{
+		"id"		"0"
+		"name"		"GameplayControls"
+		"group_source_bindings"
+		{
+			"0"		"button_diamond active"
+			"1"		"dpad active"
+			"2"		"left_trigger active"
+			"3"		"right_trigger active"
+			"4"		"switch active"
+			"5"		"joystick active"
+			"6"		"right_joystick active"
+		}
+	}
+	"preset"
+	{
+		"id"		"1"
+		"name"		"MenuControls"
+		"group_source_bindings"
+		{
+			"10"		"button_diamond active"
+			"11"		"dpad active"
+			"14"		"switch active"
+			"15"		"joystick active"
+			"16"		"right_joystick active"
+		}
+	}
+	"settings"
+	{
+	}
+}

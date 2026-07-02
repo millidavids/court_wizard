@@ -10,8 +10,8 @@ use super::super::super::components::*;
 use super::super::super::constants::*;
 use super::super::panels::*;
 
-/// Cursor speed at full right-stick deflection, in logical pixels per second.
-const STUDY_CURSOR_SPEED: f32 = 900.0;
+/// Cursor speed at full left-stick deflection, in logical pixels per second.
+const STUDY_CURSOR_SPEED: f32 = 550.0;
 
 /// Reticle side length in logical pixels when idle.
 const STUDY_CURSOR_SIZE: f32 = 24.0;
@@ -223,7 +223,13 @@ pub(crate) fn study_cursor_confirm(
     let Some(target) = cursor.hovered else {
         return;
     };
-    if state.just_pressed(GamepadAction::StudyConfirm) {
+    // A/South maps to `StudyConfirm` on the gilrs path, but to `UIConfirm` in the
+    // Steam Input `MenuControls` set (one physical button can't bind two actions in
+    // a set, and A is already `UIConfirm` there). Accept either so node-select
+    // works on both input paths. `UIConfirm` is otherwise unused in the study tab.
+    if state.just_pressed(GamepadAction::StudyConfirm)
+        || state.just_pressed(GamepadAction::UIConfirm)
+    {
         clicks.write(MouseClicked { button: target });
     }
 }

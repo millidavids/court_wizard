@@ -14,46 +14,44 @@ pub(crate) fn init_steam_input(client: Res<Client>) {
     let input = client.input();
     let app_id = client.utils().app_id().0;
 
+    // Point Steam Input at the bundled action manifest with a clean, OS-native
+    // path (backslashes on Windows) BEFORE Init — Steam rejects a mixed-slash
+    // path, and the manifest MUST be the extended Action Manifest form (a plain
+    // In-Game Actions file returns false and the runtime action handles never
+    // resolve). `manifest_path` joins components individually so separators are
+    // native.
     match manifest_path(app_id) {
         Some(path) => {
             let ok = input.set_input_action_manifest_file_path(&path);
             info!("[Steam Input] action manifest '{path}' set: {ok}");
         }
-        None => warn!(
-            "[Steam Input] no bundled manifest for app {app_id} on disk; relying on \
-             Steam's auto-discovery of controller_config/game_actions_{app_id}.vdf"
-        ),
+        None => warn!("[Steam Input] no bundled action manifest on disk for app {app_id}"),
     }
 
     let ok = input.init(true);
     info!("[Steam Input] init: {ok}");
 }
 
-/// Best-effort absolute path to the bundled manifest for `app_id`. The filename
-/// MUST carry the *running* app id — Steam finds/accepts an IGA by
-/// `game_actions_<appid>.vdf`, and rejects one named for a different app. Prefers
-/// Steam's canonical install-root location (`controller_config/…`, which Steam
-/// also auto-discovers) over the `assets/` copy, and the exe dir over the cwd.
+/// Best-effort absolute path to the bundled manifest for `app_id`, built from
+/// individually-joined components so the separators are OS-native (backslashes on
+/// Windows — Steam rejects a mixed-slash path). The filename MUST carry the
+/// *running* app id. Prefers Steam's canonical install-root location
+/// (`controller_config/…`) over the `assets/` copy, and the exe dir over the cwd.
 fn manifest_path(app_id: u32) -> Option<String> {
+    use std::path::{Path, PathBuf};
     let file = format!("game_actions_{app_id}.vdf");
-    let rels = [
-        format!("controller_config/{file}"),
-        format!("assets/controller_config/{file}"),
-    ];
     let exe_dir = std::env::current_exe()
         .ok()
-        .and_then(|e| e.parent().map(std::path::Path::to_path_buf));
-    for rel in &rels {
-        if let Some(dir) = &exe_dir {
-            let candidate = dir.join(rel);
-            if candidate.exists() {
-                return candidate.to_str().map(str::to_string);
-            }
-        }
-        let candidate = std::path::Path::new(rel);
-        if candidate.exists() {
-            return candidate.to_str().map(str::to_string);
-        }
-    }
-    None
+        .and_then(|e| e.parent().map(Path::to_path_buf));
+    [exe_dir, Some(PathBuf::from("."))]
+        .into_iter()
+        .flatten()
+        .flat_map(|base| {
+            [
+                base.join("controller_config").join(&file),
+                base.join("assets").join("controller_config").join(&file),
+            ]
+        })
+        .find(|p| p.exists())
+        .and_then(|p| p.to_str().map(str::to_string))
 }

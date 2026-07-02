@@ -95,10 +95,6 @@ pub(crate) struct WizardTowerTabButton(pub WizardTowerTab);
 #[derive(Component)]
 pub(crate) struct WizardTowerTabRow;
 
-/// Marker for tabs that are disabled and cannot be clicked.
-#[derive(Component)]
-pub(crate) struct DisabledTab;
-
 /// Marker for the header "<name> connected" badge (shown while a multiplayer
 /// connection is live). Updated by [`update_mp_connected_indicator`].
 #[derive(Component)]

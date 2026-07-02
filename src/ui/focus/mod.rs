@@ -16,7 +16,7 @@ pub(super) mod scroll;
 mod systems;
 
 pub(crate) use components::{
-    ConsumeHorizontalNav, CrossRowHorizontalNav, Focusable, FocusableFlatBackground,
+    ConsumeHorizontalNav, CrossRowHorizontalNav, DisabledTab, Focusable, FocusableFlatBackground,
     GamepadFocused, GamepadScrollTarget, ModalOverlay, NoGamepadFocus, ScrollRevealBounds,
     TabFocusable,
 };

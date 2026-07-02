@@ -10,7 +10,7 @@ use bevy::prelude::*;
 use bevy_steamworks::Client;
 use steamworks::InputType;
 
-use super::handles::SteamInputHandles;
+use super::handles::{SteamInputHandles, connected_controllers};
 use crate::config::GameConfig;
 use crate::game::input::action_state::{
     AnalogAction, ControllerKind, GamepadAction, GamepadActionState,
@@ -51,11 +51,11 @@ pub(crate) fn poll_steam_input(
         return;
     }
     let input = client.input();
-    let controllers = input.get_connected_controllers();
+    let controllers = connected_controllers(&input);
 
-    // Diagnostic: log whenever Steam's view of the connected-controller count
-    // changes — so a controller power-off should print "0 controllers". If it
-    // doesn't print, Steam itself didn't notice the disconnect.
+    // Log whenever Steam's view of the connected-controller count changes — a
+    // controller power-off should print "0 controllers"; if it doesn't, Steam
+    // itself didn't notice the disconnect.
     if *last_count != Some(controllers.len()) {
         info!("[Steam Input] connected controllers: {}", controllers.len());
         *last_count = Some(controllers.len());
@@ -130,7 +130,13 @@ pub(crate) fn poll_steam_input(
         return;
     }
 
-    *active = ActiveInputDevice::SteamInputPad;
+    // Only write when it actually changes — an unconditional assignment marks
+    // `ActiveInputDevice` changed every frame, which retriggers
+    // `resource_changed::<ActiveInputDevice>` consumers (e.g. the action-bar
+    // reset that wipes the radial hover highlight) every frame.
+    if *active != ActiveInputDevice::SteamInputPad {
+        *active = ActiveInputDevice::SteamInputPad;
+    }
     state.active_steam_handle = Some(candidate);
     state.active_gilrs_entity = None;
     state.controller_kind = kind_from_input_type(input.get_input_type_for_handle(candidate));

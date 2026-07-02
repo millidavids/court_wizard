@@ -7,7 +7,7 @@ use super::super::super::constants::*;
 use super::super::super::materials::{ArcaneRuneData, ArcaneRuneMaterial};
 use super::super::decorations::*;
 use super::resources::{
-    DisabledTab, MpConnectedIndicator, RightPanelView, WizardTowerLeftPanel, WizardTowerRightPanel,
+    MpConnectedIndicator, RightPanelView, WizardTowerLeftPanel, WizardTowerRightPanel,
     WizardTowerTab, WizardTowerTabButton, WizardTowerTabRow, get_unlocked_spells,
 };
 use crate::ui::components::ButtonColors;
@@ -267,7 +267,7 @@ pub(crate) fn setup_wizard_tower_layout(
                                     ));
 
                                     if is_disabled {
-                                        tab_btn.insert(DisabledTab);
+                                        tab_btn.insert(crate::ui::focus::DisabledTab);
                                     }
 
                                     tab_btn.with_children(|btn| {

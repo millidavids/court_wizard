@@ -9,8 +9,21 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 use bevy_steamworks::Client;
+use steamworks::Input;
 
 use crate::game::input::action_state::{AnalogAction, GamepadAction};
+
+/// The real (non-zero) connected controllers. `Input::get_connected_controllers`
+/// pads its return to `STEAM_INPUT_MAX_COUNT` with zero handles (steamworks-rs
+/// 0.12.2 uses `Vec::shrink_to`, which trims capacity not length), so any caller
+/// that indexes `[0]`, checks `is_empty`, or iterates must drop the padding first.
+pub(crate) fn connected_controllers(input: &Input) -> Vec<u64> {
+    input
+        .get_connected_controllers()
+        .into_iter()
+        .filter(|&c| c != 0)
+        .collect()
+}
 
 /// Action-set names — MUST match the IGA manifest
 /// (`assets/controller_config/game_actions_4550880.vdf`).

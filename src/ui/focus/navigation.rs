@@ -4,8 +4,8 @@ use bevy::prelude::*;
 use bevy::ui::ui_transform::UiGlobalTransform;
 
 use super::components::{
-    ConsumeHorizontalNav, CrossRowHorizontalNav, Focusable, ModalOverlay, NoGamepadFocus,
-    TabFocusable,
+    ConsumeHorizontalNav, CrossRowHorizontalNav, DisabledTab, Focusable, ModalOverlay,
+    NoGamepadFocus, TabFocusable,
 };
 use super::constants::{
     FOCUS_REPEAT_INITIAL_DELAY, FOCUS_REPEAT_INTERVAL, PANEL_COLUMN_TOLERANCE, SAME_ROW_TOLERANCE,
@@ -418,7 +418,10 @@ pub(super) fn tab_cycle(
             Option<&InheritedVisibility>,
             Has<ButtonActive>,
         ),
-        With<TabFocusable>,
+        // Skip disabled tabs (e.g. the VS tab while a match/connection blocks it)
+        // so bumper cycling steps over them instead of stalling — matching the
+        // click handler, which also ignores `DisabledTab`.
+        (With<TabFocusable>, Without<DisabledTab>),
     >,
     mut clicks: MessageWriter<MouseClicked>,
 ) {

@@ -9,7 +9,8 @@ use crate::ui::components::{ButtonActive, ButtonColors, ButtonFront};
 
 use super::super::super::components::WizardTowerButtonAction;
 use super::super::super::constants::*;
-use super::resources::{DisabledTab, RightPanelView, WizardTowerTab, WizardTowerTabButton};
+use super::resources::{RightPanelView, WizardTowerTab, WizardTowerTabButton};
+use crate::ui::focus::DisabledTab;
 
 // ---------------------------------------------------------------------------
 // Tab click handling
