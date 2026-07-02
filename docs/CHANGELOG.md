@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.10.89] - 2026-07-02
 
 ### Added
 - **Deeper Steam controller support** — controllers now run through Steam's controller system, so on-screen prompts and controls match your actual pad, with support reaching beyond Xbox to PlayStation, Switch, and Steam Deck controllers.
