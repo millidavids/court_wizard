@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.10.90] - 2026-07-06
 
 ### Fixed
 - **Cleaner controller layout heading** — Removed the broken boxes that showed on either side of the controller layout name in Settings → Controls.
