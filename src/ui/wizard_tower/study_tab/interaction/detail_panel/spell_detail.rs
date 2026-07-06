@@ -215,7 +215,7 @@ pub(crate) fn update_study_detail_panel(
                     Text::new(format!(
                         "Requires: {}{}",
                         prereq.display_name(),
-                        if prereq_done { " ✓" } else { "" }
+                        if prereq_done { " √" } else { "" }
                     )),
                     TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
                     TextColor(if prereq_done {
@@ -234,7 +234,7 @@ pub(crate) fn update_study_detail_panel(
                         "Spells researched: {}/{}{}",
                         researched,
                         required,
-                        if researched >= required { " ✓" } else { "" }
+                        if researched >= required { " √" } else { "" }
                     )),
                     TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
                     TextColor(if researched >= required {

@@ -157,7 +157,7 @@ fn populate_controller_diagram(
 ) {
     let glyph_font = glyph_fonts.font_for(style);
 
-    // Title row: ◄ VENDOR ► — the chevrons cue that Left/Right swap schemes.
+    // Title row: « VENDOR » — the guillemets cue that Left/Right swap schemes.
     panel
         .spawn(Node {
             flex_direction: FlexDirection::Row,
@@ -167,7 +167,7 @@ fn populate_controller_diagram(
         })
         .with_children(|row| {
             row.spawn((
-                Text::new("\u{25C4}"),
+                Text::new("\u{00AB}"),
                 TextFont::from_font_size(SECTION_FONT_SIZE),
                 TextColor(TEXT_COLOR),
             ));
@@ -177,7 +177,7 @@ fn populate_controller_diagram(
                 TextColor(WARNING_COLOR),
             ));
             row.spawn((
-                Text::new("\u{25BA}"),
+                Text::new("\u{00BB}"),
                 TextFont::from_font_size(SECTION_FONT_SIZE),
                 TextColor(TEXT_COLOR),
             ));
