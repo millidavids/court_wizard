@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v0.10.92] - 2026-07-08
 
 ### Changed
 - **Pause menu now appears in fast-paced multiplayer** — In versus and urgent co-op matches, opening the Steam overlay, unplugging your controller, or clicking away now brings up your pause menu, just like the pause button already does. The match keeps running for both players, since these fast-paced modes can't be frozen.
