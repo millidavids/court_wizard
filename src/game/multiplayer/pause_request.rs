@@ -12,7 +12,10 @@
 //! - **Co-op (synchronized):** initiate the shared `CoopPauseSync` handshake via
 //!   [`coop_pause::do_initiate_pause`] so both peers pause and only the initiator
 //!   can resume.
-//! - **Versus / Urgent co-op:** no-op — a real-time P2P match cannot be frozen.
+//! - **Versus / Urgent co-op:** set the local peer's own `Paused` menu, mirroring
+//!   manual Escape. That state is non-freezing in these modes (the sim keeps
+//!   running — see `run_conditions::is_gameplay_running`), so a real-time P2P match
+//!   is never frozen; the pause is local-only and sends no network message.
 
 use bevy::prelude::*;
 
@@ -82,15 +85,25 @@ pub(crate) fn apply_pause_requests(
         return;
     }
 
-    // ── Versus (or Urgent co-op): real-time P2P, cannot pause ─────────
-    if session.is_some() {
-        return;
-    }
-
-    // ── Single-player ─────────────────────────────────────────────────
-    if sp_state.as_deref().map(|s| *s.get()) == Some(InGameState::Running)
-        && let Some(n) = next_sp.as_mut()
+    // ── Single-player, versus, or Urgent co-op ────────────────────────
+    // Set the local peer's own mode-appropriate Paused state, mirroring manual
+    // Escape. The peer is in exactly ONE gameplay state machine (host/SP →
+    // InGameState; versus + all guests → MultiplayerGameState — AppState holds one
+    // variant, so they are never both present). In single-player this freezes the
+    // sim; in versus and Urgent co-op the Paused state is a menu overlay that KEEPS
+    // the sim running (`run_conditions::is_gameplay_running`), so a real-time P2P
+    // match is never frozen. Synchronized co-op is handled by the branch above.
+    if matches!(
+        coop_pause::local_state_host(sp_state.as_deref()),
+        LocalState::Running
+    ) && let Some(n) = next_sp.as_mut()
     {
         n.set(InGameState::Paused);
+    } else if matches!(
+        coop_pause::local_state_guest(mp_state.as_deref()),
+        LocalState::Running
+    ) && let Some(n) = next_mp.as_mut()
+    {
+        n.set(MultiplayerGameState::Paused);
     }
 }

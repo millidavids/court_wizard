@@ -3,8 +3,9 @@
 //! Steam recommends single-player / local games pause while the overlay is up.
 //! We listen for the `GameOverlayActivated` callback on the existing
 //! `SteamworksEvent` bus and request a pause through the shared
-//! [`RequestGamePauseMessage`] consumer, which handles the single-player and
-//! co-op cases (versus matches can't pause and are a no-op there).
+//! [`RequestGamePauseMessage`] consumer, which handles every mode: single-player
+//! and synchronized co-op freeze, while versus and Urgent co-op pop the local
+//! peer's non-freezing pause menu (the real-time sim keeps running).
 
 use bevy::prelude::*;
 use bevy_steamworks::{CallbackResult, SteamworksEvent};

@@ -14,7 +14,8 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
     // ── Auto-pause request bus ───────────────────────────────────
     // A single message + consumer that turns any "input was taken away" trigger
     // (Steam overlay, controller unplug, focus loss) into the correct pause for
-    // the current mode (single-player / co-op sync / versus no-op). Registered
+    // the current mode (single-player + co-op sync freeze; versus + Urgent co-op
+    // pop a local, non-freezing pause menu mirroring manual Escape). Registered
     // here in Span A because the consumer is cross-cutting — it handles
     // single-player too, not just co-op. `MultiplayerGamePlugin` is added
     // unconditionally, so this exists in every mode. Gated ONLY on the message
