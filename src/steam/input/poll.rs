@@ -47,18 +47,21 @@ pub(crate) fn poll_steam_input(
     mut pause_writer: MessageWriter<RequestGamePauseMessage>,
     mut last_count: Local<Option<usize>>,
 ) {
-    if !handles.resolved {
-        return;
-    }
     let input = client.input();
     let controllers = connected_controllers(&input);
 
     // Log whenever Steam's view of the connected-controller count changes — a
     // controller power-off should print "0 controllers"; if it doesn't, Steam
-    // itself didn't notice the disconnect.
+    // itself didn't notice the disconnect. Deliberately above the `resolved`
+    // short-circuit so the log still reports what Steam Input sees when the
+    // action manifest never loads (e.g. a misconfigured Steamworks backend).
     if *last_count != Some(controllers.len()) {
         info!("[Steam Input] connected controllers: {}", controllers.len());
         *last_count = Some(controllers.len());
+    }
+
+    if !handles.resolved {
+        return;
     }
 
     // Disconnect of the controller we were driving: reset to mouse/keyboard and

@@ -16,9 +16,10 @@ use super::resources::{
 use super::rumble::rumble_on_score_screen;
 use super::run_conditions::gamepad_active;
 use super::systems::{
-    detect_active_input_device, emit_ui_confirm_back_messages, fill_action_state_from_gilrs,
-    pause_on_controller_unplug, sync_gamepad_settings, toggle_cursor_visibility,
-    translate_triggers_to_mouse_messages, update_radial_hovered_slot, update_virtual_cursor,
+    LastActiveGamepad, detect_active_input_device, emit_ui_confirm_back_messages,
+    fill_action_state_from_gilrs, pause_on_controller_unplug, sync_gamepad_settings,
+    toggle_cursor_visibility, translate_triggers_to_mouse_messages, update_radial_hovered_slot,
+    update_virtual_cursor,
 };
 use crate::game::run_conditions::{
     is_arcanorouter, is_local_wizard_active, is_meteorologist, is_randomancer, is_rune_caster,
@@ -31,6 +32,7 @@ pub(crate) struct GamepadInputPlugin;
 impl Plugin for GamepadInputPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ActiveInputDevice>()
+            .init_resource::<LastActiveGamepad>()
             .init_resource::<VirtualCursorPosition>()
             .init_resource::<GamepadAimSettings>()
             .init_resource::<RadialHoveredSlot>()

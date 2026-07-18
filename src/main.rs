@@ -200,7 +200,16 @@ struct BrightnessOverlay;
 /// # Arguments
 ///
 /// * `commands` - Bevy command buffer for spawning entities
-fn setup(mut commands: Commands) {
+fn setup(
+    mut commands: Commands,
+    adapter_info: Option<Res<bevy::render::renderer::RenderAdapterInfo>>,
+) {
+    // Which GPU/backend wgpu picked, in player logs — the Steam overlay hooks
+    // the graphics API, so overlay problems can't be diagnosed without this.
+    if let Some(info) = adapter_info {
+        info!("wgpu adapter: {} ({:?})", info.name, info.backend);
+    }
+
     // 3D perspective camera pulled way back to see the entire battlefield
     // We can adjust this later once everything is positioned correctly
     commands.spawn((

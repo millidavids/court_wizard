@@ -14,7 +14,8 @@ mod navigation;
 // Re-export everything consumed by plugin.rs (pub(super) in original → now pub(crate) on items,
 // re-exported here so the path `gamepad::systems::Foo` is preserved).
 pub(crate) use connection::{
-    detect_active_input_device, pause_on_controller_unplug, toggle_cursor_visibility,
+    LastActiveGamepad, detect_active_input_device, pause_on_controller_unplug,
+    toggle_cursor_visibility,
 };
 pub(crate) use cursor::{apply_deadzone_and_curve, shape_stick, update_virtual_cursor};
 pub(crate) use gilrs_adapter::fill_action_state_from_gilrs;

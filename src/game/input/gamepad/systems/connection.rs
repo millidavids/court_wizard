@@ -11,6 +11,13 @@ use crate::game::multiplayer::pause_request::RequestGamePauseMessage;
 
 use super::super::constants::DEVICE_SWITCH_STICK_MAGNITUDE;
 
+/// The most recent gilrs pad that drove input. Unlike [`ActiveInputDevice`] this
+/// survives switching back to mouse/keyboard, so unplugging the pad the player
+/// was using moments ago still pauses. Never cleared — a stale entity id can't
+/// match a later pad's connection events, so it just stops matching.
+#[derive(Resource, Default)]
+pub(crate) struct LastActiveGamepad(pub(crate) Option<Entity>);
+
 /// Updates `ActiveInputDevice` each frame based on which input source was used.
 ///
 /// Any mouse/keyboard activity → `MouseKeyboard`.
@@ -18,6 +25,7 @@ use super::super::constants::DEVICE_SWITCH_STICK_MAGNITUDE;
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn detect_active_input_device(
     mut active: ResMut<ActiveInputDevice>,
+    mut last_gamepad: ResMut<LastActiveGamepad>,
     mut cursor_moved: MessageReader<CursorMoved>,
     mut mouse_buttons: MessageReader<MouseButtonInput>,
     mut keyboard: MessageReader<KeyboardInput>,
@@ -55,6 +63,9 @@ pub(crate) fn detect_active_input_device(
             };
             if should_switch {
                 *active = ActiveInputDevice::Gamepad(entity);
+            }
+            if last_gamepad.0 != Some(entity) {
+                last_gamepad.0 = Some(entity);
             }
             return;
         }
@@ -99,8 +110,11 @@ pub(crate) fn toggle_cursor_visibility(
     mouse_state.left_consumed = false;
 }
 
-/// Pauses the game when the *active* controller disconnects mid-match, and falls
-/// back to mouse/keyboard so the pause menu stays usable.
+/// Pauses the game when the active — or most recently active — controller
+/// disconnects mid-match, and falls back to mouse/keyboard so the pause menu
+/// stays usable. Matching [`LastActiveGamepad`] too covers the pad dying right
+/// after the player touched the mouse (which resets `ActiveInputDevice`), while
+/// an idle bystander pad unplugging still never pauses.
 ///
 /// On disconnect Bevy removes the `Gamepad` component (leaving the entity alive),
 /// so every gamepad reader would early-return on the now-dead handle and the OS
@@ -110,20 +124,28 @@ pub(crate) fn toggle_cursor_visibility(
 pub(crate) fn pause_on_controller_unplug(
     mut events: MessageReader<GamepadConnectionEvent>,
     mut active: ResMut<ActiveInputDevice>,
+    last_gamepad: Res<LastActiveGamepad>,
     config: Res<GameConfig>,
     mut pause_writer: MessageWriter<RequestGamePauseMessage>,
 ) {
     let active_entity = active.gamepad_entity();
     let mut active_lost = false;
+    let mut known_pad_lost = false;
     for event in events.read() {
-        if event.disconnected() && Some(event.gamepad) == active_entity {
+        if !event.disconnected() {
+            continue;
+        }
+        if Some(event.gamepad) == active_entity {
             active_lost = true;
+        }
+        if Some(event.gamepad) == active_entity || Some(event.gamepad) == last_gamepad.0 {
+            known_pad_lost = true;
         }
     }
     if active_lost {
         *active = ActiveInputDevice::MouseKeyboard;
-        if config.pause_on_controller_disconnect {
-            pause_writer.write(RequestGamePauseMessage);
-        }
+    }
+    if known_pad_lost && config.pause_on_controller_disconnect {
+        pause_writer.write(RequestGamePauseMessage);
     }
 }

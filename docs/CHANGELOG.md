@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Fixed
+- **More reliable auto-pause when a controller is unplugged** — the game now also pauses if the controller you were just playing with disconnects right after you touched the mouse. Unplugging a spare controller you weren't using still won't interrupt your game.
+
 ## [v0.10.92] - 2026-07-08
 
 ### Changed

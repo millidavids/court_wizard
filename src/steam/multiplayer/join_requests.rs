@@ -120,7 +120,13 @@ pub(super) fn route_pending_steam_join(
                 connection.reset();
             }
 
-            accept_incoming_join(client, bridge, lobby_state, &mut connection, pending.lobby_id);
+            accept_incoming_join(
+                client,
+                bridge,
+                lobby_state,
+                &mut connection,
+                pending.lobby_id,
+            );
             // Make sure we're not stuck in a stale Connected state from a previous match.
             if connection.state == ConnectionState::Connected {
                 connection.state = ConnectionState::WaitingForSignaling;

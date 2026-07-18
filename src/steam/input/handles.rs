@@ -55,13 +55,26 @@ impl SteamInputHandles {
     }
 }
 
+/// How long handles may stay unresolved with a controller present before the
+/// one-shot diagnostic warning fires.
+const HANDLE_RESOLUTION_WARN_SECS: f32 = 10.0;
+
 /// Resolves the action-set + action handles from the loaded manifest. Handles
 /// read 0 until Steam has loaded the IGA (which needs `run_frame` to have run and
 /// a controller to be present), so this retries every frame until everything is
 /// non-zero, then marks itself resolved and stops doing FFI work.
+///
+/// If a controller is present but the handles still haven't resolved after
+/// [`HANDLE_RESOLUTION_WARN_SECS`], warns once — that state means Steam Input
+/// isn't engaged for the pad or the action manifest never loaded (e.g. the
+/// Steamworks-backend Steam Input configuration isn't published).
 pub(crate) fn resolve_steam_input_handles(
     client: Res<Client>,
     mut handles: ResMut<SteamInputHandles>,
+    time: Res<Time>,
+    gamepads: Query<(), With<Gamepad>>,
+    mut unresolved_for: Local<f32>,
+    mut warned: Local<bool>,
 ) {
     if handles.resolved {
         return;
@@ -80,5 +93,19 @@ pub(crate) fn resolve_steam_input_handles(
     if handles.all_present() {
         handles.resolved = true;
         info!("[Steam Input] action manifest loaded; all handles resolved");
+        return;
+    }
+
+    *unresolved_for += time.delta_secs();
+    if !*warned
+        && *unresolved_for > HANDLE_RESOLUTION_WARN_SECS
+        && (!gamepads.is_empty() || !connected_controllers(&input).is_empty())
+    {
+        *warned = true;
+        warn!(
+            "[Steam Input] action handles still unresolved after {HANDLE_RESOLUTION_WARN_SECS:.0}s \
+             with a controller present — Steam Input isn't engaged for this pad or the action \
+             manifest didn't load (check the Steamworks Steam Input configuration)"
+        );
     }
 }
