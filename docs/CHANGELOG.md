@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v1.0.3] - 2026-07-24
 
 ### Changed
 - **Wizard Tower button goes straight to the Study** — after finishing a level, the Wizard Tower button on the score screen now opens the Study right away, so you can upgrade and swap your spells and talents without any extra clicks. When a co-op partner is playing with you, it opens your game mode screen instead so you can bring them straight into the next level.
