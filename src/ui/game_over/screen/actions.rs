@@ -7,8 +7,42 @@ use crate::game::input::messages::MouseClicked;
 use crate::game::resources::{CurrentLevel, GameOutcome, KillStats, TimeTravelState};
 use crate::state::AppState;
 
+use crate::networking::resources::{ConnectionState, NetworkConnection, PeerRole};
+use crate::ui::wizard_tower::WizardTowerTab;
+
 use super::super::components::*;
-use super::super::saves::{insert_wizard_tower_tab, save_dormant_roguelite_run};
+use super::super::saves::save_dormant_roguelite_run;
+
+/// Routes the score screen's "Wizard Tower" transition. Solo players land on
+/// the Study tab so spell/talent upgrades are immediately at hand between
+/// levels. A co-op host with a guest still attached lands on the active mode
+/// tab instead: its Continue button is the only flow that re-invites the guest
+/// (`start_coop_host`), and the Study panel has no way to start the next level.
+///
+/// The pre-inserted tab survives `setup_wizard_tower_layout` only because
+/// `RogueliteRunState` is still memory-resident at score-screen time, which
+/// suppresses that function's dormant-run restore branch (it would otherwise
+/// force the Roguelite tab).
+fn enter_wizard_tower(
+    commands: &mut Commands,
+    next_app_state: &mut NextState<AppState>,
+    connection: &NetworkConnection,
+    game_mode: Option<&GameMode>,
+) {
+    // Same gate as the tower's `compute_guest_pending`, so the landing tab and
+    // the co-op Continue button it carries can't disagree.
+    let coop_guest_attached =
+        connection.state == ConnectionState::Connected && connection.role == Some(PeerRole::Host);
+    let tab = if !coop_guest_attached {
+        WizardTowerTab::Study
+    } else if is_roguelite_mode(game_mode) {
+        WizardTowerTab::Roguelite
+    } else {
+        WizardTowerTab::Endless
+    };
+    commands.insert_resource(tab);
+    next_app_state.set(AppState::MetaGame);
+}
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn handle_button_actions(
@@ -22,11 +56,16 @@ pub(crate) fn handle_button_actions(
     mut active_save: ResMut<ActiveSave>,
     config: Res<GameConfig>,
     time_travel: Option<Res<TimeTravelState>>,
-    roguelite_run: Option<Res<RogueliteRunState>>,
-    roguelite_modifiers: Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
-    active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
-    game_seed: Option<Res<crate::game::seeded_rng::resources::GameSeed>>,
+    // Grouped into one tuple param to stay under Bevy's 16-param system limit;
+    // the four are always consumed together by `save_dormant_roguelite_run`.
+    (roguelite_run, roguelite_modifiers, active_toggles, game_seed): (
+        Option<Res<RogueliteRunState>>,
+        Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
+        Option<Res<crate::game::game_mode::components::ActiveToggles>>,
+        Option<Res<crate::game::seeded_rng::resources::GameSeed>>,
+    ),
     game_mode: Option<Res<GameMode>>,
+    connection: Res<NetworkConnection>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
@@ -57,8 +96,12 @@ pub(crate) fn handle_button_actions(
                             // Time travel victory: restore real level, return to tower
                             current_level.0 = tt.real_level;
                             commands.remove_resource::<TimeTravelState>();
-                            insert_wizard_tower_tab(&mut commands, game_mode.as_deref());
-                            next_app_state.set(AppState::MetaGame);
+                            enter_wizard_tower(
+                                &mut commands,
+                                &mut next_app_state,
+                                &connection,
+                                game_mode.as_deref(),
+                            );
                         }
                     } else if game_outcome.is_defeat() {
                         kill_stats.reset();
@@ -73,8 +116,12 @@ pub(crate) fn handle_button_actions(
                             &active_toggles,
                             &game_seed,
                         );
-                        insert_wizard_tower_tab(&mut commands, game_mode.as_deref());
-                        next_app_state.set(AppState::MetaGame);
+                        enter_wizard_tower(
+                            &mut commands,
+                            &mut next_app_state,
+                            &connection,
+                            game_mode.as_deref(),
+                        );
                     }
                 }
                 GameOverButtonAction::ReturnToTower => {
@@ -92,8 +139,12 @@ pub(crate) fn handle_button_actions(
                         &active_toggles,
                         &game_seed,
                     );
-                    insert_wizard_tower_tab(&mut commands, game_mode.as_deref());
-                    next_app_state.set(AppState::MetaGame);
+                    enter_wizard_tower(
+                        &mut commands,
+                        &mut next_app_state,
+                        &connection,
+                        game_mode.as_deref(),
+                    );
                 }
                 GameOverButtonAction::ReturnToMenu => {
                     kill_stats.reset();

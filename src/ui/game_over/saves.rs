@@ -12,7 +12,6 @@ use crate::game::resources::{CurrentLevel, GameOutcome, KillStats, TimeTravelSta
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
-use crate::ui::wizard_tower::WizardTowerTab;
 
 /// Saves efficiency for current level to config when entering game over screen.
 ///
@@ -289,14 +288,4 @@ pub(super) fn save_dormant_roguelite_run(
             game_seed.as_ref().map(|s| s.0),
         );
     }
-}
-
-/// Sets the appropriate wizard tower tab based on the current game mode.
-pub(super) fn insert_wizard_tower_tab(commands: &mut Commands, game_mode: Option<&GameMode>) {
-    let tab = if is_roguelite_mode(game_mode) {
-        WizardTowerTab::Roguelite
-    } else {
-        WizardTowerTab::Endless
-    };
-    commands.insert_resource(tab);
 }
