@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v1.0.4] - 2026-07-24
 
 ### Changed
 - **A new project README** — the game's open-source homepage now doubles as a guided tour: how the project is set up, how the code is organized, and an introduction to the tools behind it (the Rust language and the Bevy engine).
