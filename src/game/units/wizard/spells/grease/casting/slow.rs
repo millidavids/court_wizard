@@ -37,6 +37,7 @@ pub fn apply_grease_slow(
         (
             Without<Corpse>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,

@@ -7,6 +7,7 @@ use super::super::state::{aim_at_cursor, apply_cone_spread, gun_spawn_pos};
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::pathfinding::StagingAttacker;
 use crate::game::units::components::{
     Corpse, Health, TemporaryHitPoints, apply_spell_damage_with_team,
 };
@@ -182,7 +183,9 @@ pub fn emit_flame_ground_fire_vfx(
     }
 }
 
-/// Check flame particle collisions with enemies — apply tick damage.
+/// Check flame particle collisions with enemies — apply tick damage. Staging
+/// attackers (not yet activated at their rally point) are excluded.
+#[allow(clippy::type_complexity)]
 pub fn check_flame_collisions(
     mut commands: Commands,
     // Ghost flames (opponent's flamethrower, replicated for visuals) deal no
@@ -197,7 +200,11 @@ pub fn check_flame_collisions(
             &crate::game::units::components::Team,
             Has<SpellShield>,
         ),
-        (Without<FlameParticle>, Without<Corpse>),
+        (
+            Without<FlameParticle>,
+            Without<Corpse>,
+            Without<StagingAttacker>,
+        ),
     >,
     time: Res<Time>,
     mut damage_timer: Local<f32>,

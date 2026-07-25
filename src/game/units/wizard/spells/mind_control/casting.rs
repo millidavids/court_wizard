@@ -121,6 +121,7 @@ pub(super) fn handle_mind_control_casting(
             Without<crate::game::multiplayer::components::GhostEntity>,
             // The player's own wizard is never a valid mind-control target.
             Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     existing_controlled: Query<&MindControlled>,
@@ -388,6 +389,7 @@ fn find_nearest_enemy(
             Without<MassHysteriaTarget>,
             Without<crate::game::multiplayer::components::GhostEntity>,
             Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     cursor_pos: Option<Vec3>,
@@ -436,6 +438,7 @@ fn update_highlight(
             Without<MassHysteriaTarget>,
             Without<crate::game::multiplayer::components::GhostEntity>,
             Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     highlight: &mut HighlightState,

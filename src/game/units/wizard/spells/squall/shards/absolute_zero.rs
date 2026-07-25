@@ -11,6 +11,7 @@ use crate::game::units::wizard::components::{LocalWizard, Mana};
 use crate::game::units::wizard::spells::utils::xz_distance;
 
 /// Handles Absolute Zero: continuously drains mana, applies stacking slow + damage to units in storm.
+/// Staging attackers (not yet activated at their rally point) are excluded.
 pub(crate) fn update_absolute_zero(
     time: Res<Time>,
     // Host-only — guest's ghost SquallStorm would otherwise drain the
@@ -23,15 +24,18 @@ pub(crate) fn update_absolute_zero(
     >,
     rings: Query<Entity, With<SquallStormRing>>,
     mut wizard_query: Query<&mut Mana, With<LocalWizard>>,
-    mut units: Query<(
-        Entity,
-        &Transform,
-        &Team,
-        &mut Health,
-        Option<&mut AbsoluteZeroSlow>,
-        Option<&mut SlowMovementModifier>,
-        Option<&mut FrostAccumulation>,
-    )>,
+    mut units: Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut Health,
+            Option<&mut AbsoluteZeroSlow>,
+            Option<&mut SlowMovementModifier>,
+            Option<&mut FrostAccumulation>,
+        ),
+        Without<crate::game::pathfinding::StagingAttacker>,
+    >,
     mut commands: Commands,
 ) {
     let delta = time.delta_secs();

@@ -73,6 +73,7 @@ pub(crate) fn compute_talent_params(
 
 /// Local wizard polymorph casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn handle_polymorph_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
@@ -99,6 +100,7 @@ pub fn handle_polymorph_casting(
             Without<Corpse>,
             Without<PolymorphedModifier>,
             Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     sfx: Res<SpellSfxAssets>,

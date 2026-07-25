@@ -24,6 +24,7 @@ pub(crate) fn apply_battle_hymn_buff(
         (
             Without<crate::game::units::wizard::components::Wizard>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     talent_progress: &mut Option<

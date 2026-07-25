@@ -24,6 +24,7 @@ use crate::networking::session::MultiplayerSession;
 
 /// Updates explosion visuals, applies damage, and tracks Permafrost hits.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub(crate) fn update_ice_explosions(
     time: Res<Time>,
     mut commands: Commands,
@@ -51,7 +52,10 @@ pub(crate) fn update_ice_explosions(
             &Hitbox,
             &Team,
         ),
-        Without<IceExplosion>,
+        (
+            Without<IceExplosion>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     storms: Query<&SquallStorm, Without<crate::game::multiplayer::components::GhostSpellEffect>>,
     mut talent_progress: Option<
@@ -196,7 +200,13 @@ pub(crate) fn update_frozen_ground(
     time: Res<Time>,
     mut commands: Commands,
     mut patches: Query<(Entity, &mut FrozenGround)>,
-    mut units: Query<(Entity, &Transform, &Team, Option<&mut SlowMovementModifier>), With<Health>>,
+    mut units: Query<
+        (Entity, &Transform, &Team, Option<&mut SlowMovementModifier>),
+        (
+            With<Health>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
 ) {
     use super::super::casting::apply_or_insert_slow;
 

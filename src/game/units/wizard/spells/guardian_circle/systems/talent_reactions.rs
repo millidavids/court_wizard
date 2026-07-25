@@ -26,7 +26,11 @@ pub fn retaliating_wards_check(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        (Without<Corpse>, Without<GuardianCircleShielded>),
+        (
+            Without<Corpse>,
+            Without<GuardianCircleShielded>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
 ) {
     for (entity, shielded, temp_hp, transform, team) in &shielded_query {
@@ -64,7 +68,11 @@ pub fn martyrdom_on_death(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        (Without<Corpse>, Without<GuardianCircleShielded>),
+        (
+            Without<Corpse>,
+            Without<GuardianCircleShielded>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
 ) {
     for (corpse_entity, shielded, transform, team) in &dead_query {
@@ -101,6 +109,7 @@ pub fn chain_ward_on_death(
             Without<Corpse>,
             Without<GuardianCircleShielded>,
             Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
 ) {

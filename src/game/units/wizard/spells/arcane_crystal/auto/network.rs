@@ -37,8 +37,21 @@ pub(crate) fn crystal_network_chain(
             Without<crate::game::multiplayer::components::GhostSpellEffect>,
         ),
     >,
-    targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
-    enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    targets: Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
+    enemies: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     mut progress: ResMut<BattleTalentProgress>,
     session: Option<Res<MultiplayerSession>>,
 ) {

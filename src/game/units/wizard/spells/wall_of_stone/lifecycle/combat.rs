@@ -1,7 +1,7 @@
 use super::super::components::{LivingStoneTracker, WallHealth, WallOfStone, WallTalents};
 use super::super::constants::*;
 use crate::game::attack_cycle::GlobalAttackCycle;
-use crate::game::pathfinding::FlowFieldVelocity;
+use crate::game::pathfinding::{FlowFieldVelocity, StagingAttacker};
 use crate::game::units::components::{
     AttackTiming, Corpse, Hitbox, TargetingVelocity, TemporaryHitPoints,
 };
@@ -12,6 +12,7 @@ use bevy::prelude::*;
 /// from exploiting wall placement to permanently trap units — blocked attackers
 /// naturally converge on the walls surrounding the king rather than scattering
 /// to the nearest wall on the map.
+#[allow(clippy::type_complexity)]
 pub fn units_attack_blocking_walls(
     attack_cycle: Res<GlobalAttackCycle>,
     mut blocked_units: Query<
@@ -23,6 +24,7 @@ pub fn units_attack_blocking_walls(
             &mut AttackTiming,
             &mut crate::game::units::components::Health,
             Option<&mut TemporaryHitPoints>,
+            Has<StagingAttacker>,
         ),
         (Without<Corpse>, Without<WallOfStone>),
     >,
@@ -43,8 +45,16 @@ pub fn units_attack_blocking_walls(
 
     let king_pos = king_query.iter().next().map(|t| t.translation);
 
-    for (transform, hitbox, flow_vel, mut targeting_vel, mut attack_timing, mut health, temp_hp) in
-        &mut blocked_units
+    for (
+        transform,
+        hitbox,
+        flow_vel,
+        mut targeting_vel,
+        mut attack_timing,
+        mut health,
+        temp_hp,
+        is_staging,
+    ) in &mut blocked_units
     {
         // Only target walls if this unit has no valid path
         if !flow_vel.pathfinding_distance.is_infinite() {
@@ -88,9 +98,12 @@ pub fn units_attack_blocking_walls(
                 tracker.time_since_last_damage = 0.0;
             }
 
-            // Jagged Stone: reflect damage back to attacker
+            // Jagged Stone: reflect damage back to attacker. Skipped for staging
+            // units — reflect is spell damage, and staging units are spell-immune,
+            // even though they can still deal (and the wall still takes) melee damage.
             if let Some(talents) = wall_talents
                 && talents.0.jagged_stone
+                && !is_staging
             {
                 crate::game::units::components::apply_damage_to_unit(
                     &mut health,

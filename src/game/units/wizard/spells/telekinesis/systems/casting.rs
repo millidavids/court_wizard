@@ -61,7 +61,10 @@ pub(crate) fn handle_telekinesis_casting(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        Without<IngredientDrop>,
+        (
+            Without<IngredientDrop>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
 ) {
     let (corrected_cursor, target_assist, local_origin) = cursor_resources;
@@ -164,7 +167,10 @@ fn telekinesis_casting_logic(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        Without<IngredientDrop>,
+        (
+            Without<IngredientDrop>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     visual_assets: &SpellVisualAssets,
 ) -> bool {

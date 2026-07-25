@@ -2,12 +2,14 @@ use bevy::prelude::*;
 
 use super::super::components::*;
 use super::super::constants;
+use crate::game::pathfinding::StagingAttacker;
 use crate::game::units::components::{Corpse, Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 
 /// Process all hitscan rays — find closest enemy along each ray within cylinder radius,
-/// apply damage, then despawn the ray.
+/// apply damage, then despawn the ray. Staging attackers (not yet activated at their
+/// rally point) are excluded.
 pub fn check_hitscan_collisions(
     mut commands: Commands,
     rays: Query<(Entity, &HitscanRay)>,
@@ -20,7 +22,7 @@ pub fn check_hitscan_collisions(
             &crate::game::units::components::Team,
             Has<SpellShield>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<StagingAttacker>),
     >,
 ) {
     for (ray_entity, ray) in &rays {

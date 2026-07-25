@@ -72,7 +72,10 @@ pub(super) fn execute_storm_pickup(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        Without<IngredientDrop>,
+        (
+            Without<IngredientDrop>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     visual_assets: &SpellVisualAssets,
 ) -> bool {

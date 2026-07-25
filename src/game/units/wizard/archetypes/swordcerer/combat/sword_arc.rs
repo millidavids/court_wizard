@@ -2,6 +2,7 @@ use super::super::components::*;
 use super::super::constants::*;
 use super::super::resources::{SwordcererAssets, SwordcererPhase, SwordcererState};
 use crate::game::components::OnGameplayScreen;
+use crate::game::pathfinding::StagingAttacker;
 use crate::game::units::components::{Corpse, Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::components::Wizard;
@@ -91,8 +92,10 @@ pub(crate) fn sword_swing(
 }
 
 /// Updates sword arc visuals (rapid grow + fade) and checks collisions with
-/// enemies on the first frame.
+/// enemies on the first frame. Staging attackers (not yet activated at their
+/// rally point) are excluded.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub(crate) fn update_sword_arcs(
     time: Res<Time>,
     mut commands: Commands,
@@ -116,6 +119,7 @@ pub(crate) fn update_sword_arcs(
             Without<Corpse>,
             Without<SwordcererAvatar>,
             Without<Wizard>,
+            Without<StagingAttacker>,
         ),
     >,
 ) {

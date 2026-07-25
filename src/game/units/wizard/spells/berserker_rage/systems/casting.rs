@@ -66,7 +66,11 @@ pub fn handle_berserker_rage_casting(
             &Team,
             Option<&mut BerserkerRageModifier>,
         ),
-        (Without<Wizard>, Without<Corpse>),
+        (
+            Without<Wizard>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     audio_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),
     active_talents: Option<Res<ActiveTalents>>,

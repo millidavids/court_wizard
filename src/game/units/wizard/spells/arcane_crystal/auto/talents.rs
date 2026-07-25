@@ -25,7 +25,14 @@ pub(crate) fn resonance_cascade_burst(
         (&mut ArcaneCrystal, &mut ResonanceCascade),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
-    targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    targets: Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     mut health_query: Query<(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
@@ -76,7 +83,14 @@ pub(crate) fn crystal_aoe_burst(
     radius: f32,
     visual_height: f32,
     visual_lifetime: f32,
-    targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    targets: &Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     health_query: &mut Query<(
         &mut Health,
         Option<&mut TemporaryHitPoints>,

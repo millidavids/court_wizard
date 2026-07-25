@@ -277,6 +277,7 @@ fn healing_plume_casting_logic(
 /// Applies periodic healing to all non-corpse units within the healing plume zone.
 /// Integrates Tier 2 talents: Overflow (temp HP) and Triage Pulse (double heal below threshold).
 /// Drought synergy: healing is reduced on dry units.
+#[allow(clippy::type_complexity)]
 pub fn apply_healing_plume_heal(
     time: Res<Time>,
     mut zones: Query<(
@@ -297,6 +298,7 @@ pub fn apply_healing_plume_heal(
             Without<Corpse>,
             Without<crate::game::multiplayer::components::GhostEntity>,
             Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     mut commands: Commands,
@@ -389,6 +391,7 @@ pub fn apply_healing_plume_heal(
 }
 
 /// Tier 2: Cleansing Plume — periodically removes debuffs from all units inside the zone.
+#[allow(clippy::type_complexity)]
 pub fn apply_cleansing_plume(
     time: Res<Time>,
     mut zones: Query<(&HealingPlumeZone, &mut CleansingPlumeZone)>,
@@ -400,7 +403,11 @@ pub fn apply_cleansing_plume(
             Has<RootedModifier>,
             Has<MarkedForDeathModifier>,
         ),
-        (Without<Corpse>, Without<Wizard>),
+        (
+            Without<Corpse>,
+            Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     mut commands: Commands,
 ) {

@@ -49,6 +49,7 @@ pub fn receive_mp_forfeit(
 ///
 /// Unit positions are host-authoritative, so when the guest casts Teleport it sends
 /// a message with source/dest/radius. The host applies the actual position changes.
+#[allow(clippy::type_complexity)]
 pub fn receive_teleport_message(
     mut commands: Commands,
     mut connection: ResMut<NetworkConnection>,
@@ -65,6 +66,9 @@ pub fn receive_teleport_message(
             >,
             Without<crate::game::units::wizard::spells::teleport::components::TeleportSourceCircle>,
             Without<crate::game::units::components::Corpse>,
+            // MP has no staging phase — this filter only keeps the query type
+            // matching the shared teleport helpers.
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
 ) {

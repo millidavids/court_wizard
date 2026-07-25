@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants;
-use crate::game::pathfinding::FlowFieldVelocity;
+use crate::game::pathfinding::{FlowFieldVelocity, StagingAttacker};
 use crate::game::units::components::{
     AttackTiming, Corpse, FlockingVelocity, Health, Hitbox, MindControlled, TargetingVelocity,
     Team, TemporaryHitPoints, apply_damage_to_unit,
@@ -28,6 +28,7 @@ pub(super) fn update_traitors_mark_aura(
             Without<Corpse>,
             Without<MindControlled>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<StagingAttacker>,
         ),
     >,
 ) {
@@ -56,6 +57,7 @@ pub(super) fn update_traitors_mark_aura(
 
 /// Shared logic for confused combat: find nearest target in range and attack it.
 /// Used by both Mass Hysteria and Amnesia effects.
+#[allow(clippy::type_complexity)]
 fn confused_combat_attack(
     attacker_entity: Entity,
     attacker_pos: Vec3,
@@ -75,6 +77,7 @@ fn confused_combat_attack(
             Without<Corpse>,
             Without<crate::game::multiplayer::components::GhostEntity>,
             Without<Wizard>,
+            Without<StagingAttacker>,
         ),
     >,
 ) {
@@ -128,6 +131,7 @@ pub(super) fn tick_mass_hysteria(
 }
 
 /// Amnesia effect: confused units attack random nearby targets (friend or foe).
+#[allow(clippy::type_complexity)]
 pub(super) fn tick_amnesia_effect(
     time: Res<Time>,
     attack_cycle: Res<crate::game::attack_cycle::GlobalAttackCycle>,
@@ -154,6 +158,7 @@ pub(super) fn tick_amnesia_effect(
             Without<Corpse>,
             Without<crate::game::multiplayer::components::GhostEntity>,
             Without<Wizard>,
+            Without<StagingAttacker>,
         ),
     >,
 ) {
@@ -204,6 +209,7 @@ pub(super) fn tick_sleeper_agent(
             Without<SleeperAgentActive>,
             Without<crate::game::multiplayer::components::GhostEntity>,
             Without<Wizard>,
+            Without<StagingAttacker>,
         ),
     >,
 ) {
@@ -268,6 +274,7 @@ pub(super) fn update_mass_hysteria_targeting(
             // Exclude ghost mirror-images so hysteria steers toward real combatants.
             Without<crate::game::multiplayer::components::GhostEntity>,
             Without<Wizard>,
+            Without<StagingAttacker>,
         ),
     >,
 ) {

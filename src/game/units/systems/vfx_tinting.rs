@@ -70,6 +70,7 @@ pub fn update_persistent_effect_visuals(
                 Has<SmellyModifier>,
                 Has<BerserkerRageModifier>,
                 Has<super::super::shielder::components::ShielderDamageReduction>,
+                Has<super::super::staging_shield::StagingShieldGlow>,
                 Has<super::super::elite::EliteHealthBonus>,
                 Option<&super::super::components::UnitTypeGlow>,
                 Has<WetModifier>,
@@ -95,6 +96,7 @@ pub fn update_persistent_effect_visuals(
                 With<BerserkerRageModifier>,
                 Or<(
                     With<super::super::shielder::components::ShielderDamageReduction>,
+                    With<super::super::staging_shield::StagingShieldGlow>,
                     With<super::super::elite::EliteHealthBonus>,
                     With<super::super::components::UnitTypeGlow>,
                     With<WetModifier>,
@@ -138,7 +140,8 @@ pub fn update_persistent_effect_visuals(
             has_sickened,
             has_smelly,
             has_rage,
-            has_shield_glow,
+            has_shielder_shield,
+            has_staging_glow,
             has_elite,
             unit_type_glow,
             has_wet,
@@ -150,6 +153,9 @@ pub fn update_persistent_effect_visuals(
         // Ghost units carry `RemotePoisonEffect` (mirrored from the host's
         // `PoisonedModifier`) instead of the DoT component itself.
         let has_poisoned = has_poisoned || has_remote_poison;
+        // The staging glow is a visual-only twin of the shielder's blessing —
+        // both render the same golden pulse.
+        let has_shield_glow = has_shielder_shield || has_staging_glow;
         let has_fire = fire.is_some() || remote_fire;
         let has_frost = frost.is_some() || remote_frost;
         let has_electric = electric.is_some() || remote_electric;

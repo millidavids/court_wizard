@@ -12,7 +12,10 @@ pub fn apply_permafrost_aura(
     walls: Query<(&WallOfStone, &WallTalents), Without<Corpse>>,
     mut enemies: Query<
         (&Transform, &Team, Option<&mut SlowMovementModifier>, Entity),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     mut commands: Commands,
 ) {
@@ -90,7 +93,10 @@ pub fn collapsing_wall_explosion(
             &mut crate::game::units::components::Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
 ) {
     let radius_sq = COLLAPSING_WALL_RADIUS * COLLAPSING_WALL_RADIUS;

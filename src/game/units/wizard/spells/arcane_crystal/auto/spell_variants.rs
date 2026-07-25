@@ -34,7 +34,13 @@ pub(super) fn auto_cast_magic_missiles(
     params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    enemies: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    enemies: &Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     target_teams: TargetTeams,
 ) {
     let targets = find_random_enemies_in_range(
@@ -75,7 +81,14 @@ pub(super) fn auto_cast_fireballs(
     params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    targets: &Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
 ) {
     let enemies = find_random_targets_in_range(
         rng,
@@ -118,13 +131,23 @@ pub(super) fn auto_cast_chain_lightning(
     params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
-    health_query: &mut Query<(
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-        Has<SpellShield>,
-        &Team,
-    )>,
+    targets: &Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
+    health_query: &mut Query<
+        (
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+            &Team,
+        ),
+        Without<crate::game::pathfinding::StagingAttacker>,
+    >,
     caster_team: Team,
 ) {
     let enemies = find_random_targets_in_range(
@@ -171,7 +194,14 @@ pub(super) fn auto_cast_meteors(
     params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    targets: &Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
 ) {
     let enemies = find_random_targets_in_range(
         rng,
@@ -212,7 +242,14 @@ pub(super) fn auto_cast_fod_beams(
     params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    targets: &Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     talent_cfg: &disintegrate_systems::TalentConfig,
 ) {
     let enemies = find_random_targets_in_range(

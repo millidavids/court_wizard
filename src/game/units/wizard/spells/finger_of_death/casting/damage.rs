@@ -73,6 +73,7 @@ pub(crate) fn spawn_beam(
 /// Handles all talent effects: Soul Harvest, Finger of Undeath, Siphon Life,
 /// Necrotic Explosion, Deathmark, and Reaper's Scythe initiation.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn apply_finger_of_death_damage(
     time: Res<Time>,
     mut commands: Commands,
@@ -93,6 +94,7 @@ pub fn apply_finger_of_death_damage(
         (
             Without<Wizard>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     mut wizard_query: Query<

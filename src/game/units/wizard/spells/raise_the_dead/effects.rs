@@ -43,7 +43,10 @@ pub fn tick_plague_bearer_aura(
             Option<&mut TemporaryHitPoints>,
             Option<&mut PoisonedModifier>,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     assets: Res<SpellVisualAssets>,
 ) {
@@ -153,7 +156,10 @@ pub fn handle_undead_detonation(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     assets: Res<SpellVisualAssets>,
     mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,

@@ -16,6 +16,7 @@ use bevy::prelude::*;
 /// Applies periodic necrotic damage to all units within the cloud.
 /// Handles Toxic Weakness (vulnerability), Choking Gas (slow), Necrotic Rot (max HP reduction),
 /// and tracks units inside cloud for Plague Carrier.
+#[allow(clippy::type_complexity)]
 pub fn apply_plague_wind_damage(
     mut commands: Commands,
     time: Res<Time>,
@@ -37,7 +38,10 @@ pub fn apply_plague_wind_damage(
             Has<InsidePlagueCloud>,
             &Team,
         ),
-        Without<crate::game::multiplayer::components::GhostEntity>,
+        (
+            Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     session: Option<Res<MultiplayerSession>>,
@@ -218,7 +222,10 @@ pub fn apply_plague_carrier_dot(
             Has<SpellShield>,
             &Team,
         ),
-        Without<crate::game::multiplayer::components::GhostEntity>,
+        (
+            Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     session: Option<Res<MultiplayerSession>>,
 ) {

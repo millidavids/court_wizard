@@ -37,7 +37,14 @@ pub(crate) fn detect_chain_lightning_hits(
     groups: Query<
         &crate::game::units::wizard::spells::chain_lightning::components::ChainLightningGroup,
     >,
-    targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    targets: Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     mut health_query: Query<(
         &mut Health,
         Option<&mut TemporaryHitPoints>,

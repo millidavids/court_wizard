@@ -48,6 +48,7 @@ pub(crate) fn update_black_hole_visuals(
 
 /// Despawns black holes when they expire after LIFETIME seconds.
 /// Handles Singularity talent: deals collapse damage to all units inside on expiration.
+#[allow(clippy::type_complexity)]
 pub(crate) fn despawn_expired_black_holes(
     mut commands: Commands,
     // Host-authoritative only — guest's ghost copy is despawned by the
@@ -65,7 +66,11 @@ pub(crate) fn despawn_expired_black_holes(
             Has<SpellShield>,
             &Team,
         ),
-        (Without<Wizard>, Without<BlackHole>),
+        (
+            Without<Wizard>,
+            Without<BlackHole>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     session: Option<Res<MultiplayerSession>>,
 ) {

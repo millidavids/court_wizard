@@ -60,7 +60,10 @@ pub(super) fn apply_harvest_damage(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        Without<IngredientDrop>,
+        (
+            Without<IngredientDrop>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
 ) {
     let radius_sq = constants::HARVEST_RADIUS * constants::HARVEST_RADIUS;
@@ -198,7 +201,11 @@ pub(crate) fn update_psychic_shockwave(
     )>,
     enemies: Query<
         (Entity, &Transform, &Team),
-        (Without<PsychicShockwave>, Without<IngredientDrop>),
+        (
+            Without<PsychicShockwave>,
+            Without<IngredientDrop>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();

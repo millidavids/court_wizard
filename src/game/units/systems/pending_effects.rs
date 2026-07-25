@@ -28,6 +28,7 @@ use crate::game::units::wizard::archetypes::meteorologist::constants::{
 /// Each frame, reads all PendingDamageEffect components, determines the damage type,
 /// and either creates a new persistent effect component or stacks onto an existing one.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn process_pending_damage_effects(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
@@ -49,7 +50,13 @@ pub fn process_pending_damage_effects(
             Has<ColdModifier>,
             Has<DryModifier>,
         ),
-        Without<crate::game::multiplayer::components::GhostEntity>,
+        (
+            Without<crate::game::multiplayer::components::GhostEntity>,
+            // Defense-in-depth chokepoint: even if a future spell forgets its
+            // own staging filter and banks a PendingDamageEffect on a staging
+            // unit, it must never materialize into a DoT.
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     mut fire_query: Query<&mut FireDoT>,
     mut frost_query: Query<&mut FrostAccumulation>,

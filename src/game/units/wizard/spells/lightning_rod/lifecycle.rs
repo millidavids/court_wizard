@@ -40,6 +40,7 @@ type ArcTargetFilter = (
     Without<Corpse>,
     Without<LightningStrike>,
     Without<crate::game::multiplayer::components::GhostEntity>,
+    Without<crate::game::pathfinding::StagingAttacker>,
 );
 
 /// Compute talent parameters from active talent selections.

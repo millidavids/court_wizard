@@ -67,7 +67,10 @@ pub(crate) fn apply_meteor_explosion_damage(
             Has<SpellShield>,
             &Team,
         ),
-        Without<MeteorExplosion>,
+        (
+            Without<MeteorExplosion>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,

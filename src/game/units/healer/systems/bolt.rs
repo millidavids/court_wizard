@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::game::pathfinding::StagingAttacker;
 use crate::game::units::components::{BanishedModifier, Corpse, Health, Hitbox, Team};
 use crate::game::units::healer::components::HealBolt;
 use crate::game::units::healer::constants::HEAL_BOLT_RADIUS;
@@ -32,12 +33,17 @@ pub fn move_heal_bolts(
 }
 
 /// Checks if heal bolts have reached their targets and applies healing.
+/// Staging attackers (not yet activated at their rally point) cannot be healed.
 pub fn check_heal_bolt_arrivals(
     mut commands: Commands,
     bolts: Query<(Entity, &Transform, &HealBolt)>,
     mut targets: Query<
         (&Transform, &Hitbox, &Team, &mut Health),
-        (Without<Corpse>, Without<BanishedModifier>),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<StagingAttacker>,
+        ),
     >,
 ) {
     for (bolt_entity, bolt_transform, bolt) in &bolts {

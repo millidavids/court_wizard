@@ -11,6 +11,7 @@ use bevy::prelude::*;
 
 /// System that processes searing finale detonations.
 /// Applies burst damage once along the detonation line, then fades and despawns.
+#[allow(clippy::type_complexity)]
 pub fn update_searing_finale_detonations(
     mut commands: Commands,
     mut detonation_query: Query<(Entity, &mut SearingFinaleDetonation, &mut Transform)>,
@@ -24,7 +25,11 @@ pub fn update_searing_finale_detonations(
             Has<SpellShield>,
             &Team,
         ),
-        (Without<Wizard>, Without<SearingFinaleDetonation>),
+        (
+            Without<Wizard>,
+            Without<SearingFinaleDetonation>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     time: Res<Time>,
     session: Option<Res<MultiplayerSession>>,

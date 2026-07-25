@@ -42,6 +42,7 @@ pub(super) struct TeleportCastResult {
 /// With Swap talent: captures units at both source and destination, then swaps them.
 /// With Scatterport talent: scatters enemies to random locations instead of teleporting to dest.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub(super) fn teleport_casting_logic(
     rng: &mut impl Rng,
     input: &WizardInput,
@@ -59,6 +60,7 @@ pub(super) fn teleport_casting_logic(
             Without<TeleportDestinationCircle>,
             Without<TeleportSourceCircle>,
             Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     source_query: &Query<

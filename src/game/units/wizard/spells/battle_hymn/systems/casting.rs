@@ -22,6 +22,7 @@ use bevy::prelude::*;
 
 /// Local wizard battle hymn casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn handle_battle_hymn_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
@@ -53,6 +54,7 @@ pub fn handle_battle_hymn_casting(
         (
             Without<Wizard>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     audio_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),

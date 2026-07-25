@@ -19,6 +19,7 @@ use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::vfx::channel::ChannelingCast;
 
 /// Starts a 5-second heal channel when cooldown is ready and a valid target is in range.
+/// Staging attackers (not yet activated at their rally point) cannot be healed.
 #[allow(clippy::type_complexity)]
 pub fn healer_start_heal_channel(
     mut commands: Commands,
@@ -50,7 +51,7 @@ pub fn healer_start_heal_channel(
             Option<&Dispeller>,
             Option<&Healer>,
         ),
-        (Without<Corpse>, Without<Wizard>),
+        (Without<Corpse>, Without<Wizard>, Without<StagingAttacker>),
     >,
 ) {
     let delta = time.delta_secs();
@@ -130,7 +131,8 @@ pub fn healer_start_heal_channel(
 }
 
 /// Ticks active heal channels. When the channel completes, spawns a heal bolt
-/// at a freshly-picked valid target and starts the cooldown.
+/// at a freshly-picked valid target and starts the cooldown. Staging attackers
+/// (not yet activated at their rally point) cannot be healed.
 #[allow(clippy::type_complexity)]
 pub fn healer_tick_heal_channel(
     mut commands: Commands,
@@ -158,7 +160,7 @@ pub fn healer_tick_heal_channel(
             Option<&Dispeller>,
             Option<&Healer>,
         ),
-        (Without<Corpse>, Without<Wizard>),
+        (Without<Corpse>, Without<Wizard>, Without<StagingAttacker>),
     >,
 ) {
     let delta = time.delta_secs();

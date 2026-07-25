@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::components::FrostAccumulation;
 use crate::game::run_conditions::{
-    is_gameplay_running, is_not_mp_setup_phase, is_spell_effects_active,
+    any_exist, is_gameplay_running, is_not_mp_setup_phase, is_spell_effects_active,
 };
 
 use super::aerialist::AerialistPlugin;
@@ -235,6 +235,29 @@ impl Plugin for UnitsPlugin {
                         .run_if(any_with_component::<super::hit_flash::HitFlashVfx>),
                 )
                     .run_if(is_spell_effects_active),
+            )
+            // Staging shields are SP-only (StagingAttacker never exists in
+            // multiplayer), so gate on AppState::InGame. Note this is the
+            // ONLY gate on purpose: pause/menu states must not suspend the
+            // clear system, or RemovedComponents events read while paused
+            // could be missed and leak glows.
+            .add_systems(
+                Update,
+                (
+                    super::staging_shield::apply_staging_shield_glow
+                        .run_if(any_exist::<crate::game::pathfinding::StagingAttacker>()),
+                    // Gate the clear on the glow marker, not StagingAttacker:
+                    // the frame the last wave activates has zero stagers
+                    // left, which would skip this system and leak that
+                    // frame's RemovedComponents events. The activating units
+                    // still carry the marker, so this gate is self-consistent.
+                    super::staging_shield::clear_staging_shield_glow
+                        .run_if(any_with_component::<super::staging_shield::StagingShieldGlow>),
+                    #[cfg(debug_assertions)]
+                    super::staging_shield::warn_on_staging_spell_effects
+                        .run_if(any_exist::<crate::game::pathfinding::StagingAttacker>()),
+                )
+                    .run_if(in_state(crate::state::AppState::InGame)),
             );
     }
 }

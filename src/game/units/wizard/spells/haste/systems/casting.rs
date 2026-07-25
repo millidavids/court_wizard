@@ -83,7 +83,11 @@ pub fn handle_haste_casting(
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut targets_query: Query<
         (Entity, &Transform, Option<&mut HasteModifier>),
-        (Without<Wizard>, Without<GhostEntity>),
+        (
+            Without<Wizard>,
+            Without<GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     audio_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),
     active_talents: Option<Res<ActiveTalents>>,
@@ -253,7 +257,11 @@ pub(crate) fn apply_haste_buff(
     talent_params: &HasteTalentParams,
     targets: &mut Query<
         (Entity, &Transform, Option<&mut HasteModifier>),
-        (Without<Wizard>, Without<GhostEntity>),
+        (
+            Without<Wizard>,
+            Without<GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
 ) -> u32 {
     let mut modifier = constants::HASTE_MODIFIER * empowerment * talent_params.speed_mult;

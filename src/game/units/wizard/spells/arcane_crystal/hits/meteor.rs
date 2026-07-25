@@ -31,7 +31,14 @@ pub(crate) fn detect_meteor_hits(
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
     meteors: Query<(Entity, &Transform, &MeteorProjectile)>,
-    targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    targets: Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     mut progress: ResMut<BattleTalentProgress>,
 ) {
     let mini_radius = meteor_fall_constants::METEOR_MESH_RADIUS * SIZE_SCALE;

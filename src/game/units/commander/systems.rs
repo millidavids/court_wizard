@@ -14,6 +14,8 @@ use crate::game::units::wizard::components::Wizard;
 /// When multiple auras overlap, the maximum buff value is applied.
 pub fn apply_commander_auras(
     mut commands: Commands,
+    // Staging commanders project no aura (and don't self-buff): staging is a
+    // no-advantage phase, and a speed aura would even skew march arrival times.
     commanders: Query<
         (
             Entity,
@@ -22,9 +24,19 @@ pub fn apply_commander_auras(
             Option<&AuraDamageBuff>,
             Option<&AuraSpeedBuff>,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
-    affected_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<Wizard>)>,
+    affected_units: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     // Reused across frames so we don't heap-allocate a fresh map every tick.
     mut units_in_aura: Local<HashMap<Entity, (Option<f32>, Option<f32>)>>,
 ) {

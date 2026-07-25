@@ -52,6 +52,7 @@ pub(crate) fn spawn_deaths_ledger_explosion(
 }
 
 /// Apply AoE damage from Death's Ledger explosions (one-shot).
+#[allow(clippy::type_complexity)]
 pub fn apply_deaths_ledger_damage(
     mut commands: Commands,
     mut explosions: Query<(&Transform, &mut DeathsLedgerBurst)>,
@@ -64,7 +65,11 @@ pub fn apply_deaths_ledger_damage(
             Has<SpellShield>,
             &Team,
         ),
-        (Without<Wizard>, Without<Corpse>),
+        (
+            Without<Wizard>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     session: Option<Res<MultiplayerSession>>,
 ) {

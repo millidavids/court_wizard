@@ -44,7 +44,13 @@ pub fn handle_guardian_circle_casting(
     ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
-    mut targets_query: Query<(Entity, &Transform, &Team), Without<Wizard>>,
+    mut targets_query: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     mut attacker_hit_msg: MessageWriter<GuardianCircleHitAttackerMessage>,
     audio_ctx: (Res<SpellSfxAssets>, Res<GameConfig>),
     talent_resources: (

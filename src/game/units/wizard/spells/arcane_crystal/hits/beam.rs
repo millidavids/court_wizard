@@ -40,7 +40,14 @@ pub(crate) fn detect_beam_hits(
     disintegrate_beams: Query<&DisintegrateBeam, Without<CrystalSpawn>>,
     fod_beams: Query<(Entity, &FingerOfDeathBeam)>,
     mut crystal_beams: Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
-    targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    targets: Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     active_talents: Option<Res<ActiveTalents>>,
     mut progress: ResMut<BattleTalentProgress>,
 ) {

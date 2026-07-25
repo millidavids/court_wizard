@@ -49,6 +49,7 @@ pub fn process_chain_lightning_bounces(
             Without<Corpse>,
             Without<crate::game::multiplayer::components::GhostEntity>,
             Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     mut rods: Query<(Entity, &Transform, &mut LightningRod)>,
@@ -359,6 +360,7 @@ fn find_next_bounce_targets(
             Without<Corpse>,
             Without<crate::game::multiplayer::components::GhostEntity>,
             Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     rods: &Query<(Entity, &Transform, &mut LightningRod)>,
@@ -392,7 +394,7 @@ fn find_next_bounce_targets(
         }
     };
 
-    // No team filter — spell damages ALL units indiscriminately.
+    // No team filter — spell damages ALL units indiscriminately (except staging attackers, who are excluded).
     for (entity, transform, _, _, _, _) in enemies.iter() {
         try_push(entity, transform.translation, &mut candidates);
     }

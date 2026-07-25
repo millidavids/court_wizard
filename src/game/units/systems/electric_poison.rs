@@ -48,7 +48,15 @@ pub fn update_shocked(
             Without<crate::game::multiplayer::components::GhostEntity>,
         ),
     >,
-    target_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    target_query: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            // Electric arcs are spell damage — they must not jump to
+            // spell-immune staging attackers.
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     mut health_query: Query<
         (
             &mut Health,
@@ -260,13 +268,19 @@ pub fn update_electric_arc_visuals(
 pub fn update_airborne_units(
     mut commands: Commands,
     time: Res<Time>,
-    mut units: Query<(
-        Entity,
-        &mut Transform,
-        &mut Airborne,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-    )>,
+    mut units: Query<
+        (
+            Entity,
+            &mut Transform,
+            &mut Airborne,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
+        // Defense-in-depth chokepoint: a staging unit must never be airborne
+        // (all launch sources are staging-filtered), but if a future spell
+        // forgets its filter this keeps fall damage off spell-immune units.
+        Without<crate::game::pathfinding::StagingAttacker>,
+    >,
 ) {
     let delta = time.delta_secs();
     for (entity, mut transform, mut airborne, mut health, mut temp_hp) in &mut units {

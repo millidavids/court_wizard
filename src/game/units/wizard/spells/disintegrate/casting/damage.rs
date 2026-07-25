@@ -30,7 +30,10 @@ pub fn apply_disintegrate_damage(
             Has<SpellShield>,
             &Team,
         ),
-        Without<Wizard>,
+        (
+            Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     time: Res<Time>,
     visual_assets: Res<SpellVisualAssets>,

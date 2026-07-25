@@ -41,14 +41,30 @@ pub(crate) fn auto_cast_remembered_spell(
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
     mut crystal_beams: Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
-    targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
-    enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
-    mut health_query: Query<(
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-        Has<SpellShield>,
-        &Team,
-    )>,
+    targets: Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
+    enemies: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
+    mut health_query: Query<
+        (
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+            &Team,
+        ),
+        Without<crate::game::pathfinding::StagingAttacker>,
+    >,
     active_talents: Option<Res<ActiveTalents>>,
     session: Option<Res<MultiplayerSession>>,
 ) {
@@ -228,7 +244,14 @@ fn handle_auto_disintegrate(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     crystal_beams: &mut Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
-    targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    targets: &Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     crystals: &mut Query<
         (Entity, &mut ArcaneCrystal),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,

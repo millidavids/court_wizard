@@ -130,7 +130,16 @@ pub fn apply_burning_bush_damage(
     mut commands: Commands,
     time: Res<Time>,
     mut burning_bushes: Query<(&Bush, &mut BurningBush)>,
-    mut units: Query<(Entity, &Transform, Option<&mut FireDoT>, Has<SpellShield>), Without<Corpse>>,
+    mut units: Query<
+        (Entity, &Transform, Option<&mut FireDoT>, Has<SpellShield>),
+        (
+            Without<Corpse>,
+            // Staging attackers are spell-immune, and terrain fire spread by
+            // spells must not burn them either (lava is the only sanctioned
+            // environmental damage during staging).
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
 ) {
     let delta = time.delta_secs();
 

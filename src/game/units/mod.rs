@@ -26,6 +26,7 @@ mod sets;
 pub(crate) mod shielder;
 mod spawning;
 pub(crate) mod spell_stats;
+pub(in crate::game) mod staging_shield;
 pub(crate) mod status_effects;
 pub(in crate::game) mod systems;
 pub(in crate::game) mod teleporter;

@@ -112,6 +112,7 @@ pub fn handle_teleport_cancel(
 
 /// Local wizard Teleport casting — reads mouse input, manages indicator circles.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn handle_teleport_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
@@ -151,6 +152,7 @@ pub fn handle_teleport_casting(
             Without<TeleportDestinationCircle>,
             Without<TeleportSourceCircle>,
             Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     target_assist: Res<TargetAssistWorldPos>,

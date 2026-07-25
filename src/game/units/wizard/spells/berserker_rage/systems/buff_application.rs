@@ -66,7 +66,11 @@ pub(crate) fn apply_berserker_rage_buff(
             &Team,
             Option<&mut BerserkerRageModifier>,
         ),
-        (Without<Wizard>, Without<Corpse>),
+        (
+            Without<Wizard>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
 ) -> u32 {
     // Apply Wrath Incarnate override if active

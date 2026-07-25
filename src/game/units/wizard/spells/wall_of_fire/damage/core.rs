@@ -7,7 +7,9 @@ use super::super::constants;
 use super::super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::multiplayer::components::{GhostEntity, GhostSpellEffect};
-use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
+use crate::game::pathfinding::{
+    OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType, StagingAttacker,
+};
 use crate::game::terrain::messages::TerrainDamageMessage;
 use crate::game::units::components::{
     Health, ResidualFireDamaged, Team, TemporaryHitPoints, apply_spell_damage_with_team,
@@ -27,6 +29,7 @@ const WALL_SMOKE_INTERVAL: f32 = 0.25;
 /// Applies periodic fire damage to all units within the wall's rectangular area.
 /// Also marks units as InsideWallOfFire for talent tracking and applies Searing Heat.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn apply_wall_of_fire_damage(
     mut commands: Commands,
     time: Res<Time>,
@@ -42,7 +45,7 @@ pub fn apply_wall_of_fire_damage(
             Option<&SearingHeatDebuff>,
             &Team,
         ),
-        Without<GhostEntity>,
+        (Without<GhostEntity>, Without<StagingAttacker>),
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     mut terrain_damage: MessageWriter<TerrainDamageMessage>,

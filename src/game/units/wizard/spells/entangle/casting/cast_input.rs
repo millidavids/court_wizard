@@ -100,7 +100,14 @@ pub fn handle_entangle_casting(
     ),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
-    targets_query: Query<(Entity, &Transform, &Team), (Without<Wizard>, Without<Corpse>)>,
+    targets_query: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Wizard>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     messages: (
         MessageWriter<EntangleHitDefenderMessage>,
         MessageWriter<ObstacleChanged>,

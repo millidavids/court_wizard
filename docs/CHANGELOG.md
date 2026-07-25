@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Changed
+- **Marching armies are now protected by shields** — enemy waves walking to their battle positions glow with the same golden shield blessing that shielder enemies use, and can't be harmed, moved, or slowed by any spell until their wave charges into battle. The glow fades the moment the wave wakes up. No more wiping out an entire army before the fight even starts!
+- **No sneaky boosts during the march either** — enemy healers and shielders can no longer patch up or protect their allies while those allies are still marching in, and helpful magic can't reach marching units at all. Nobody gets an edge until the battle actually begins.
+
 ## [v1.0.4] - 2026-07-24
 
 ### Changed

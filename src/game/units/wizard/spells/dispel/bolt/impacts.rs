@@ -7,7 +7,7 @@ use super::suppress::{
 use crate::game::components::OnGameplayScreen;
 use crate::game::game_mode::components::ActiveToggles;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::pathfinding::ObstacleChanged;
+use crate::game::pathfinding::{ObstacleChanged, StagingAttacker};
 use crate::game::units::components::{
     BattleHymnModifier, BerserkerRageModifier, Corpse, FogEvasionModifier, HasteModifier, Health,
     MindControlled, Petrified, Team, TemporaryHitPoints, apply_spell_damage,
@@ -80,7 +80,11 @@ pub fn update_dispel_impacts(
             Has<MindControlled>,
             Has<Petrified>,
         ),
-        (Without<Corpse>, Without<DispelImpact>),
+        (
+            Without<Corpse>,
+            Without<DispelImpact>,
+            Without<StagingAttacker>,
+        ),
     >,
 ) {
     let (mut progress, active_toggles) = progress_and_toggles;

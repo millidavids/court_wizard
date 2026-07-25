@@ -31,6 +31,7 @@ pub fn update_deathmark_debuffs(
         (
             Without<Wizard>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     visual_assets: Res<SpellVisualAssets>,
@@ -93,6 +94,7 @@ pub fn update_deathmark_debuffs(
 
 /// Updates Reaper's Scythe sweep — rotates beam through arc and damages targets.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn update_reapers_scythe(
     mut commands: Commands,
     time: Res<Time>,
@@ -112,6 +114,7 @@ pub fn update_reapers_scythe(
         (
             Without<Wizard>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,

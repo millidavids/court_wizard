@@ -25,7 +25,14 @@ pub(crate) fn apply_entangle(
     circle_pos: Vec3,
     radius: f32,
     root_duration: f32,
-    targets: &Query<(Entity, &Transform, &Team), (Without<Wizard>, Without<Corpse>)>,
+    targets: &Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Wizard>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     defender_hit_msg: &mut MessageWriter<EntangleHitDefenderMessage>,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
     talent_params: &EntangleTalentParams,

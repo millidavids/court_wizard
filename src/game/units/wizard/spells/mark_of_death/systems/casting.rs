@@ -36,7 +36,13 @@ pub fn handle_mark_of_death_casting(
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
-    enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    enemies_query: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     // Only the caster's OWN marks carry `MarkedForDeathModifier`. In multiplayer
     // the guest's ghost units also carry a BARE `ActiveMarkOfDeath` mirrored from
     // the host's marks — filtering on the modifier keeps a guest recast from
@@ -116,7 +122,13 @@ fn mark_of_death_casting_logic(
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
     commands: &mut Commands,
-    enemies_query: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    enemies_query: &Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     existing_marks: &Query<Entity, (With<ActiveMarkOfDeath>, With<MarkedForDeathModifier>)>,
     active_talents: Option<&ActiveTalents>,
     talent_progress: &mut Option<

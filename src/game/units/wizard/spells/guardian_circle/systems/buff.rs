@@ -21,7 +21,13 @@ pub(crate) fn apply_guardian_circle_buff(
     temp_hp_amount: f32,
     duration: f32,
     empowerment: f32,
-    targets: &mut Query<(Entity, &Transform, &Team), Without<Wizard>>,
+    targets: &mut Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     attacker_hit_msg: &mut MessageWriter<GuardianCircleHitAttackerMessage>,
     talent_progress: &mut Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
@@ -146,7 +152,11 @@ pub(crate) fn deal_aoe_force_damage(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        (Without<Corpse>, Without<GuardianCircleShielded>),
+        (
+            Without<Corpse>,
+            Without<GuardianCircleShielded>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
 ) {
     for (entity, transform, team, mut health, temp_hp) in targets.iter_mut() {

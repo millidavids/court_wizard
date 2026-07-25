@@ -39,6 +39,7 @@ pub fn handle_pig_movement(
 }
 
 /// Dire Sheep: friendly sheep that moves toward and attacks nearby enemies.
+#[allow(clippy::type_complexity)]
 pub fn tick_dire_sheep(
     mut commands: Commands,
     time: Res<Time>,
@@ -55,7 +56,11 @@ pub fn tick_dire_sheep(
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
         ),
-        (Without<Corpse>, Without<PolymorphedModifier>),
+        (
+            Without<Corpse>,
+            Without<PolymorphedModifier>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     mut velocity_query: Query<&mut crate::game::components::Velocity>,
 ) {

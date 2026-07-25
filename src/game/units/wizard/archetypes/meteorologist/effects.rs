@@ -10,6 +10,7 @@ use super::messages::WeatherChangedMessage;
 use super::resources::{WeatherState, WeatherType};
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
+use crate::game::pathfinding::StagingAttacker;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit, apply_spell_damage_with_team,
 };
@@ -40,7 +41,7 @@ pub fn storm_lightning(
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<StagingAttacker>),
     >,
     session: Option<Res<MultiplayerSession>>,
 ) {
@@ -188,6 +189,7 @@ pub fn storm_lightning(
 }
 
 /// Ticks and despawns burning patches, dealing damage to units inside.
+/// Staging attackers (not yet activated at their rally point) are excluded.
 pub fn update_burning_patches(
     mut commands: Commands,
     time: Res<Time>,
@@ -199,7 +201,7 @@ pub fn update_burning_patches(
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<StagingAttacker>),
     >,
 ) {
     let delta = time.delta_secs();

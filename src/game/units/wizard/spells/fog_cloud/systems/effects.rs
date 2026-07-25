@@ -3,6 +3,7 @@ use super::super::components::{
 };
 use super::super::constants;
 use crate::game::multiplayer::components::{GhostEntity, GhostSpellEffect};
+use crate::game::pathfinding::StagingAttacker;
 use crate::game::units::components::{Corpse, FogEvasionModifier, Health, Team};
 use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::utils::xz_distance;
@@ -17,7 +18,12 @@ pub fn apply_fog_cloud_evasion(
     mut zones: Query<&mut FogCloudZone, Without<GhostSpellEffect>>,
     mut targets: Query<
         (Entity, &Transform, Option<&mut FogEvasionModifier>),
-        (Without<Corpse>, Without<GhostEntity>, Without<Wizard>),
+        (
+            Without<Corpse>,
+            Without<GhostEntity>,
+            Without<Wizard>,
+            Without<StagingAttacker>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();
@@ -50,7 +56,12 @@ pub fn apply_blinding_mist(
     zones: Query<(&FogCloudZone, &BlindingMistZone), Without<GhostSpellEffect>>,
     mut targets: Query<
         (Entity, &Transform, Option<&mut BlindingMistDebuff>),
-        (Without<Corpse>, Without<GhostEntity>, Without<Wizard>),
+        (
+            Without<Corpse>,
+            Without<GhostEntity>,
+            Without<Wizard>,
+            Without<StagingAttacker>,
+        ),
     >,
 ) {
     for (zone, _) in &zones {
@@ -84,13 +95,19 @@ pub fn tick_blinding_mist_debuff(
 }
 
 /// Tier 3: Choking Fog — deal minor DPS to non-ally units inside the fog.
+/// Staging attackers (not yet activated at their rally point) are excluded.
 #[allow(clippy::type_complexity)]
 pub fn apply_choking_fog_damage(
     time: Res<Time>,
     mut zones: Query<(&FogCloudZone, &mut ChokingFogZone), Without<GhostSpellEffect>>,
     mut targets: Query<
         (&Transform, &Team, &mut Health),
-        (Without<Corpse>, Without<GhostEntity>, Without<Wizard>),
+        (
+            Without<Corpse>,
+            Without<GhostEntity>,
+            Without<Wizard>,
+            Without<StagingAttacker>,
+        ),
     >,
 ) {
     // Multiplayer setup stage: units are immune to damage.

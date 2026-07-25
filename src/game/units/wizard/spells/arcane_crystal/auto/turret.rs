@@ -30,7 +30,13 @@ pub(crate) fn auto_crystal_fire(
         ),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
-    enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    enemies: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     mut progress: ResMut<BattleTalentProgress>,
     session: Option<Res<MultiplayerSession>>,
 ) {

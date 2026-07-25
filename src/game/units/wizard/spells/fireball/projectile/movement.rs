@@ -41,7 +41,12 @@ pub fn check_fireball_collisions(
         ),
         Without<crate::game::multiplayer::components::GhostSpellProjectile>,
     >,
-    targets: Query<(&Transform, &Team, &Hitbox)>,
+    // Fireballs fly straight through staging units — detonating on a
+    // spell-immune hitbox would waste the spell at the wrong location.
+    targets: Query<
+        (&Transform, &Team, &Hitbox),
+        Without<crate::game::pathfinding::StagingAttacker>,
+    >,
     walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
     rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
     sfx: Res<SpellSfxAssets>,

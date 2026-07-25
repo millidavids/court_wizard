@@ -106,6 +106,7 @@ pub fn update_explosions(
 }
 
 /// Applies damage to units hit by the explosion on a tick interval.
+#[allow(clippy::type_complexity)]
 pub fn apply_explosion_damage(
     mut commands: Commands,
     // Host-only — ghost fireball/ScorchedEarth/NapalmTrail explosions
@@ -126,7 +127,10 @@ pub fn apply_explosion_damage(
             Has<SpellShield>,
             Option<&MarkedForDeathModifier>,
         ),
-        Without<crate::game::multiplayer::components::GhostEntity>,
+        (
+            Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     mut talent_progress: Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,

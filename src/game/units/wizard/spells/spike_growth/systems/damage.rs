@@ -3,6 +3,7 @@ use super::super::components::{
 };
 use super::super::constants;
 use crate::game::multiplayer::components::{GhostEntity, GhostSpellEffect};
+use crate::game::pathfinding::StagingAttacker;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Health, RootedModifier, SlowMovementModifier, Team, TemporaryHitPoints,
@@ -38,7 +39,7 @@ pub fn apply_spike_growth_damage(
             Option<&mut ZonePresenceTracker>,
             &Team,
         ),
-        Without<GhostEntity>,
+        (Without<GhostEntity>, Without<StagingAttacker>),
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     session: Option<Res<MultiplayerSession>>,
@@ -190,7 +191,7 @@ pub fn tick_lingering_poison(
             Has<SpellShield>,
             &Team,
         ),
-        Without<GhostEntity>,
+        (Without<GhostEntity>, Without<StagingAttacker>),
     >,
     session: Option<Res<MultiplayerSession>>,
 ) {
@@ -243,7 +244,11 @@ pub fn update_spike_storm_projectiles(
             Has<SpellShield>,
             &Team,
         ),
-        (Without<SpikeStormProjectile>, Without<GhostEntity>),
+        (
+            Without<SpikeStormProjectile>,
+            Without<GhostEntity>,
+            Without<StagingAttacker>,
+        ),
     >,
     session: Option<Res<MultiplayerSession>>,
 ) {

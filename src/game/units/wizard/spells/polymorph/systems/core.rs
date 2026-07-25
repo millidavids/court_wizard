@@ -95,6 +95,7 @@ pub(crate) fn apply_polymorph_to_target(
 
 /// Core polymorph casting logic. Returns the number of enemies polymorphed (0 if cancelled/failed).
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub(crate) fn polymorph_casting_logic(
     input: &WizardInput,
     time: &Time,
@@ -116,6 +117,7 @@ pub(crate) fn polymorph_casting_logic(
             Without<Corpse>,
             Without<PolymorphedModifier>,
             Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     talent_params: &PolymorphTalentParams,

@@ -2,8 +2,8 @@ use bevy::prelude::*;
 
 use super::super::components::MeteorGroundFire;
 use super::super::constants::*;
-use crate::game::pathfinding::OBSTACLE_BUFFER;
 use crate::game::pathfinding::resources::PathfindingGrid;
+use crate::game::pathfinding::{OBSTACLE_BUFFER, StagingAttacker};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Health, Team, TemporaryHitPoints, apply_spell_damage_with_team,
@@ -59,14 +59,17 @@ pub(crate) fn apply_ground_fire_damage(
         &mut MeteorGroundFire,
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
-    mut units: Query<(
-        Entity,
-        &Transform,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-        Has<SpellShield>,
-        &Team,
-    )>,
+    mut units: Query<
+        (
+            Entity,
+            &Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+            &Team,
+        ),
+        Without<StagingAttacker>,
+    >,
     session: Option<Res<MultiplayerSession>>,
 ) {
     let delta = time.delta_secs();

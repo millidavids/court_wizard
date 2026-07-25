@@ -28,7 +28,12 @@ pub fn move_magic_missiles(
     mut missiles: Query<(&mut Transform, &mut MagicMissile)>,
     targets: Query<
         (Entity, &Transform, &Team),
-        (Without<MagicMissile>, Without<Corpse>, Without<Wizard>),
+        (
+            Without<MagicMissile>,
+            Without<Corpse>,
+            Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     crystal_transforms: Query<&Transform, (With<ArcaneCrystal>, Without<MagicMissile>)>,
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -228,7 +233,12 @@ pub fn check_magic_missile_collisions(
             &Team,
             Has<SpellShield>,
         ),
-        (Without<MagicMissile>, Without<Corpse>, Without<Wizard>),
+        (
+            Without<MagicMissile>,
+            Without<Corpse>,
+            Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     walls: Query<&WallOfStone>,
     rocks: Query<&crate::game::terrain::boulder::components::Boulder>,

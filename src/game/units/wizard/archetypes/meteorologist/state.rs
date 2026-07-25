@@ -7,6 +7,7 @@ use super::constants::*;
 use super::messages::WeatherChangedMessage;
 use super::resources::{WeatherState, WeatherType};
 use crate::config::input_bindings::InputBindings;
+use crate::game::pathfinding::StagingAttacker;
 use crate::game::units::components::{Corpse, Health, Shocked};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{LocalWizard, Mana, Wizard};
@@ -122,15 +123,49 @@ pub fn tick_weather_timers(time: Res<Time>, mut weather: ResMut<WeatherState>) {
     ramp_slot(&mut weather.remote, delta);
 }
 
-/// Applies or removes weather status components on all living units.
+/// Applies or removes weather status components on all living units. Staging
+/// attackers (not yet activated at their rally point) are excluded from newly
+/// applied effects.
 #[allow(clippy::too_many_arguments)]
 pub fn apply_weather_status(
     mut commands: Commands,
     weather: Res<WeatherState>,
-    units_without_wet: Query<Entity, (Without<Corpse>, Without<WetModifier>, With<Health>)>,
-    units_without_cold: Query<Entity, (Without<Corpse>, Without<ColdModifier>, With<Health>)>,
-    units_without_dry: Query<Entity, (Without<Corpse>, Without<DryModifier>, With<Health>)>,
-    units_without_charged: Query<Entity, (Without<Corpse>, Without<ChargedModifier>, With<Health>)>,
+    units_without_wet: Query<
+        Entity,
+        (
+            Without<Corpse>,
+            Without<WetModifier>,
+            With<Health>,
+            Without<StagingAttacker>,
+        ),
+    >,
+    units_without_cold: Query<
+        Entity,
+        (
+            Without<Corpse>,
+            Without<ColdModifier>,
+            With<Health>,
+            Without<StagingAttacker>,
+        ),
+    >,
+    units_without_dry: Query<
+        Entity,
+        (
+            Without<Corpse>,
+            Without<DryModifier>,
+            With<Health>,
+            Without<StagingAttacker>,
+        ),
+    >,
+    units_without_charged: Query<
+        Entity,
+        (
+            Without<Corpse>,
+            Without<ChargedModifier>,
+            With<Health>,
+            Without<StagingAttacker>,
+        ),
+    >,
     _units_with_wet: Query<Entity, With<WetModifier>>,
     units_with_cold: Query<Entity, With<ColdModifier>>,
     units_with_dry: Query<Entity, With<DryModifier>>,
@@ -230,7 +265,8 @@ pub fn update_weather_intensity(
     }
 }
 
-/// Spreads Shocked from shocked units to nearby wet units.
+/// Spreads Shocked from shocked units to nearby wet units. Staging attackers
+/// (not yet activated at their rally point) are excluded.
 /// Works for any source of Wet (ponds or storm weather).
 pub fn spread_shock_to_wet(
     mut commands: Commands,
@@ -238,7 +274,7 @@ pub fn spread_shock_to_wet(
     shocked_wet: Query<(&Transform, &Shocked, &WetModifier), Without<Corpse>>,
     wet_targets: Query<
         (Entity, &Transform, Has<Shocked>, Has<SpellShield>),
-        (With<WetModifier>, Without<Corpse>),
+        (With<WetModifier>, Without<Corpse>, Without<StagingAttacker>),
     >,
 ) {
     // Use storm intensity for spread radius if any storm is active, else base.

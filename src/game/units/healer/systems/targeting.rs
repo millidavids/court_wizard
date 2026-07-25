@@ -40,7 +40,14 @@ pub fn update_healer_targeting(
             Option<&Dispeller>,
             Option<&Healer>,
         ),
-        (Without<Corpse>, Without<BanishedModifier>, Without<Wizard>),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<Wizard>,
+            // Match the channel systems' filter — otherwise a healer locks
+            // onto a hurt staging ally it can never actually heal.
+            Without<StagingAttacker>,
+        ),
     >,
     all_units: Query<
         (Entity, &Transform, &Team),

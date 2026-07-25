@@ -20,6 +20,7 @@ pub(crate) fn apply_gravitational_forces(
             Without<Wizard>,
             Without<BlackHole>,
             Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     time: Res<Time>,

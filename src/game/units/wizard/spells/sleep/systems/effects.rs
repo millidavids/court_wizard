@@ -13,7 +13,14 @@ pub(crate) fn apply_sleep(
     circle_pos: Vec3,
     radius: f32,
     empowerment: f32,
-    targets: &Query<(Entity, &Transform, &Health, &Team), (Without<Corpse>, Without<Wizard>)>,
+    targets: &Query<
+        (Entity, &Transform, &Health, &Team),
+        (
+            Without<Corpse>,
+            Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     talent_params: &SleepTalentParams,
 ) -> u32 {
     let duration = constants::SLEEP_DURATION * empowerment * talent_params.duration_mult;

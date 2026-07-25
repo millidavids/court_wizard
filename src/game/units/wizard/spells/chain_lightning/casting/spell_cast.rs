@@ -52,7 +52,14 @@ pub fn handle_chain_lightning_casting(
         Res<TargetAssistWorldPos>,
         Res<LocalSpellOrigin>,
     ),
-    enemies_query: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<Wizard>)>,
+    enemies_query: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     rods_query: Query<(Entity, &Transform, &mut LightningRod)>,
     crystals_query: Query<(Entity, &Transform), With<ArcaneCrystal>>,
     mut health_query: Query<(
@@ -139,7 +146,14 @@ fn chain_lightning_casting_logic(
     primed_spell: &PrimedSpell,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    enemies_query: &Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<Wizard>)>,
+    enemies_query: &Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     rods_query: &Query<(Entity, &Transform, &mut LightningRod)>,
     crystals_query: &Query<(Entity, &Transform), With<ArcaneCrystal>>,
     health_query: &mut Query<(
@@ -289,7 +303,14 @@ fn chain_lightning_casting_logic(
 /// Note: position should be at Y=0 (battlefield plane). Uses XZ distance for targeting.
 fn find_target_near_position_excluding(
     position: Vec3,
-    enemies: &Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<Wizard>)>,
+    enemies: &Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     rods: &Query<(Entity, &Transform, &mut LightningRod)>,
     crystals: &Query<(Entity, &Transform), With<ArcaneCrystal>>,
     exclude: &[Entity],

@@ -28,7 +28,14 @@ pub(crate) fn detect_fireball_hits(
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
     explosions: Query<(Entity, &FireballExplosion), Without<CrystalSpawn>>,
-    targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    targets: Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     mut progress: ResMut<BattleTalentProgress>,
 ) {
     for (explosion_entity, explosion) in &explosions {

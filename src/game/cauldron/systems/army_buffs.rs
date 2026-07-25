@@ -97,7 +97,14 @@ pub fn apply_cauldron_speed_modifiers(
     session: Option<Res<crate::networking::session::MultiplayerSession>>,
     units: Query<
         (Entity, &Team, Option<&CauldronSpeedModifier>),
-        (Without<Corpse>, Without<Wizard>),
+        (
+            Without<Corpse>,
+            Without<Wizard>,
+            // Staging attackers can't be slowed (or sped up) by brews —
+            // they're immune to all spell-side effects until their wave
+            // activates. Harmless in MP: StagingAttacker never exists there.
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
 ) {
     let defender_bonus = cauldron_buffs.defender_speed_bonus();

@@ -32,7 +32,13 @@ pub(crate) fn detect_magic_missile_hits(
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
     missiles: Query<(Entity, &Transform, &MagicMissile), Without<CrystalSpawn>>,
-    enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    enemies: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     mut progress: ResMut<BattleTalentProgress>,
     session: Option<Res<MultiplayerSession>>,
 ) {

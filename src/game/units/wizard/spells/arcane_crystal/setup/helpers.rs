@@ -109,7 +109,14 @@ pub(crate) fn find_random_targets_in_range(
     crystal_pos: Vec3,
     range: f32,
     count: usize,
-    units: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    units: &Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
 ) -> Vec<(Entity, Vec3)> {
     let mut candidates: Vec<(Entity, Vec3)> = units
         .iter()
@@ -153,7 +160,13 @@ pub(crate) fn find_random_enemies_in_range(
     crystal_pos: Vec3,
     range: f32,
     count: usize,
-    units: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    units: &Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     target_teams: crate::game::units::wizard::spells::magic_missile::components::TargetTeams,
 ) -> Vec<(Entity, Vec3)> {
     let mut candidates: Vec<(Entity, Vec3)> = units

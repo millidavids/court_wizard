@@ -11,6 +11,7 @@ use crate::game::units::components::{Airborne, Corpse, Team, Teleportable};
 use crate::game::units::wizard::spells::utils::xz_distance;
 
 /// Computes talent parameters from active talent selections.
+#[allow(clippy::type_complexity)]
 pub(crate) fn execute_teleport(
     rng: &mut impl Rng,
     source_center: Vec3,
@@ -23,6 +24,7 @@ pub(crate) fn execute_teleport(
             Without<TeleportDestinationCircle>,
             Without<TeleportSourceCircle>,
             Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     commands: &mut Commands,
@@ -64,6 +66,7 @@ pub(crate) fn execute_teleport(
 
 /// Up: teleports all units within radius straight up into the air.
 /// They fall back down and take fall damage on landing.
+#[allow(clippy::type_complexity)]
 fn teleport_units_up(
     center: Vec3,
     radius: f32,
@@ -74,6 +77,7 @@ fn teleport_units_up(
             Without<TeleportDestinationCircle>,
             Without<TeleportSourceCircle>,
             Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     commands: &mut Commands,
@@ -101,6 +105,7 @@ fn teleport_units_up(
 /// Teleports all units within a specified radius of the source center to random positions
 /// within the same radius of the destination center.
 /// Returns the list of teleported entity IDs.
+#[allow(clippy::type_complexity)]
 pub(crate) fn teleport_units_with_radius(
     rng: &mut impl Rng,
     source_center: Vec3,
@@ -113,6 +118,7 @@ pub(crate) fn teleport_units_with_radius(
             Without<TeleportDestinationCircle>,
             Without<TeleportSourceCircle>,
             Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     commands: &mut Commands,
@@ -134,6 +140,7 @@ pub(crate) fn teleport_units_with_radius(
 }
 
 /// Scatterport talent: scatters all units to random locations in a large radius.
+#[allow(clippy::type_complexity)]
 fn scatter_enemies(
     rng: &mut impl Rng,
     source_center: Vec3,
@@ -145,6 +152,7 @@ fn scatter_enemies(
             Without<TeleportDestinationCircle>,
             Without<TeleportSourceCircle>,
             Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     commands: &mut Commands,
@@ -170,6 +178,7 @@ fn scatter_enemies(
 }
 
 /// Swap talent: swaps all units between two circles simultaneously.
+#[allow(clippy::type_complexity)]
 fn swap_units(
     rng: &mut impl Rng,
     source_center: Vec3,
@@ -182,6 +191,7 @@ fn swap_units(
             Without<TeleportDestinationCircle>,
             Without<TeleportSourceCircle>,
             Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     commands: &mut Commands,
@@ -222,6 +232,7 @@ fn swap_units(
 }
 
 /// Emergency Recall talent: teleports only allied (Defender) units to the King's spawn position.
+#[allow(clippy::type_complexity)]
 fn recall_allies(
     rng: &mut impl Rng,
     source_center: Vec3,
@@ -234,6 +245,7 @@ fn recall_allies(
             Without<TeleportDestinationCircle>,
             Without<TeleportSourceCircle>,
             Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     commands: &mut Commands,

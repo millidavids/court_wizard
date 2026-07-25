@@ -305,7 +305,8 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::super::super::units::components::WalkingAnimation>()
                 .remove::<super::super::super::units::components::FacingDirection>()
                 .remove::<super::super::super::units::king::components::SpellShield>()
-                .remove::<super::super::super::units::shielder::components::ShielderDamageReduction>();
+                .remove::<super::super::super::units::shielder::components::ShielderDamageReduction>()
+                .remove::<super::super::super::units::staging_shield::StagingShieldGlow>();
         }
     }
 }

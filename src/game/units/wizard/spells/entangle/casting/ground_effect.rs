@@ -65,7 +65,12 @@ pub fn overgrowth_root_new_units(
     mut effects: Query<&mut EntangleGroundEffect, Without<GhostSpellEffect>>,
     targets: Query<
         (Entity, &Transform, &Team, Option<&RootedModifier>),
-        (Without<Wizard>, Without<Corpse>, Without<GhostEntity>),
+        (
+            Without<Wizard>,
+            Without<Corpse>,
+            Without<GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     mut defender_hit_msg: MessageWriter<EntangleHitDefenderMessage>,
 ) {

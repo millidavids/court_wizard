@@ -27,6 +27,7 @@ pub use super::shared::apply_sheep_visual;
 /// and Contagious Baas (spread to nearest unit on expiry).
 /// Explosive Sheep detonation on death is handled by `check_explosive_sheep_deaths`.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn tick_polymorphed_units(
     mut commands: Commands,
     time: Res<Time>,
@@ -63,6 +64,7 @@ pub fn tick_polymorphed_units(
             Without<Corpse>,
             Without<PolymorphedModifier>,
             Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
@@ -170,6 +172,7 @@ pub fn tick_polymorphed_units(
 
 /// Checks for sheep that die (health depleted) and triggers explosive sheep if applicable.
 /// This runs after tick_polymorphed_units to catch deaths from combat and timer expiry.
+#[allow(clippy::type_complexity)]
 pub fn check_explosive_sheep_deaths(
     mut commands: Commands,
     sheep_query: Query<
@@ -191,7 +194,11 @@ pub fn check_explosive_sheep_deaths(
             Has<SpellShield>,
             &Team,
         ),
-        (Without<Corpse>, Without<PolymorphedModifier>),
+        (
+            Without<Corpse>,
+            Without<PolymorphedModifier>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     session: Option<Res<MultiplayerSession>>,
 ) {

@@ -40,6 +40,7 @@ pub fn handle_haste_expiry(
             Without<Corpse>,
             Without<Wizard>,
             Without<GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     active_talents: Option<Res<ActiveTalents>>,
@@ -124,6 +125,7 @@ pub fn tick_haste_slow_zone(
             Without<Corpse>,
             Without<HasteModifier>,
             Without<GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
 ) {

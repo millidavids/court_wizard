@@ -6,6 +6,7 @@ use super::super::constants;
 use super::super::constants::TICK_INTERVAL;
 use crate::game::components::OnGameplayScreen;
 use crate::game::multiplayer::components::{GhostEntity, GhostSpellEffect};
+use crate::game::pathfinding::StagingAttacker;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, Health, ResidualFireDamaged, SlowMovementModifier, Team, TemporaryHitPoints,
@@ -95,7 +96,7 @@ pub fn apply_spreading_flames_dot(
             Has<SpellShield>,
             &Team,
         ),
-        Without<GhostEntity>,
+        (Without<GhostEntity>, Without<StagingAttacker>),
     >,
     session: Option<Res<MultiplayerSession>>,
 ) {
@@ -134,7 +135,14 @@ pub fn apply_scorched_earth_slow(
     mut commands: Commands,
     time: Res<Time>,
     mut zones: Query<(Entity, &mut ScorchedEarthZone), Without<GhostSpellEffect>>,
-    targets: Query<(Entity, &Transform), (Without<Corpse>, Without<GhostEntity>)>,
+    targets: Query<
+        (Entity, &Transform),
+        (
+            Without<Corpse>,
+            Without<GhostEntity>,
+            Without<StagingAttacker>,
+        ),
+    >,
 ) {
     let delta = time.delta_secs();
 
@@ -173,6 +181,7 @@ pub fn firestorm_death_explosion(
             Without<Corpse>,
             Without<FirestormProcessed>,
             Without<GhostEntity>,
+            Without<StagingAttacker>,
         ),
     >,
     assets: Res<SpellVisualAssets>,

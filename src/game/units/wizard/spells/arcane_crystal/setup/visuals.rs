@@ -58,7 +58,14 @@ pub(crate) fn cleanup_expired_crystals(
     mut commands: Commands,
     crystals: Query<(Entity, &ArcaneCrystal, Has<PrismaticExplosion>)>,
     indicators: Query<(Entity, &CrystalRangeIndicator)>,
-    targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    targets: Query<
+        (Entity, &Transform),
+        (
+            With<Health>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     mut health_query: Query<(
         &mut Health,
         Option<&mut TemporaryHitPoints>,

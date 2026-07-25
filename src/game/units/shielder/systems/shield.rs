@@ -12,6 +12,7 @@ use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::vfx::channel::ChannelingCast;
 
 /// Starts a 5-second shield channel when cooldown is ready and a target is in range.
+/// Staging attackers (not yet activated at their rally point) cannot be shielded.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn shielder_start_shield_channel(
     mut commands: Commands,
@@ -38,6 +39,7 @@ pub fn shielder_start_shield_channel(
             Without<BanishedModifier>,
             Without<Shielder>,
             Without<Wizard>,
+            Without<StagingAttacker>,
         ),
     >,
 ) {
@@ -92,7 +94,8 @@ pub fn shielder_start_shield_channel(
 }
 
 /// Ticks active shield channels. On completion applies the spell shield to a
-/// freshly-picked target and starts the cooldown.
+/// freshly-picked target and starts the cooldown. Staging attackers (not yet
+/// activated at their rally point) cannot be shielded.
 #[allow(clippy::type_complexity)]
 pub fn shielder_tick_shield_channel(
     mut commands: Commands,
@@ -108,6 +111,7 @@ pub fn shielder_tick_shield_channel(
             Without<BanishedModifier>,
             Without<Shielder>,
             Without<Wizard>,
+            Without<StagingAttacker>,
         ),
     >,
 ) {

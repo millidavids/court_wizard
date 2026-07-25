@@ -87,6 +87,7 @@ pub fn contagious_rage_spread(
             Without<BerserkerRageModifier>,
             Without<Corpse>,
             Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
 ) {
@@ -139,7 +140,10 @@ pub fn final_stand_explosion(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        Without<Corpse>,
+        (
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     visual_assets: Res<SpellVisualAssets>,
     mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,

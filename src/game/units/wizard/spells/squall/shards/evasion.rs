@@ -10,7 +10,13 @@ use crate::game::units::wizard::spells::utils::xz_distance;
 /// Applies Sleet Storm evasion debuff to enemies inside the storm radius.
 pub(crate) fn apply_sleet_storm_evasion(
     storms: Query<&SquallStorm, Without<crate::game::multiplayer::components::GhostSpellEffect>>,
-    mut units: Query<(Entity, &Transform, &Team, Option<&mut FogEvasionModifier>), With<Health>>,
+    mut units: Query<
+        (Entity, &Transform, &Team, Option<&mut FogEvasionModifier>),
+        (
+            With<Health>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
     mut commands: Commands,
 ) {
     for storm in storms.iter() {

@@ -53,6 +53,7 @@ pub fn executioner_brand_check(
             // Host-authoritative — never deal Executioner burst on the guest's
             // ghost units (the host applies it and the damage syncs back).
             Without<GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
 ) {
@@ -89,7 +90,11 @@ pub fn handle_marked_corpses(
     >,
     alive_enemies: Query<
         (Entity, &Transform, &Team),
-        (Without<Corpse>, Without<MarkedForDeathModifier>),
+        (
+            Without<Corpse>,
+            Without<MarkedForDeathModifier>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     mut wizard: Query<&mut Mana, (With<Wizard>, With<LocalWizard>)>,
     visual_assets: Res<SpellVisualAssets>,

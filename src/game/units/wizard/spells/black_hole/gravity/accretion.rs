@@ -23,12 +23,14 @@ type DimensionalRiftUnitFilter = (
     Without<Wizard>,
     Without<Corpse>,
     Without<BlackHole>,
+    Without<crate::game::pathfinding::StagingAttacker>,
 );
 
 /// Applies damage to units touching the black hole sphere.
 ///
 /// Damage increases over time for units that remain in contact.
 /// Supports Event Horizon (double damage in inner zone) and Void Siphon (healing).
+#[allow(clippy::type_complexity)]
 pub(crate) fn apply_black_hole_damage(
     time: Res<Time>,
     mut commands: Commands,
@@ -49,7 +51,10 @@ pub(crate) fn apply_black_hole_damage(
             Has<SpellShield>,
             &Team,
         ),
-        Without<Wizard>,
+        (
+            Without<Wizard>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     session: Option<Res<MultiplayerSession>>,
@@ -166,7 +171,15 @@ pub(crate) fn remove_units_from_black_hole(
 pub(crate) fn apply_crushing_pressure(
     mut commands: Commands,
     black_holes: Query<&BlackHole>,
-    units: Query<(Entity, &Transform), (With<Team>, Without<Wizard>, Without<Corpse>)>,
+    units: Query<
+        (Entity, &Transform),
+        (
+            With<Team>,
+            Without<Wizard>,
+            Without<Corpse>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
 ) {
     // Only run if any black hole has crushing pressure
     let has_crushing = black_holes

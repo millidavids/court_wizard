@@ -70,6 +70,7 @@ pub fn apply_necrotic_explosion_damage(
         (
             Without<Wizard>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
     session: Option<Res<MultiplayerSession>>,

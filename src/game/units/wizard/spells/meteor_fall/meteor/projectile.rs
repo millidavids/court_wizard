@@ -9,8 +9,8 @@ use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::game_mode::components::ActiveToggles;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::pathfinding::OBSTACLE_BUFFER;
 use crate::game::pathfinding::resources::PathfindingGrid;
+use crate::game::pathfinding::{OBSTACLE_BUFFER, StagingAttacker};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Health, Knockback, Team, TemporaryHitPoints, apply_spell_damage_with_team,
@@ -31,7 +31,7 @@ const VFX_VISIBLE_HEIGHT: f32 = 1000.0;
 pub(crate) fn update_meteor_projectiles(
     time: Res<Time>,
     mut projectiles: Query<(&mut Transform, &mut MeteorProjectile)>,
-    enemies: Query<(&Transform, &Team), Without<MeteorProjectile>>,
+    enemies: Query<(&Transform, &Team), (Without<MeteorProjectile>, Without<StagingAttacker>)>,
 ) {
     let delta = time.delta_secs();
 
@@ -162,7 +162,7 @@ pub(crate) fn check_meteor_collisions(
             Has<SpellShield>,
             &Team,
         ),
-        Without<MeteorProjectile>,
+        (Without<MeteorProjectile>, Without<StagingAttacker>),
     >,
     active_toggles: Option<Res<ActiveToggles>>,
     session: Option<Res<MultiplayerSession>>,

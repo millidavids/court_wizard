@@ -2,7 +2,7 @@ use super::super::super::super::components::Spell;
 use super::super::casting::write_grease_obstacle;
 use super::super::components::{GreaseIgnited, GreaseRegenerating, GreaseZone};
 use super::super::constants;
-use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
+use crate::game::pathfinding::{ObstacleChanged, ObstacleType, StagingAttacker};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Airborne, Corpse, Health, RootedModifier, Team, TemporaryHitPoints,
@@ -21,6 +21,7 @@ use bevy::prelude::*;
 
 /// Scans fire sources and ignites non-ignited grease zones on contact, applying burst damage and talent effects.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn check_grease_ignition(
     mut commands: Commands,
     mut zones: Query<
@@ -32,6 +33,11 @@ pub fn check_grease_ignition(
         ),
     >,
     ignited_zone_query: Query<&GreaseZone, With<GreaseIgnited>>,
+    // Ignition SOURCES: any burning unit touching grease ignites it. This
+    // read-only query deliberately has no staging filter — it never affects
+    // the burning unit, and excluding staging units here would change zone
+    // ignition timing, not protect anyone (the `targets` query below is what
+    // shields staging units from the burst).
     fire_units: Query<
         &Transform,
         (
@@ -55,6 +61,7 @@ pub fn check_grease_ignition(
         (
             Without<Corpse>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<StagingAttacker>,
         ),
     >,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
@@ -260,6 +267,7 @@ pub fn update_grease_fire_spread(
 
 /// Applies burn damage from ignited grease zones.
 /// During fire spread, only damages units within the current fire radius.
+#[allow(clippy::type_complexity)]
 pub fn apply_grease_burn(
     mut commands: Commands,
     time: Res<Time>,
@@ -279,6 +287,7 @@ pub fn apply_grease_burn(
         (
             Without<Corpse>,
             Without<crate::game::multiplayer::components::GhostEntity>,
+            Without<StagingAttacker>,
         ),
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
