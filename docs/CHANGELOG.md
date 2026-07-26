@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v1.0.10] - 2026-07-26
 
 ### Changed
 - **Much faster cauldron brewing** — brews now finish in a fraction of the time (a three-ingredient brew takes about 4 seconds instead of 12), so potions are finally practical to whip up in the heat of battle.
