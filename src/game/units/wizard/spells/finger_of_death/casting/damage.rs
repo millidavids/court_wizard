@@ -6,11 +6,8 @@ use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::crt_effect::ScreenDesaturateMessage;
 use crate::game::input::MouseButtonState;
-use crate::game::units::components::{
-    Health, Team, TemporaryHitPoints, apply_spell_damage_with_team,
-};
-use crate::game::units::damage::DamageType;
-use crate::game::units::king::components::SpellShield;
+use crate::game::units::components::apply_spell_damage_with_team;
+use crate::game::units::damage::{DamageType, fod_damage_for_target};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, local_player_team};
@@ -82,21 +79,7 @@ pub fn apply_finger_of_death_damage(
         &mut FingerOfDeathBeam,
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
-    #[allow(clippy::type_complexity)] mut targets: Query<
-        (
-            Entity,
-            &Transform,
-            &mut Health,
-            Option<&mut TemporaryHitPoints>,
-            Has<SpellShield>,
-            &Team,
-        ),
-        (
-            Without<Wizard>,
-            Without<crate::game::multiplayer::components::GhostEntity>,
-            Without<crate::game::pathfinding::StagingAttacker>,
-        ),
-    >,
+    mut targets: Query<FodTargetData, FodTargetFilter>,
     mut wizard_query: Query<
         (Entity, &mut Mana, &mut CastingState),
         (With<Wizard>, With<LocalWizard>),
@@ -127,7 +110,7 @@ pub fn apply_finger_of_death_damage(
     let mut kill_count: u32 = 0;
     let mut total_damage_dealt: f32 = 0.0;
     let mut beam_origin = Vec3::ZERO;
-    let mut beam_damage: f32 = 0.0;
+    let mut beam_damage_percent: f32 = 0.0;
     let mut beam_talent_params = FodTalentParams::default();
 
     for mut beam in beams.iter_mut() {
@@ -165,7 +148,7 @@ pub fn apply_finger_of_death_damage(
         beam.has_fired = true;
         any_fired = true;
         beam_origin = beam.origin;
-        beam_damage = beam.damage();
+        beam_damage_percent = beam.damage_percent();
         beam_talent_params = beam.talent_params.clone();
 
         // Find nearest wall/rock intersection to limit beam reach
@@ -187,11 +170,20 @@ pub fn apply_finger_of_death_damage(
 
         // Apply damage to all units along beam (before wall)
         let beam_width = beam.beam_width();
-        let damage = beam.damage();
+        let damage_percent = beam.damage_percent();
 
         // Normal damage application
-        for (entity, transform, mut health, mut temp_hp, has_spell_shield, team) in
-            targets.iter_mut()
+        for (
+            entity,
+            transform,
+            mut health,
+            mut temp_hp,
+            has_spell_shield,
+            team,
+            is_boss,
+            is_brute,
+            is_fod_resistant,
+        ) in targets.iter_mut()
         {
             // Enemy shielded King is immune; your own King takes the beam (friendly fire).
             if has_spell_shield && caster_team != *team {
@@ -200,6 +192,11 @@ pub fn apply_finger_of_death_damage(
             if beam.contains_point(transform.translation, beam_width) {
                 let proj = (transform.translation - beam.origin).dot(beam.direction);
                 if proj <= effective_length {
+                    let damage = fod_damage_for_target(
+                        damage_percent,
+                        health.max,
+                        is_boss || is_brute || is_fod_resistant,
+                    );
                     let was_alive = health.current > 0.0;
                     apply_spell_damage_with_team(
                         &mut commands,
@@ -314,14 +311,16 @@ pub fn apply_finger_of_death_damage(
             });
         }
 
-        // Necrotic Explosion: AoE at kill positions (20% of beam damage)
+        // Necrotic Explosion: AoE at kill positions (20% of the beam's
+        // per-target damage fraction, resolved per victim on application)
         if beam_talent_params.necrotic_explosion {
-            let explosion_damage = beam_damage * constants::NECROTIC_EXPLOSION_DAMAGE_PERCENT;
+            let explosion_damage_percent =
+                beam_damage_percent * constants::NECROTIC_EXPLOSION_DAMAGE_PERCENT;
             for kill_pos in &kill_positions {
                 spawn_necrotic_explosion(
                     &mut commands,
                     *kill_pos,
-                    explosion_damage,
+                    explosion_damage_percent,
                     &visual_assets,
                     &mut materials,
                 );

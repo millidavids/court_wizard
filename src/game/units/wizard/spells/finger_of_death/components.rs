@@ -2,6 +2,47 @@ use std::collections::HashSet;
 
 use bevy::prelude::*;
 
+use crate::game::multiplayer::components::GhostEntity;
+use crate::game::pathfinding::StagingAttacker;
+use crate::game::units::boss::components::Boss;
+use crate::game::units::brute::components::Brute;
+use crate::game::units::components::{Corpse, Health, Team, TemporaryHitPoints};
+use crate::game::units::damage::FingerOfDeathResistant;
+use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::components::Wizard;
+
+/// Shared target-query shape for every Finger of Death damage path
+/// (instant beam, Reaper's Scythe sweep, Necrotic Explosion). The
+/// `Has<Boss>`/`Has<Brute>`/`Has<FingerOfDeathResistant>` flags feed
+/// `fod_damage_for_target`.
+///
+/// Note on the enemy-shield (`Has<SpellShield>`) pre-check some consumers do
+/// before applying damage: `apply_spell_damage_with_team` already blocks
+/// shielded enemies internally — the pre-check exists only to keep
+/// bookkeeping (damage totals, hit VFX, kill counts) from counting blocked
+/// hits. Paths that track no aggregates may skip it.
+pub(crate) type FodTargetData = (
+    Entity,
+    &'static Transform,
+    &'static mut Health,
+    Option<&'static mut TemporaryHitPoints>,
+    Has<SpellShield>,
+    &'static Team,
+    Has<Boss>,
+    Has<Brute>,
+    Has<FingerOfDeathResistant>,
+);
+
+/// Filter paired with [`FodTargetData`]: no corpses, no wizards, no
+/// multiplayer ghost mirrors, and staging attackers are spell-immune by
+/// project convention.
+pub(crate) type FodTargetFilter = (
+    Without<Corpse>,
+    Without<Wizard>,
+    Without<GhostEntity>,
+    Without<StagingAttacker>,
+);
+
 /// Marker component indicating wizard is waiting for mouse release before allowing another Finger of Death cast.
 ///
 /// This prevents the spell from immediately recasting after completion if the mouse is still held.
@@ -64,7 +105,9 @@ pub struct FingerOfDeathBeam {
 /// Talent-computed parameters for Finger of Death.
 #[derive(Clone, Debug)]
 pub struct FodTalentParams {
-    pub damage: f32,
+    /// Fraction of the target's max health dealt on hit (1.0 = exactly lethal
+    /// to an unshielded full-health unit).
+    pub damage_percent: f32,
     pub beam_width: f32,
     pub beam_width_fired: f32,
     pub mana_threshold: f32,
@@ -91,7 +134,7 @@ pub struct FodTalentParams {
 impl Default for FodTalentParams {
     fn default() -> Self {
         Self {
-            damage: super::constants::DAMAGE,
+            damage_percent: super::constants::DAMAGE_PERCENT,
             beam_width: super::constants::BEAM_WIDTH,
             beam_width_fired: super::constants::BEAM_WIDTH_FIRED,
             mana_threshold: super::constants::MANA_REQUIREMENT_PERCENT,
@@ -131,9 +174,11 @@ impl FingerOfDeathBeam {
         }
     }
 
-    /// Gets the damage value, scaled by empowerment and talents.
-    pub fn damage(&self) -> f32 {
-        self.talent_params.damage * self.empowerment * self.talent_params.chain_damage_mult
+    /// Gets the damage fraction of a target's max health, scaled by empowerment
+    /// and talents. Convert to actual damage per target with
+    /// `fod_damage_for_target`.
+    pub fn damage_percent(&self) -> f32 {
+        self.talent_params.damage_percent * self.empowerment * self.talent_params.chain_damage_mult
     }
 
     /// Gets the beam width, scaled by empowerment and talents.
@@ -216,8 +261,8 @@ pub struct NecroticExplosionBurst {
     pub time_alive: f32,
     pub lifetime: f32,
     pub max_radius: f32,
-    /// AoE damage to deal.
-    pub damage: f32,
+    /// AoE damage as a fraction of each victim's max health.
+    pub damage_percent: f32,
     /// Whether AoE damage has already been applied (one-shot).
     pub damage_applied: bool,
 }

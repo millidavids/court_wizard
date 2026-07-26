@@ -158,8 +158,8 @@ pub(super) const PHILOSOPHERS_STONE_CONFIG: IngredientConfig = IngredientConfig 
 
 // ===== Brew Timing =====
 
-pub(super) const BASE_BREW_TIME: f32 = 6.0;
-pub(super) const PER_INGREDIENT_BREW_TIME: f32 = 2.0;
+pub(super) const BASE_BREW_TIME: f32 = 1.0;
+pub(super) const PER_INGREDIENT_BREW_TIME: f32 = 1.0;
 pub(super) const BUFF_DURATION: f32 = 30.0;
 
 // ===== Alchemist Bonuses =====

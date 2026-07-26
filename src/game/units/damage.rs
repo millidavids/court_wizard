@@ -85,6 +85,36 @@ impl DamageType {
     }
 }
 
+/// Marker for entities that take Finger of Death "chip" damage (a base
+/// infantry unit's health) instead of the percent-of-max-health execute.
+/// Bosses and Brutes already get chip treatment via their own markers; put
+/// this on anything else with a large health pool that the execute must not
+/// erase in one cast (e.g. the Ray boss's eyes).
+#[derive(Component)]
+pub(crate) struct FingerOfDeathResistant;
+
+/// Converts a Finger of Death damage fraction into actual damage for one target.
+///
+/// The beam deals a fraction of the target's own max health (1.0 = exactly
+/// lethal to an unshielded unit at or below full health, so temp-HP shields
+/// like Guardian Circle can save it). Chip-damage targets (bosses, Brutes,
+/// [`FingerOfDeathResistant`]) instead take the fraction of a base infantry
+/// unit's health so the beam chips them rather than erasing them. Shared by
+/// the wizard's beam, Reaper's Scythe, Necrotic Explosion, and the Lich's
+/// beam.
+pub(crate) fn fod_damage_for_target(
+    damage_percent: f32,
+    target_max_health: f32,
+    takes_chip_damage: bool,
+) -> f32 {
+    let base = if takes_chip_damage {
+        crate::game::constants::UNIT_HEALTH
+    } else {
+        target_max_health
+    };
+    damage_percent * base
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -11,7 +11,9 @@ use crate::game::messages::ComboDiscoveredMessage;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::telekinesis::components::TransmutationStacks;
 use crate::game::units::wizard::spells::telekinesis::constants::TRANSMUTATION_POTENCY_PER_STACK;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::visual_assets::{
+    AuraSphereMaterial, SpellVisualAssets, aura_mat,
+};
 
 /// Handles StartBrewMessage to begin brewing.
 pub fn handle_start_brew(
@@ -54,7 +56,7 @@ pub fn handle_brew_complete(
     mut messages: MessageReader<BrewCompleteMessage>,
     mut cauldron_buffs: ResMut<CauldronBuffs>,
     spell_assets: Res<SpellVisualAssets>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut aura_materials: ResMut<Assets<AuraSphereMaterial>>,
     mut combo_writer: MessageWriter<ComboDiscoveredMessage>,
     mut transmutation_stacks: Option<ResMut<TransmutationStacks>>,
     sfx: Res<SpellSfxAssets>,
@@ -124,7 +126,12 @@ pub fn handle_brew_complete(
         // position (read from the entity's Transform — single-player/versus host:
         // CAULDRON_POSITION; versus guest: CAULDRON_2_POSITION; co-op: the shared
         // CAULDRON_COOP_POSITION between the wizards).
-        let bubble_color = message.recipe.color();
+        //
+        // Uses the same swirling aura shader as the orb spells (Guardian Circle
+        // et al.); the combined ingredient color is boosted into HDR range so the
+        // shader's edge glow reads at full intensity. The global
+        // `update_aura_sphere_time` system animates the swirl for free.
+        let bubble_color = message.recipe.color().to_linear();
         let spawn_pos = cauldron_query
             .single()
             .map(|t| t.translation)
@@ -132,19 +139,15 @@ pub fn handle_brew_complete(
 
         commands.spawn((
             Mesh3d(spell_assets.explosion_sphere.clone()),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: bubble_color.with_alpha(constants::BREW_BUBBLE_INITIAL_ALPHA),
-                alpha_mode: AlphaMode::Blend,
-                unlit: true,
-                cull_mode: None,
-                ..default()
-            })),
+            // `* f32` on LinearRgba scales alpha too — pin it back to 1.0 so
+            // the uniforms never carry an out-of-range alpha.
+            MeshMaterial3d(aura_mat(
+                &mut aura_materials,
+                (bubble_color * constants::BREW_BUBBLE_INNER_BRIGHTNESS).with_alpha(1.0),
+                (bubble_color * constants::BREW_BUBBLE_OUTER_BRIGHTNESS).with_alpha(1.0),
+            )),
             Transform::from_translation(spawn_pos).with_scale(Vec3::ZERO),
-            BrewBubble {
-                time_alive: 0.0,
-                duration: constants::BREW_BUBBLE_DURATION,
-                color: bubble_color,
-            },
+            BrewBubble { time_alive: 0.0 },
             OnGameplayScreen,
         ));
 

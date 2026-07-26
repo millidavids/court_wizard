@@ -237,8 +237,8 @@ pub(super) fn finger_of_death_talents() -> [[TalentDefinition; 3]; 3] {
             },
             TalentDefinition {
                 name: "Death Sentence",
-                description: "Mana threshold reduced to 30%, but damage reduced to 700. Cooldown reduced by 50%.",
-                locked_text: "Cheaper, weaker, faster. The fast food of death magic.",
+                description: "Mana threshold reduced to 10%. Damage increased to 140% of the target's health. Cooldown reduced by 50%.",
+                locked_text: "Cheaper, deadlier, faster. The fast food of death magic.",
                 implemented: true,
             },
             TalentDefinition {
@@ -252,19 +252,19 @@ pub(super) fn finger_of_death_talents() -> [[TalentDefinition; 3]; 3] {
         [
             TalentDefinition {
                 name: "Reaper's Scythe",
-                description: "Beam sweeps in an arc over 1 second, hitting everything in its path. Damage reduced to 60%.",
+                description: "Beam sweeps in an arc over 1 second, hitting everything in its path. Damage reduced to 30% of each target's health.",
                 locked_text: "The finger of death goes through a phase. A 'sweep everything' phase.",
                 implemented: true,
             },
             TalentDefinition {
                 name: "Necrotic Explosion",
-                description: "Killed targets explode for 200 damage in a medium radius.",
+                description: "Killed targets explode, dealing 20% of nearby victims' health in a medium radius.",
                 locked_text: "They're already dead, what's a little explosion going to do? Oh, to the people AROUND them.",
                 implemented: true,
             },
             TalentDefinition {
                 name: "Deathmark",
-                description: "Beam instead applies a 5-second debuff. If the target dies during the debuff, a second Finger of Death fires at the nearest enemy automatically (at 50% damage).",
+                description: "Beam instead applies a 5-second debuff. If the target dies during the debuff, a second Finger of Death fires at the nearest enemy automatically (at 10% damage).",
                 locked_text: "Kill chain. The only chain letter anyone actually follows up on.",
                 implemented: true,
             },

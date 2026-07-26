@@ -325,7 +325,7 @@ impl Spell {
                 "Strikes the nearest unit with lightning that splits and spreads to nearby targets."
             }
             Spell::FingerOfDeath => {
-                "Fires a deadly beam at the cursor, dealing heavy damage to units in its path."
+                "Fires a deadly beam at the cursor, slaying any unprotected unit in its path."
             }
             Spell::RaiseTheDead => "Resurrects corpses near the cursor.",
             Spell::Teleport => "Teleports all units near the cursor to a chosen destination.",

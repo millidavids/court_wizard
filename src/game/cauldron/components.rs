@@ -7,11 +7,11 @@ use super::brews::Recipe;
 pub struct Cauldron;
 
 /// Expanding translucent sphere that plays when a brew completes.
+/// Colors are baked into its `AuraSphereMaterial` at spawn; lifetime is
+/// `constants::BREW_BUBBLE_DURATION`.
 #[derive(Component)]
 pub struct BrewBubble {
     pub time_alive: f32,
-    pub duration: f32,
-    pub color: Color,
 }
 
 /// Tracks the current state of the cauldron.

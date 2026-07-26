@@ -36,11 +36,18 @@ pub(in crate::game::cauldron) const SHIELD_KEEPALIVE_SECS: f32 = 5.0;
 /// Total duration of the brew bubble effect (seconds).
 pub const BREW_BUBBLE_DURATION: f32 = 1.0;
 
-/// Expansion speed of the bubble (units per second).
-pub const BREW_BUBBLE_EXPAND_SPEED: f32 = 3000.0;
+/// Expansion speed of the bubble (units per second). The max radius
+/// (speed × duration) must stay below the camera's ~1200-unit distance to the
+/// cauldron: `AuraSphereMaterial` back-face culls, so the sphere disappears
+/// the moment the camera ends up inside it.
+pub const BREW_BUBBLE_EXPAND_SPEED: f32 = 1000.0;
 
-/// Starting alpha (translucency) of the bubble.
-pub const BREW_BUBBLE_INITIAL_ALPHA: f32 = 0.2;
+/// HDR brightness boost applied to the recipe color for the bubble's inner color.
+/// Matches the intensity range of the existing aura pairs in `spell_materials.rs`.
+pub const BREW_BUBBLE_INNER_BRIGHTNESS: f32 = 2.5;
+
+/// HDR brightness boost applied to the recipe color for the bubble's outer (edge) color.
+pub const BREW_BUBBLE_OUTER_BRIGHTNESS: f32 = 1.2;
 
 /// Sprite sheet animation parameters
 pub const CAULDRON_SPRITE_FRAMES: usize = 9;

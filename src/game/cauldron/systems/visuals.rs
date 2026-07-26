@@ -3,8 +3,10 @@ use bevy::prelude::*;
 
 use super::super::components::*;
 use super::super::constants;
+use crate::game::units::wizard::spells::spell_materials::explosion_fade_opacity;
+use crate::game::units::wizard::spells::visual_assets::AuraSphereMaterial;
 
-/// Updates brew bubble: expands continuously, fades alpha to 0, then despawns.
+/// Updates brew bubble: expands continuously, fades opacity to 0, then despawns.
 pub fn update_brew_bubble(
     mut commands: Commands,
     time: Res<Time>,
@@ -12,29 +14,30 @@ pub fn update_brew_bubble(
         Entity,
         &mut BrewBubble,
         &mut Transform,
-        &MeshMaterial3d<StandardMaterial>,
+        &MeshMaterial3d<AuraSphereMaterial>,
     )>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<AuraSphereMaterial>>,
 ) {
     for (entity, mut bubble, mut transform, material_handle) in &mut bubbles {
         bubble.time_alive += time.delta_secs();
 
-        if bubble.time_alive >= bubble.duration {
+        if bubble.time_alive >= constants::BREW_BUBBLE_DURATION {
             commands.entity(entity).try_despawn();
             continue;
         }
 
-        let progress = bubble.time_alive / bubble.duration;
+        let progress = bubble.time_alive / constants::BREW_BUBBLE_DURATION;
 
         // Scale: expand at constant speed forever
         let radius = constants::BREW_BUBBLE_EXPAND_SPEED * bubble.time_alive;
         transform.scale = Vec3::splat(radius);
 
-        // Alpha: fade linearly from initial to 0 over the full duration
-        let alpha = constants::BREW_BUBBLE_INITIAL_ALPHA * (1.0 - progress);
-
+        // Hold full opacity, then fade out over the tail of the lifetime —
+        // same curve as the other spell bursts. (The aura shader caps visible
+        // alpha well below 1.0, so a linear fade from spawn would be pinned
+        // at the cap for most of the animation and then cut off abruptly.)
         if let Some(material) = materials.get_mut(material_handle) {
-            material.base_color = bubble.color.with_alpha(alpha);
+            material.opacity = explosion_fade_opacity(progress);
         }
     }
 }

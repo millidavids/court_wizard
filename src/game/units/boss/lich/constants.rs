@@ -107,17 +107,11 @@ pub const SUMMONED_UNDEAD_SPEED: f32 = 100.0;
 /// Seconds between beam attacks.
 pub const BEAM_COOLDOWN: f32 = 3.0;
 
-/// Damage dealt by the death beam.
-pub const BEAM_DAMAGE: f32 = 500.0;
-
 /// Beam width for hit detection.
 pub const BEAM_WIDTH: f32 = 15.0;
 
 /// Maximum beam length.
 pub const BEAM_LENGTH: f32 = 5000.0;
-
-/// King takes only 30% of FoD damage (70% resistance).
-pub const KING_FOD_DAMAGE_MULTIPLIER: f32 = 0.3;
 
 /// Maximum distance from the King at which the Lich is allowed to start
 /// casting Finger of Death. The Lich must close this gap before firing.
@@ -125,8 +119,10 @@ pub const FOD_KING_RANGE: f32 = 800.0;
 
 /// Fraction of defenders that must die before the King can take Finger of
 /// Death damage. Below this threshold the King is fully immune to FoD even
-/// if he is caught in a beam targeting another defender.
-pub const KING_FOD_IMMUNITY_THRESHOLD: f32 = 0.8;
+/// if he is caught in a beam targeting another defender. Once it lifts, the
+/// beam deals the King's full max health — a temp-HP shield (e.g. Guardian
+/// Circle) is the counter-play.
+pub const KING_FOD_IMMUNITY_THRESHOLD: f32 = 0.85;
 
 // ===== Health Bar Colors =====
 

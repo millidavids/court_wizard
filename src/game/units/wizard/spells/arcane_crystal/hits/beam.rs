@@ -14,10 +14,10 @@ use crate::game::units::components::{Corpse, Health};
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
 use crate::game::units::wizard::spells::disintegrate::systems as disintegrate_systems;
+use crate::game::units::wizard::spells::disintegrate_constants;
 use crate::game::units::wizard::spells::finger_of_death::components::FingerOfDeathBeam;
 use crate::game::units::wizard::spells::utils::xz_distance;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::units::wizard::spells::{disintegrate_constants, finger_of_death_constants};
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 
 /// Detects disintegrate and finger of death beams hitting crystals.
@@ -233,7 +233,7 @@ pub(crate) fn detect_beam_hits(
                     &targets,
                 );
                 let damage_scale = BEAM_DAMAGE_SCALE * crystal.damage_mult;
-                let fod_damage_per_tick = finger_of_death_constants::DAMAGE * damage_scale
+                let fod_damage_per_tick = FOD_ECHO_BASE_DAMAGE * damage_scale
                     / (BEAM_DURATION / disintegrate_constants::DAMAGE_INTERVAL);
                 let forked = talent_cfg.forked;
                 let offsets: &[f32] = if forked {

@@ -82,9 +82,9 @@ pub(crate) fn compute_fod_params(active_talents: Option<&ActiveTalents>) -> FodT
             params.finger_of_undeath = true;
         }
         Some(1) => {
-            // Death Sentence: cheaper, weaker, faster cooldown
+            // Death Sentence: cheaper, deadlier, faster cooldown
             params.mana_threshold = constants::DEATH_SENTENCE_MANA_THRESHOLD;
-            params.damage = constants::DEATH_SENTENCE_DAMAGE;
+            params.damage_percent = constants::DEATH_SENTENCE_DAMAGE_PERCENT;
             params.cooldown_mult = constants::DEATH_SENTENCE_COOLDOWN_MULT;
         }
         Some(2) => {
@@ -99,7 +99,7 @@ pub(crate) fn compute_fod_params(active_talents: Option<&ActiveTalents>) -> FodT
         Some(0) => {
             // Reaper's Scythe: sweep arc, reduced damage
             params.reapers_scythe = true;
-            params.damage *= constants::REAPERS_SCYTHE_DAMAGE_MULT;
+            params.damage_percent *= constants::REAPERS_SCYTHE_DAMAGE_MULT;
         }
         Some(1) => {
             // Necrotic Explosion: AoE on kill

@@ -6,10 +6,11 @@ use super::super::spawn::resolve_raise_dead;
 use crate::game::constants::*;
 use crate::game::resources::KillStats;
 use crate::game::units::boss::components::Boss;
+use crate::game::units::brute::components::Brute;
 use crate::game::units::components::{
     Corpse, Health, Hitbox, Team, TemporaryHitPoints, apply_spell_damage,
 };
-use crate::game::units::damage::DamageType;
+use crate::game::units::damage::{DamageType, fod_damage_for_target};
 use crate::game::units::undead::resources::UndeadAssets;
 use crate::game::units::wizard::components::Wizard;
 
@@ -21,12 +22,18 @@ type LichBeamTargetData = (
     &'static Hitbox,
     Option<&'static mut TemporaryHitPoints>,
     Has<crate::game::units::king::components::King>,
+    // Always false today (the filter excludes bosses and only Defenders are
+    // hit), but read from the query so `fod_damage_for_target` stays correct
+    // if the filter ever changes.
+    Has<Boss>,
+    Has<Brute>,
 );
 type LichBeamTargetFilter = (
     Without<Corpse>,
     Without<Lich>,
     Without<Boss>,
     Without<Wizard>,
+    Without<crate::game::pathfinding::StagingAttacker>,
 );
 
 /// Phase 2: Ticks the Finger of Death cooldown and starts a beam cast wind-up
@@ -118,12 +125,15 @@ fn resolve_finger_of_death(
 
     let beam_length = BEAM_LENGTH.min(to_target.length() + 200.0);
 
+    // Default `damage_percent: 1.0` — the beam deals each victim's max health.
+    // Captured here so the damage loop below stays in sync with the wizard's
+    // base constant if it is ever retuned.
     let talent_params = FodTalentParams {
-        damage: BEAM_DAMAGE,
         beam_width: BEAM_WIDTH,
         beam_width_fired: BEAM_WIDTH,
         ..Default::default()
     };
+    let damage_percent = talent_params.damage_percent;
     let mut beam =
         FingerOfDeathBeam::with_talents(origin, direction, beam_length, 1.0, talent_params);
     beam.has_fired = true;
@@ -139,7 +149,7 @@ fn resolve_finger_of_death(
     desaturate.write(crate::game::crt_effect::ScreenDesaturateMessage);
 
     let mut kill_positions: Vec<Vec3> = Vec::new();
-    for (entity, t_transform, team, mut health, hitbox, temp_hp, is_king) in
+    for (entity, t_transform, team, mut health, hitbox, temp_hp, is_king, is_boss, is_brute) in
         target_health.iter_mut()
     {
         if *team != Team::Defenders {
@@ -159,11 +169,9 @@ fn resolve_finger_of_death(
                 continue;
             }
 
-            let damage = if is_king {
-                BEAM_DAMAGE * KING_FOD_DAMAGE_MULTIPLIER
-            } else {
-                BEAM_DAMAGE
-            };
+            // The victim's max health — exactly lethal unless a temp-HP
+            // shield absorbs part of it.
+            let damage = fod_damage_for_target(damage_percent, health.max, is_boss || is_brute);
 
             let hp_before = health.current;
             apply_spell_damage(

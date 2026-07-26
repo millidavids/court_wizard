@@ -125,6 +125,10 @@ pub fn spawn_ray(rng: &mut impl Rng, mut commands: Commands, assets: Res<RayAsse
             Transform::from_xyz(eye_x, eye_y, eye_z),
             Hitbox::new(RAY_EYE_RADIUS, RAY_EYE_HITBOX_HEIGHT),
             Health::new(RAY_EYE_HEALTH),
+            // Eyes carry no Boss marker but must not be one-shot by the
+            // percent-max-health Finger of Death execute — they take chip
+            // damage like the boss body instead.
+            crate::game::units::damage::FingerOfDeathResistant,
             Effectiveness::new(),
             AttackTiming::new(),
             Team::Attackers,

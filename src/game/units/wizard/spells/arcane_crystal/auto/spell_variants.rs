@@ -23,8 +23,7 @@ use crate::game::units::wizard::spells::meteor_fall::casting::MeteorProjectileTa
 use crate::game::units::wizard::spells::meteor_fall::systems as meteor_fall_systems;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::{
-    disintegrate_constants, finger_of_death_constants, fireball_constants, magic_missile_constants,
-    meteor_fall_constants,
+    disintegrate_constants, fireball_constants, magic_missile_constants, meteor_fall_constants,
 };
 
 /// Auto-casts mini magic missiles at random enemies (the caster's hostile
@@ -259,9 +258,8 @@ pub(super) fn auto_cast_fod_beams(
         scaled_count(BEAM_COUNT, params.count_mult),
         targets,
     );
-    let fod_damage_per_tick =
-        finger_of_death_constants::DAMAGE * BEAM_DAMAGE_SCALE * params.damage_mult
-            / (BEAM_DURATION / disintegrate_constants::DAMAGE_INTERVAL);
+    let fod_damage_per_tick = FOD_ECHO_BASE_DAMAGE * BEAM_DAMAGE_SCALE * params.damage_mult
+        / (BEAM_DURATION / disintegrate_constants::DAMAGE_INTERVAL);
 
     for (_, target_pos) in &enemies {
         spawn_fod_beams_at(

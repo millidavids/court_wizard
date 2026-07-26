@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Changed
+- **Much faster cauldron brewing** — brews now finish in a fraction of the time (a three-ingredient brew takes about 4 seconds instead of 12), so potions are finally practical to whip up in the heat of battle.
+- **Prettier brew finish** — the burst when a brew completes now swirls with the same magical energy as the game's other spell auras, still tinted by the color of your ingredient mix.
+- **Finger of Death is now a true executioner's spell** — instead of a fixed amount of damage, the beam deals exactly as much damage as its victim's full health. Any unprotected unit falls in one strike, but shields and protective blessings can save a unit from the killing blow. Bosses and Brutes are too massive for this trick and lose a fixed chunk of health instead.
+- **Finger of Death is much cheaper** — casting it now takes a third of the mana it used to, so it can be part of your regular rotation instead of a once-in-a-while finisher.
+- **The Lich plays by the same rules** — its death beam now also deals damage equal to its victim's full health, so a protective blessing on your King can save him from what used to be a guaranteed kill. The Lich also holds off targeting your King a little longer than before.
+
 ## [v1.0.8] - 2026-07-25
 
 ### Changed

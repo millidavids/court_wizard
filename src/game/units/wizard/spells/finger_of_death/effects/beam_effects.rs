@@ -3,13 +3,10 @@
 use super::super::casting::spawn_beam;
 use super::super::components::*;
 use super::super::constants;
-use super::necrotic_explosion::spawn_necrotic_explosion;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::components::{
-    Health, Team, TemporaryHitPoints, apply_spell_damage_with_team,
-};
+use crate::game::units::components::{Health, apply_spell_damage_with_team};
 use crate::game::units::damage::DamageType;
-use crate::game::units::king::components::SpellShield;
+use crate::game::units::damage::fod_damage_for_target;
 use crate::game::units::wizard::components::{CastingState, LocalWizard, Spell, Wizard};
 use crate::game::units::wizard::spells::utils::local_player_team;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -102,21 +99,7 @@ pub fn update_reapers_scythe(
         (Entity, &mut ReapersScytheSweep),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
-    #[allow(clippy::type_complexity)] mut targets: Query<
-        (
-            Entity,
-            &Transform,
-            &mut Health,
-            Option<&mut TemporaryHitPoints>,
-            Has<SpellShield>,
-            &Team,
-        ),
-        (
-            Without<Wizard>,
-            Without<crate::game::multiplayer::components::GhostEntity>,
-            Without<crate::game::pathfinding::StagingAttacker>,
-        ),
-    >,
+    mut targets: Query<FodTargetData, FodTargetFilter>,
     walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
     rocks_query: Query<&crate::game::terrain::boulder::components::Boulder>,
     visual_assets: Res<SpellVisualAssets>,
@@ -179,12 +162,21 @@ pub fn update_reapers_scythe(
         let effective_length = sweep.length * max_t;
 
         let beam_width = beam.beam_width();
-        let damage = beam.damage();
+        let damage_percent = beam.damage_percent();
         let mut kill_count = 0u32;
 
         // Damage targets in current sweep position (skip already-hit)
-        for (entity, transform, mut health, mut temp_hp, has_spell_shield, team) in
-            targets.iter_mut()
+        for (
+            entity,
+            transform,
+            mut health,
+            mut temp_hp,
+            has_spell_shield,
+            team,
+            is_boss,
+            is_brute,
+            is_fod_resistant,
+        ) in targets.iter_mut()
         {
             // Enemy shielded King is immune; your own King takes the sweep (friendly fire).
             if (has_spell_shield && caster_team != *team) || sweep.hit_entities.contains(&entity) {
@@ -194,6 +186,11 @@ pub fn update_reapers_scythe(
                 let proj = (transform.translation - sweep.origin).dot(rotated_dir);
                 if proj <= effective_length {
                     sweep.hit_entities.insert(entity);
+                    let damage = fod_damage_for_target(
+                        damage_percent,
+                        health.max,
+                        is_boss || is_brute || is_fod_resistant,
+                    );
                     let was_alive = health.current > 0.0;
                     apply_spell_damage_with_team(
                         &mut commands,
@@ -207,21 +204,11 @@ pub fn update_reapers_scythe(
                         *team,
                     );
 
+                    // No necrotic-explosion handling here: tier-3 talents are
+                    // mutually exclusive, so a Reaper's Scythe sweep can never
+                    // carry `necrotic_explosion`.
                     if was_alive && health.current <= 0.0 {
                         kill_count += 1;
-
-                        // Necrotic explosion on kills during sweep
-                        if sweep.talent_params.necrotic_explosion {
-                            let explosion_damage =
-                                damage * constants::NECROTIC_EXPLOSION_DAMAGE_PERCENT;
-                            spawn_necrotic_explosion(
-                                &mut commands,
-                                transform.translation,
-                                explosion_damage,
-                                &visual_assets,
-                                &mut materials,
-                            );
-                        }
                     }
                 }
             }

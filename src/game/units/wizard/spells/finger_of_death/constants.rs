@@ -16,11 +16,14 @@ pub const CAST_TIME: f32 = 2.0;
 pub const BEAM_ORIGIN_HEIGHT_OFFSET: f32 = 0.0;
 pub const COOLDOWN: f32 = 0.0; // No cooldown by default (blocked by mouse release)
 
-// Mana requirement - must have at least 50% mana
-pub const MANA_REQUIREMENT_PERCENT: f32 = 0.5;
+// Mana requirement - must have at least ~16.7% mana (also the amount consumed)
+pub const MANA_REQUIREMENT_PERCENT: f32 = 1.0 / 6.0;
 
-// Damage
-pub const DAMAGE: f32 = 500.0;
+// Damage: fraction of the target's max health dealt per hit. At 1.0 the beam
+// exactly kills any unshielded unit at or below full health; temp-HP shields
+// (e.g. Guardian Circle) can save them. Bosses and Brutes instead take this
+// fraction of a base infantry unit's health — see `fod_damage_for_target`.
+pub const DAMAGE_PERCENT: f32 = 1.0;
 
 // Beam properties
 pub const BEAM_LENGTH: f32 = 5000.0;
@@ -75,8 +78,9 @@ pub(super) const SOUL_HARVEST_MANA_REFUND: f32 = 0.15;
 pub(super) const QUICK_DRAW_CAST_MULT: f32 = 0.6;
 
 // Tier 2
-pub(super) const DEATH_SENTENCE_MANA_THRESHOLD: f32 = 0.3;
-pub(super) const DEATH_SENTENCE_DAMAGE: f32 = 700.0;
+pub(super) const DEATH_SENTENCE_MANA_THRESHOLD: f32 = 0.1;
+/// 140% of the target's max health — punches through small temp-HP shields.
+pub(super) const DEATH_SENTENCE_DAMAGE_PERCENT: f32 = 1.4;
 pub(super) const DEATH_SENTENCE_COOLDOWN_MULT: f32 = 0.5;
 pub(super) const SIPHON_LIFE_HEAL_PERCENT: f32 = 0.5;
 

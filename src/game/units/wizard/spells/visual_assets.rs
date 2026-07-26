@@ -1224,9 +1224,9 @@ pub fn refresh_spell_visuals_for_wizard(
     }
 }
 
-/// Converts a color to a brown Excremage variant, preserving alpha.
-/// Creates an AuraSphereMaterial with default opacity and time.
-fn aura_mat(
+/// Creates an AuraSphereMaterial with the given colors and default
+/// opacity (1.0) and time (0.0), returning its handle.
+pub(crate) fn aura_mat(
     materials: &mut Assets<AuraSphereMaterial>,
     inner: LinearRgba,
     outer: LinearRgba,
