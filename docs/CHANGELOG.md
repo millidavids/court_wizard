@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.14] - 2026-07-28
+
+### Changed
+- **Smoother Mac releases** — improved the behind-the-scenes process that builds and delivers the Mac version, so Mac updates now arrive automatically alongside Windows and Linux.
+- **Intel Mac support made official** — the system requirements now cover Intel Macs alongside Apple Silicon. One download works on both.
+
 ## [v1.0.13] - 2026-07-27
 
 ### Added

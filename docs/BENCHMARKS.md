@@ -44,16 +44,16 @@ Constrained configurations simulated weaker hardware by pinning CPU affinity and
 | **Storage** | 500 MB |
 | **Target** | 30 FPS in normal play; may dip under peak roguelite stress |
 
-#### macOS (Apple Silicon only)
+#### macOS (universal — Apple Silicon and Intel)
 
 | Component | Spec |
 |---|---|
 | **OS** | macOS 11 (Big Sur) or later |
-| **CPU** | Apple M1 or later |
-| **RAM** | 8 GB unified memory |
-| **GPU** | Apple M1 integrated GPU or later |
+| **CPU** | Apple M1 or later, or Intel Core i5 (2015 or later) |
+| **RAM** | 8 GB |
+| **GPU** | Apple M1 integrated GPU, Intel Iris, or any Metal-capable GPU |
 | **Storage** | 500 MB |
-| **Target** | 30 FPS in normal play; may dip under peak roguelite stress |
+| **Target** | 30 FPS in normal play; may dip under peak roguelite stress. Intel integrated graphics may vary at Retina resolutions |
 
 #### Linux
 
@@ -79,14 +79,14 @@ Constrained configurations simulated weaker hardware by pinning CPU affinity and
 | **Storage** | 500 MB |
 | **Target** | Stable 60 FPS under all gameplay conditions |
 
-#### macOS (Apple Silicon only)
+#### macOS (universal — Apple Silicon and Intel)
 
 | Component | Spec |
 |---|---|
 | **OS** | macOS 12 (Monterey) or later |
-| **CPU** | Apple M1 Pro / M2 / M3 or later |
-| **RAM** | 16 GB unified memory |
-| **GPU** | Apple M1 Pro integrated GPU or later |
+| **CPU** | Apple M1 Pro / M2 / M3 or later, or Intel Core i7 with a dedicated GPU |
+| **RAM** | 16 GB |
+| **GPU** | Apple M1 Pro integrated GPU or later, or AMD Radeon Pro (Intel Macs) |
 | **Storage** | 500 MB |
 | **Target** | Stable 60 FPS under all gameplay conditions |
 
