@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v1.0.14] - 2026-07-28
+## [v1.0.15] - 2026-07-28
 
 ### Changed
 - **Smoother Mac releases** — improved the behind-the-scenes process that builds and delivers the Mac version, so Mac updates now arrive automatically alongside Windows and Linux.
