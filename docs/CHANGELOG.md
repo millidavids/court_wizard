@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Added
+- **Artwork credits included with the game** — the file crediting the game's artists now comes with every download.
+
+### Changed
+- **The Mac version is now a proper Mac app** — Court Wizard on macOS is now a real double-clickable app with its own icon, and a single download works on both Apple Silicon and Intel Macs. The app is checked and approved by Apple, so it opens without any security warnings.
+
 ## [v1.0.10] - 2026-07-26
 
 ### Changed

@@ -36,14 +36,13 @@ pub(crate) fn init_steam_input(client: Res<Client>) {
 /// individually-joined components so the separators are OS-native (backslashes on
 /// Windows — Steam rejects a mixed-slash path). The filename MUST carry the
 /// *running* app id. Prefers Steam's canonical install-root location
-/// (`controller_config/…`) over the `assets/` copy, and the exe dir over the cwd.
+/// (`controller_config/…`) over the `assets/` copy, and the bundled data dir
+/// (exe dir, or Contents/Resources inside a macOS .app) over the cwd.
 fn manifest_path(app_id: u32) -> Option<String> {
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
     let file = format!("game_actions_{app_id}.vdf");
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|e| e.parent().map(Path::to_path_buf));
-    [exe_dir, Some(PathBuf::from("."))]
+    let data_dir = crate::config::resource_root();
+    [data_dir, Some(PathBuf::from("."))]
         .into_iter()
         .flatten()
         .flat_map(|base| {

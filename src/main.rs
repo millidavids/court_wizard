@@ -54,14 +54,11 @@ fn main() {
             })
             .set(AssetPlugin {
                 meta_check: AssetMetaCheck::Never,
-                // Resolve assets relative to the executable's directory
-                // so the game works regardless of what CWD it's launched from.
-                file_path: std::env::current_exe()
-                    .ok()
-                    .and_then(|p| {
-                        p.parent()
-                            .map(|d| d.join("assets").to_string_lossy().into_owned())
-                    })
+                // Resolve assets relative to the executable's directory (or the
+                // .app bundle's Contents/Resources on macOS) so the game works
+                // regardless of what CWD it's launched from.
+                file_path: config::resource_root()
+                    .map(|d| d.join("assets").to_string_lossy().into_owned())
                     .unwrap_or_else(|| "assets".to_string()),
                 ..default()
             })

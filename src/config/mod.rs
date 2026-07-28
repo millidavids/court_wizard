@@ -4,6 +4,7 @@ pub(crate) mod input_bindings;
 pub(crate) mod messages;
 mod plugin;
 pub(crate) mod progress;
+mod resource_paths;
 mod resources;
 pub(crate) mod save_data;
 pub(crate) mod save_encoding;
@@ -14,6 +15,7 @@ mod systems;
 pub(crate) use input_bindings::InputBindings;
 pub use messages::ConfigChanged;
 pub use plugin::ConfigPlugin;
+pub(crate) use resource_paths::resource_root;
 pub(crate) use resources::SavedWindowedGeometry;
 pub use resources::{
     ActiveSave, ColorblindType, ControllerGlyphStyle, DisplayMode, GameConfig, VsyncMode,

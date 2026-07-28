@@ -10,11 +10,15 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
+      # macOS is NOT built here: macOS runners bill at 10x, and the shipped
+      # build must be signed/notarized anyway. The signed universal .app is
+      # produced by the dedicated macos-release.yml workflow, dispatched
+      # automatically once per release by release.yml's trigger-macos-release
+      # job (or by hand from the Actions tab).
       matrix:
         include:
           - { platform: windows, runner: ubuntu-latest, target: x86_64-pc-windows-gnu,    suffix: windows }
           - { platform: linux,   runner: ubuntu-latest, target: x86_64-unknown-linux-gnu, suffix: linux }
-          - { platform: macos,   runner: macos-14,      target: aarch64-apple-darwin,     suffix: macos-apple-silicon }
 
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1

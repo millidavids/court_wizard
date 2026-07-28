@@ -1,0 +1,103 @@
+name: Steam Upload
+
+# Shared Steam depot upload, called by release.yml (Windows + Linux) and
+# macos-release.yml (macOS). Centralizes the steam-deploy action pin, the
+# branch strategy, and — critically — the serialization of steamcmd logins:
+# Steam's anti-fraud locks builder accounts on concurrent logins, so every
+# Steam upload across all workflows shares one static concurrency group.
+
+on:
+  workflow_call:
+    inputs:
+      app_id:
+        description: Steamworks app id to upload to
+        required: true
+        type: string
+      first_depot_id:
+        description: firstDepotIdOverride — depot ids increment from here in depot order
+        required: true
+        type: string
+      build_description:
+        description: Build description shown in the Steamworks builds list
+        required: true
+        type: string
+      release_branch:
+        description: Steam branch to set live on (promote to default by hand)
+        required: false
+        type: string
+        default: staging
+      depot1_artifact:
+        description: Name of the uploaded artifact holding depot 1's zip
+        required: true
+        type: string
+      depot1_dir:
+        description: Staging dir for depot 1 (depot path becomes <dir>/court_wizard)
+        required: true
+        type: string
+      depot2_artifact:
+        description: Optional artifact for depot 2 (empty = single-depot upload)
+        required: false
+        type: string
+        default: ''
+      depot2_dir:
+        description: Staging dir for depot 2
+        required: false
+        type: string
+        default: ''
+      require_release_version:
+        description: If set, refuse to upload unless GitHub release v<value> exists
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    # One steamcmd login at a time, repo-wide (see header comment).
+    concurrency:
+      group: steam-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Require a published GitHub release
+        if: inputs.require_release_version != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "v${{ inputs.require_release_version }}" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "::error::No GitHub release v${{ inputs.require_release_version }} exists — refusing to upload an unreleased version to Steam (run release.yml first)."
+            exit 1
+          fi
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: artifacts
+
+      - name: Stage content
+        run: |
+          set -euo pipefail
+          # Info-ZIP unzip restores the exec bits stored in the zips (the
+          # macOS zip is ditto-made specifically so the signed bundle's bits
+          # survive this round trip untouched).
+          stage() {
+            mkdir -p "steam-content/$2"
+            unzip -q artifacts/"$1"/*.zip -d "steam-content/$2"
+          }
+          stage "${{ inputs.depot1_artifact }}" "${{ inputs.depot1_dir }}"
+          if [ -n "${{ inputs.depot2_artifact }}" ]; then
+            stage "${{ inputs.depot2_artifact }}" "${{ inputs.depot2_dir }}"
+          fi
+
+      - name: Upload build to Steamworks
+        uses: game-ci/steam-deploy@8bd9baca6407f9abd210bd1eef3c45f56e12d8d9 # v3.2.0
+        with:
+          username: ${{ secrets.STEAM_USER }}
+          configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
+          appId: ${{ inputs.app_id }}
+          firstDepotIdOverride: ${{ inputs.first_depot_id }}
+          buildDescription: ${{ inputs.build_description }}
+          rootPath: steam-content
+          depot1Path: ${{ inputs.depot1_dir }}/court_wizard
+          depot2Path: ${{ inputs.depot2_dir != '' && format('{0}/court_wizard', inputs.depot2_dir) || '' }}
+          releaseBranch: ${{ inputs.release_branch }}

@@ -18,7 +18,7 @@ pub(super) fn collect_all_roguelite_runs(
             all_runs.extend(wizard.roguelite.run_history.iter());
         }
     }
-    all_runs.sort_by(|a, b| b.ended_at.cmp(&a.ended_at));
+    all_runs.sort_by_key(|run| std::cmp::Reverse(run.ended_at));
     all_runs
 }
 

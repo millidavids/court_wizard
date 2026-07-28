@@ -38,7 +38,7 @@ zip_suffix() {
     case "$1" in
         windows) echo "windows" ;;
         linux)   echo "linux" ;;
-        macos)   echo "macos-apple-silicon" ;;
+        macos)   echo "macos-universal" ;;
     esac
 }
 
@@ -46,7 +46,7 @@ depot_id() {
     case "$1" in
         windows) echo "4550882" ;;
         linux)   echo "4550883" ;;
-        macos)   echo "4550884" ;;
+        macos)   echo "4550881" ;;
     esac
 }
 

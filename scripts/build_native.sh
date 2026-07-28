@@ -113,16 +113,9 @@ else
     echo "Warning: $ASSET_SRC not found. Assets will be missing at runtime."
 fi
 
-# Steam auto-discovers the In-Game Actions manifest at the INSTALL ROOT:
-# controller_config/game_actions_<appid>.vdf. The manifests also live under
-# assets/ (for the runtime SetInputActionManifestFilePath fallback), but Steam
-# won't look there — so mirror them to the root controller_config/ so Steam finds
-# them with no partner-site path/publish step needed.
-if [ -d "$ASSET_SRC/controller_config" ]; then
-    mkdir -p "$BIN_DIR/controller_config"
-    cp "$ASSET_SRC/controller_config/"*.vdf "$BIN_DIR/controller_config/" 2>/dev/null
-    echo "IGA manifests mirrored to install-root controller_config/."
-fi
+# Install-root IGA manifests for Steam auto-discovery (see the helper).
+./scripts/copy_iga_manifests.sh "$BIN_DIR/controller_config"
+echo "IGA manifests mirrored to install-root controller_config/."
 
 # Copy SPRITE_CREDITS.csv alongside binary for attribution
 CREDITS_SRC="./docs/SPRITE_CREDITS.csv"

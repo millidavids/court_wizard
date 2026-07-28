@@ -91,13 +91,7 @@ impl CauldronState {
         match self {
             Self::Brewing {
                 elapsed, duration, ..
-            } => {
-                if *duration > 0.0 {
-                    (elapsed / duration).min(1.0)
-                } else {
-                    0.0
-                }
-            }
+            } if *duration > 0.0 => (elapsed / duration).min(1.0),
             _ => 0.0,
         }
     }

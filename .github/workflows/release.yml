@@ -81,78 +81,40 @@ jobs:
           files: artifacts/**/*.zip
 
   steam-deploy:
+    # macOS (depot 4550881) is uploaded separately by macos-release.yml through
+    # this same reusable workflow — the signed universal .app never passes
+    # through here. The reusable workflow serializes steamcmd logins across
+    # all callers via a shared concurrency group.
     needs: [check-version, build, release]
     if: needs.check-version.outputs.should_release == 'true' && vars.STEAM_DEPLOY == 'true'
+    uses: ./.github/workflows/steam-upload.yml
+    secrets: inherit
+    with:
+      app_id: '4550880'
+      first_depot_id: '4550882' # depot1 windows=4550882, depot2 linux=4550883
+      build_description: v${{ needs.check-version.outputs.version }} (${{ github.sha }})
+      depot1_artifact: court_wizard-windows
+      depot1_dir: windows
+      depot2_artifact: court_wizard-linux
+      depot2_dir: linux
+
+  trigger-macos-release:
+    # release.yml pushes its tag with GITHUB_TOKEN, which cannot fire
+    # macos-release.yml's tag trigger (GitHub recursion guard) — but an
+    # explicit workflow_dispatch via the API does work. Chain it here so the
+    # macOS depot can't silently drift behind Windows/Linux. Runs exactly once
+    # per release (same should_release gate), never on ordinary pushes, so the
+    # 10x macOS runner cadence is unchanged.
+    needs: [check-version, release]
+    if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          path: artifacts
-
-      - name: Stage content
-        run: |
-          mkdir -p steam-content/windows steam-content/linux steam-content/macos
-          unzip -q artifacts/court_wizard-windows/*.zip -d steam-content/windows
-          unzip -q artifacts/court_wizard-linux/*.zip   -d steam-content/linux
-          unzip -q artifacts/court_wizard-macos/*.zip   -d steam-content/macos
-
-      - name: Upload build to Steamworks
-        uses: game-ci/steam-deploy@8bd9baca6407f9abd210bd1eef3c45f56e12d8d9 # v3.2.0
-        with:
-          username: ${{ secrets.STEAM_USER }}
-          configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
-          appId: '4550880'
-          firstDepotIdOverride: '4550882'
-          buildDescription: v${{ needs.check-version.outputs.version }} (${{ github.sha }})
-          rootPath: steam-content
-          depot1Path: windows/court_wizard
-          depot2Path: linux/court_wizard
-          depot3Path: macos/court_wizard
-          releaseBranch: staging
-
-  steam-deploy-playtest:
-    # Runs after the main staging push (sequentially, to avoid two concurrent
-    # steamcmd logins on the same account) whenever that push happens. Same
-    # build artifacts, same Steam credentials — only the app, depots, and branch
-    # differ. Gated on the same STEAM_DEPLOY toggle as the main deploy.
-    needs: [check-version, build, release, steam-deploy]
-    if: needs.check-version.outputs.should_release == 'true' && vars.STEAM_DEPLOY == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          path: artifacts
-
-      - name: Stage content
-        run: |
-          mkdir -p steam-content/windows steam-content/linux steam-content/macos
-          unzip -q artifacts/court_wizard-windows/*.zip -d steam-content/windows
-          unzip -q artifacts/court_wizard-linux/*.zip   -d steam-content/linux
-          unzip -q artifacts/court_wizard-macos/*.zip   -d steam-content/macos
-
-      - name: Upload playtest build to Steamworks
-        uses: game-ci/steam-deploy@8bd9baca6407f9abd210bd1eef3c45f56e12d8d9 # v3.2.0
-        with:
-          username: ${{ secrets.STEAM_USER }}
-          configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
-          appId: '4820340'
-          firstDepotIdOverride: '4820342'
-          buildDescription: v${{ needs.check-version.outputs.version }} (${{ github.sha }})
-          rootPath: steam-content
-          # Playtest depot IDs increment from firstDepotIdOverride in path order:
-          # 4820342 (windows) -> 4820343 (macOS) -> 4820344 (linux/SteamOS).
-          # NOTE: this order is windows/macos/linux, which differs from the main
-          # app's windows/linux/macos ordering above — do not "align" them.
-          depot1Path: windows/court_wizard
-          depot2Path: macos/court_wizard
-          depot3Path: linux/court_wizard
-          # Upload to the playtest's "staging" beta branch and promote
-          # staging -> default by hand in Steamworks (avoids Steam blocking an
-          # automated set-live straight to default). The "staging" beta branch
-          # must already exist on app 4820340 in Steamworks, or this step fails.
-          releaseBranch: staging
+      - name: Dispatch macos-release.yml at the release tag
+        run: gh workflow run macos-release.yml --repo "$GITHUB_REPOSITORY" --ref "v${{ needs.check-version.outputs.version }}"
 
   notify-discord:
     needs: [check-version, release]

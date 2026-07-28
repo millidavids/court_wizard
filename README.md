@@ -89,7 +89,7 @@ The rest of the dependency list, and what each crate does:
 - **`cargo check`** — compiles without generating code; the fast inner loop (seconds, not minutes) used constantly during development.
 - **`cargo clippy -- -D warnings`** — Rust's lint suite, treated as errors. **`cargo fmt`** — non-negotiable formatting. Both run before any release.
 - **Cross-compilation** — `cargo build --target=x86_64-pc-windows-gnu` produces a Windows `.exe` from Linux via the MinGW toolchain. The build scripts wrap this.
-- **CI/CD** — `.github/workflows/build.yml` and `release.yml`: a push to `main` builds Windows/Linux/macOS, attaches zips to a GitHub Release, and uploads to Steam.
+- **CI/CD** — `.github/workflows/build.yml` and `release.yml`: a push to `main` builds Windows/Linux, attaches zips to a GitHub Release, and uploads to Steam. macOS is built separately by `macos-release.yml` (manual dispatch or a pushed `v*` tag), which signs, notarizes, and staples a universal `Court Wizard.app` before uploading — macOS runners bill at 10x, so it never runs on ordinary pushes.
 - **Benchmark builds** — `./scripts/build_native.sh --benchmarking` produces a release-speed binary with diagnostics compiled in, for profiling on real hardware.
 
 ## Project Setup
@@ -113,7 +113,8 @@ The rest of the dependency list, and what each crate does:
 ./scripts/build_native.sh                   # debug build, host platform
 ./scripts/build_native.sh windows           # debug build, Windows (from Linux/WSL2)
 ./scripts/build_native.sh windows --release # optimized release build
-./scripts/build_native.sh macos             # macOS (Apple Silicon; macos-intel for x86)
+./scripts/build_native.sh macos             # macOS dev build only (Apple Silicon; macos-intel for x86)
+./scripts/package.sh macos                  # macOS shippable build: universal Court Wizard.app (unsigned locally)
 ```
 
 The script builds the binary **and copies `assets/` next to it** so the game finds its sprites, audio, and shaders at runtime — run the produced binary from its output folder, not via `cargo run`. Two behaviors worth knowing: debug builds **auto-bump the patch version** in `Cargo.toml` (pass `--no-bump` to skip), and release builds never bump.

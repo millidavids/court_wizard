@@ -1,0 +1,214 @@
+name: macOS Release
+
+# Builds a universal (arm64 + x86_64) Court Wizard.app, signs it with a
+# Developer ID certificate via rcodesign, notarizes + staples it through
+# Apple's notary service, verifies the result, and uploads it to Steam depot
+# 4550881 (app 4550880).
+#
+# macOS runners bill at 10x the Linux rate, so this workflow is deliberately
+# NOT part of the every-push build matrix (build.yml). It runs only on:
+#   - workflow_dispatch — release.yml's trigger-macos-release job dispatches it
+#     automatically once per release (at the release tag); it can also be run
+#     by hand from the Actions tab
+#   - manually pushed v* tags (release.yml's own GITHUB_TOKEN-pushed tags
+#     cannot fire this trigger — GitHub recursion guard — hence the explicit
+#     dispatch chaining above)
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+# Static group (not ref-scoped): a tag-push run and a dispatched run of the
+# same release must never build/notarize concurrently. Steam upload
+# serialization is handled separately by steam-upload.yml's shared group.
+concurrency:
+  group: macos-release
+  cancel-in-progress: false
+
+env:
+  RCODESIGN_VERSION: '0.29.0'
+  RCODESIGN_SHA256: d98372d5524226ccf9dc0eda03d4e4f5826182dabb2fc3f2bd303ed9113a748d
+
+jobs:
+  build-sign-notarize:
+    name: Build, sign, notarize (universal .app)
+    runs-on: macos-latest
+    # notary-submit --wait can be slow, especially the first submission for a
+    # new bundle identifier.
+    timeout-minutes: 90
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: Extract version from Cargo.toml
+        id: get_version
+        run: |
+          VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable channel (pinned)
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: macos-universal
+
+      - name: Install rcodesign
+        run: |
+          set -euo pipefail
+          curl -sSfL -o rcodesign.tar.gz \
+            "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign/${RCODESIGN_VERSION}/apple-codesign-${RCODESIGN_VERSION}-macos-universal.tar.gz"
+          echo "${RCODESIGN_SHA256}  rcodesign.tar.gz" | shasum -a 256 -c -
+          tar -xzf rcodesign.tar.gz
+          mkdir -p "$HOME/.local/bin"
+          install -m 755 "apple-codesign-${RCODESIGN_VERSION}-macos-universal/rcodesign" "$HOME/.local/bin/rcodesign"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          rm -rf rcodesign.tar.gz "apple-codesign-${RCODESIGN_VERSION}-macos-universal"
+          "$HOME/.local/bin/rcodesign" --version
+
+      - name: Build universal binary and assemble Court Wizard.app
+        run: ./scripts/package_macos_app.sh --no-zip
+
+      - name: Decode signing secrets
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+          APPSTORE_API_KEY_JSON: ${{ secrets.APPSTORE_API_KEY_JSON }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$APPLE_CERT_P12_BASE64" | base64 -d > "$RUNNER_TEMP/cert.p12"
+          printf '%s' "$APPLE_CERT_PASSWORD"              > "$RUNNER_TEMP/p12-password.txt"
+          printf '%s' "$APPSTORE_API_KEY_JSON" | base64 -d > "$RUNNER_TEMP/asc-key.json"
+
+      - name: Sign (nested dylib first, then the outer bundle)
+        run: |
+          set -euo pipefail
+          APP="dist/macos/court_wizard/Court Wizard.app"
+          # Order matters: nested Mach-O code is signed before the outer bundle
+          # so the bundle seal covers the final dylib signature. (rcodesign also
+          # recurses into nested code when signing a bundle; the explicit pass
+          # pins the ordering regardless.) --for-notarization enables the
+          # hardened runtime + secure timestamps and enforces notarization
+          # requirements. The p12 password is passed via file, never argv.
+          # Both invocations share SIGN_ARGS so their configurations can't
+          # drift; the entitlements (Steam overlay needs DYLD injection under
+          # the hardened runtime — see packaging/macos/entitlements.plist) go
+          # on the bundle sign only, since entitlements apply to the main
+          # executable and dylibs don't carry them.
+          SIGN_ARGS=(
+            --p12-file "$RUNNER_TEMP/cert.p12"
+            --p12-password-file "$RUNNER_TEMP/p12-password.txt"
+            --for-notarization
+          )
+          rcodesign sign "${SIGN_ARGS[@]}" \
+            "$APP/Contents/MacOS/libsteam_api.dylib"
+          rcodesign sign "${SIGN_ARGS[@]}" \
+            --entitlements-xml-path packaging/macos/entitlements.plist \
+            "$APP"
+
+      - name: Notarize and staple
+        run: |
+          set -euo pipefail
+          # First-time notarization commonly fails on hardened-runtime and
+          # nested-binary issues (an unsigned nested Mach-O, a missing runtime
+          # flag). When it does, grab the submission ID from this step's output
+          # and inspect Apple's per-file findings with:
+          #   rcodesign notary-log --api-key-file <asc-key.json> <submission-id>
+          rcodesign notary-submit \
+            --api-key-file "$RUNNER_TEMP/asc-key.json" \
+            --staple --wait \
+            "dist/macos/court_wizard/Court Wizard.app"
+
+      - name: Verify signature, notarization, and universal binary
+        run: |
+          set -euo pipefail
+          APP="dist/macos/court_wizard/Court Wizard.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          spctl -a -vvv -t exec "$APP"
+          xcrun stapler validate "$APP"
+          ARCHS=$(lipo -archs "$APP/Contents/MacOS/court_wizard")
+          echo "binary architectures: $ARCHS"
+          case "$ARCHS" in
+            *x86_64*arm64*|*arm64*x86_64*) ;;
+            *) echo "::error::court_wizard is not a universal binary (got: $ARCHS)"; exit 1 ;;
+          esac
+          lipo -info "$APP/Contents/MacOS/court_wizard"
+
+      - name: Package signed bundle
+        run: |
+          set -euo pipefail
+          # The bundle is signed and stapled — NOTHING may modify its contents
+          # from here on, or the signature is invalidated. ditto preserves the
+          # exec bits and metadata that upload-artifact alone would strip.
+          ditto -c -k --keepParent dist/macos/court_wizard \
+            "court_wizard-v${{ steps.get_version.outputs.version }}-macos-universal.zip"
+
+      - name: Clean up decoded secrets
+        if: always()
+        run: rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/p12-password.txt" "$RUNNER_TEMP/asc-key.json"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: court_wizard-macos
+          path: court_wizard-v*-macos-universal.zip
+          if-no-files-found: error
+
+  steam-deploy-macos:
+    # Shares release.yml's reusable upload workflow (single source for the
+    # action pin, branch strategy, and steamcmd-login serialization). Same
+    # repo-wide vars.STEAM_DEPLOY gate as the Win/Linux deploy; while CI upload
+    # stays disabled the manual path is scripts/upload_to_steam.sh (see
+    # steam/README.md). require_release_version refuses to upload a version
+    # that was never released (e.g. a dispatch from a bumped dev branch).
+    needs: build-sign-notarize
+    if: vars.STEAM_DEPLOY == 'true'
+    uses: ./.github/workflows/steam-upload.yml
+    secrets: inherit
+    with:
+      app_id: '4550880'
+      first_depot_id: '4550881' # single-depot invocation: depot1 = macOS depot
+      build_description: v${{ needs.build-sign-notarize.outputs.version }} (${{ github.sha }})
+      depot1_artifact: court_wizard-macos
+      depot1_dir: macos
+      require_release_version: ${{ needs.build-sign-notarize.outputs.version }}
+
+  attach-to-github-release:
+    # release.yml no longer produces a macOS zip, so attach the signed one to
+    # the GitHub Release for this version — if that release already exists.
+    needs: build-sign-notarize
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ needs.build-sign-notarize.outputs.version }}
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: artifacts
+
+      - name: Attach zip to existing GitHub release
+        run: |
+          set -euo pipefail
+          # Exact expected name from the build job's version output — fails
+          # loudly if the naming convention ever drifts, instead of silently
+          # skipping the attach.
+          ZIP="artifacts/court_wizard-macos/court_wizard-v${VERSION}-macos-universal.zip"
+          if [ ! -f "$ZIP" ]; then
+            echo "::error::Expected artifact zip not found: $ZIP"
+            exit 1
+          fi
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "v$VERSION" "$ZIP" --repo "$GITHUB_REPOSITORY" --clobber
+            echo "Attached $(basename "$ZIP") to release v$VERSION"
+          else
+            echo "::notice::No GitHub release v$VERSION exists yet — skipping attach (run release.yml first)."
+          fi

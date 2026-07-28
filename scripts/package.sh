@@ -6,10 +6,12 @@ set -e
 #   ./scripts/package.sh                          # Auto-detect platform from host
 #   ./scripts/package.sh windows                  # Cross-compile for Windows
 #   ./scripts/package.sh linux                    # Build for Linux
-#   ./scripts/package.sh macos                    # Build for macOS (Apple Silicon)
-#   ./scripts/package.sh macos-intel              # Build for macOS (Intel)
+#   ./scripts/package.sh macos                    # Build for macOS (universal .app)
 #   ./scripts/package.sh <platform> --skip-build  # Package from existing release build
 #   ./scripts/package.sh --skip-build             # Auto-detect + skip build
+#
+# macOS delegates to package_macos_app.sh, which builds arm64 + x86_64, lipos
+# them into one universal binary, and assembles a Court Wizard.app bundle.
 
 cd "$(dirname "$0")/.."
 
@@ -19,10 +21,10 @@ PLATFORM=""
 for arg in "$@"; do
     case "$arg" in
         --skip-build) SKIP_BUILD=true ;;
-        windows|linux|macos|macos-intel) PLATFORM="$arg" ;;
+        windows|linux|macos) PLATFORM="$arg" ;;
         *)
             echo "Error: Unknown argument '$arg'."
-            echo "Valid platforms: windows, linux, macos, macos-intel"
+            echo "Valid platforms: windows, linux, macos"
             echo "Valid flags: --skip-build"
             exit 1
             ;;
@@ -32,21 +34,23 @@ done
 # Auto-detect platform if not specified
 if [ -z "$PLATFORM" ]; then
     case "$(uname -s)" in
-        Linux*) PLATFORM="linux" ;;
-        Darwin*)
-            if [ "$(uname -m)" = "arm64" ]; then
-                PLATFORM="macos"
-            else
-                PLATFORM="macos-intel"
-            fi
-            ;;
+        Linux*)  PLATFORM="linux" ;;
+        Darwin*) PLATFORM="macos" ;;
         *)
             echo "Error: Could not auto-detect platform from '$(uname -s)'."
-            echo "Specify one of: windows, linux, macos, macos-intel"
+            echo "Specify one of: windows, linux, macos"
             exit 1
             ;;
     esac
     echo "Auto-detected platform: $PLATFORM"
+fi
+
+# macOS packaging (universal binary + .app bundle) lives in its own script.
+if [ "$PLATFORM" = "macos" ]; then
+    if [ "$SKIP_BUILD" = true ]; then
+        exec ./scripts/package_macos_app.sh --skip-build
+    fi
+    exec ./scripts/package_macos_app.sh
 fi
 
 # Per-platform configuration
@@ -62,18 +66,6 @@ case "$PLATFORM" in
         BIN_NAME="court_wizard"
         STEAM_LIB="libsteam_api.so"
         ZIP_SUFFIX="linux"
-        ;;
-    macos)
-        TARGET="aarch64-apple-darwin"
-        BIN_NAME="court_wizard"
-        STEAM_LIB="libsteam_api.dylib"
-        ZIP_SUFFIX="macos-apple-silicon"
-        ;;
-    macos-intel)
-        TARGET="x86_64-apple-darwin"
-        BIN_NAME="court_wizard"
-        STEAM_LIB="libsteam_api.dylib"
-        ZIP_SUFFIX="macos-intel"
         ;;
 esac
 
@@ -101,17 +93,15 @@ cp "$BIN_DIR/$BIN_NAME" "$STAGING/court_wizard/"
 cp -r "$BIN_DIR/assets" "$STAGING/court_wizard/"
 cp docs/PLAYER_README.txt "$STAGING/court_wizard/README.txt"
 
-# Steam auto-discovers the In-Game Actions manifest at the depot/install ROOT:
-# controller_config/game_actions_<appid>.vdf. The .vdf files also live under
-# assets/ (the runtime SetInputActionManifestFilePath fallback), but Steam only
-# looks at the root — so ship a copy there too. Both the main app and the
-# Playtest read the same depot, so we include every game_actions_*.vdf and each
-# app picks the one named for its own id.
-if [ -d "./assets/controller_config" ]; then
-    mkdir -p "$STAGING/court_wizard/controller_config"
-    cp ./assets/controller_config/*.vdf "$STAGING/court_wizard/controller_config/" 2>/dev/null || true
-    echo "Included install-root controller_config/ (Steam IGA auto-discovery)."
+# Sprite attribution ships with every distributed build (the macOS bundle
+# carries it in Contents/Resources; flat layouts carry it next to the binary).
+if [ -f "docs/SPRITE_CREDITS.csv" ]; then
+    cp docs/SPRITE_CREDITS.csv "$STAGING/court_wizard/"
 fi
+
+# Install-root IGA manifests for Steam auto-discovery (see the helper).
+./scripts/copy_iga_manifests.sh "$STAGING/court_wizard/controller_config"
+echo "Included install-root controller_config/ (Steam IGA auto-discovery)."
 
 # Steam redistributable library
 if [ -f "$BIN_DIR/$STEAM_LIB" ]; then

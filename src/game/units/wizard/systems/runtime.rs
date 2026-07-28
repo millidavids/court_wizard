@@ -206,12 +206,8 @@ pub fn handle_prime_spell_messages(
 /// Returns the talent-based cast time multiplier for a spell (1.0 = no change).
 fn talent_cast_time_multiplier(spell: Spell, talents: &ActiveTalents) -> f32 {
     match spell {
-        Spell::BlackHole => {
-            if talents.get_selection(Spell::BlackHole, 0) == Some(2) {
-                super::super::spells::black_hole_constants::QUICK_COLLAPSE_CAST_TIME_MULT
-            } else {
-                1.0
-            }
+        Spell::BlackHole if talents.get_selection(Spell::BlackHole, 0) == Some(2) => {
+            super::super::spells::black_hole_constants::QUICK_COLLAPSE_CAST_TIME_MULT
         }
         _ => 1.0,
     }

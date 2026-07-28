@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Required for the Steam overlay under the hardened runtime: Steam
+	     injects gameoverlayrenderer.dylib via DYLD_INSERT_LIBRARIES, which
+	     hardened-runtime binaries block unless these two entitlements are
+	     granted (per Valve's Steamworks macOS requirements). Without them,
+	     Shift+Tab / screenshots / the overlay Steam Input binding UI are dead
+	     and some titles crash at launch. Developer ID notarization accepts
+	     both keys. -->
+	<key>com.apple.security.cs.allow-dyld-environment-variables</key>
+	<true/>
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+</dict>
+</plist>

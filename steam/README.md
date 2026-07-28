@@ -11,24 +11,43 @@ If we ever want to revive CI-side uploads, switch to TOTP-per-release (a `workfl
 
 ## Depot layout
 
-| Depot ID | Platform              | Stage path                            |
-|----------|-----------------------|---------------------------------------|
-| 4550882  | Windows (x86_64)      | `steam-content/windows/court_wizard/` |
-| 4550883  | Linux (x86_64)        | `steam-content/linux/court_wizard/`   |
-| 4550884  | macOS (Apple Silicon) | `steam-content/macos/court_wizard/`   |
+| Depot ID | Platform                             | Stage path                            |
+|----------|--------------------------------------|---------------------------------------|
+| 4550882  | Windows (x86_64)                     | `steam-content/windows/court_wizard/` |
+| 4550883  | Linux (x86_64)                       | `steam-content/linux/court_wizard/`   |
+| 4550881  | macOS (universal, signed `.app`)     | `steam-content/macos/court_wizard/`   |
+
+Depot `4550884` (the old unsigned Apple Silicon build) is retired — do not upload to it.
+The macOS depot content is `Court Wizard.app` (plus `README.txt` and the install-root
+`controller_config/` mirror), produced as a signed/notarized universal bundle.
 
 ## How to release
 
 `scripts/upload_to_steam.sh` uploads whichever platform zips it finds at the repo root for the current `Cargo.toml` version. You can run it from any host that has those zips and a working `steamcmd`. Two typical patterns:
 
+**macOS is special:** the shipped macOS build must be the **signed, notarized** universal
+`Court Wizard.app` produced by the `macos-release.yml` GitHub Actions workflow. release.yml
+dispatches it automatically once per release (its `trigger-macos-release` job — needed because
+bot-pushed tags can't fire triggers); it can also be run by hand via *Actions → macOS Release →
+Run workflow*. Download its `court_wizard-v<version>-macos-universal.zip` artifact and upload
+that. A locally built `./scripts/package.sh macos` zip has the same layout but is **UNSIGNED** —
+fine for local testing, not for shipping.
+
+**Pre-ship smoke test (first signed .app on real hardware):** the bundle's Info.plist declares
+`NSHighResolutionCapable`, which the old bare binary never did — on a Retina Mac, verify
+sharpness, cursor alignment under the CRT barrel effect, and framerate before promoting to
+`default`, and confirm the Steam overlay (Shift+Tab) works (the entitlements in
+`packaging/macos/entitlements.plist` exist exactly for that).
+
 ### Option A — All three platforms from one machine (requires the zips to all be present)
 
-If you've gathered all three zips on the same machine (e.g. WSL2 with the macOS zip copied over):
+If you've gathered all three zips on the same machine (e.g. WSL2 with the signed macOS zip
+downloaded from the workflow artifact):
 
 ```bash
 ./scripts/package.sh windows
 ./scripts/package.sh linux
-# bring court_wizard-v<version>-macos-apple-silicon.zip over from the Mac
+# download court_wizard-v<version>-macos-universal.zip from the macos-release.yml run
 ./scripts/upload_to_steam.sh <your_steam_username>
 ```
 
@@ -42,10 +61,9 @@ On WSL2 (cross-compiles Windows + Linux):
 ./scripts/upload_to_steam.sh <your_steam_username>
 ```
 
-On the MacBook Pro (builds macOS natively):
+From any machine with the signed macOS artifact zip at the repo root:
 
 ```bash
-./scripts/package.sh macos
 ./scripts/upload_to_steam.sh <your_steam_username>
 ```
 
@@ -61,8 +79,17 @@ Steamworks dashboard → App `4550880` → Builds → select the new build → s
 - `depot_windows.vdf`, `depot_linux.vdf`, `depot_macos.vdf` — per-depot file mappings.
 - `app_build_4550880.generated.vdf` — produced by the upload script (gitignored).
 
+## Playtest (app 4820340)
+
+The CI playtest deploy job was removed from `release.yml` — the Playtest is disabled in
+Steamworks. If it ever comes back, note its depot IDs were 4820342 (windows), 4820343 (macOS),
+4820344 (linux), assigned by `firstDepotIdOverride` increment in that order.
+
 ## Prerequisites
 
 - `steamcmd` on PATH (`brew install steamcmd` on macOS, or download from Valve on Linux).
 - For WSL2 cross-compiles, the toolchains are installed via `rustup target add x86_64-pc-windows-gnu x86_64-unknown-linux-gnu` plus `gcc-mingw-w64-x86-64` for the Windows linker.
-- For macOS builds: just a Mac with `cargo` and the `aarch64-apple-darwin` target.
+- For local (unsigned) macOS bundles: a Mac with `cargo` and both Apple targets
+  (`rustup target add aarch64-apple-darwin x86_64-apple-darwin`). Signed builds come only
+  from the `macos-release.yml` workflow, which needs the `APPLE_CERT_P12_BASE64`,
+  `APPLE_CERT_PASSWORD`, and `APPSTORE_API_KEY_JSON` repo secrets.

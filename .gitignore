@@ -9,6 +9,7 @@ steamworks_achievements.csv
 /steam/app_build_4550880.generated.vdf
 /steam-content/
 /steam-build-output/
+/dist/
 multiplayer_problems
 
 # Tech-debt overhaul process artifacts (kept on disk, not committed)

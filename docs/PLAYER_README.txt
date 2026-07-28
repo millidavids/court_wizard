@@ -3,7 +3,8 @@ Court Wizard
 
 Getting Started
 ---------------
-Run court_wizard.exe (Windows) or court_wizard (macOS/Linux) to play.
+Run court_wizard.exe (Windows), court_wizard (Linux), or double-click
+Court Wizard.app (macOS) to play.
 
 Save Data
 ---------

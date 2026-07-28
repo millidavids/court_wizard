@@ -254,17 +254,20 @@ pub(crate) fn accumulate_mode_level_stats(
                 run.level_stats.push(level_stats);
             }
         }
-        Some(&GameMode::Endless) => {
-            // Save best stats for this level (only on victory, not during time travel)
-            if *game_outcome == GameOutcome::Victory && time_travel.is_none() {
-                crate::config::save_data::update_endless_best_stats(
-                    &active_save,
-                    &level_stats,
-                    played_coop,
-                    coop_peer_name,
-                );
-            }
+        // Save best stats for this level (only on victory, not during time travel)
+        Some(&GameMode::Endless)
+            if *game_outcome == GameOutcome::Victory && time_travel.is_none() =>
+        {
+            crate::config::save_data::update_endless_best_stats(
+                &active_save,
+                &level_stats,
+                played_coop,
+                coop_peer_name,
+            );
         }
+        // Explicit arms instead of a `_` catch-all so adding a GameMode
+        // variant forces this call site to decide how its stats persist.
+        Some(&GameMode::Endless) => {}
         None => {}
     }
 }
