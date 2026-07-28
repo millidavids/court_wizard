@@ -34,9 +34,12 @@ jobs:
   build-sign-notarize:
     name: Build, sign, notarize (universal .app)
     runs-on: macos-latest
-    # notary-submit --wait can be slow, especially the first submission for a
-    # new bundle identifier.
-    timeout-minutes: 90
+    # Cold-cache reality check (v1.0.13 first run): a fat-LTO, codegen-units=1
+    # release build of both Apple targets alone exceeds 90 minutes — the run
+    # was cancelled by its own timeout mid-build. 240 covers a fully cold
+    # build of both targets plus a slow first notarization; cached runs are
+    # far shorter.
+    timeout-minutes: 240
     outputs:
       version: ${{ steps.get_version.outputs.version }}
     steps:
@@ -57,6 +60,10 @@ jobs:
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           key: macos-universal
+          # Save the dependency cache even when a later step fails or times
+          # out — otherwise every retry of this rarely-run, 10x-billed job
+          # starts from a cold cache (exactly what burned the first run).
+          cache-on-failure: true
 
       - name: Install rcodesign
         run: |
