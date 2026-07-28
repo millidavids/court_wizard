@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v1.0.13] - 2026-07-27
 
 ### Added
 - **Artwork credits included with the game** — the file crediting the game's artists now comes with every download.
