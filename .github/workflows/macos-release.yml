@@ -81,9 +81,6 @@ jobs:
           rm -rf rcodesign.tar.gz "apple-codesign-${APPLE_CODESIGN_VERSION}-macos-universal"
           "$HOME/.local/bin/rcodesign" --version
 
-      - name: Build universal binary and assemble Court Wizard.app
-        run: ./scripts/package_macos_app.sh --no-zip
-
       - name: Decode signing secrets
         env:
           APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
@@ -93,8 +90,26 @@ jobs:
           set -euo pipefail
           umask 077
           printf '%s' "$APPLE_CERT_P12_BASE64" | base64 -d > "$RUNNER_TEMP/cert.p12"
-          printf '%s' "$APPLE_CERT_PASSWORD"              > "$RUNNER_TEMP/p12-password.txt"
+          # Strip CR/LF from the password: a secret set via `gh secret set < file`
+          # carries a trailing newline, which fails PFX decryption with
+          # "incorrect password". Real passwords don't contain newlines.
+          printf '%s' "$APPLE_CERT_PASSWORD" | tr -d '\r\n' > "$RUNNER_TEMP/p12-password.txt"
           printf '%s' "$APPSTORE_API_KEY_JSON" | base64 -d > "$RUNNER_TEMP/asc-key.json"
+
+      - name: Validate signing secrets (fail fast)
+        run: |
+          set -euo pipefail
+          # Prove the p12 decrypts with the provided password BEFORE spending
+          # runner time on the build — a wrong secret fails here in seconds.
+          rcodesign analyze-certificate \
+            --p12-file "$RUNNER_TEMP/cert.p12" \
+            --p12-password-file "$RUNNER_TEMP/p12-password.txt" > /dev/null
+          echo "p12 decrypts OK"
+          python3 -m json.tool "$RUNNER_TEMP/asc-key.json" > /dev/null
+          echo "ASC API key decoded to valid JSON"
+
+      - name: Build universal binary and assemble Court Wizard.app
+        run: ./scripts/package_macos_app.sh --no-zip
 
       - name: Sign (nested dylib first, then the outer bundle)
         run: |
