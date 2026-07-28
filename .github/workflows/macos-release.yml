@@ -26,10 +26,6 @@ concurrency:
   group: macos-release
   cancel-in-progress: false
 
-env:
-  RCODESIGN_VERSION: '0.29.0'
-  RCODESIGN_SHA256: d98372d5524226ccf9dc0eda03d4e4f5826182dabb2fc3f2bd303ed9113a748d
-
 jobs:
   build-sign-notarize:
     name: Build, sign, notarize (universal .app)
@@ -66,16 +62,23 @@ jobs:
           cache-on-failure: true
 
       - name: Install rcodesign
+        # CAUTION: these env vars must NOT start with RCODESIGN_ — rcodesign
+        # maps every RCODESIGN_* environment variable onto its config schema
+        # (not disableable), and unknown keys are a hard error on every
+        # invocation. RCODESIGN_SHA256 broke all signing in the v1.0.13 retry.
+        env:
+          APPLE_CODESIGN_VERSION: '0.29.0'
+          APPLE_CODESIGN_SHA256: d98372d5524226ccf9dc0eda03d4e4f5826182dabb2fc3f2bd303ed9113a748d
         run: |
           set -euo pipefail
           curl -sSfL -o rcodesign.tar.gz \
-            "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign/${RCODESIGN_VERSION}/apple-codesign-${RCODESIGN_VERSION}-macos-universal.tar.gz"
-          echo "${RCODESIGN_SHA256}  rcodesign.tar.gz" | shasum -a 256 -c -
+            "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign/${APPLE_CODESIGN_VERSION}/apple-codesign-${APPLE_CODESIGN_VERSION}-macos-universal.tar.gz"
+          echo "${APPLE_CODESIGN_SHA256}  rcodesign.tar.gz" | shasum -a 256 -c -
           tar -xzf rcodesign.tar.gz
           mkdir -p "$HOME/.local/bin"
-          install -m 755 "apple-codesign-${RCODESIGN_VERSION}-macos-universal/rcodesign" "$HOME/.local/bin/rcodesign"
+          install -m 755 "apple-codesign-${APPLE_CODESIGN_VERSION}-macos-universal/rcodesign" "$HOME/.local/bin/rcodesign"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          rm -rf rcodesign.tar.gz "apple-codesign-${RCODESIGN_VERSION}-macos-universal"
+          rm -rf rcodesign.tar.gz "apple-codesign-${APPLE_CODESIGN_VERSION}-macos-universal"
           "$HOME/.local/bin/rcodesign" --version
 
       - name: Build universal binary and assemble Court Wizard.app
