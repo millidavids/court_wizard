@@ -5,23 +5,25 @@ name: macOS Release
 # Apple's notary service, verifies the result, and uploads it to Steam depot
 # 4550881 (app 4550880).
 #
-# macOS runners bill at 10x the Linux rate, so this workflow is deliberately
-# NOT part of the every-push build matrix (build.yml). It runs only on:
-#   - workflow_dispatch — release.yml's trigger-macos-release job dispatches it
-#     automatically once per release (at the release tag); it can also be run
-#     by hand from the Actions tab
+# This workflow is deliberately NOT part of the every-push build matrix
+# (build.yml) — the shipped macOS build must be signed/notarized, which is
+# slow, so it runs exactly once per release. It runs via:
+#   - workflow_call — release.yml calls it as a nested job of the release
+#     pipeline (the normal path: builds off main, shows in the main graph)
+#   - workflow_dispatch — manual run from the Actions tab
 #   - manually pushed v* tags (release.yml's own GITHUB_TOKEN-pushed tags
-#     cannot fire this trigger — GitHub recursion guard — hence the explicit
-#     dispatch chaining above)
+#     cannot fire this trigger — GitHub recursion guard — which is why the
+#     normal path is workflow_call, not a tag trigger)
 
 on:
+  workflow_call:
   push:
     tags: ['v*']
   workflow_dispatch:
 
-# Static group (not ref-scoped): a tag-push run and a dispatched run of the
-# same release must never build/notarize concurrently. Steam upload
-# serialization is handled separately by steam-upload.yml's shared group.
+# Standalone-run dedupe (ignored for workflow_call invocations — those are
+# covered by the job-level group below). Steam upload serialization is
+# handled separately by steam-upload.yml's shared group.
 concurrency:
   group: macos-release
   cancel-in-progress: false
@@ -30,6 +32,11 @@ jobs:
   build-sign-notarize:
     name: Build, sign, notarize (universal .app)
     runs-on: macos-latest
+    # Job-level (works for both standalone and workflow_call runs): never
+    # build/notarize the same release twice concurrently.
+    concurrency:
+      group: macos-build-sign
+      cancel-in-progress: false
     # Cold-cache reality check (v1.0.13 first run): a fat-LTO, codegen-units=1
     # release build of both Apple targets alone exceeds 90 minutes — the run
     # was cancelled by its own timeout mid-build. 240 covers a fully cold

@@ -27,11 +27,12 @@ The macOS depot content is `Court Wizard.app` (plus `README.txt` and the install
 
 **macOS is special:** the shipped macOS build must be the **signed, notarized** universal
 `Court Wizard.app` produced by the `macos-release.yml` GitHub Actions workflow. release.yml
-dispatches it automatically once per release (its `trigger-macos-release` job — needed because
-bot-pushed tags can't fire triggers); it can also be run by hand via *Actions → macOS Release →
-Run workflow*. Download its `court_wizard-v<version>-macos-universal.zip` artifact and upload
-that. A locally built `./scripts/package.sh macos` zip has the same layout but is **UNSIGNED** —
-fine for local testing, not for shipping.
+calls it as a nested job (`macos-release`) once per release, built off main alongside the
+Windows/Linux legs; it can also be run by hand via *Actions → macOS Release → Run workflow*.
+If the CI Steam upload fails, download its `court_wizard-v<version>-macos-universal.zip`
+artifact (also attached to the GitHub release) and upload manually. A locally built
+`./scripts/package.sh macos` zip has the same layout but is **UNSIGNED** — fine for local
+testing, not for shipping.
 
 **Pre-ship smoke test (first signed .app on real hardware):** the bundle's Info.plist declares
 `NSHighResolutionCapable`, which the old bare binary never did — on a Retina Mac, verify

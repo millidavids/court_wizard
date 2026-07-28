@@ -98,23 +98,17 @@ jobs:
       depot2_artifact: court_wizard-linux
       depot2_dir: linux
 
-  trigger-macos-release:
-    # release.yml pushes its tag with GITHUB_TOKEN, which cannot fire
-    # macos-release.yml's tag trigger (GitHub recursion guard) — but an
-    # explicit workflow_dispatch via the API does work. Chain it here so the
-    # macOS depot can't silently drift behind Windows/Linux. Runs exactly once
-    # per release (same should_release gate), never on ordinary pushes, so the
-    # 10x macOS runner cadence is unchanged.
+  macos-release:
+    # The signed/notarized macOS .app pipeline, nested into this run so it
+    # builds off main and shows in this graph. Runs exactly once per release
+    # (same should_release gate), never on ordinary pushes. Its Steam upload
+    # job is gated on vars.STEAM_DEPLOY internally, same as steam-deploy above.
     needs: [check-version, release]
     if: needs.check-version.outputs.should_release == 'true'
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/macos-release.yml
+    secrets: inherit
     permissions:
-      actions: write
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: Dispatch macos-release.yml at the release tag
-        run: gh workflow run macos-release.yml --repo "$GITHUB_REPOSITORY" --ref "v${{ needs.check-version.outputs.version }}"
+      contents: write
 
   notify-discord:
     needs: [check-version, release]
