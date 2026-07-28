@@ -1,15 +1,17 @@
+use std::collections::HashMap;
+
 use bevy::input::gamepad::GamepadConnectionEvent;
 use bevy::input::keyboard::KeyboardInput;
-use bevy::input::mouse::MouseButtonInput;
+use bevy::input::mouse::{MouseButtonInput, MouseWheel};
 use bevy::prelude::*;
 use bevy::window::{CursorMoved, CursorOptions, PrimaryWindow};
 
+use super::super::arbiter::{InputDeviceArbiter, StickIntentTracker};
 use super::super::resources::{ActiveInputDevice, VirtualCursorPosition};
 use crate::config::GameConfig;
+use crate::game::input::action_state::GamepadActionState;
 use crate::game::input::components::MouseButtonState;
 use crate::game::multiplayer::pause_request::RequestGamePauseMessage;
-
-use super::super::constants::DEVICE_SWITCH_STICK_MAGNITUDE;
 
 /// The most recent gilrs pad that drove input. Unlike [`ActiveInputDevice`] this
 /// survives switching back to mouse/keyboard, so unplugging the pad the player
@@ -20,55 +22,125 @@ pub(crate) struct LastActiveGamepad(pub(crate) Option<Entity>);
 
 /// Updates `ActiveInputDevice` each frame based on which input source was used.
 ///
-/// Any mouse/keyboard activity → `MouseKeyboard`.
-/// Any gamepad activity (stick deflection past hysteresis, or button press) → `Gamepad(entity)`.
+/// Rules (shared with the Steam Input poll via [`InputDeviceArbiter`]):
+/// - A pad button edge is unambiguous intent: it claims focus immediately
+///   (except on a frame that itself had mouse/keyboard events).
+/// - Stick deflection is weak intent: measured against a tracked resting
+///   baseline (never absolute position — a drifting pad idling on the desk
+///   used to pass the old absolute check on every mouse-quiet frame, flapping
+///   the device state several times a second) and gated behind the grace
+///   window of mouse/keyboard silence.
+/// - Mouse/keyboard events reclaim focus, debounced against held pad inputs:
+///   while the active pad holds a button or stick, takeover needs two
+///   consecutive event frames, so one stray cursor event can't cancel a
+///   hold-to-cast mid-cast (real mouse use emits events every frame and takes
+///   over within ~2 frames). A cycling phantom button press can in principle
+///   still claim focus during a mouse pause — accepted: deliberate presses
+///   must never be dropped, and takeover back is immediate.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn detect_active_input_device(
     mut active: ResMut<ActiveInputDevice>,
     mut last_gamepad: ResMut<LastActiveGamepad>,
     mut cursor_moved: MessageReader<CursorMoved>,
     mut mouse_buttons: MessageReader<MouseButtonInput>,
+    mut mouse_wheel: MessageReader<MouseWheel>,
     mut keyboard: MessageReader<KeyboardInput>,
+    mut connections: MessageReader<GamepadConnectionEvent>,
     gamepads: Query<(Entity, &Gamepad)>,
+    steam_actions: Res<GamepadActionState>,
+    time: Res<Time<Real>>,
+    mut arbiter: ResMut<InputDeviceArbiter>,
+    mut prev_mk_frame: Local<bool>,
+    mut trackers: Local<HashMap<Entity, StickIntentTracker>>,
 ) {
-    // Mouse / keyboard events → switch to mouse/keyboard.
-    let mk_activity = cursor_moved.read().next().is_some()
-        || mouse_buttons.read().next().is_some()
-        || keyboard.read().next().is_some();
-    if mk_activity && !matches!(*active, ActiveInputDevice::MouseKeyboard) {
-        *active = ActiveInputDevice::MouseKeyboard;
-        return;
+    let now = time.elapsed_secs_f64();
+    let dt = time.delta_secs();
+
+    // Full drains (count, not next) — leftover events must not masquerade as
+    // fresh activity next frame; this feeds a time-window decision.
+    let mk_activity = cursor_moved.read().count()
+        + mouse_buttons.read().count()
+        + mouse_wheel.read().count()
+        + keyboard.read().count()
+        > 0;
+    let was_mk_frame = *prev_mk_frame;
+    *prev_mk_frame = mk_activity;
+    arbiter.mk_event_this_frame = mk_activity;
+    if mk_activity {
+        arbiter.last_mk_activity = Some(now);
     }
 
-    // Gamepad activity → switch to gamepad.
+    // Any (dis)connect invalidates that pad's tracked rest position — event
+    // based, so a disconnect+reconnect drained in a single frame (no component
+    // gap for retain() to see) still re-seeds the baseline.
+    for event in connections.read() {
+        trackers.remove(&event.gamepad);
+    }
+    trackers.retain(|e, _| gamepads.contains(*e));
+
+    // Assess every pad every frame: baselines must keep absorbing drift even
+    // while the mouse is active. Buttons are checked independently of the
+    // tracker so a first-sight frame (baseline seeding) can't swallow the
+    // press that woke a wireless pad.
+    let mut button_intent: Option<Entity> = None;
+    let mut stick_intent: Option<Entity> = None;
     for (entity, gamepad) in &gamepads {
-        let any_button =
-            gamepad.get_just_pressed().next().is_some() || gamepad.get_pressed().next().is_some();
-        let mag_sq = [
+        let axes = [
             GamepadAxis::LeftStickX,
             GamepadAxis::LeftStickY,
             GamepadAxis::RightStickX,
             GamepadAxis::RightStickY,
         ]
-        .iter()
-        .map(|ax| gamepad.get(*ax).unwrap_or(0.0))
-        .fold(0.0f32, |acc, v| acc + v * v);
+        .map(|ax| gamepad.get(ax).unwrap_or(0.0));
 
-        let stick_active = mag_sq > DEVICE_SWITCH_STICK_MAGNITUDE * DEVICE_SWITCH_STICK_MAGNITUDE;
-
-        if any_button || stick_active {
-            let should_switch = match *active {
-                ActiveInputDevice::Gamepad(e) => e != entity,
-                ActiveInputDevice::MouseKeyboard | ActiveInputDevice::SteamInputPad => true,
-            };
-            if should_switch {
-                *active = ActiveInputDevice::Gamepad(entity);
-            }
-            if last_gamepad.0 != Some(entity) {
-                last_gamepad.0 = Some(entity);
-            }
-            return;
+        if trackers.entry(entity).or_default().assess(axes, dt) && stick_intent.is_none() {
+            stick_intent = Some(entity);
         }
+        if gamepad.get_just_pressed().next().is_some() && button_intent.is_none() {
+            button_intent = Some(entity);
+        }
+    }
+
+    // Record observed intent for the disconnect auto-pause safety net even when
+    // the claim below is suppressed — a pad tapped moments after mouse use must
+    // still count as "the pad the player was using" if it then dies.
+    if let Some(entity) = button_intent.or(stick_intent)
+        && last_gamepad.0 != Some(entity)
+    {
+        last_gamepad.0 = Some(entity);
+    }
+
+    if mk_activity {
+        // Debounce against held pad inputs: a single stray event while the
+        // active pad is holding a button or a deflected stick is swallowed.
+        let gilrs_holding = active.gamepad_entity().is_some_and(|e| {
+            gamepads
+                .get(e)
+                .is_ok_and(|(_, gp)| gp.get_pressed().next().is_some())
+                || trackers.get(&e).is_some_and(StickIntentTracker::deflected)
+        });
+        let steam_holding = matches!(*active, ActiveInputDevice::SteamInputPad)
+            && (steam_actions.buttons.get_pressed().next().is_some()
+                || arbiter.steam_stick.deflected());
+        let holding = gilrs_holding || steam_holding;
+
+        if (!holding || was_mk_frame) && !matches!(*active, ActiveInputDevice::MouseKeyboard) {
+            *active = ActiveInputDevice::MouseKeyboard;
+        }
+        // Never claim for a pad on a mouse/keyboard event frame.
+        return;
+    }
+
+    // Buttons claim immediately; stick intent additionally needs the grace
+    // window of mouse/keyboard silence.
+    let claimant = button_intent.or_else(|| stick_intent.filter(|_| arbiter.mk_quiet(now)));
+    let Some(entity) = claimant else { return };
+    let should_switch = match *active {
+        ActiveInputDevice::Gamepad(e) => e != entity,
+        ActiveInputDevice::MouseKeyboard | ActiveInputDevice::SteamInputPad => true,
+    };
+    if should_switch {
+        *active = ActiveInputDevice::Gamepad(entity);
     }
 }
 

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Fixed
+- **No more flickering menus with a controller plugged in** — if a controller with worn, drifting thumbsticks was connected while you played with mouse and keyboard, buttons and prompts could rapidly flash between mouse and controller styles. The game now only switches to controller mode when you actually press a button or move a stick on purpose, on every platform.
+- **Stray mouse bumps no longer interrupt controller play** — nudging the mouse while holding a cast on the controller no longer cancels your spell or locks the controller out.
+
 ## [v1.0.15] - 2026-07-28
 
 ### Changed

@@ -21,6 +21,34 @@ pub(crate) const RADIAL_SLOT_COUNT: u8 = 5;
 /// Angular width of each radial slot wedge (360° / slot count = 72°).
 pub(crate) const RADIAL_WEDGE_DEGREES: f32 = 360.0 / RADIAL_SLOT_COUNT as f32;
 
-/// Seconds after a device-source event before switching the active input device.
-/// Small hysteresis prevents flicker when the user bumps a stick or key accidentally.
+/// Stick deflection away from its tracked resting baseline (summed over all
+/// four axes, squared-magnitude compare) past which a stick shows device-claim
+/// intent. Deflection is measured relative to the baseline — never as absolute
+/// position — so a worn stick resting off-center (drift) can't claim focus.
+/// Enforced for BOTH producers (gilrs and Steam Input) via
+/// [`super::arbiter::StickIntentTracker`].
 pub(super) const DEVICE_SWITCH_STICK_MAGNITUDE: f32 = 0.25;
+
+/// Absolute per-axis deflection that always counts as stick intent regardless
+/// of the baseline: no stick drifts to near-full throw, and a deliberate push
+/// slow enough for the baseline to chase (smooth assistive controllers) still
+/// reaches this.
+pub(super) const STICK_ABSOLUTE_INTENT: f32 = 0.85;
+
+/// Seconds without any mouse/keyboard event before *stick* intent may claim
+/// input focus. Mouse use always has event-free frames between movements; this
+/// grace window stops a noisy idle pad from stealing focus during them (the
+/// cause of UI flashing when a drifting pad sat plugged in during mouse play).
+/// Button edges bypass this window — a deliberate press must always register.
+pub(super) const DEVICE_SWITCH_GRACE_SECS: f64 = 0.35;
+
+/// Time constant (seconds) for the exponential moving average tracking each
+/// stick's resting position. Slow enough that deliberate stick motion reads as
+/// deflection from baseline before the baseline catches up, fast enough to
+/// absorb gradual drift as a pad warms up mid-session.
+pub(super) const STICK_BASELINE_TAU_SECS: f32 = 2.0;
+
+/// Per-frame cap on the baseline EMA time step. Without it a long frame hitch
+/// (alt-tab, loading) drives the EMA alpha to 1.0 and snaps the baseline onto
+/// whatever position the stick happened to hold through the hitch.
+pub(super) const BASELINE_MAX_STEP_SECS: f32 = 0.1;

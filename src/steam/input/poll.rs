@@ -15,13 +15,11 @@ use crate::config::GameConfig;
 use crate::game::input::action_state::{
     AnalogAction, ControllerKind, GamepadAction, GamepadActionState,
 };
+use crate::game::input::gamepad::arbiter::InputDeviceArbiter;
 use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::multiplayer::pause_request::RequestGamePauseMessage;
 
-/// Stick deflection that counts as activity for seizing the active device
-/// (mirrors the gilrs device-switch threshold).
-const ACTIVITY_STICK: f32 = 0.25;
-/// Trigger pull that counts as activity.
+/// Trigger pull that counts as deliberate activity.
 const ACTIVITY_TRIGGER: f32 = 0.5;
 
 fn kind_from_input_type(t: InputType) -> ControllerKind {
@@ -45,7 +43,10 @@ pub(crate) fn poll_steam_input(
     mut state: ResMut<GamepadActionState>,
     mut active: ResMut<ActiveInputDevice>,
     mut pause_writer: MessageWriter<RequestGamePauseMessage>,
+    mut arbiter: ResMut<InputDeviceArbiter>,
+    time: Res<Time<Real>>,
     mut last_count: Local<Option<usize>>,
+    mut prev_deliberate: Local<bool>,
 ) {
     let input = client.input();
     let controllers = connected_controllers(&input);
@@ -75,6 +76,7 @@ pub(crate) fn poll_steam_input(
             config.pause_on_controller_disconnect
         );
         state.clear_inputs();
+        arbiter.steam_stick.reset();
         if matches!(*active, ActiveInputDevice::SteamInputPad) {
             *active = ActiveInputDevice::MouseKeyboard;
         }
@@ -118,18 +120,29 @@ pub(crate) fn poll_steam_input(
     let lt = analog(AnalogAction::ZoomOut).0;
     let rt = analog(AnalogAction::ZoomIn).0;
 
-    let any_digital = digital.iter().any(|&b| b);
-    let stick_active =
-        Vec2::new(lx, ly).length() > ACTIVITY_STICK || Vec2::new(rx, ry).length() > ACTIVITY_STICK;
-    let trigger_active = lt > ACTIVITY_TRIGGER || rt > ACTIVITY_TRIGGER;
-    let active_now = any_digital || stick_active || trigger_active;
+    // Device-claim rules mirror detect_active_input_device (which ran earlier
+    // this frame and owns the arbiter's mouse/keyboard state):
+    // - button/trigger activity claims on its rising edge (a held or stuck
+    //   input can't re-claim every frame),
+    // - stick deflection is assessed against a tracked resting baseline (drift
+    //   can't claim) and gated behind the mouse-silence grace window,
+    // - nothing claims on a frame that had mouse/keyboard events.
+    let deliberate = digital.iter().any(|&b| b) || lt > ACTIVITY_TRIGGER || rt > ACTIVITY_TRIGGER;
+    let deliberate_edge = deliberate && !*prev_deliberate;
+    *prev_deliberate = deliberate;
+    let stick_intent = arbiter
+        .steam_stick
+        .assess([lx, ly, rx, ry], time.delta_secs());
 
     let already_steam = matches!(*active, ActiveInputDevice::SteamInputPad)
         && state.active_steam_handle == Some(candidate);
+    let may_claim = !arbiter.mk_event_this_frame
+        && (deliberate_edge || (stick_intent && arbiter.mk_quiet(time.elapsed_secs_f64())));
 
-    // Only seize the active device on fresh activity (so a resting controller
-    // doesn't hijack mouse/keyboard); once we own it, keep driving.
-    if !active_now && !already_steam {
+    // Only seize the active device on fresh, deliberate activity (a resting or
+    // drifting controller must not hijack mouse/keyboard); once we own it,
+    // keep driving.
+    if !may_claim && !already_steam {
         return;
     }
 

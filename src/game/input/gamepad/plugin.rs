@@ -32,6 +32,7 @@ pub(crate) struct GamepadInputPlugin;
 impl Plugin for GamepadInputPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ActiveInputDevice>()
+            .init_resource::<super::arbiter::InputDeviceArbiter>()
             .init_resource::<LastActiveGamepad>()
             .init_resource::<VirtualCursorPosition>()
             .init_resource::<GamepadAimSettings>()

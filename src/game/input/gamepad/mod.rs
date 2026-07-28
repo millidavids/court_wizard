@@ -4,6 +4,7 @@
 //! pipeline emits, so downstream gameplay and UI systems are source-agnostic.
 
 mod action_translation;
+pub(crate) mod arbiter;
 pub(crate) mod constants;
 pub(crate) mod messages;
 mod plugin;
