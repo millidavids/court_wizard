@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Fixed
+- **Enemies can no longer wander off the edge of the battlefield** — powerful foes sometimes drifted past the edge of the field, where you couldn't see them or reach them with your spells. The battlefield now has invisible walls: units turn back as they near the edge, and the biggest threats and your King are held firmly inside the visible area so a fight can never slip out of view. Ordinary troops still get a little room to spill past the edge while brawling, so the line doesn't look painted on.
+
 ## [v1.0.28] - 2026-07-31
 
 ### Changed

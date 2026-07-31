@@ -26,7 +26,12 @@ impl Plugin for OgrePlugin {
                         .run_if(any_with_component::<OgreThrowWindup>),
                     update_ogre_charge_visuals
                         .after(ogre_charge_system)
-                        .after(crate::game::units::systems::update_walking_animation),
+                        .after(crate::game::units::systems::update_walking_animation)
+                        // This restores the ogre's transform from a position
+                        // cached at telegraph start, so it must not run after the
+                        // playable-area clamp — it would put an out-of-bounds
+                        // ogre back outside on every telegraph frame.
+                        .before(crate::game::movement_systems::enforce_playable_area),
                     update_ogre_facing.after(crate::game::units::systems::update_facing_direction),
                 )
                     .run_if(is_gameplay_running)

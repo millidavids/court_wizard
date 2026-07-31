@@ -50,6 +50,7 @@ impl Plugin for GamePlugin {
         app.add_plugins(super::benchmarking::BenchmarkingPlugin);
 
         app.init_resource::<GlobalAttackCycle>()
+            .init_resource::<movement_systems::PlayableArea>()
             .init_resource::<KillStats>()
             .init_resource::<CurrentLevel>()
             .init_resource::<RetryTracker>()
@@ -188,6 +189,19 @@ impl Plugin for GamePlugin {
                     .chain()
                     .in_set(VelocitySystemSet),
             )
+            // Steers units away from the playable-area perimeter before they
+            // reach the hard bound. Registered outside the chain above so it can
+            // carry its own single-player guard: `VelocitySystemSet` inherits
+            // only `is_gameplay_running`, which is TRUE on the multiplayer host,
+            // and the boundary polygon is asymmetric and authored against the
+            // single-player camera.
+            .add_systems(
+                Update,
+                movement_systems::apply_playable_area_avoidance
+                    .in_set(VelocitySystemSet)
+                    .after(movement_systems::apply_wall_avoidance)
+                    .run_if(in_state(AppState::InGame)),
+            )
             .add_systems(
                 Update,
                 (
@@ -223,6 +237,33 @@ impl Plugin for GamePlugin {
                 )
                     .chain()
                     .in_set(PostCombatSet),
+            )
+            // Hard playable-area bound. Must run after everything that writes a
+            // unit transform, so it catches teleports, leaps, charges and
+            // knockback as well as ordinary movement.
+            //
+            // `PostCombatSet` is itself configured `.after(MovementSystemSet)`,
+            // so `snap_kings_guard_to_king` is covered transitively.
+            // `ApplyTransformsSet` and `apply_knockback_effects` live in the
+            // other set hierarchy (`units::sets`) with no ordering edge to
+            // `PostCombatSet`, so they have to be named explicitly.
+            //
+            // Excludes versus multiplayer (`AppState::MultiplayerGame`): the
+            // polygon is asymmetric and authored against the single-player
+            // camera, versus spawns no bosses, and its two castles sit in
+            // opposite corners. Co-op DOES run here — it shares the
+            // single-player battlefield, so the same polygon is correct for it.
+            // `is_not_mp_setup_phase` returns true for co-op today, but it is
+            // kept so a future co-op setup freeze holds the armies still rather
+            // than letting this shove them.
+            .add_systems(
+                Update,
+                movement_systems::enforce_playable_area
+                    .run_if(is_gameplay_running.and(in_state(AppState::InGame)))
+                    .run_if(is_not_mp_setup_phase)
+                    .after(PostCombatSet)
+                    .after(super::units::ApplyTransformsSet)
+                    .after(super::units::systems::apply_knockback_effects),
             )
             // Track wizard spell damage to enemies (for Pacifist achievement).
             // Runs after PostCombatSet, gated to stop once flagged.

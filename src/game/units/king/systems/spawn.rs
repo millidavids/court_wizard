@@ -32,8 +32,14 @@ pub fn spawn_king(
     // Use center angle and base range (no row/col offsets)
     let angle = DEFENDER_GRID_CENTER_ANGLE;
     let radius = DEFENDER_GRID_GROUND_RANGE + 600.0;
-    let spawn_x = WIZARD_POSITION.x + radius * angle.cos();
-    let spawn_z = WIZARD_POSITION.z + radius * angle.sin();
+    // The King is bound to the playable area with no slack, so both his post and
+    // the rally point derived from it must sit far enough inside that the
+    // perimeter steering force can't slowly walk him off it.
+    let post = crate::game::movement_systems::clamp_king_post(Vec2::new(
+        WIZARD_POSITION.x + radius * angle.cos(),
+        WIZARD_POSITION.z + radius * angle.sin(),
+    ));
+    let (spawn_x, spawn_z) = (post.x, post.y);
 
     // Define King hitbox (larger than standard units)
     let hitbox = Hitbox::new(KING_RADIUS, KING_HITBOX_HEIGHT);

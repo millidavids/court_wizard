@@ -42,7 +42,12 @@ pub(in crate::game) fn spawn_single_defender_archer(
         if unit_index < units_counted + units_in_this_cell {
             // This unit goes in this cell
             let (spawn_x, spawn_z) = calculate_defender_grid_position(archer_row, cell_idx);
-            let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
+            let (raw_x, raw_z) = random_position_in_cell(rng, spawn_x, spawn_z);
+            // Archers hold the back row, which sits past the playable-area edge.
+            // Clamp the spawn point as well as the rally target so they start
+            // where they will rest instead of being yanked in on frame one.
+            let post = crate::game::movement_systems::clamp_defender_post(Vec2::new(raw_x, raw_z));
+            let (final_x, final_z) = (post.x, post.y);
 
             let hitbox = Hitbox::new(ARCHER_RADIUS, DEFENDER_HITBOX_HEIGHT);
             let spawn_y = hitbox.height / 2.0 + 1.0;
@@ -81,7 +86,9 @@ pub(in crate::game) fn spawn_single_defender_archer(
                     FlockingVelocity::default(),
                     FlowFieldVelocity::default(),
                     FlowFieldInfluence::Defender {
-                        spawn_pos: Vec2::new(spawn_x, spawn_z),
+                        spawn_pos: crate::game::movement_systems::clamp_defender_post(Vec2::new(
+                            spawn_x, spawn_z,
+                        )),
                     },
                     FlockingModifier::new(1.0, 1.0, 0.0),
                     Teleportable,

@@ -50,11 +50,18 @@ pub(in crate::game) fn spawn_single_defender(
         if unit_index < units_counted + units_in_this_cell {
             // This unit goes in this cell
             let (spawn_x, spawn_z) = calculate_defender_grid_position(*row, *col);
-            let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
+            let (raw_x, raw_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 
             let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
             let spawn_y = hitbox.height / 2.0 + 1.0;
-            let spawn_pos = Vec2::new(spawn_x, spawn_z);
+            // The outer grid rows sit past the playable-area edge. Clamp both the
+            // spawn point and the rally target so the unit starts where it will
+            // rest — otherwise it spawns out of bounds and is visibly yanked in
+            // on the first frame.
+            let post = crate::game::movement_systems::clamp_defender_post(Vec2::new(raw_x, raw_z));
+            let (final_x, final_z) = (post.x, post.y);
+            let spawn_pos =
+                crate::game::movement_systems::clamp_defender_post(Vec2::new(spawn_x, spawn_z));
 
             let anim = WalkingAnimation::new_staggered(rng);
             let material = crate::game::units::systems::create_default_sprite_material(
