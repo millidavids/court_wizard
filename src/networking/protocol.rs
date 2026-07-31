@@ -65,7 +65,11 @@ use crate::game::units::wizard::components::Spell;
 ///   `ActiveToggles` — knows to disable pause-sync). Adds `CoopPauseSync`
 ///   (either peer broadcasts the authoritative pause state; the initiator
 ///   re-sends it as a self-healing heartbeat). Appended after `HostModeSelection`.
-pub const PROTOCOL_VERSION: u32 = 12;
+/// - 13: per-unit buff visuals. Widens `UnitSnapshot.flags` from u16 to u32
+///   (bincode positional — breaking) and adds the `BERSERKER_RAGE` /
+///   `BATTLE_HYMN` / `TEMP_HP` / `HASTE` / `HEALING` bits so lingering buff
+///   indicators render on guest ghosts regardless of who cast the buff.
+pub const PROTOCOL_VERSION: u32 = 13;
 
 /// Messages sent over the reliable iroh/QUIC channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -6,8 +6,11 @@ use super::components::{
     CleansingPlumeZone, FieldMedicConverted, FontOfLifePending, FontOfLifeZone, HealingPlumeZone,
     HealingRainZone,
 };
+use super::regen_vfx::{RecentlyHealedVfx, emit_heal_regen_vfx};
 use super::systems;
 use crate::game::run_conditions::{any_exist, is_spell_effects_active};
+use crate::game::units::components::RemoteHealingEffect;
+use crate::game::units::systems::update_timed_modifier;
 
 pub struct HealingPlumePlugin;
 
@@ -42,6 +45,15 @@ impl Plugin for HealingPlumePlugin {
                 systems::font_of_life_resurrect.run_if(any_exist::<FontOfLifePending>()),
                 // Tier 3: Field Medic — revert when zone expires
                 systems::field_medic_cleanup.run_if(any_exist::<FieldMedicConverted>()),
+                // Per-unit regen visual — outside the zone-gated chain because
+                // the marker briefly outlives the zone, and ghosts carry only
+                // the snapshot-mirrored `RemoteHealingEffect`.
+                update_timed_modifier::<RecentlyHealedVfx>
+                    .run_if(any_with_component::<RecentlyHealedVfx>),
+                emit_heal_regen_vfx.run_if(
+                    any_with_component::<RecentlyHealedVfx>
+                        .or(any_with_component::<RemoteHealingEffect>),
+                ),
             )
                 .run_if(is_spell_effects_active),
         );

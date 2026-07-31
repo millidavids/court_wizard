@@ -270,6 +270,21 @@ pub struct SpellVisualAssets {
     /// Green sparkle motes for entangle/nature zones.
     pub nature_mote: Handle<StandardMaterial>,
 
+    // ── Per-unit lingering buff visuals ──────────────────────────────────
+    /// Unit-radius annulus mesh (inner 0.85, outer 1.0) for feet rings.
+    ///
+    /// The stroke is a fraction of the scaled radius, so callers that change
+    /// their ring radius also change its absolute thickness.
+    pub unit_ring: Handle<Mesh>,
+    /// Faint whitish ring at the feet of units with temporary hit points.
+    pub temp_hp_ring: Handle<StandardMaterial>,
+    /// Pale streak trailing behind hasted units while they move.
+    pub haste_speed_line: Handle<StandardMaterial>,
+    /// Faint golden song-mote rising above units under Battle Hymn.
+    pub battle_hymn_song_mote: Handle<StandardMaterial>,
+    /// Soft green mote rising around recently healed units.
+    pub heal_regen_mote: Handle<StandardMaterial>,
+
     // ── Smoke poof materials ─────────────────────────────────────────────
     /// Amber/brown smoke for polymorph transformation.
     pub polymorph_poof: Handle<StandardMaterial>,
@@ -999,6 +1014,19 @@ pub fn init_spell_visual_assets(
         buff_mote: materials.add(unlit_blend(Color::srgba(1.0, 0.85, 0.2, 0.4))),
         nature_mote: materials.add(unlit_blend(Color::srgba(0.3, 0.9, 0.3, 0.4))),
 
+        // Per-unit lingering buff visuals (faint — readable when looking for
+        // them, never distracting at battle scale)
+        unit_ring: meshes.add(Annulus::new(0.85, 1.0)),
+        // Alpha is animated every frame by `update_temp_hp_rings`; the value
+        // here is the peak the fade reaches.
+        temp_hp_ring: materials.add(indicator_mat(Color::srgba(0.85, 0.92, 1.0, 0.5))),
+        haste_speed_line: materials.add(unlit_blend(Color::srgba(0.85, 0.95, 1.0, 0.4))),
+        battle_hymn_song_mote: materials.add(unlit_blend(Color::srgba(1.0, 0.93, 0.5, 0.85))),
+        // Near-white green: these motes sit ON the plume's saturated green
+        // ground aura, so a mid-green reads as camouflage. Brightness, not
+        // hue, is what separates them from the zone.
+        heal_regen_mote: materials.add(unlit_blend(Color::srgba(0.8, 1.0, 0.85, 0.95))),
+
         // ── Smoke poof materials ──────────────────────────────────────
         polymorph_poof: materials.add(unlit_blend(Color::srgba(0.7, 0.5, 0.2, 0.6))),
         banishment_poof: materials.add(unlit_blend(Color::srgba(0.2, 0.0, 0.3, 0.6))),
@@ -1143,6 +1171,11 @@ impl SpellVisualAssets {
             &self.healing_mote,
             &self.buff_mote,
             &self.nature_mote,
+            // Per-unit buff visuals
+            &self.temp_hp_ring,
+            &self.haste_speed_line,
+            &self.battle_hymn_song_mote,
+            &self.heal_regen_mote,
             // Smoke poofs
             &self.polymorph_poof,
             &self.banishment_poof,

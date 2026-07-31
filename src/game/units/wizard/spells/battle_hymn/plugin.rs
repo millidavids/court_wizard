@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
-use crate::game::units::components::BattleHymnModifier;
+use crate::game::units::components::{BattleHymnModifier, RemoteBattleHymnEffect};
 
 pub struct BattleHymnPlugin;
 
@@ -22,6 +22,12 @@ impl Plugin for BattleHymnPlugin {
                 // Custom tick: handles EchoingSong re-apply on expiry
                 systems::update_battle_hymn_modifier
                     .run_if(any_with_component::<BattleHymnModifier>),
+                // Per-unit song-mote visual — real buff on this peer's units,
+                // snapshot-mirrored marker on guest ghosts.
+                systems::emit_battle_hymn_song_motes.run_if(
+                    any_with_component::<BattleHymnModifier>
+                        .or(any_with_component::<RemoteBattleHymnEffect>),
+                ),
             )
                 .run_if(is_spell_effects_active),
         );

@@ -9,7 +9,9 @@ use crate::game::units::king::components::{King, SpellShield};
 use crate::networking::crdt::CrdtHealth;
 use crate::networking::entity_map::NetworkEntityId;
 use crate::networking::resources::NetworkConnection;
-use crate::networking::snapshot::{ArrowSnapshot, GameSnapshot, SnapshotTick, build_unit_snapshot};
+use crate::networking::snapshot::{
+    ArrowSnapshot, GameSnapshot, SnapshotTick, UnitFlags, build_unit_snapshot,
+};
 
 /// Serializes unit state and sends it over the unreliable channel.
 ///
@@ -45,6 +47,11 @@ pub fn send_state_snapshots(
             Has<crate::game::units::status_effects::SmellyModifier>,
             Has<crate::game::units::wizard::archetypes::swordcerer::components::SwordcererAvatar>,
             Has<crate::game::units::components::InMelee>,
+            Has<crate::game::units::components::BerserkerRageModifier>,
+            Has<crate::game::units::components::BattleHymnModifier>,
+            Has<crate::game::units::components::TemporaryHitPoints>,
+            Has<crate::game::units::components::HasteModifier>,
+            Has<crate::game::units::wizard::spells::healing_plume::regen_vfx::RecentlyHealedVfx>,
         ),
     )>,
     arrows: Query<&Transform, With<Arrow>>,
@@ -84,9 +91,44 @@ pub fn send_state_snapshots(
             has_smelly,
             has_swordcerer_avatar,
             has_in_melee,
+            has_rage,
+            has_battle_hymn,
+            has_temp_hp,
+            has_haste,
+            has_healing,
         ),
     ) in &units
     {
+        // Pack the flag bits here, where each query bool is named — passing
+        // 20+ positional bools into the builder invited transposition bugs.
+        let mut flags = 0u32;
+        for (present, bit) in [
+            (is_corpse, UnitFlags::CORPSE),
+            (is_king, UnitFlags::KING),
+            (is_archer, UnitFlags::ARCHER),
+            (is_guard, UnitFlags::KINGS_GUARD),
+            (has_fire, UnitFlags::FIRE_EFFECT),
+            (has_frost, UnitFlags::FROST_EFFECT),
+            (has_electric, UnitFlags::ELECTRIC_EFFECT),
+            (has_spell_shield, UnitFlags::SPELL_SHIELD),
+            (has_combat_animation, UnitFlags::COMBAT_ANIMATION),
+            (has_mark, UnitFlags::MARK_EFFECT),
+            (has_poison, UnitFlags::POISON_EFFECT),
+            (has_polymorph, UnitFlags::POLYMORPH),
+            (has_smelly, UnitFlags::SMELLY),
+            (has_swordcerer_avatar, UnitFlags::SWORDCERER_AVATAR),
+            (has_in_melee, UnitFlags::IN_MELEE),
+            (has_rage, UnitFlags::BERSERKER_RAGE),
+            (has_battle_hymn, UnitFlags::BATTLE_HYMN),
+            (has_temp_hp, UnitFlags::TEMP_HP),
+            (has_haste, UnitFlags::HASTE),
+            (has_healing, UnitFlags::HEALING),
+        ] {
+            if present {
+                flags |= bit;
+            }
+        }
+
         snapshot.units.push(build_unit_snapshot(
             net_id,
             transform,
@@ -94,21 +136,7 @@ pub fn send_state_snapshots(
             team,
             health,
             crdt_health,
-            is_corpse,
-            is_king,
-            is_archer,
-            is_guard,
-            has_fire,
-            has_frost,
-            has_electric,
-            has_spell_shield,
-            has_combat_animation,
-            has_mark,
-            has_poison,
-            has_polymorph,
-            has_smelly,
-            has_swordcerer_avatar,
-            has_in_melee,
+            flags,
         ));
     }
 

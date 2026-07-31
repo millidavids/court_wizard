@@ -3,8 +3,10 @@ use bevy::prelude::*;
 use crate::game::components::{Billboard, Velocity};
 use crate::game::units::archer::ArcherAssets;
 use crate::game::units::components::{
-    Corpse, FacingDirection, Hitbox, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect,
-    RemotePoisonEffect, RemotePolymorphEffect, WalkingAnimation,
+    Corpse, FacingDirection, Hitbox, RemoteBattleHymnEffect, RemoteElectricEffect,
+    RemoteFireEffect, RemoteFrostEffect, RemoteHasteEffect, RemoteHealingEffect,
+    RemotePoisonEffect, RemotePolymorphEffect, RemoteRageEffect, RemoteTempHpEffect,
+    WalkingAnimation,
 };
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::king::components::{King, SpellShield};
@@ -20,6 +22,7 @@ use super::super::super::components::{
     GhostEntity, GhostSwordcererAvatar, OnMultiplayerGameScreen,
 };
 use super::super::super::guest_visuals::pick_material;
+use super::effect_flags::RemoteEffectFlags;
 
 /// Spawns a new ghost entity for a unit that appeared in the snapshot but has
 /// no local counterpart yet. Returns the spawned `Entity` so the caller can
@@ -37,14 +40,7 @@ pub(super) fn spawn_ghost_entity(
     is_archer: bool,
     is_guard: bool,
     is_swordcerer_avatar: bool,
-    remote_fire: bool,
-    remote_frost: bool,
-    remote_electric: bool,
-    remote_poison: bool,
-    remote_mark: bool,
-    remote_polymorph: bool,
-    remote_spell_shield: bool,
-    remote_combat: bool,
+    remote: &RemoteEffectFlags,
     team: crate::game::units::components::Team,
     infantry_assets: &InfantryAssets,
     archer_assets: &ArcherAssets,
@@ -187,7 +183,7 @@ pub(super) fn spawn_ghost_entity(
     // spawned for the shield itself — the aura sphere above is the
     // king's only visual indicator; shield state is invisible to
     // the player (same as SP, which has no shield mechanic at all).
-    if remote_spell_shield {
+    if remote.spell_shield {
         commands.entity(entity).insert(SpellShield);
     }
 
@@ -205,27 +201,42 @@ pub(super) fn spawn_ghost_entity(
     // spawn-as-corpse — the death already happened in the past
     // from this guest's perspective; replaying its frames now
     // would be wrong (the unit just appears already laid out).
-    if remote_fire {
+    if remote.fire {
         commands.entity(entity).insert(RemoteFireEffect);
     }
-    if remote_frost {
+    if remote.frost {
         commands.entity(entity).insert(RemoteFrostEffect);
     }
-    if remote_electric {
+    if remote.electric {
         commands.entity(entity).insert(RemoteElectricEffect);
     }
-    if remote_poison {
+    if remote.poison {
         commands.entity(entity).insert(RemotePoisonEffect);
     }
-    if remote_mark {
+    if remote.rage {
+        commands.entity(entity).insert(RemoteRageEffect);
+    }
+    if remote.battle_hymn {
+        commands.entity(entity).insert(RemoteBattleHymnEffect);
+    }
+    if remote.temp_hp {
+        commands.entity(entity).insert(RemoteTempHpEffect);
+    }
+    if remote.haste {
+        commands.entity(entity).insert(RemoteHasteEffect);
+    }
+    if remote.healing {
+        commands.entity(entity).insert(RemoteHealingEffect);
+    }
+    if remote.mark {
         commands.entity(entity).insert(ActiveMarkOfDeath);
     }
-    if remote_polymorph {
+    if remote.polymorph {
         let mut ec = commands.entity(entity);
         apply_sheep_visual(&mut ec, materials, spell_assets, SHEEP_COLOR);
         ec.insert(RemotePolymorphEffect);
     }
-    if remote_combat && !is_corpse && !is_king {
+    if remote.combat && !is_corpse && !is_king {
         let (combat_tex, walking_tex) = if is_swordcerer_avatar {
             (
                 swordcerer_assets.attacking_texture.clone(),

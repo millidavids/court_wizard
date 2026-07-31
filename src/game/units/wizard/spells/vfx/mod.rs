@@ -13,5 +13,6 @@ pub(crate) mod fire_effects;
 pub(crate) mod fire_material;
 mod plugin;
 pub(crate) mod systems;
+pub(crate) mod unit_motes;
 
 pub(super) use plugin::VfxPlugin;

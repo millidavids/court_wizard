@@ -59,8 +59,9 @@ pub use unit_markers::{
 
 // --- materials ---
 pub use materials::{
-    OriginalMaterial, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect,
-    RemotePoisonEffect, RemotePolymorphEffect,
+    OriginalMaterial, RemoteBattleHymnEffect, RemoteElectricEffect, RemoteFireEffect,
+    RemoteFrostEffect, RemoteHasteEffect, RemoteHealingEffect, RemotePoisonEffect,
+    RemotePolymorphEffect, RemoteRageEffect, RemoteTempHpEffect,
 };
 
 // --- timed_modifier ---

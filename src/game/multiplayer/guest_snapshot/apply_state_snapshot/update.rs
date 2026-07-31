@@ -2,8 +2,9 @@ use bevy::prelude::*;
 
 use crate::game::units::archer::ArcherAssets;
 use crate::game::units::components::{
-    Corpse, Health, OriginalMaterial, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect,
-    RemotePoisonEffect, RemotePolymorphEffect,
+    Corpse, Health, OriginalMaterial, RemoteBattleHymnEffect, RemoteElectricEffect,
+    RemoteFireEffect, RemoteFrostEffect, RemoteHasteEffect, RemoteHealingEffect,
+    RemotePoisonEffect, RemotePolymorphEffect, RemoteRageEffect, RemoteTempHpEffect,
 };
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::king::components::SpellShield;
@@ -16,6 +17,7 @@ use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::crdt::CrdtHealth;
 
 use super::super::super::guest_visuals::pick_material;
+use super::effect_flags::{GhostMarkerState, RemoteEffectFlags, sync_remote_marker};
 
 /// Updates an existing ghost entity whose unit appeared in the snapshot and
 /// already has a local counterpart. Applies velocity, position, CRDT health,
@@ -31,15 +33,7 @@ pub(super) fn update_ghost_entity(
     crdt_health: &mut CrdtHealth,
     health: &mut Health,
     velocity: &mut crate::game::components::Velocity,
-    has_remote_fire: bool,
-    has_remote_frost: bool,
-    has_remote_electric: bool,
-    has_spell_shield: bool,
-    has_corpse: bool,
-    has_combat: bool,
-    has_remote_poison: bool,
-    has_remote_mark: bool,
-    has_remote_polymorph: bool,
+    state: &GhostMarkerState,
     smelly_ghosts: &Query<Entity, With<crate::game::units::status_effects::SmellyModifier>>,
     melee_ghosts: &Query<Entity, With<crate::game::units::components::InMelee>>,
     remote_crdt: CrdtHealth,
@@ -51,16 +45,7 @@ pub(super) fn update_ghost_entity(
     is_archer: bool,
     is_guard: bool,
     is_swordcerer_avatar: bool,
-    remote_fire: bool,
-    remote_frost: bool,
-    remote_electric: bool,
-    remote_spell_shield: bool,
-    remote_combat: bool,
-    remote_poison: bool,
-    remote_mark: bool,
-    remote_polymorph: bool,
-    remote_smelly: bool,
-    remote_in_melee: bool,
+    remote: &RemoteEffectFlags,
     team: crate::game::units::components::Team,
     infantry_assets: &InfantryAssets,
     archer_assets: &ArcherAssets,
@@ -139,7 +124,7 @@ pub(super) fn update_ghost_entity(
     // here. At most one king per team exists, and nothing ever
     // calls `get_mut` on the king-corpse handle, so sharing
     // the handle is safe.
-    if is_corpse != has_corpse {
+    if is_corpse != state.corpse {
         let mut ec = commands.entity(entity);
         if is_king {
             let new_handle = pick_material(
@@ -189,69 +174,96 @@ pub(super) fn update_ghost_entity(
     }
 
     // Sync remote status effect visual markers from host
-    if remote_fire && !has_remote_fire {
-        commands.entity(entity).insert(RemoteFireEffect);
-    } else if !remote_fire && has_remote_fire {
-        commands.entity(entity).remove::<RemoteFireEffect>();
-    }
-    if remote_frost && !has_remote_frost {
-        commands.entity(entity).insert(RemoteFrostEffect);
-    } else if !remote_frost && has_remote_frost {
-        commands.entity(entity).remove::<RemoteFrostEffect>();
-    }
-    if remote_electric && !has_remote_electric {
-        commands.entity(entity).insert(RemoteElectricEffect);
-    } else if !remote_electric && has_remote_electric {
-        commands.entity(entity).remove::<RemoteElectricEffect>();
-    }
-    if remote_poison && !has_remote_poison {
-        commands.entity(entity).insert(RemotePoisonEffect);
-    } else if !remote_poison && has_remote_poison {
-        commands.entity(entity).remove::<RemotePoisonEffect>();
-    }
+    sync_remote_marker(commands, entity, state.fire, remote.fire, RemoteFireEffect);
+    sync_remote_marker(
+        commands,
+        entity,
+        state.frost,
+        remote.frost,
+        RemoteFrostEffect,
+    );
+    sync_remote_marker(
+        commands,
+        entity,
+        state.electric,
+        remote.electric,
+        RemoteElectricEffect,
+    );
+    sync_remote_marker(
+        commands,
+        entity,
+        state.poison,
+        remote.poison,
+        RemotePoisonEffect,
+    );
+    // Per-unit lingering buff visuals (rage tint, song motes, feet ring,
+    // speed lines, regen motes) — the markers drive the same visual systems
+    // the real buff components drive on the host's units.
+    sync_remote_marker(commands, entity, state.rage, remote.rage, RemoteRageEffect);
+    sync_remote_marker(
+        commands,
+        entity,
+        state.battle_hymn,
+        remote.battle_hymn,
+        RemoteBattleHymnEffect,
+    );
+    sync_remote_marker(
+        commands,
+        entity,
+        state.temp_hp,
+        remote.temp_hp,
+        RemoteTempHpEffect,
+    );
+    sync_remote_marker(
+        commands,
+        entity,
+        state.haste,
+        remote.haste,
+        RemoteHasteEffect,
+    );
+    sync_remote_marker(
+        commands,
+        entity,
+        state.healing,
+        remote.healing,
+        RemoteHealingEffect,
+    );
     // Excremage smelly tint. The real `SmellyModifier` drives the
     // existing brown tint in `update_persistent_effect_visuals`
     // (visual, both peers). Its repulsion lives in host-only velocity
     // systems, so it has no gameplay effect on the guest ghost. Use a
     // separate `.contains` query to keep the main ghost query under
-    // Bevy's arity limit.
-    let has_remote_smelly = smelly_ghosts.contains(entity);
-    if remote_smelly && !has_remote_smelly {
-        // Use a very long duration: the ghost's smelly state is driven
-        // entirely by the SMELLY snapshot flag (removed below when it
-        // clears), so the local `update_timed_modifier` timer must NOT
-        // expire it on its own — otherwise the brown tint flickers off
-        // for one frame whenever the local timer runs out before the
-        // next snapshot reasserts the flag.
-        commands
-            .entity(entity)
-            .insert(crate::game::units::status_effects::SmellyModifier::new(
-                1.0e9,
-            ));
-    } else if !remote_smelly && has_remote_smelly {
-        commands
-            .entity(entity)
-            .remove::<crate::game::units::status_effects::SmellyModifier>();
-    }
+    // Bevy's arity limit. The very long duration matters: the ghost's
+    // smelly state is driven entirely by the SMELLY snapshot flag, so
+    // the local `update_timed_modifier` timer must NOT expire it on its
+    // own — otherwise the brown tint flickers off for one frame whenever
+    // the local timer runs out before the next snapshot reasserts the
+    // flag.
+    sync_remote_marker(
+        commands,
+        entity,
+        smelly_ghosts.contains(entity),
+        remote.smelly,
+        crate::game::units::status_effects::SmellyModifier::new(1.0e9),
+    );
     // Mirror the host's melee state so the guest's battle-ambience loop
     // scales with on-field combat. `InMelee` holds the OPPOSING team
     // (semantically "in melee with"); on the guest the value is inert
     // (archer-targeting readers are host-only) but kept correct in case
     // a future ghost-side system reads it.
-    let has_melee = melee_ghosts.contains(entity);
-    if remote_in_melee && !has_melee {
+    {
         use crate::game::units::components::Team;
         let melee_with = match team {
             Team::Defenders => Team::Attackers,
             _ => Team::Defenders,
         };
-        commands
-            .entity(entity)
-            .insert(crate::game::units::components::InMelee(melee_with));
-    } else if !remote_in_melee && has_melee {
-        commands
-            .entity(entity)
-            .remove::<crate::game::units::components::InMelee>();
+        sync_remote_marker(
+            commands,
+            entity,
+            melee_ghosts.contains(entity),
+            remote.in_melee,
+            crate::game::units::components::InMelee(melee_with),
+        );
     }
     // Mark of Death: insert the BARE `ActiveMarkOfDeath` marker so
     // `spawn_mark_indicators` renders the floating indicator. We do
@@ -260,11 +272,7 @@ pub(super) fn update_ghost_entity(
     // their `any_exist::<ActiveMarkOfDeath>` run-condition still wakes
     // them, but their queries require those absent components, so they
     // iterate nothing. Only the visual indicator renders.
-    if remote_mark && !has_remote_mark {
-        commands.entity(entity).insert(ActiveMarkOfDeath);
-    } else if !remote_mark && has_remote_mark {
-        commands.entity(entity).remove::<ActiveMarkOfDeath>();
-    }
+    sync_remote_marker(commands, entity, state.mark, remote.mark, ActiveMarkOfDeath);
 
     // Polymorph: render the ghost as a sheep while the host's unit is
     // polymorphed (host-authoritative). Swap on the off→on edge,
@@ -272,11 +280,11 @@ pub(super) fn update_ghost_entity(
     // strip any local `PolymorphedModifier` the guest's own cast left
     // on the ghost so the unit isn't excluded from `Without<
     // PolymorphedModifier>` spell-target queries forever after revert.
-    if remote_polymorph && !has_remote_polymorph {
+    if remote.polymorph && !state.polymorph {
         let mut ec = commands.entity(entity);
         apply_sheep_visual(&mut ec, materials, spell_assets, SHEEP_COLOR);
         ec.insert(RemotePolymorphEffect);
-    } else if !remote_polymorph && has_remote_polymorph {
+    } else if !remote.polymorph && state.polymorph {
         // Only restore the alive sprite if the unit is still alive. If
         // it died AS a sheep (is_corpse), the corpse-transition branch
         // above owns the material — swapping to a SHARED corpse handle
@@ -324,11 +332,13 @@ pub(super) fn update_ghost_entity(
     // stays on regardless of shield state (matches SP, where
     // the king has no shield mechanic and the aura is just
     // always there).
-    if remote_spell_shield && !has_spell_shield {
-        commands.entity(entity).insert(SpellShield);
-    } else if !remote_spell_shield && has_spell_shield {
-        commands.entity(entity).remove::<SpellShield>();
-    }
+    sync_remote_marker(
+        commands,
+        entity,
+        state.spell_shield,
+        remote.spell_shield,
+        SpellShield,
+    );
 
     // Sync corpse state so spell targeting filters work correctly.
     // On the non-corpse → corpse transition, also kick off the
@@ -337,7 +347,7 @@ pub(super) fn update_ghost_entity(
     // visual where units don't pop straight from standing to
     // laid-flat. King has no death sprite sheet (instant corpse
     // swap in SP), so it's skipped here.
-    if is_corpse && !has_corpse {
+    if is_corpse && !state.corpse {
         let mut ec = commands.entity(entity);
         ec.insert(Corpse);
         if !is_king {
@@ -350,7 +360,7 @@ pub(super) fn update_ghost_entity(
                 death_texture,
             ));
         }
-    } else if !is_corpse && has_corpse {
+    } else if !is_corpse && state.corpse {
         commands.entity(entity).remove::<Corpse>();
     }
 
@@ -367,7 +377,7 @@ pub(super) fn update_ghost_entity(
     // leave the ghost's material stuck on the combat sheet
     // with a frozen mid-swing UV until the next attack
     // overwrites it.
-    if remote_combat && !has_combat && !is_corpse && !is_king {
+    if remote.combat && !state.combat && !is_corpse && !is_king {
         let (combat_tex, walking_tex) = if is_swordcerer_avatar {
             // The Swordcerer avatar has its own attack sheet — without this
             // the guest's ghost permanently swapped to the infantry sheet

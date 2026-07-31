@@ -87,7 +87,7 @@ pub fn receive_crdt_snapshot(
             crdt_health.merge(&remote);
             health.current = crdt_health.current_hp();
 
-            // CRDT effects slot is u8 (lower 8 bits) — cast u16 constants to u8.
+            // CRDT effects slot is u8 (lower 8 bits) — cast u32 constants to u8.
             let remote_fire = update.effects & (UnitFlags::FIRE_EFFECT as u8) != 0;
             let remote_frost = update.effects & (UnitFlags::FROST_EFFECT as u8) != 0;
             let remote_electric = update.effects & (UnitFlags::ELECTRIC_EFFECT as u8) != 0;

@@ -15,8 +15,9 @@ use super::components::{
     Airborne, BerserkerRageModifier, CombatAnimation, DeathAnimationFinished, DyingAnimation,
     FacingDirection, FearModifier, FireDoT, FogEvasionModifier, FrozenSolidModifier, HasteModifier,
     Knockback, MarkedForDeathModifier, Petrified, PoisonedModifier, PulsingAnimation,
-    RemoteFireEffect, RisingAnimation, RootedModifier, Shocked, SickenedModifier,
-    SlowMovementModifier, SmellyModifier, Stunned, TemporaryHitPoints, WalkingAnimation,
+    RemoteFireEffect, RemoteTempHpEffect, RisingAnimation, RootedModifier, Shocked,
+    SickenedModifier, SlowMovementModifier, SmellyModifier, Stunned, TemporaryHitPoints,
+    WalkingAnimation,
 };
 use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
@@ -189,6 +190,17 @@ impl Plugin for UnitsPlugin {
                     systems::emit_burning_unit_vfx.run_if(
                         any_with_component::<FireDoT>.or(any_with_component::<RemoteFireEffect>),
                     ),
+                    // Temp-HP shield feet ring — real component on this peer's
+                    // units, snapshot-mirrored marker on guest ghosts. The
+                    // ring-indicator condition keeps update running after the
+                    // last shield expires so orphaned rings despawn.
+                    (systems::spawn_temp_hp_rings, systems::update_temp_hp_rings)
+                        .chain()
+                        .run_if(
+                            any_with_component::<TemporaryHitPoints>
+                                .or(any_with_component::<RemoteTempHpEffect>)
+                                .or(any_with_component::<systems::TempHpRingIndicator>),
+                        ),
                 )
                     .run_if(is_spell_effects_active),
             )

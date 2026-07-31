@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Added
+- **Helpful spells now leave a subtle mark on the units they touch** — units with a protective shield show a faint glow ring at their feet, hastened units trail little speed lines as they run, units carried by Battle Hymn's song have the occasional golden note rising above their heads, and units being mended in a healing field sparkle with a touch of green. All of it is easy to miss unless you're looking — but it's there when you want to check whether your blessing is still active. And remember: magic doesn't pick sides, so enemies caught in your circle wear the same marks.
+
+### Fixed
+- **Buff marks now show up for both players in multiplayer** — shields, battle fury, haste and song marks cast by one player are now visible on the other player's screen too, instead of only appearing for whoever cast the spell.
+
 ## [v1.0.17] - 2026-07-28
 
 ### Fixed

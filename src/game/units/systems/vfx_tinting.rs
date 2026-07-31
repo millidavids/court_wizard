@@ -3,7 +3,8 @@ use bevy::prelude::*;
 use super::super::components::{
     BerserkerRageModifier, FearModifier, FireDoT, FrostAccumulation, MindControlled,
     OriginalMaterial, Petrified, PolymorphedModifier, RemoteElectricEffect, RemoteFireEffect,
-    RemoteFrostEffect, RemotePoisonEffect, Shocked, SickenedModifier, SmellyModifier,
+    RemoteFrostEffect, RemotePoisonEffect, RemoteRageEffect, Shocked, SickenedModifier,
+    SmellyModifier,
 };
 use super::super::constants::{
     BERSERKER_RAGE_EFFECT_COLOR, BERSERKER_RAGE_EFFECT_INTENSITY, ELECTRIC_EFFECT_COLOR,
@@ -69,6 +70,8 @@ pub fn update_persistent_effect_visuals(
                 Has<SickenedModifier>,
                 Has<SmellyModifier>,
                 Has<BerserkerRageModifier>,
+                Has<RemoteRageEffect>,
+                Has<crate::game::multiplayer::components::GhostEntity>,
                 Has<super::super::shielder::components::ShielderDamageReduction>,
                 Has<super::super::staging_shield::StagingShieldGlow>,
                 Has<super::super::elite::EliteHealthBonus>,
@@ -94,6 +97,8 @@ pub fn update_persistent_effect_visuals(
                 With<SickenedModifier>,
                 With<SmellyModifier>,
                 With<BerserkerRageModifier>,
+                // Nested Or: the outer filter tuple is at Bevy's 15-element
+                // arity cap, so overflow filters live here.
                 Or<(
                     With<super::super::shielder::components::ShielderDamageReduction>,
                     With<super::super::staging_shield::StagingShieldGlow>,
@@ -102,6 +107,7 @@ pub fn update_persistent_effect_visuals(
                     With<WetModifier>,
                     With<Petrified>,
                     With<FearModifier>,
+                    With<RemoteRageEffect>,
                 )>,
             )>,
             Without<PolymorphedModifier>,
@@ -140,6 +146,8 @@ pub fn update_persistent_effect_visuals(
             has_sickened,
             has_smelly,
             has_rage,
+            has_remote_rage,
+            is_ghost,
             has_shielder_shield,
             has_staging_glow,
             has_elite,
@@ -153,6 +161,15 @@ pub fn update_persistent_effect_visuals(
         // Ghost units carry `RemotePoisonEffect` (mirrored from the host's
         // `PoisonedModifier`) instead of the DoT component itself.
         let has_poisoned = has_poisoned || has_remote_poison;
+        // Host-cast Berserker Rage reaches ghosts as the mirrored
+        // `RemoteRageEffect` marker. A ghost may ALSO carry a real
+        // `BerserkerRageModifier` from the guest's own cast (kept there on
+        // purpose so `forward_status_effects_to_host` can relay it), but
+        // `update_timed_modifier::<BerserkerRageModifier>` is gated behind
+        // host-only `is_gameplay_running`, so that copy never expires on the
+        // guest. Trusting it would leave the red tint stuck for the whole
+        // match, so on ghosts only the host-authoritative marker counts.
+        let has_rage = (has_rage && !is_ghost) || has_remote_rage;
         // The staging glow is a visual-only twin of the shielder's blessing —
         // both render the same golden pulse.
         let has_shield_glow = has_shielder_shield || has_staging_glow;

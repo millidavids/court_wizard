@@ -33,10 +33,10 @@ pub fn send_crdt_snapshot(
     };
 
     for (net_id, crdt, has_fire, has_frost, has_electric) in &crdt_units {
-        // CRDT effects slot is u8 — UnitFlags constants are u16 now (after
-        // COMBAT_ANIMATION moved them past the 8-bit window), so cast
-        // each one back. All three fire/frost/electric flags live in the
-        // low byte so the truncation is lossless.
+        // CRDT effects slot is u8 — UnitFlags constants are u32 now (widened
+        // as flags accumulated past 8 then 16 bits), so cast each one back.
+        // All three fire/frost/electric flags live in the low byte so the
+        // truncation is lossless.
         let mut effects = 0u8;
         if has_fire {
             effects |= UnitFlags::FIRE_EFFECT as u8;

@@ -1,5 +1,6 @@
 mod arrows;
 mod despawn;
+mod effect_flags;
 mod packet;
 mod spawn;
 mod system;

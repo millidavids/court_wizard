@@ -5,6 +5,7 @@ mod fire_frost;
 mod movement_helpers;
 mod pending_effects;
 mod sprite_utils;
+mod temp_hp_ring;
 mod vfx_tinting;
 
 pub use animation_drivers::{
@@ -28,4 +29,5 @@ pub use sprite_utils::{
     create_default_sprite_material, create_sprite_material, resurrect_corpse_as_infantry,
     sprite_tint_for_team,
 };
+pub use temp_hp_ring::{TempHpRingIndicator, spawn_temp_hp_rings, update_temp_hp_rings};
 pub use vfx_tinting::update_persistent_effect_visuals;

@@ -39,9 +39,10 @@ pub struct UnitSnapshot {
     pub vz: f32,
     /// Team encoded as u8: 0=Defenders, 1=Attackers, 2=Undead.
     pub team: u8,
-    /// Bitfield flags (see `UnitFlags`). u16 because the original u8 ran
-    /// out of bits when COMBAT_ANIMATION was added.
-    pub flags: u16,
+    /// Bitfield flags (see `UnitFlags`). Widened u8→u16 when COMBAT_ANIMATION
+    /// was added, then u16→u32 when the buff-visual bits (protocol v13) used
+    /// up the last free bit.
+    pub flags: u32,
     /// Max HP — needed once but ships every frame (CRDT seed; could be
     /// thinned later via a separate one-shot spawn message).
     pub max_hp: f32,
@@ -58,42 +59,57 @@ pub struct UnitSnapshot {
 pub struct UnitFlags;
 
 impl UnitFlags {
-    pub const CORPSE: u16 = 1 << 0;
-    pub const KING: u16 = 1 << 1;
-    pub const ARCHER: u16 = 1 << 2;
-    pub const KINGS_GUARD: u16 = 1 << 3;
-    pub const FIRE_EFFECT: u16 = 1 << 4;
-    pub const FROST_EFFECT: u16 = 1 << 5;
-    pub const ELECTRIC_EFFECT: u16 = 1 << 6;
-    pub const SPELL_SHIELD: u16 = 1 << 7;
+    pub const CORPSE: u32 = 1 << 0;
+    pub const KING: u32 = 1 << 1;
+    pub const ARCHER: u32 = 1 << 2;
+    pub const KINGS_GUARD: u32 = 1 << 3;
+    pub const FIRE_EFFECT: u32 = 1 << 4;
+    pub const FROST_EFFECT: u32 = 1 << 5;
+    pub const ELECTRIC_EFFECT: u32 = 1 << 6;
+    pub const SPELL_SHIELD: u32 = 1 << 7;
     /// Host's unit currently has a `CombatAnimation` component — set so
     /// the guest can spawn the matching swing/shoot animation on its
     /// ghost. Without this the ghost stays on the idle frame even though
     /// the host's unit is actively swinging in melee.
-    pub const COMBAT_ANIMATION: u16 = 1 << 8;
+    pub const COMBAT_ANIMATION: u32 = 1 << 8;
     /// Host's unit currently carries Mark of Death — set so the guest renders
     /// the floating mark indicator on its ghost unit. Without this, marks the
     /// HOST casts never reach the guest (the guest only knows about marks it
     /// cast itself and applied locally).
-    pub const MARK_EFFECT: u16 = 1 << 9;
+    pub const MARK_EFFECT: u32 = 1 << 9;
     /// Host's unit is poisoned (Plague Wind etc.) — set so the guest renders
     /// the green poison tint on its ghost unit.
-    pub const POISON_EFFECT: u16 = 1 << 10;
+    pub const POISON_EFFECT: u32 = 1 << 10;
     /// Host's unit is currently polymorphed (a sheep) — set so the guest swaps
     /// its ghost to the sheep sprite. Without this a host-cast polymorph never
     /// renders on the guest (the unit snapshot otherwise carries no "is a sheep"
     /// state and the guest only swaps materials at spawn / corpse transitions).
-    pub const POLYMORPH: u16 = 1 << 11;
+    pub const POLYMORPH: u32 = 1 << 11;
     /// Host's unit IS the Swordcerer battlefield avatar — set so the guest spawns
     /// the ghost with the avatar sprite/hitbox and renders its health bar, rather
     /// than treating it as a generic infantry unit.
-    pub const SWORDCERER_AVATAR: u16 = 1 << 12;
+    pub const SWORDCERER_AVATAR: u32 = 1 << 12;
     /// Host's unit is currently smelly (Excremage poop debuff) — set so the guest
     /// renders the brown stink tint on its ghost unit.
-    pub const SMELLY: u16 = 1 << 13;
+    pub const SMELLY: u32 = 1 << 13;
     /// Host's unit is engaged in melee — set so the guest can run the battle
     /// ambience (melee-sound) loop scaled by the on-field combat it can hear.
-    pub const IN_MELEE: u16 = 1 << 14;
+    pub const IN_MELEE: u32 = 1 << 14;
+    /// Host's unit is enraged (`BerserkerRageModifier`) — set so the guest
+    /// renders the red rage tint on its ghost unit.
+    pub const BERSERKER_RAGE: u32 = 1 << 15;
+    /// Host's unit is under Battle Hymn — set so the guest renders the
+    /// rising song-motes on its ghost unit.
+    pub const BATTLE_HYMN: u32 = 1 << 16;
+    /// Host's unit has temporary hit points (Guardian Circle etc.) — set so
+    /// the guest renders the feet-ring shield indicator on its ghost unit.
+    pub const TEMP_HP: u32 = 1 << 17;
+    /// Host's unit is hasted — set so the guest renders speed lines on its
+    /// ghost unit while it moves.
+    pub const HASTE: u32 = 1 << 18;
+    /// Host's unit was recently healed (`RecentlyHealedVfx`) — set so the
+    /// guest renders the green regen motes on its ghost unit.
+    pub const HEALING: u32 = 1 << 19;
 }
 
 /// Encodes a `Team` component into a u8.
@@ -119,7 +135,10 @@ pub fn u8_to_team(val: u8) -> Team {
 /// HP rides in the CRDT damage/healing arrays (NOT a redundant `health_pct`)
 /// so both peers can apply damage AND healing and converge via element-wise
 /// max. `health_pct` is gone — guest derives `Health.current` from CRDT.
-#[allow(clippy::too_many_arguments)]
+///
+/// `flags` is a pre-packed `UnitFlags` bitfield — the caller ORs the bits
+/// together where the `Has<T>` query results are named, instead of threading
+/// 20+ positional bools through this signature.
 pub fn build_unit_snapshot(
     net_id: &NetworkEntityId,
     transform: &Transform,
@@ -127,69 +146,8 @@ pub fn build_unit_snapshot(
     team: &Team,
     health: &Health,
     crdt_health: Option<&crate::networking::crdt::CrdtHealth>,
-    is_corpse: bool,
-    is_king: bool,
-    is_archer: bool,
-    is_kings_guard: bool,
-    has_fire: bool,
-    has_frost: bool,
-    has_electric: bool,
-    has_spell_shield: bool,
-    has_combat_animation: bool,
-    has_mark: bool,
-    has_poison: bool,
-    has_polymorph: bool,
-    has_smelly: bool,
-    has_swordcerer_avatar: bool,
-    has_in_melee: bool,
+    flags: u32,
 ) -> UnitSnapshot {
-    let mut flags = 0u16;
-    if is_corpse {
-        flags |= UnitFlags::CORPSE;
-    }
-    if is_king {
-        flags |= UnitFlags::KING;
-    }
-    if is_archer {
-        flags |= UnitFlags::ARCHER;
-    }
-    if is_kings_guard {
-        flags |= UnitFlags::KINGS_GUARD;
-    }
-    if has_fire {
-        flags |= UnitFlags::FIRE_EFFECT;
-    }
-    if has_frost {
-        flags |= UnitFlags::FROST_EFFECT;
-    }
-    if has_electric {
-        flags |= UnitFlags::ELECTRIC_EFFECT;
-    }
-    if has_spell_shield {
-        flags |= UnitFlags::SPELL_SHIELD;
-    }
-    if has_combat_animation {
-        flags |= UnitFlags::COMBAT_ANIMATION;
-    }
-    if has_mark {
-        flags |= UnitFlags::MARK_EFFECT;
-    }
-    if has_poison {
-        flags |= UnitFlags::POISON_EFFECT;
-    }
-    if has_polymorph {
-        flags |= UnitFlags::POLYMORPH;
-    }
-    if has_smelly {
-        flags |= UnitFlags::SMELLY;
-    }
-    if has_swordcerer_avatar {
-        flags |= UnitFlags::SWORDCERER_AVATAR;
-    }
-    if has_in_melee {
-        flags |= UnitFlags::IN_MELEE;
-    }
-
     let (max_hp, damage, healing) = if let Some(crdt) = crdt_health {
         (crdt.max_hp, crdt.damage, crdt.healing)
     } else {

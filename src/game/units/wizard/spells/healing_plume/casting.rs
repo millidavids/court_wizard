@@ -291,6 +291,7 @@ pub fn apply_healing_plume_heal(
             &Transform,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
+            Option<&mut super::regen_vfx::RecentlyHealedVfx>,
             Has<crate::game::units::wizard::archetypes::meteorologist::components::DryModifier>,
         ),
         // Ghost units mirror the host's army; healing them corrupts ghost sim state.
@@ -335,7 +336,9 @@ pub fn apply_healing_plume_heal(
         if zone.time_since_last_tick >= zone.tick_interval {
             zone.time_since_last_tick = 0.0;
 
-            for (entity, transform, mut health, mut temp_hp, is_dry) in &mut targets {
+            for (entity, transform, mut health, mut temp_hp, recently_healed, is_dry) in
+                &mut targets
+            {
                 let distance = xz_distance(zone.origin, transform.translation);
 
                 if distance <= zone.radius {
@@ -363,6 +366,16 @@ pub fn apply_healing_plume_heal(
                         && let Some(ref mut progress) = talent_progress
                     {
                         progress.increment(Spell::HealingPlume, actual_healed as u32);
+                    }
+
+                    // Per-unit regen visual: only when the tick actually
+                    // restored HP, so full-health units don't sparkle.
+                    if actual_healed > 0.0 {
+                        super::regen_vfx::refresh_recently_healed_vfx(
+                            &mut commands,
+                            entity,
+                            recently_healed,
+                        );
                     }
 
                     // Overflow: excess healing becomes temp HP

@@ -4,8 +4,9 @@ use bevy::prelude::*;
 
 use crate::game::units::archer::ArcherAssets;
 use crate::game::units::components::{
-    Corpse, Health, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, RemotePoisonEffect,
-    RemotePolymorphEffect,
+    Corpse, Health, RemoteBattleHymnEffect, RemoteElectricEffect, RemoteFireEffect,
+    RemoteFrostEffect, RemoteHasteEffect, RemoteHealingEffect, RemotePoisonEffect,
+    RemotePolymorphEffect, RemoteRageEffect, RemoteTempHpEffect,
 };
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::king::components::SpellShield;
@@ -22,6 +23,7 @@ use super::super::super::components::{GhostArrow, GhostEntity};
 
 use super::arrows::sync_ghost_arrows;
 use super::despawn::despawn_stale_ghosts;
+use super::effect_flags::{GhostMarkerState, RemoteEffectFlags};
 use super::packet::{filter_latest_game_snapshot, parse_game_snapshot};
 use super::spawn::spawn_ghost_entity;
 use super::update::update_ghost_entity;
@@ -63,6 +65,14 @@ pub fn apply_state_snapshot(
             Has<RemotePoisonEffect>,
             Has<ActiveMarkOfDeath>,
             Has<RemotePolymorphEffect>,
+            // Nested tuple: the flat tuple is at Bevy's query-data arity limit.
+            (
+                Has<RemoteRageEffect>,
+                Has<RemoteBattleHymnEffect>,
+                Has<RemoteTempHpEffect>,
+                Has<RemoteHasteEffect>,
+                Has<RemoteHealingEffect>,
+            ),
         ),
         With<GhostEntity>,
     >,
@@ -131,16 +141,7 @@ pub fn apply_state_snapshot(
             healing: unit.healing,
         };
 
-        let remote_fire = unit.flags & UnitFlags::FIRE_EFFECT != 0;
-        let remote_frost = unit.flags & UnitFlags::FROST_EFFECT != 0;
-        let remote_electric = unit.flags & UnitFlags::ELECTRIC_EFFECT != 0;
-        let remote_spell_shield = unit.flags & UnitFlags::SPELL_SHIELD != 0;
-        let remote_combat = unit.flags & UnitFlags::COMBAT_ANIMATION != 0;
-        let remote_poison = unit.flags & UnitFlags::POISON_EFFECT != 0;
-        let remote_mark = unit.flags & UnitFlags::MARK_EFFECT != 0;
-        let remote_polymorph = unit.flags & UnitFlags::POLYMORPH != 0;
-        let remote_smelly = unit.flags & UnitFlags::SMELLY != 0;
-        let remote_in_melee = unit.flags & UnitFlags::IN_MELEE != 0;
+        let remote = RemoteEffectFlags::from_flags(unit.flags);
 
         let existing_local = entity_map.remote_to_local.get(&unit.id).copied();
 
@@ -160,8 +161,31 @@ pub fn apply_state_snapshot(
                 has_remote_poison,
                 has_remote_mark,
                 has_remote_polymorph,
+                (
+                    has_remote_rage,
+                    has_remote_battle_hymn,
+                    has_remote_temp_hp,
+                    has_remote_haste,
+                    has_remote_healing,
+                ),
             )) = ghost_query.get_mut(local_entity)
             {
+                let state = GhostMarkerState {
+                    fire: has_remote_fire,
+                    frost: has_remote_frost,
+                    electric: has_remote_electric,
+                    spell_shield: has_spell_shield,
+                    corpse: has_corpse,
+                    combat: has_combat,
+                    poison: has_remote_poison,
+                    mark: has_remote_mark,
+                    polymorph: has_remote_polymorph,
+                    rage: has_remote_rage,
+                    battle_hymn: has_remote_battle_hymn,
+                    temp_hp: has_remote_temp_hp,
+                    haste: has_remote_haste,
+                    healing: has_remote_healing,
+                };
                 update_ghost_entity(
                     &mut commands,
                     entity,
@@ -169,15 +193,7 @@ pub fn apply_state_snapshot(
                     &mut crdt_health,
                     &mut health,
                     &mut velocity,
-                    has_remote_fire,
-                    has_remote_frost,
-                    has_remote_electric,
-                    has_spell_shield,
-                    has_corpse,
-                    has_combat,
-                    has_remote_poison,
-                    has_remote_mark,
-                    has_remote_polymorph,
+                    &state,
                     &smelly_ghosts,
                     &melee_ghosts,
                     remote_crdt,
@@ -189,16 +205,7 @@ pub fn apply_state_snapshot(
                     is_archer,
                     is_guard,
                     is_swordcerer_avatar,
-                    remote_fire,
-                    remote_frost,
-                    remote_electric,
-                    remote_spell_shield,
-                    remote_combat,
-                    remote_poison,
-                    remote_mark,
-                    remote_polymorph,
-                    remote_smelly,
-                    remote_in_melee,
+                    &remote,
                     team,
                     &infantry_assets,
                     &archer_assets,
@@ -220,14 +227,7 @@ pub fn apply_state_snapshot(
                 is_archer,
                 is_guard,
                 is_swordcerer_avatar,
-                remote_fire,
-                remote_frost,
-                remote_electric,
-                remote_poison,
-                remote_mark,
-                remote_polymorph,
-                remote_spell_shield,
-                remote_combat,
+                &remote,
                 team,
                 &infantry_assets,
                 &archer_assets,

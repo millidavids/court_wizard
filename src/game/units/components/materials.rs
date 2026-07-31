@@ -37,3 +37,29 @@ pub struct RemotePoisonEffect;
 /// component is created on the guest — the sheep state is host-authoritative.
 #[derive(Component)]
 pub struct RemotePolymorphEffect;
+
+/// Visual-only rage marker, mirrored from the host's `BerserkerRageModifier` via
+/// `UnitFlags::BERSERKER_RAGE`. Drives the red tint on guest ghosts without
+/// inserting the gameplay buff (damage math stays host-authoritative).
+#[derive(Component)]
+pub struct RemoteRageEffect;
+
+/// Visual-only Battle Hymn marker, mirrored from the host's `BattleHymnModifier`
+/// via `UnitFlags::BATTLE_HYMN`. Drives the song-mote emitter on guest ghosts.
+#[derive(Component)]
+pub struct RemoteBattleHymnEffect;
+
+/// Visual-only shield marker, mirrored from the host's `TemporaryHitPoints` via
+/// `UnitFlags::TEMP_HP`. Drives the feet-ring indicator on guest ghosts.
+#[derive(Component)]
+pub struct RemoteTempHpEffect;
+
+/// Visual-only haste marker, mirrored from the host's `HasteModifier` via
+/// `UnitFlags::HASTE`. Drives the speed-line emitter on guest ghosts.
+#[derive(Component)]
+pub struct RemoteHasteEffect;
+
+/// Visual-only healing marker, mirrored from the host's `RecentlyHealedVfx` via
+/// `UnitFlags::HEALING`. Drives the green regen-mote emitter on guest ghosts.
+#[derive(Component)]
+pub struct RemoteHealingEffect;
