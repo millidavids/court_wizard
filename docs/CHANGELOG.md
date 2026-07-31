@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v1.0.26] - 2026-07-31
 
 ### Added
 - **Helpful spells now leave a subtle mark on the units they touch** — units with a protective shield show a faint glow ring at their feet, hastened units trail little speed lines as they run, units carried by Battle Hymn's song have the occasional golden note rising above their heads, and units being mended in a healing field sparkle with a touch of green. All of it is easy to miss unless you're looking — but it's there when you want to check whether your blessing is still active. And remember: magic doesn't pick sides, so enemies caught in your circle wear the same marks.
