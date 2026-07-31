@@ -37,6 +37,9 @@ pub(crate) fn is_endless_mode(game_mode: Option<&GameMode>) -> bool {
 pub(crate) struct RogueliteRunState {
     pub started_at: u64,
     pub level_stats: Vec<LevelRunStats>,
+    /// True once the run has used the action-bar hotkeys, the controller's
+    /// radial menu, or an archetype key / D-pad ability. Blocks "Clicker".
+    pub used_non_mouse_input: bool,
 }
 
 /// Tracks surviving defenders across roguelite levels for the Attrition toggle.

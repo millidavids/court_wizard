@@ -1,9 +1,7 @@
 use super::super::helpers::do_unlock;
 use bevy::prelude::*;
 
-use crate::config::input_bindings::BindingContext;
 use crate::config::save_data::grant_achievement_insight;
-use crate::config::{GameConfig, InputBindings, WizardType};
 use crate::game::messages::AchievementUnlockedMessage;
 use crate::game::resources::{CurrentLevel, GameOutcome};
 
@@ -142,64 +140,5 @@ pub(crate) fn check_roguelite_modifier_achievements(
         if has_max && has_min && combos.3.is_locked() {
             do_unlock(&mut combos.3, &mut events);
         }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Clicker — win a roguelite run with all keybindings unbound (mouse only)
-// ---------------------------------------------------------------------------
-
-/// Checks if the player won a roguelite run with all relevant keys unbound.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn check_clicker(
-    mut msg: MessageReader<BattleEndedMessage>,
-    mut res: ResMut<ClickerAchievement>,
-    mut events: MessageWriter<AchievementUnlockedMessage>,
-    bindings: Res<InputBindings>,
-    game_config: Res<GameConfig>,
-    game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
-    current_level: Res<CurrentLevel>,
-) {
-    use crate::game::game_mode::components::{ROGUELITE_MAX_LEVEL, is_roguelite_mode};
-
-    for m in msg.read() {
-        if m.outcome != GameOutcome::Victory {
-            continue;
-        }
-        if !is_roguelite_mode(game_mode.as_deref()) {
-            continue;
-        }
-        if current_level.0 != ROGUELITE_MAX_LEVEL {
-            continue;
-        }
-
-        // All universal bindings must be unbound
-        if !bindings.all_universal_unbound() {
-            continue;
-        }
-
-        // Wizard-specific bindings must be unbound (if the wizard type has any)
-        if let Some(ctx) = wizard_type_to_context(game_config.wizard_type)
-            && !bindings.all_context_unbound(ctx)
-        {
-            continue;
-        }
-
-        do_unlock(&mut res, &mut events);
-        grant_achievement_insight(ClickerAchievement::achievement_id());
-    }
-}
-
-/// Maps a WizardType to its BindingContext, if it has archetype-specific bindings.
-fn wizard_type_to_context(wizard_type: WizardType) -> Option<BindingContext> {
-    match wizard_type {
-        WizardType::RuneCaster => Some(BindingContext::RuneCaster),
-        WizardType::Swordcerer => Some(BindingContext::Swordcerer),
-        WizardType::Arcanorouter => Some(BindingContext::ArcanoRouter),
-        WizardType::Meteorologist => Some(BindingContext::Meteorologist),
-        WizardType::Warglock => Some(BindingContext::Warglock),
-        // BoringOleMage, Randomancer, Excremage, Shepherd, Psychopath, Alchemist
-        // have no archetype-specific keybindings
-        _ => None,
     }
 }

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Changed
+- **An achievement is easier to go for** — one of the trickier achievements no longer asks you to change your settings before you start. Play how you like; it now watches how you actually play. Controller players can earn it too.
+
 ## [v1.0.26] - 2026-07-31
 
 ### Added

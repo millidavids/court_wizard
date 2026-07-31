@@ -2,6 +2,7 @@ use bevy::ecs::schedule::common_conditions::on_message;
 use bevy::prelude::*;
 
 use crate::game::run_conditions::is_gameplay_active;
+use crate::state::InGameState;
 use crate::ui::main_menu::settings::components::SliderAdjusted;
 
 use crate::game::messages::IngredientCollectedMessage;
@@ -297,11 +298,21 @@ impl Plugin for AchievementsPlugin {
                 systems::check_roguelite_modifier_achievements
                     .run_if(on_message::<BattleEndedMessage>),
             )
-            // Clicker — win roguelite run with all keybindings unbound (mouse only)
+            // Clicker — win a roguelite run using only the mouse. Chained so a
+            // disqualifying press on the winning frame is always observed
+            // before the check reads the flag.
             .add_systems(
                 Update,
-                systems::check_clicker
-                    .run_if(on_message::<BattleEndedMessage>)
+                (
+                    systems::track_action_bar_shortcut
+                        .run_if(is_gameplay_active)
+                        .run_if(systems::run_still_mouse_only),
+                    systems::track_gameplay_input
+                        .run_if(in_state(InGameState::Running))
+                        .run_if(systems::run_still_mouse_only),
+                    systems::check_clicker.run_if(on_message::<BattleEndedMessage>),
+                )
+                    .chain()
                     .run_if(achievement_locked::<ClickerAchievement>),
             )
             // Grand Council — all wizard types unlocked

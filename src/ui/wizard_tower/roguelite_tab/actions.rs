@@ -67,6 +67,7 @@ pub(crate) fn handle_roguelite_action(
                 commands.insert_resource(RogueliteRunState {
                     started_at: save_data::current_timestamp(),
                     level_stats: vec![],
+                    used_non_mouse_input: false,
                 });
 
                 config_events.write(ConfigChanged);

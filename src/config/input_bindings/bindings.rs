@@ -376,21 +376,4 @@ impl InputBindings {
         }
         None
     }
-
-    /// Returns `true` if all universal bindings are unbound.
-    pub fn all_universal_unbound(&self) -> bool {
-        self.universal.action_slot_1.is_none()
-            && self.universal.action_slot_2.is_none()
-            && self.universal.action_slot_3.is_none()
-            && self.universal.action_slot_4.is_none()
-            && self.universal.action_slot_5.is_none()
-            && self.universal.activate.is_none()
-    }
-
-    /// Returns `true` if all bindings in the given context are unbound.
-    pub fn all_context_unbound(&self, context: BindingContext) -> bool {
-        self.context_keys(context)
-            .iter()
-            .all(|(_, key)| key.is_none())
-    }
 }

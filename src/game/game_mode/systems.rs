@@ -109,6 +109,7 @@ pub(super) fn init_roguelite_run(
     commands.insert_resource(RogueliteRunState {
         started_at: crate::config::save_data::current_timestamp(),
         level_stats: vec![],
+        used_non_mouse_input: false,
     });
 }
 

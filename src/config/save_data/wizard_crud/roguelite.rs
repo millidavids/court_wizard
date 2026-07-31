@@ -76,6 +76,7 @@ pub(crate) fn save_current_roguelite_run(
             seed,
             active_toggles: toggles.map(|t| t.to_ids()).unwrap_or_default(),
             accessibility_assists: config.has_accessibility_assists(),
+            used_non_mouse_input: run.used_non_mouse_input,
         });
     }
 

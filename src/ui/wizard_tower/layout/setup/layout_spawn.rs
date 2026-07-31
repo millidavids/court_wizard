@@ -50,6 +50,7 @@ pub(crate) fn setup_wizard_tower_layout(
         commands.insert_resource(crate::game::game_mode::components::RogueliteRunState {
             started_at: saved_run.started_at,
             level_stats: saved_run.level_stats,
+            used_non_mouse_input: saved_run.used_non_mouse_input,
         });
         if let Some(mods) = saved_run.modifiers {
             commands.insert_resource(mods);

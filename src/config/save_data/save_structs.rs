@@ -340,6 +340,11 @@ pub(crate) struct SavedRogueliteRun {
     /// True if accessibility assists (game speed != 1.0 or aim assist) were active.
     #[serde(default)]
     pub(crate) accessibility_assists: bool,
+    /// True if the keyboard's gameplay keys, the action-bar hotkeys, or the
+    /// controller's radial menu / D-pad abilities were used during this run.
+    /// Blocks the "Clicker" achievement.
+    #[serde(default)]
+    pub(crate) used_non_mouse_input: bool,
 }
 
 /// A completed roguelite run.

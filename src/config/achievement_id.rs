@@ -489,9 +489,7 @@ impl AchievementId {
             AchievementId::ModMixedExtremes => {
                 "Completed a roguelite run with one modifier maxed and another at minimum."
             }
-            AchievementId::Clicker => {
-                "Won a roguelite run using only your mouse, with no option to press a key."
-            }
+            AchievementId::Clicker => "Won a roguelite run using only your mouse.",
             AchievementId::GrandCouncil => {
                 "Every wizard in the realm has answered your summons. Whether that's a good thing remains to be seen."
             }
