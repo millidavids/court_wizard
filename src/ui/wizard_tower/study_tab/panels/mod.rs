@@ -15,7 +15,7 @@ pub(crate) use graph_nav::{
 };
 pub(crate) use helpers::{
     calculate_talent_font_size, compute_slider_fracs, count_researched_spells, element_color,
-    is_prereq_met, is_spell_unlocked,
+    format_bonus_alloc_text, is_prereq_met, is_spell_unlocked,
 };
 pub(crate) use positions::{
     update_graph_edge_positions, update_graph_node_borders, update_graph_node_positions,

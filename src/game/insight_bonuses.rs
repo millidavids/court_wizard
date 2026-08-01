@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use crate::config::save_data::get_all_insight_bonuses;
+use crate::config::save_data::{get_all_insight_bonuses, get_insight_bonus_progress};
 
 /// The four wizard stats that can be permanently upgraded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -64,6 +64,18 @@ impl InsightBonusStat {
         Self::cost_per_level() * Self::max_level() as u32
     }
 
+    /// Whole level earned by `progress` insight. The single conversion rule —
+    /// the save layer and every UI readout derive levels through this, so they
+    /// cannot drift apart. Clamping the input keeps the result <= `max_level`.
+    pub(crate) fn level_for_progress(progress: u32) -> u8 {
+        (progress.min(Self::total_cost()) / Self::cost_per_level()) as u8
+    }
+
+    /// Insight a stat can still absorb, given how much is already banked on it.
+    pub(crate) fn remaining_capacity(progress: u32) -> u32 {
+        Self::total_cost().saturating_sub(progress)
+    }
+
     /// All four stats in display order.
     pub(crate) const fn all() -> &'static [InsightBonusStat] {
         &[
@@ -81,6 +93,13 @@ impl InsightBonusStat {
             .copied()
             .unwrap_or(0)
             .min(Self::max_level())
+    }
+
+    /// Total insight banked toward this stat, including partial progress below
+    /// the next level threshold (0..=`total_cost`). The level only advances at
+    /// whole thresholds, but every point committed is kept here.
+    pub(crate) fn current_progress(self) -> u32 {
+        get_insight_bonus_progress(self.id())
     }
 }
 
@@ -107,6 +126,32 @@ impl Default for InsightBonuses {
             cast_speed_mult: 1.0,
             mana_cost_mult: 1.0,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn level_advances_only_at_whole_thresholds() {
+        assert_eq!(InsightBonusStat::level_for_progress(0), 0);
+        assert_eq!(InsightBonusStat::level_for_progress(499), 0);
+        assert_eq!(InsightBonusStat::level_for_progress(500), 1);
+        assert_eq!(InsightBonusStat::level_for_progress(2499), 4);
+    }
+
+    #[test]
+    fn level_saturates_at_max() {
+        assert_eq!(InsightBonusStat::level_for_progress(2500), 5);
+        assert_eq!(InsightBonusStat::level_for_progress(u32::MAX), 5);
+    }
+
+    #[test]
+    fn capacity_shrinks_as_progress_is_banked() {
+        assert_eq!(InsightBonusStat::remaining_capacity(0), 2500);
+        assert_eq!(InsightBonusStat::remaining_capacity(2400), 100);
+        assert_eq!(InsightBonusStat::remaining_capacity(u32::MAX), 0);
     }
 }
 

@@ -5,6 +5,7 @@ use crate::ui::systems::spawn_button;
 
 use super::super::super::super::components::*;
 use super::super::super::super::constants::*;
+use super::super::super::panels::format_bonus_alloc_text;
 use super::super::allocation::spawn_slider_row_with_buttons;
 use super::super::slider_interaction::spawn_insight_bonus_slider;
 
@@ -43,13 +44,14 @@ pub(crate) fn update_insight_detail_panel(
         return;
     };
 
-    let level = stat.current_level();
+    // Progress is the source of truth; the level follows from it.
+    let committed_insight = stat.current_progress();
+    let level = InsightBonusStat::level_for_progress(committed_insight);
     let max = InsightBonusStat::max_level();
     let maxed = level >= max;
     let bonus_pct = level as f32 * InsightBonusStat::bonus_per_level() * 100.0;
     let cost_per = InsightBonusStat::cost_per_level();
     let total_cost = InsightBonusStat::total_cost();
-    let committed_insight = level as u32 * cost_per;
     let current_alloc = allocation.as_ref().map(|a| a.get_bonus(&stat)).unwrap_or(0);
 
     commands.entity(panel_entity).with_children(|panel| {
@@ -120,17 +122,8 @@ pub(crate) fn update_insight_detail_panel(
             });
 
             // Allocation text
-            let pending_levels = current_alloc / cost_per;
-            let alloc_text = if current_alloc > 0 {
-                format!(
-                    "{}+{}/{} (+{}%)",
-                    committed_insight, current_alloc, total_cost, pending_levels
-                )
-            } else {
-                format!("{}/{}", committed_insight, total_cost)
-            };
             panel.spawn((
-                Text::new(alloc_text),
+                Text::new(format_bonus_alloc_text(committed_insight, current_alloc)),
                 TextFont::from_font_size(DETAIL_TEXT_FONT_SIZE),
                 TextColor(TEXT_COLOR),
                 InsightBonusAllocationText { stat },

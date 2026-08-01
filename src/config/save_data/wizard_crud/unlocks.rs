@@ -123,9 +123,7 @@ pub(crate) fn unlock_everything_for_testing() {
         .map(|t| t.id().to_string())
         .collect();
     for stat in InsightBonusStat::all() {
-        player
-            .insight_bonuses
-            .insert(stat.id().to_string(), InsightBonusStat::max_level());
+        super::insight::set_bonus_progress(player, stat.id(), InsightBonusStat::total_cost());
     }
     player.arcane_insight = player.arcane_insight.max(99_999);
 

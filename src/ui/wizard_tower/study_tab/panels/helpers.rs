@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::config::save_data::load_unified_save;
+use crate::game::insight_bonuses::InsightBonusStat;
 use crate::game::units::DamageType;
 use crate::game::units::wizard::components::Spell;
 use crate::ui::systems::scale_font_by_text_width;
@@ -126,6 +127,30 @@ pub(crate) fn clip_line_to_rect(
     Some((a + d * t0, a + d * t1))
 }
 
+/// Whole bonus levels a pending allocation would complete, accounting for the
+/// partial progress already banked below the next threshold. `alloc / cost` is
+/// wrong here: 400 banked plus 200 allocated completes a level, but 200/500 = 0.
+fn pending_bonus_levels(progress: u32, alloc: u32) -> u32 {
+    let after = InsightBonusStat::level_for_progress(progress.saturating_add(alloc));
+    after.saturating_sub(InsightBonusStat::level_for_progress(progress)) as u32
+}
+
+/// Progress readout under a bonus node's slider, e.g. `550+300/2500 (+1%)`.
+pub(crate) fn format_bonus_alloc_text(committed: u32, alloc: u32) -> String {
+    let total = InsightBonusStat::total_cost();
+    if alloc > 0 {
+        format!(
+            "{}+{}/{} (+{}%)",
+            committed,
+            alloc,
+            total,
+            pending_bonus_levels(committed, alloc)
+        )
+    } else {
+        format!("{}/{}", committed, total)
+    }
+}
+
 /// Computes progress and allocation fractions for the unified slider.
 /// Returns `(progress_frac, alloc_frac, handle_pos)` where handle_pos = progress_frac + alloc_frac.
 pub(crate) fn compute_slider_fracs(progress: u32, alloc: u32, cost: u32) -> (f32, f32, f32) {
@@ -140,4 +165,29 @@ pub(crate) fn compute_slider_fracs(progress: u32, alloc: u32, cost: u32) -> (f32
         0.0
     };
     (progress_frac, alloc_frac, progress_frac + alloc_frac)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pending_levels_account_for_banked_remainder() {
+        assert_eq!(pending_bonus_levels(0, 200), 0);
+        // 400 banked + 200 allocated completes a level; `alloc / cost` said 0.
+        assert_eq!(pending_bonus_levels(400, 200), 1);
+        assert_eq!(pending_bonus_levels(0, 1200), 2);
+    }
+
+    #[test]
+    fn pending_levels_cap_at_max() {
+        assert_eq!(pending_bonus_levels(2400, 9999), 1);
+        assert_eq!(pending_bonus_levels(2500, 500), 0);
+    }
+
+    #[test]
+    fn alloc_text_shows_banked_progress_and_pending_levels() {
+        assert_eq!(format_bonus_alloc_text(250, 0), "250/2500");
+        assert_eq!(format_bonus_alloc_text(400, 200), "400+200/2500 (+1%)");
+    }
 }

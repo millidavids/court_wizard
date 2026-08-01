@@ -103,10 +103,9 @@ pub(crate) fn handle_alloc_adjust_buttons(
             }
             AllocTarget::Bonus(stat) => {
                 let current = allocation.get_bonus(&stat) as i32;
-                let cost_per = InsightBonusStat::cost_per_level();
-                let levels_remaining =
-                    InsightBonusStat::max_level().saturating_sub(stat.current_level()) as u32;
-                let max_for_this = levels_remaining * cost_per;
+                // Cap on banked progress, not whole levels — partial progress
+                // counts, so the node can absorb any amount up to its total.
+                let max_for_this = InsightBonusStat::remaining_capacity(stat.current_progress());
                 let other_allocated = allocation.total_allocated() - allocation.get_bonus(&stat);
                 let cap = alloc_cap(total_available, other_allocated, max_for_this);
                 let new = (current + btn.delta).clamp(0, cap as i32) as u32;

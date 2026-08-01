@@ -84,8 +84,15 @@ pub(crate) struct PlayerMetaProgress {
     #[serde(default)]
     pub(crate) unlocked_toggles: Vec<String>,
     /// Permanent insight bonus levels: bonus stat id → level (0-5).
+    /// Mirrors the whole level derived from `insight_bonus_progress`; kept so
+    /// older builds (and every level-based consumer) keep reading correct data.
     #[serde(default)]
     pub(crate) insight_bonuses: HashMap<String, u8>,
+    /// Permanent insight bonus banked progress: bonus stat id → raw insight
+    /// committed (0-2500). Source of truth, including partial progress below
+    /// the next level threshold.
+    #[serde(default)]
+    pub(crate) insight_bonus_progress: HashMap<String, u32>,
 }
 
 /// Tracks which content the player has unlocked (spells, ingredients, wizard types).

@@ -2,7 +2,9 @@ use bevy::input::mouse::MouseButton;
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
-use crate::config::save_data::{get_insight, get_spell_research_progress};
+use crate::config::save_data::{
+    get_all_insight_bonus_progress, get_insight, get_spell_research_progress,
+};
 use crate::game::insight_bonuses::InsightBonusStat;
 use crate::game::units::wizard::components::Spell;
 use crate::ui::main_menu::settings::components::SliderAdjusted;
@@ -242,11 +244,9 @@ pub(crate) fn handle_insight_bonus_slider_interaction(
     };
 
     let insight_balance = get_insight();
-    let cost_per = InsightBonusStat::cost_per_level();
     let total_cost = InsightBonusStat::total_cost();
-    let level = stat.current_level();
-    let committed = level as u32 * cost_per;
-    let remaining = total_cost.saturating_sub(committed);
+    let committed = stat.current_progress();
+    let remaining = InsightBonusStat::remaining_capacity(committed);
 
     if remaining == 0 {
         return;
@@ -306,11 +306,13 @@ pub(crate) fn update_insight_bonus_sliders(
         return;
     }
 
-    let cost_per = InsightBonusStat::cost_per_level();
     let total_cost = InsightBonusStat::total_cost();
+    // One save read for every stat — each load deep-clones the whole save file.
+    let progress = get_all_insight_bonus_progress();
+    let banked = |stat: &InsightBonusStat| progress.get(stat.id()).copied().unwrap_or(0);
 
     for (mut node, fill) in &mut alloc_fills {
-        let committed = fill.stat.current_level() as u32 * cost_per;
+        let committed = banked(&fill.stat);
         let alloc = allocation.get_bonus(&fill.stat);
         let (progress_frac, alloc_frac, _) = compute_slider_fracs(committed, alloc, total_cost);
 
@@ -319,7 +321,7 @@ pub(crate) fn update_insight_bonus_sliders(
     }
 
     for (mut node, handle) in &mut slider_handles {
-        let committed = handle.stat.current_level() as u32 * cost_per;
+        let committed = banked(&handle.stat);
         let alloc = allocation.get_bonus(&handle.stat);
         let (_, _, handle_pos) = compute_slider_fracs(committed, alloc, total_cost);
 
@@ -336,23 +338,12 @@ pub(crate) fn update_insight_bonus_allocation_text(
         return;
     }
 
-    let cost_per = InsightBonusStat::cost_per_level();
-    let total_cost = InsightBonusStat::total_cost();
+    let progress = get_all_insight_bonus_progress();
 
     for (mut text, alloc_text) in &mut texts {
         let stat = alloc_text.stat;
-        let committed = stat.current_level() as u32 * cost_per;
-        let alloc = allocation.get_bonus(&stat);
-        let pending_levels = alloc / cost_per;
-
-        if alloc > 0 {
-            text.0 = format!(
-                "{}+{}/{} (+{}%)",
-                committed, alloc, total_cost, pending_levels
-            );
-        } else {
-            text.0 = format!("{}/{}", committed, total_cost);
-        }
+        let committed = progress.get(stat.id()).copied().unwrap_or(0);
+        text.0 = format_bonus_alloc_text(committed, allocation.get_bonus(&stat));
     }
 }
 

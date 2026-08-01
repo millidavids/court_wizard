@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::config::save_data::{get_insight, get_spell_research_progress};
+use crate::config::save_data::{
+    get_all_insight_bonus_progress, get_insight, get_spell_research_progress,
+};
 use crate::game::insight_bonuses::InsightBonusStat;
 use crate::game::resources::BattleInsightData;
 #[cfg(debug_assertions)]
@@ -279,10 +281,13 @@ pub(crate) fn spawn_study_panels(
                     InsightConstellationAnchor,
                 ));
 
-                // Constellation stat nodes
+                // Constellation stat nodes. One batched save read for all of
+                // them — each per-stat read deep-clones the whole save file.
+                let bonus_progress = get_all_insight_bonus_progress();
                 for inode_def in &insight_nodes {
                     let stat = inode_def.stat;
-                    let level = stat.current_level();
+                    let progress = bonus_progress.get(stat.id()).copied().unwrap_or(0);
+                    let level = InsightBonusStat::level_for_progress(progress);
                     let maxed = level >= InsightBonusStat::max_level();
                     let border = if maxed {
                         INSIGHT_NODE_MAXED_BORDER
@@ -322,7 +327,10 @@ pub(crate) fn spawn_study_panels(
                                     fill_color: INSIGHT_PROGRESS_FILL.to_linear(),
                                     bg_color: LinearRgba::new(0.2, 0.15, 0.3, 0.5),
                                     pending_color: SLIDER_FILL_COLOR.to_linear(),
-                                    filled: level as f32,
+                                    // Fractional: banked progress below the
+                                    // next threshold draws as a partial arc.
+                                    filled: progress as f32
+                                        / InsightBonusStat::cost_per_level() as f32,
                                     pending: 0.0,
                                     total: InsightBonusStat::max_level() as f32,
                                 },

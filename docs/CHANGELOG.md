@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Fixed
+- **Insight committed to a permanent wizard upgrade is no longer lost** — insight you put toward Spell Damage, Spell Range, Cast Speed or Mana Cost now always stays on that upgrade. Previously, anything that didn't complete a whole rank on its own was spent and thrown away, so committing small amounts cost you insight and gave you nothing. Partial progress is now saved between visits, shown on the upgrade's ring as a partial arc, and carries over until the next rank is reached. Upgrades you've already earned are unaffected, and the study screen no longer lets you pour more insight into an upgrade than it can hold.
+
 ## [v1.0.31] - 2026-07-31
 
 ### Fixed

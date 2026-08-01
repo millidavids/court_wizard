@@ -3,7 +3,7 @@ use bevy::prelude::*;
 #[cfg(debug_assertions)]
 use crate::config::save_data::grant_insight;
 use crate::config::save_data::{
-    add_spell_research_progress, set_insight_bonus_levels, spend_insight,
+    add_insight_bonus_progress, add_spell_research_progress, spend_insight,
 };
 use crate::game::input::messages::MouseClicked;
 use crate::game::insight_bonuses::InsightBonusStat;
@@ -45,7 +45,22 @@ pub(crate) fn handle_study_button_actions(
                     continue;
                 };
 
-                let total = alloc.total_allocated();
+                // Clamp bonus allocations to what each node can still absorb
+                // BEFORE spending, so insight is never deducted for progress
+                // that cannot be banked.
+                let bonus_updates: Vec<(&str, u32)> = alloc
+                    .bonus_allocations
+                    .iter()
+                    .map(|(stat, &amount)| {
+                        let capacity =
+                            InsightBonusStat::remaining_capacity(stat.current_progress());
+                        (stat.id(), amount.min(capacity))
+                    })
+                    .filter(|&(_, amount)| amount > 0)
+                    .collect();
+
+                let total: u32 = alloc.allocations.values().sum::<u32>()
+                    + bonus_updates.iter().map(|(_, a)| a).sum::<u32>();
                 if total == 0 {
                     continue;
                 }
@@ -71,23 +86,10 @@ pub(crate) fn handle_study_button_actions(
                     }
                 }
 
-                // Apply insight bonus allocations (insight already spent above)
-                let cost_per = InsightBonusStat::cost_per_level();
-                let max_level = InsightBonusStat::max_level();
-                let mut bonus_updates: Vec<(&str, u8)> = Vec::new();
-                for (stat, &amount) in &alloc.bonus_allocations {
-                    if amount == 0 {
-                        continue;
-                    }
-                    let current = stat.current_level();
-                    let levels_earned = (amount / cost_per) as u8;
-                    let new_level = (current + levels_earned).min(max_level);
-                    if new_level > current {
-                        bonus_updates.push((stat.id(), new_level));
-                    }
-                }
-                set_insight_bonus_levels(&bonus_updates);
-                if !bonus_updates.is_empty() {
+                // Bank the insight bonus allocations (insight already spent
+                // above). Every point counts toward the node; the level only
+                // advances when a whole threshold is crossed.
+                if add_insight_bonus_progress(&bonus_updates) {
                     insight_upgraded.write(InsightBonusUpgradedMessage);
                 }
 
@@ -113,6 +115,10 @@ pub(crate) fn handle_study_button_actions(
                 if let Some(sel) = selected.as_mut() {
                     sel.set_changed();
                 }
+                // `rebuild_study_ui` resets InsightAllocation via deferred
+                // commands, so the `alloc` borrow is stale from here on —
+                // stop rather than risk re-spending it on another event.
+                break;
             }
             #[cfg(debug_assertions)]
             StudyButtonAction::DebugGrantInsight => {

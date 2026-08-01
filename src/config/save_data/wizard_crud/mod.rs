@@ -14,11 +14,11 @@ pub(crate) use crud::{
     save_level_terrain,
 };
 pub(crate) use insight::{
-    add_spell_research_progress, add_spell_talent_progress_batch, get_all_insight_bonuses,
-    get_insight, get_spell_research_progress, get_spell_talent_progress,
+    add_insight_bonus_progress, add_spell_research_progress, add_spell_talent_progress_batch,
+    get_all_insight_bonus_progress, get_all_insight_bonuses, get_insight,
+    get_insight_bonus_progress, get_spell_research_progress, get_spell_talent_progress,
     get_spell_talent_selections, get_unlocked_toggles, grant_achievement_insight, grant_insight,
-    is_toggle_unlocked, set_insight_bonus_levels, set_spell_talent_selection, spend_insight,
-    unlock_toggle,
+    is_toggle_unlocked, set_spell_talent_selection, spend_insight, unlock_toggle,
 };
 pub(crate) use roguelite::{
     clear_current_roguelite_run, load_current_roguelite_run, save_current_roguelite_run,
