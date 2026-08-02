@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v1.0.33] - 2026-08-01
 
 ### Changed
 - **The results screen now tells you when a battle was a time travel trip** — a "VICTORY" on a level you went back to replay no longer looks like it should have unlocked something. The screen now says plainly that level progress isn't recorded for time travel. Insight and your lifetime stats are still earned as normal.
