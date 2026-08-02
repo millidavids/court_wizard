@@ -30,6 +30,16 @@ use crate::game::units::wizard::components::Wizard;
 /// dispatched wave is in the world before we check for survivors.
 const LICH_POST_WAVE_SPAWN_DELAY: f32 = 0.5;
 
+/// Clears the pending-Lich flag when a match ends.
+///
+/// `check_lich_spawn` only removes it when the Lich actually spawns, so a lich
+/// level that ended early leaks the flag into the next match. Versus multiplayer
+/// goes straight from `MetaGame` to `AppState::MultiplayerGame` and never runs
+/// `init_loading_progress`, so it needs this exit-side clear to stay clean.
+pub(super) fn clear_lich_spawn_pending(mut commands: Commands) {
+    commands.remove_resource::<LichSpawnPending>();
+}
+
 /// Checks if it's time to spawn the Lich mid-game.
 /// The Lich spawns as an extra wave after all normal waves have been dispatched
 /// and every attacker (including staging) is dead.

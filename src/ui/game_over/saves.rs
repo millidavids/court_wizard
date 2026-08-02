@@ -8,7 +8,8 @@ use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::game_mode::components::{
     GameMode, LevelRunStats, RogueliteRunState, is_roguelite_mode,
 };
-use crate::game::resources::{CurrentLevel, GameOutcome, KillStats, TimeTravelState};
+use crate::game::resources::{CurrentLevel, GameOutcome, KillStats};
+use crate::game::time_travel::TimeTravelState;
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;

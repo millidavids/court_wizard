@@ -1,19 +1,29 @@
 use bevy::prelude::*;
 
-use super::components::Lich;
+use super::components::{Lich, LichSpawnPending};
 use super::resources;
 use super::systems::*;
 use crate::game::plugin::VelocitySystemSet;
 use crate::game::run_conditions::is_gameplay_running;
 use crate::game::units::{ApplyTransformsSet, MovementCalculationSet};
+use crate::state::AppState;
 
 pub struct LichPlugin;
 
 impl Plugin for LichPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, resources::preload_lich_assets)
+            // A leaked pending flag would summon a Lich on an unrelated level and
+            // block that level's victory, so clear it whenever a match ends.
+            .add_systems(OnExit(AppState::InGame), clear_lich_spawn_pending)
+            .add_systems(OnExit(AppState::MultiplayerGame), clear_lich_spawn_pending)
             // Mid-game spawn check runs even before the Lich exists
-            .add_systems(Update, check_lich_spawn.run_if(is_gameplay_running))
+            .add_systems(
+                Update,
+                check_lich_spawn
+                    .run_if(is_gameplay_running)
+                    .run_if(resource_exists::<LichSpawnPending>),
+            )
             .add_systems(
                 Update,
                 (

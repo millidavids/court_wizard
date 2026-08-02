@@ -116,13 +116,17 @@ pub(crate) fn create_wizard(wizard_type: WizardType) -> String {
 
 /// Save the current GameConfig back to the active wizard in the unified save.
 ///
-/// When `is_roguelite` is true, only action bar and timestamp are persisted —
-/// level progress, walls, crystals, and efficiency stay untouched so the
-/// wizard's Endless progress is never corrupted by a Roguelite run.
+/// When `skip_progression` is true, only wizard type, action bar, and timestamp
+/// are persisted — level progress, walls, crystals, flora, trampling, and
+/// efficiency stay untouched. Two situations set it:
+/// - **Roguelite**: a run must never corrupt the wizard's Endless progress.
+/// - **Time travel**: replaying a past level loads that level's old terrain into
+///   the live `GameConfig`, which would otherwise be written straight over the
+///   player's real permanent walls and crystals by the next debounced save.
 pub(crate) fn save_config_to_active_wizard(
     config: &GameConfig,
     active_save: &ActiveSave,
-    is_roguelite: bool,
+    skip_progression: bool,
 ) {
     let Some(wizard_id) = &active_save.0 else {
         return;
@@ -135,7 +139,7 @@ pub(crate) fn save_config_to_active_wizard(
         wizard.action_bar_slots = config.action_bar_slots;
         wizard.last_played_at = current_timestamp();
 
-        if !is_roguelite {
+        if !skip_progression {
             wizard.current_level = config.current_level;
             wizard.highest_level_achieved = config.highest_level_achieved;
             wizard.efficiency_ratios = config.efficiency_ratios.clone();
@@ -150,6 +154,30 @@ pub(crate) fn save_config_to_active_wizard(
     save_unified(&save_file);
 }
 
+/// Captures the terrain currently held in `GameConfig` as a snapshot.
+pub(crate) fn snapshot_terrain_from_config(config: &GameConfig) -> SavedLevelTerrain {
+    SavedLevelTerrain {
+        trees: config.saved_trees.clone(),
+        ponds: config.saved_ponds.clone(),
+        bushes: config.saved_bushes.clone(),
+        boulders: config.saved_boulders.clone(),
+        walls: config.saved_walls.clone(),
+        crystals: config.saved_crystals.clone(),
+        flora: config.saved_flora.clone(),
+    }
+}
+
+/// Writes a terrain snapshot back into `GameConfig`, replacing what's there.
+pub(crate) fn apply_terrain_to_config(terrain: &SavedLevelTerrain, config: &mut GameConfig) {
+    config.saved_trees = terrain.trees.clone();
+    config.saved_ponds = terrain.ponds.clone();
+    config.saved_bushes = terrain.bushes.clone();
+    config.saved_boulders = terrain.boulders.clone();
+    config.saved_walls = terrain.walls.clone();
+    config.saved_crystals = terrain.crystals.clone();
+    config.saved_flora = terrain.flora.clone();
+}
+
 /// Saves the current terrain state as a per-level snapshot for Endless time travel.
 /// Called on victory in Endless mode (non-time-travel).
 pub(crate) fn save_level_terrain(active_save: &ActiveSave, level: u32, config: &GameConfig) {
@@ -160,18 +188,9 @@ pub(crate) fn save_level_terrain(active_save: &ActiveSave, level: u32, config: &
     let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
 
     if let Some(wizard) = save_file.wizards.iter_mut().find(|w| &w.id == wizard_id) {
-        wizard.terrain_per_level.insert(
-            level.to_string(),
-            SavedLevelTerrain {
-                trees: config.saved_trees.clone(),
-                ponds: config.saved_ponds.clone(),
-                bushes: config.saved_bushes.clone(),
-                boulders: config.saved_boulders.clone(),
-                walls: config.saved_walls.clone(),
-                crystals: config.saved_crystals.clone(),
-                flora: config.saved_flora.clone(),
-            },
-        );
+        wizard
+            .terrain_per_level
+            .insert(level.to_string(), snapshot_terrain_from_config(config));
     }
 
     save_unified(&save_file);
@@ -217,12 +236,6 @@ pub(crate) fn load_level_terrain_into_config(
         return false;
     };
 
-    config.saved_trees = terrain.trees.clone();
-    config.saved_ponds = terrain.ponds.clone();
-    config.saved_bushes = terrain.bushes.clone();
-    config.saved_boulders = terrain.boulders.clone();
-    config.saved_walls = terrain.walls.clone();
-    config.saved_crystals = terrain.crystals.clone();
-    config.saved_flora = terrain.flora.clone();
+    apply_terrain_to_config(terrain, config);
     true
 }

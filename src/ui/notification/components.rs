@@ -59,14 +59,19 @@ pub(super) struct NotificationTimer {
     pub elapsed: f32,
     pub display_duration: f32,
     pub fade_duration: f32,
+    /// The background's alpha at spawn time. The fade multiplies this by the
+    /// current opacity each frame; without a fixed base the alpha would compound
+    /// itself frame over frame and collapse long before the fade finishes.
+    pub base_bg_alpha: f32,
 }
 
 impl NotificationTimer {
-    pub fn new(display_duration: f32, fade_duration: f32) -> Self {
+    pub fn new(display_duration: f32, fade_duration: f32, base_bg_alpha: f32) -> Self {
         Self {
             elapsed: 0.0,
             display_duration,
             fade_duration,
+            base_bg_alpha,
         }
     }
 

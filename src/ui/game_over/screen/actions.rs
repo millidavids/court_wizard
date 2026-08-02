@@ -4,7 +4,8 @@ use crate::config::{ActiveSave, GameConfig};
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::game_mode::components::{GameMode, RogueliteRunState, is_roguelite_mode};
 use crate::game::input::messages::MouseClicked;
-use crate::game::resources::{CurrentLevel, GameOutcome, KillStats, TimeTravelState};
+use crate::game::resources::{GameOutcome, KillStats};
+use crate::game::time_travel::TimeTravelState;
 use crate::state::AppState;
 
 use crate::networking::resources::{ConnectionState, NetworkConnection, PeerRole};
@@ -51,7 +52,6 @@ pub(crate) fn handle_button_actions(
     button_query: Query<&GameOverButtonAction>,
     game_outcome: Res<GameOutcome>,
     mut next_app_state: ResMut<NextState<AppState>>,
-    mut current_level: ResMut<CurrentLevel>,
     mut kill_stats: ResMut<KillStats>,
     mut active_save: ResMut<ActiveSave>,
     config: Res<GameConfig>,
@@ -87,15 +87,16 @@ pub(crate) fn handle_button_actions(
                     next_app_state.set(AppState::Loading);
                 }
                 GameOverButtonAction::PlayAgain => {
-                    if let Some(ref tt) = time_travel {
+                    if time_travel.is_some() {
                         if game_outcome.is_defeat() {
                             // Retry the time-traveled level (TimeTravelState persists)
                             kill_stats.reset();
                             next_app_state.set(AppState::Loading);
                         } else {
-                            // Time travel victory: restore real level, return to tower
-                            current_level.0 = tt.real_level;
-                            commands.remove_resource::<TimeTravelState>();
+                            // Time travel victory: back to the tower. The replay is
+                            // torn down by `finish_time_travel` on entering MetaGame,
+                            // late enough that OnExit(InGame) teardown still sees the
+                            // marker and skips writing replay state to the save.
                             enter_wizard_tower(
                                 &mut commands,
                                 &mut next_app_state,
@@ -126,10 +127,9 @@ pub(crate) fn handle_button_actions(
                 }
                 GameOverButtonAction::ReturnToTower => {
                     kill_stats.reset();
-                    if let Some(ref tt) = time_travel {
-                        current_level.0 = tt.real_level;
-                        commands.remove_resource::<TimeTravelState>();
-                    }
+                    // Time travel teardown runs in `finish_time_travel` on entering
+                    // MetaGame / MainMenu, which covers this button, the score
+                    // screen's Main Menu button, and both abandon paths.
                     // Save roguelite run to disk for resume
                     save_dormant_roguelite_run(
                         &active_save,
@@ -148,9 +148,6 @@ pub(crate) fn handle_button_actions(
                 }
                 GameOverButtonAction::ReturnToMenu => {
                     kill_stats.reset();
-                    if time_travel.is_some() {
-                        commands.remove_resource::<TimeTravelState>();
-                    }
                     // Abandon roguelite run if exiting to menu from score screen
                     if is_roguelite_mode(game_mode.as_deref()) {
                         crate::config::save_data::clear_current_roguelite_run(&active_save);

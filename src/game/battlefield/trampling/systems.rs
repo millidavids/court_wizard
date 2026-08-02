@@ -7,7 +7,7 @@ use super::constants::*;
 use super::resources::TramplingGrid;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::BATTLEFIELD_SIZE;
-use crate::game::resources::TimeTravelState;
+use crate::game::time_travel::TimeTravelState;
 use crate::game::units::aerialist::components::Aerialist;
 use crate::game::units::components::{Corpse, Health};
 

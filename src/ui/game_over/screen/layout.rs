@@ -6,9 +6,8 @@ use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::game_mode::components::{
     GameMode, ROGUELITE_MAX_LEVEL, RogueliteRunState, RunAggregateStats, format_time,
 };
-use crate::game::resources::{
-    BattleInsightData, CurrentLevel, GameOutcome, KillStats, TimeTravelState,
-};
+use crate::game::resources::{BattleInsightData, CurrentLevel, GameOutcome, KillStats};
+use crate::game::time_travel::TimeTravelState;
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::wizard::archetypes::psychopath::constants::DEFENDER_KILL_THRESHOLD;
 use crate::ui::systems::{spawn_button, spawn_page_container, spawn_title_with_shadow};
@@ -102,6 +101,19 @@ pub(crate) fn setup_game_over_screen(
                 };
 
                 spawn_title_with_shadow(buttons, title_text, 60.0, TITLE_COLOR, Node::default());
+
+                // Replays deliberately award no level progression, efficiency, or
+                // permanent structures — without saying so, a "VICTORY" here reads
+                // as an unlock that never arrives. Insight and lifetime stats *are*
+                // still earned (see `send_battle_ended`), so the wording is limited
+                // to level progress rather than claiming nothing was recorded.
+                if is_time_travel {
+                    buttons.spawn((
+                        Text::new("Time Travel — level progress not recorded"),
+                        TextFont::from_font_size(16.0),
+                        TextColor(TEXT_COLOR),
+                    ));
+                }
 
                 // Subtext for King death
                 if *game_outcome == GameOutcome::DefeatKingDied {

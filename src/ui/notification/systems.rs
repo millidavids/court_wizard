@@ -111,7 +111,7 @@ fn spawn_notification(
             Pickable::IGNORE,
             GlobalZIndex(999),
             Notification,
-            NotificationTimer::new(DISPLAY_DURATION, FADE_DURATION),
+            NotificationTimer::new(DISPLAY_DURATION, FADE_DURATION, background.to_srgba().alpha),
         ))
         .with_children(|parent| {
             parent.spawn((
@@ -216,9 +216,14 @@ fn spawn_toast_notification(commands: &mut Commands, message: &str) {
 }
 
 /// Ticks notification timers, applies fade, and despawns expired notifications.
+///
+/// Uses `Time<Real>` so the popup stays legible for a fixed wall-clock duration.
+/// On virtual time the between-wave staging speedup (`STAGING_SPEEDUP`, up to 10x
+/// with the Game Speed setting) compressed the whole lifetime into a fraction of a
+/// second — which is exactly when ingredient drops reach the wizard.
 pub(super) fn update_notifications(
     mut commands: Commands,
-    time: Res<Time>,
+    time: Res<Time<Real>>,
     mut notifications: Query<
         (
             Entity,
@@ -242,7 +247,7 @@ pub(super) fn update_notifications(
         let opacity = timer.opacity();
 
         let mut bg_color = bg.0.to_srgba();
-        bg_color.alpha *= opacity;
+        bg_color.alpha = timer.base_bg_alpha * opacity;
         bg.0 = bg_color.into();
 
         let mut border_srgba = border.top.to_srgba();
@@ -267,5 +272,23 @@ pub(super) fn update_notifications(
                 }
             }
         }
+    }
+}
+
+/// Clears in-flight notifications when a match ends.
+///
+/// Notifications display strictly one at a time on real time, so a burst of
+/// discoveries late in a battle can still be draining when the score screen
+/// opens. These entities carry no screen marker and the queue is a global
+/// resource, so without this they'd render on top of the score screen and the
+/// wizard tower.
+pub(super) fn clear_notifications(
+    mut commands: Commands,
+    mut queue: ResMut<NotificationQueue>,
+    notifications: Query<Entity, With<Notification>>,
+) {
+    queue.queue.clear();
+    for entity in &notifications {
+        commands.entity(entity).try_despawn();
     }
 }

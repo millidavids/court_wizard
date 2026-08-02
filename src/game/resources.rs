@@ -107,13 +107,6 @@ pub struct BattleInsightData {
     pub insight_earned: u32,
 }
 
-/// When present, the player is replaying a past level.
-/// Stores the real current_level to restore after replay.
-#[derive(Resource)]
-pub struct TimeTravelState {
-    pub real_level: u32,
-}
-
 /// Tracks the current wave state during a level.
 #[derive(Resource)]
 pub struct WaveState {

@@ -4,7 +4,8 @@ use crate::config::GameConfig;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::game_mode::components::GameMode;
 use crate::game::input::messages::MouseClicked;
-use crate::game::resources::{CurrentLevel, KillStats, TimeTravelState};
+use crate::game::resources::{CurrentLevel, KillStats};
+use crate::game::time_travel::begin_time_travel;
 use crate::state::AppState;
 
 use super::super::components::*;
@@ -25,7 +26,6 @@ pub(crate) fn handle_endless_actions(
     mut kill_stats: ResMut<KillStats>,
     mut current_level: ResMut<CurrentLevel>,
     mut config: ResMut<GameConfig>,
-    active_save: Res<crate::config::ActiveSave>,
     selected_tt_level: Option<Res<SelectedTimeTravelLevel>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
     mut right_panel_view: ResMut<RightPanelView>,
@@ -69,20 +69,12 @@ pub(crate) fn handle_endless_actions(
                     if let Some(ref sel) = selected_tt_level
                         && let Some(level) = sel.0
                     {
-                        // Store the real level so it can be restored after time travel.
-                        // Don't modify config.current_level — that tracks actual progression.
-                        commands.insert_resource(TimeTravelState {
-                            real_level: config.current_level,
-                        });
+                        // Stashes the real level + terrain and points CurrentLevel at
+                        // the replay. `config.current_level` is deliberately untouched —
+                        // that tracks actual progression. The replay's terrain is
+                        // swapped in on the next frame, once the marker is resident.
+                        begin_time_travel(&mut commands, &mut current_level, &config, level);
                         commands.insert_resource(GameMode::Endless);
-                        // Load the terrain snapshot for the target level so the
-                        // battlefield looks like it did when that level was first played.
-                        crate::config::save_data::load_level_terrain_into_config(
-                            &active_save,
-                            level,
-                            &mut config,
-                        );
-                        current_level.0 = level;
                         channel_change.write(ChannelChangeMessage);
                         kill_stats.reset();
                         next_app_state.set(AppState::Loading);

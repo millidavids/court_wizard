@@ -10,8 +10,8 @@ pub(crate) use counters::{
     lifetime_stat_totals, record_coop_guest_level_end, update_endless_best_stats,
 };
 pub(crate) use crud::{
-    load_level_terrain_into_config, load_or_create_wizard, save_config_to_active_wizard,
-    save_level_terrain,
+    apply_terrain_to_config, load_level_terrain_into_config, load_or_create_wizard,
+    save_config_to_active_wizard, save_level_terrain, snapshot_terrain_from_config,
 };
 pub(crate) use insight::{
     add_insight_bonus_progress, add_spell_research_progress, add_spell_talent_progress_batch,

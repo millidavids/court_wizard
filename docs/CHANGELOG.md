@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Changed
+- **The results screen now tells you when a battle was a time travel trip** — a "VICTORY" on a level you went back to replay no longer looks like it should have unlocked something. The screen now says plainly that level progress isn't recorded for time travel. Insight and your lifetime stats are still earned as normal.
+
+### Fixed
+- **New ingredient discoveries stay on screen long enough to read** — while the battle is fast-forwarding between waves, the discovery notice used to flash past in a fraction of a second. It now stays up for the same few seconds no matter how fast the battle is running, and fades out smoothly instead of blinking away. Anything still waiting to be shown when a battle ends no longer lingers over the results screen.
+- **A boss from a later level no longer turns up on the wrong one** — if a battle against a late-game boss ended before that boss made its entrance, it could arrive unannounced on a completely different level afterwards, and quietly stop you from winning that level until it did.
+- **Time travel no longer leaves your Endless progress on the wrong level** — quitting to the menu partway through a trip to an earlier level used to strand the game there. Every battle after that was set up and labelled with the wrong level, and winning them counted for nothing. Coming back from a trip now always returns you to where you left off.
+- **Time travel no longer overwrites what you've built** — revisiting an earlier level restores that level's battlefield for the trip, and those old surroundings could end up written over your real permanent structures and terrain for good, even if you closed the game partway through. Your real progress is now held safe for the whole trip and put back when you return.
+
 ## [v1.0.32] - 2026-08-01
 
 ### Fixed

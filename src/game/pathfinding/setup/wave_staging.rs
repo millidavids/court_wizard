@@ -104,7 +104,7 @@ pub fn check_wave_activation(
     // wave's space" rather than "near the staging point."
     const SWORDCERER_AGGRO_RADIUS: f32 = 300.0;
     let swordcerer_aggro_radius_sq = SWORDCERER_AGGRO_RADIUS * SWORDCERER_AGGRO_RADIUS;
-    // Use real time so 3x speedup doesn't shorten the timeout
+    // Use real time so the 5x speedup doesn't shorten the timeout
     let dt = time.delta_secs();
 
     // At most one swordcerer avatar exists at a time.
@@ -180,11 +180,12 @@ pub fn check_wave_activation(
     }
 }
 
-/// Manages game speed: 3x when only staging (unactivated) attackers exist, 1x otherwise.
+/// Manages game speed: `STAGING_SPEEDUP` (5x) when only staging (unactivated)
+/// attackers exist, baseline otherwise.
 ///
 /// Drops the speedup to baseline whenever a full-screen in-game menu (spell
 /// book / cauldron) is open — menu navigation and scrolling behave erratically
-/// at 3x. When the player returns to `Running` with staging still active the
+/// at 5x. When the player returns to `Running` with staging still active the
 /// speedup resumes automatically on the next frame.
 #[allow(clippy::too_many_arguments)]
 pub fn manage_staging_speedup(
@@ -199,7 +200,7 @@ pub fn manage_staging_speedup(
     // Multiplayer has no staging phase — armies are spawned in full at match
     // start. WaveState still exists as a global resource (default
     // `waves_complete: false`) which would otherwise leave `waves_remaining`
-    // true forever in MP, locking the game at 3x. Force baseline game speed
+    // true forever in MP, locking the game at 5x. Force baseline game speed
     // whenever the player is in an *active* MP state — `Disconnected` and
     // `ScoreScreen` are deliberately left alone so a future slow-motion
     // replay or end-of-match effect can override speed without this system

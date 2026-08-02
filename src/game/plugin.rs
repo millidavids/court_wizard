@@ -88,7 +88,15 @@ impl Plugin for GamePlugin {
             )
             .add_systems(
                 OnEnter(AppState::MetaGame),
-                shared_systems::init_level_from_config,
+                (
+                    super::time_travel::finish_time_travel,
+                    shared_systems::init_level_from_config,
+                )
+                    .chain(),
+            )
+            .add_systems(
+                OnEnter(AppState::MainMenu),
+                super::time_travel::finish_time_travel,
             )
             .add_systems(
                 OnEnter(AppState::InGame),

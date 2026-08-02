@@ -35,6 +35,7 @@ mod sets;
 pub(crate) mod shared_systems;
 pub(in crate::game) mod systems;
 pub(crate) mod terrain;
+pub(crate) mod time_travel;
 pub(crate) mod units;
 mod wave_systems;
 mod win_lose_systems;

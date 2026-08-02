@@ -85,6 +85,7 @@ pub(crate) fn save_config_on_debounce_timer(
     saved_geometry: Res<SavedWindowedGeometry>,
     input_bindings: Res<super::super::input_bindings::InputBindings>,
     game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
+    time_travel: Option<Res<crate::game::time_travel::TimeTravelState>>,
     windows: Query<&BevyWindow, With<PrimaryWindow>>,
 ) {
     if !debounce_timer.pending {
@@ -100,6 +101,7 @@ pub(crate) fn save_config_on_debounce_timer(
             &saved_geometry,
             &input_bindings,
             &game_mode,
+            time_travel.is_some(),
             &windows,
         );
         debounce_timer.pending = false;
@@ -117,6 +119,7 @@ pub(crate) fn save_config_on_event(
     saved_geometry: Res<SavedWindowedGeometry>,
     input_bindings: Res<super::super::input_bindings::InputBindings>,
     game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
+    time_travel: Option<Res<crate::game::time_travel::TimeTravelState>>,
     windows: Query<&BevyWindow, With<PrimaryWindow>>,
 ) {
     if save_events.read().count() == 0 {
@@ -129,6 +132,7 @@ pub(crate) fn save_config_on_event(
         &saved_geometry,
         &input_bindings,
         &game_mode,
+        time_travel.is_some(),
         &windows,
     );
     save_data::flush_save_cache();
@@ -156,6 +160,7 @@ pub(crate) fn save_on_exit(
     saved_geometry: Res<SavedWindowedGeometry>,
     input_bindings: Res<super::super::input_bindings::InputBindings>,
     game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
+    time_travel: Option<Res<crate::game::time_travel::TimeTravelState>>,
     windows: Query<&BevyWindow, With<PrimaryWindow>>,
 ) {
     if exit_events.read().count() == 0 {
@@ -169,6 +174,7 @@ pub(crate) fn save_on_exit(
         &saved_geometry,
         &input_bindings,
         &game_mode,
+        time_travel.is_some(),
         &windows,
     );
     save_data::flush_save_cache();
@@ -194,16 +200,21 @@ fn persist_current_state(
     saved_geometry: &SavedWindowedGeometry,
     input_bindings: &super::super::input_bindings::InputBindings,
     game_mode: &Option<Res<crate::game::game_mode::components::GameMode>>,
+    is_time_travel: bool,
     windows: &Query<&BevyWindow, With<PrimaryWindow>>,
 ) {
-    let is_roguelite = crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
+    // Roguelite runs and time-travel replays must both leave the wizard's Endless
+    // progression untouched — see `save_config_to_active_wizard`.
+    let skip_progression =
+        crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref())
+            || is_time_travel;
     persist_config(
         game_config,
         active_save,
         saved_geometry,
         input_bindings,
         get_window_position(windows, saved_geometry),
-        is_roguelite,
+        skip_progression,
     );
 }
 
@@ -214,7 +225,7 @@ fn persist_config(
     saved_geometry: &SavedWindowedGeometry,
     input_bindings: &super::super::input_bindings::InputBindings,
     window_pos: Option<IVec2>,
-    is_roguelite: bool,
+    skip_progression: bool,
 ) {
     // Build ConfigFile from current state
     let config_file =
@@ -236,7 +247,7 @@ fn persist_config(
     }
 
     // Save progress to the active wizard in the unified save file
-    save_data::save_config_to_active_wizard(game_config, active_save, is_roguelite);
+    save_data::save_config_to_active_wizard(game_config, active_save, skip_progression);
 }
 
 /// Builds a temporary ConfigFile from current GameConfig for serialization.

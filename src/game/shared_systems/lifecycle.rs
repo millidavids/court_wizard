@@ -28,7 +28,7 @@ pub fn abandon_run_to_main_menu(
 pub fn init_level_from_config(
     mut current_level: ResMut<CurrentLevel>,
     config: Res<crate::config::GameConfig>,
-    time_travel: Option<Res<crate::game::resources::TimeTravelState>>,
+    time_travel: Option<Res<crate::game::time_travel::TimeTravelState>>,
 ) {
     // During time travel, CurrentLevel was already set to the target level
     // by the time travel handler. Don't overwrite it with config.current_level

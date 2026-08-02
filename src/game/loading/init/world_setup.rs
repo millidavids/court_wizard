@@ -3,9 +3,8 @@ use bevy::prelude::*;
 use crate::config::GameConfig;
 use crate::game::constants::*;
 use crate::game::loading::spawn_queue::{SpawnQueue, SpawnTask};
-use crate::game::resources::{
-    CurrentLevel, InitialDefenderCount, KillStats, TimeTravelState, WaveState,
-};
+use crate::game::resources::{CurrentLevel, InitialDefenderCount, KillStats, WaveState};
+use crate::game::time_travel::TimeTravelState;
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 
 /// Initializes the loading progress tracker and spawn queue.
@@ -23,6 +22,14 @@ pub fn init_loading_progress(
     attrition_state: Option<Res<crate::game::game_mode::components::AttritionState>>,
     coop_pending: Option<Res<crate::game::multiplayer::coop::CoopPendingSession>>,
 ) {
+    // Clear the pending-Lich flag from any previous level. It is only removed when
+    // the Lich actually spawns, so a lich level that ended early (king died, all
+    // defenders died, player quit) would otherwise leak it into every later level —
+    // summoning a stray Lich and blocking victory until it discharges. Commands
+    // apply in queue order, so the re-insert further down still wins on real lich
+    // levels.
+    commands.remove_resource::<crate::game::units::boss::lich::components::LichSpawnPending>();
+
     // Sync CurrentLevel from GameConfig, but skip during time travel
     // (CurrentLevel was already overridden by the wizard tower hub)
     if time_travel.is_none() {
