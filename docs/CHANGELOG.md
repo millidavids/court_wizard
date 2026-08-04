@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v1.0.34] - 2026-08-04
 
 ### Added
 - **You can see which spell is ready at a glance** — the icon of your primed spell now floats and gently bobs above your wizard's head, so you no longer have to cast one to find out what's loaded. It swaps the instant you switch, and the Warglock's chosen gun appears the same way. It's especially handy for the Rune Caster and the Randomancer, who never picked the spell themselves — now you can see what your runes or the wheel actually handed you, long after the announcement has faded.
