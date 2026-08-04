@@ -27,6 +27,10 @@ pub(super) struct SelectedSpellPreview(pub Spell);
 #[derive(Component)]
 pub(crate) struct DetailName;
 
+/// Marker for the spell icon shown beside the name in the detail panel.
+#[derive(Component)]
+pub(super) struct DetailSpellIcon;
+
 /// Marker for the damage type text in the detail panel.
 #[derive(Component)]
 pub(super) struct DetailDamageType;

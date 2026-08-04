@@ -3,11 +3,12 @@ use bevy::prelude::*;
 use crate::game::input::gamepad::resources::RadialHoveredSlot;
 use crate::game::run_conditions::is_local_wizard_active;
 use crate::state::{InGameState, MultiplayerGameState};
+use crate::ui::button_systems::sync_front_face_colors;
 use crate::ui::plugin::ButtonActionSet;
 
-use super::components::ActionBarLayoutProgress;
 #[cfg(debug_assertions)]
 use super::components::InfiniteMana;
+use super::components::{ActionBarLayoutProgress, ActionBarRoot};
 use super::messages::AssignSpellToSlot;
 use super::radial;
 use super::run_conditions::action_bar_enabled;
@@ -44,7 +45,12 @@ impl Plugin for ActionBarPlugin {
             OnEnter(InGameState::Running),
             systems::spawn_action_bar
                 .after(systems::clear_blocked_action_bar_spells)
-                .run_if(action_bar_enabled),
+                .run_if(action_bar_enabled)
+                // `Running` is re-entered every time the player closes the
+                // spell book, pause menu, or cauldron, and nothing despawns the
+                // bar in between — without this guard each round trip stacks
+                // another full set of slots on top of the last.
+                .run_if(not(any_with_component::<ActionBarRoot>)),
         )
         // Clear Shepherd-blocked (offensive) spells before spawning the action
         // bar in multiplayer too — this was SP-only, so a guest Shepherd's
@@ -57,14 +63,22 @@ impl Plugin for ActionBarPlugin {
             OnEnter(MultiplayerGameState::Running),
             systems::spawn_action_bar
                 .after(systems::clear_blocked_action_bar_spells)
-                .run_if(action_bar_enabled),
+                .run_if(action_bar_enabled)
+                // `Running` is re-entered every time the player closes the
+                // spell book, pause menu, or cauldron, and nothing despawns the
+                // bar in between — without this guard each round trip stacks
+                // another full set of slots on top of the last.
+                .run_if(not(any_with_component::<ActionBarRoot>)),
         )
         .add_systems(
             Update,
             (
                 systems::handle_slot_click.in_set(ButtonActionSet),
                 systems::handle_keyboard_input,
-                systems::highlight_keyboard_pressed_slots,
+                // After the front-face sync, so the persistent primed-slot
+                // write (which dirties `ButtonColors` and thus re-runs that
+                // sync) can't reset the press highlight to rest the same frame.
+                systems::highlight_keyboard_pressed_slots.after(sync_front_face_colors),
             )
                 .run_if(is_local_wizard_active),
         )
@@ -94,12 +108,14 @@ impl Plugin for ActionBarPlugin {
         .add_systems(
             Update,
             radial::highlight_radial_hovered_slot
+                .after(sync_front_face_colors)
                 .run_if(is_local_wizard_active)
                 .run_if(resource_changed::<RadialHoveredSlot>),
         )
         .add_systems(
             Update,
             (radial::flash_committed_slot, radial::tick_commit_flash)
+                .after(sync_front_face_colors)
                 .run_if(is_local_wizard_active),
         )
         .add_systems(
@@ -107,6 +123,13 @@ impl Plugin for ActionBarPlugin {
             (
                 systems::update_action_bar_slots,
                 systems::handle_spell_assignment,
+                // After the slot refresh so a config change can't wipe the
+                // highlight in the same frame it reassigns a slot, and before
+                // the front-face sync so the new border reaches the visible
+                // layer in that same frame.
+                systems::highlight_active_slot
+                    .after(systems::update_action_bar_slots)
+                    .before(sync_front_face_colors),
             )
                 .run_if(
                     is_local_wizard_active

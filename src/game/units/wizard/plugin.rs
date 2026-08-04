@@ -8,6 +8,7 @@ use crate::state::InGameState;
 use super::aim_line::AimLinePlugin;
 use super::archetypes::ArchetypesPlugin;
 use super::messages::PrimeSpellMessage;
+use super::primed_spell_indicator::PrimedSpellIndicatorPlugin;
 use super::spell_range_indicator::SpellRangeIndicatorPlugin;
 use super::spells::SpellsPlugin;
 use super::systems;
@@ -21,6 +22,7 @@ use super::systems;
 /// - Spell priming via messages
 /// - Spell casting and projectile management (via SpellsPlugin)
 /// - Spell range visualization (via SpellRangeIndicatorPlugin)
+/// - Floating primed-spell icon above the wizard (via PrimedSpellIndicatorPlugin)
 /// - Archetype systems (runes and roulette via ArchetypesPlugin)
 pub struct WizardPlugin;
 
@@ -30,6 +32,7 @@ impl Plugin for WizardPlugin {
             .add_plugins((
                 SpellsPlugin,
                 SpellRangeIndicatorPlugin,
+                PrimedSpellIndicatorPlugin,
                 ArchetypesPlugin,
                 AimLinePlugin,
             ))

@@ -61,6 +61,20 @@ pub(crate) fn effective_slot(
     Some(spell)
 }
 
+/// The icon handle for whatever spell occupies `slot_idx`, if any.
+///
+/// Goes through [`effective_slot`], so MP-disallowed spells read as an empty
+/// slot here too. Shared by the action bar's spawn and refresh paths and by the
+/// spell book's hotkey boxes, so all three agree on what a slot displays.
+pub(crate) fn slot_icon(
+    config: &GameConfig,
+    slot_idx: usize,
+    mp_session: Option<&crate::networking::session::MultiplayerSession>,
+    icon_assets: &SpellIconAssets,
+) -> Option<Handle<Image>> {
+    effective_slot(config, slot_idx, mp_session).and_then(|spell| icon_assets.get(&spell).cloned())
+}
+
 /// Spawns the action bar UI at the bottom-left of the screen.
 /// Clears action bar spells that are blocked by the current wizard type.
 /// Runs once when entering gameplay, before the action bar is spawned.
@@ -122,8 +136,7 @@ pub(crate) fn spawn_action_bar(
                         let gun = guns[slot as usize];
                         gun_icon_assets.get(&gun).cloned()
                     } else {
-                        let spell = effective_slot(&config, slot as usize, mp_session.as_deref());
-                        spell.and_then(|s| icon_assets.get(&s).cloned())
+                        slot_icon(&config, slot as usize, mp_session.as_deref(), &icon_assets)
                     };
 
                     // Compute initial position from the already-settled

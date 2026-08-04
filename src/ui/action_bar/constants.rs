@@ -64,5 +64,7 @@ pub(super) const RADIAL_TRANSITION_SECS: f32 = 0.35;
 pub(super) const RADIAL_COMMIT_FLASH_SECS: f32 = 0.18;
 /// Border color shown on the radial slot the right stick is currently pointing at.
 pub(super) const RADIAL_HOVER_COLOR: Color = Color::srgba(1.0, 0.95, 0.4, 1.0);
-/// Border color for the gunslinger's currently selected gun slot.
-pub(super) const GUNSLINGER_SELECTED_COLOR: Color = Color::srgb(1.0, 0.8, 0.2);
+/// Border color marking the slot that holds the active choice — the primed
+/// spell, or the Warglock's selected gun. One color for both so "this is what
+/// you have loaded" reads identically across archetypes.
+pub(super) const PRIMED_SLOT_COLOR: Color = Color::srgb(1.0, 0.8, 0.2);

@@ -32,12 +32,67 @@ use state::StatePlugin;
 use steam::SteamPlugin;
 use ui::UiPlugin;
 
+/// On Linux, steer winit toward the X11 (XWayland) backend by default.
+///
+/// wgpu combined with the NVIDIA proprietary driver frequently fails to create a
+/// Vulkan surface on *native* Wayland: `Surface::configure` returns
+/// `InvalidSurface` and the game hard-crashes on launch, before the main menu
+/// ever appears (this is exactly what a Steam launch hits on such systems).
+/// XWayland is dramatically more reliable across GPU vendors and driver
+/// versions, so we clear `WAYLAND_DISPLAY` before the winit event loop is built,
+/// which makes winit fall back to X11.
+///
+/// Guardrails:
+/// - Only acts when an X server is actually reachable (`DISPLAY` set — XWayland
+///   provides this on virtually every Wayland desktop), so we never strand a
+///   session that has no X11 fallback.
+/// - Skipped entirely under gamescope (Steam Deck Game Mode, and the nested
+///   sessions Big Picture uses). That compositor owns the surface and is
+///   overwhelmingly AMD, so it never hits the NVIDIA bug this works around —
+///   forcing XWayland there only costs a needless translation layer.
+/// - Players whose native Wayland stack works well (typically AMD/Intel) can opt
+///   back in by launching with `COURT_WIZARD_WAYLAND=1`.
+#[cfg(target_os = "linux")]
+fn prefer_x11_backend() {
+    let opted_into_wayland = std::env::var("COURT_WIZARD_WAYLAND")
+        .map(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(false);
+    let on_wayland = std::env::var_os("WAYLAND_DISPLAY").is_some();
+    let xserver_available = std::env::var_os("DISPLAY").is_some();
+    let under_gamescope = std::env::var_os("GAMESCOPE_WAYLAND_DISPLAY").is_some()
+        || std::env::var_os("SteamDeck").is_some()
+        || std::env::var("XDG_CURRENT_DESKTOP")
+            .is_ok_and(|d| d.to_ascii_lowercase().contains("gamescope"));
+
+    if !opted_into_wayland && !under_gamescope && on_wayland && xserver_available {
+        // SAFETY: this runs as the first statement of `main`, before any plugin,
+        // thread, or the winit event loop exists, so no other thread can be
+        // reading the environment concurrently.
+        unsafe { std::env::remove_var("WAYLAND_DISPLAY") };
+        eprintln!(
+            "[court_wizard] Using X11/XWayland for stability on NVIDIA+Wayland; \
+             set COURT_WIZARD_WAYLAND=1 to force native Wayland."
+        );
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn prefer_x11_backend() {}
+
 /// Main entry point for the game.
 ///
 /// Initializes the Bevy app with default window settings and the config plugin.
 /// The ConfigPlugin will load saved settings from localStorage at startup and
 /// apply them to the window.
 fn main() {
+    // Must run before anything touches winit/the renderer (see the fn docs).
+    prefer_x11_backend();
+
     crash_handler::install();
 
     let mut app = App::new();

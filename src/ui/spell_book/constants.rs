@@ -13,6 +13,9 @@ pub const DETAIL_NAME_FONT_SIZE: f32 = 14.0;
 /// Color for spell name text — warm white.
 pub const DETAIL_NAME_COLOR: Color = Color::hsla(40.0, 0.10, 0.85, 1.0);
 
+/// Size of the spell icon shown beside the name in the detail panel.
+pub const DETAIL_ICON_SIZE: f32 = 32.0;
+
 /// Font size for damage type label.
 pub const DETAIL_TYPE_FONT_SIZE: f32 = 7.0;
 
@@ -43,6 +46,9 @@ pub const HOTKEY_BOX_GAP: f32 = 6.0;
 
 /// Font size for the hotkey number label.
 pub const HOTKEY_FONT_SIZE: f32 = 8.0;
+
+/// Size of the bound spell's icon inside a hotkey box.
+pub const HOTKEY_ICON_SIZE: f32 = 24.0;
 
 /// Background for inactive hotkey box.
 pub const HOTKEY_INACTIVE_BG: Color = Color::hsla(20.0, 0.10, 0.10, 0.75);

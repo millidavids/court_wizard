@@ -59,6 +59,12 @@ impl Plugin for SpellBookPlugin {
                     handle_scroll::<ScrollableSpellList>,
                     systems::handle_number_key_assignment,
                     systems::update_detail_panel,
+                    // After the two assignment handlers so a click or number
+                    // key repaints the boxes in the same frame it lands.
+                    systems::refresh_hotkey_slots
+                        .after(systems::handle_hotkey_click)
+                        .after(systems::handle_number_key_assignment),
+                    systems::refresh_spell_list_selection,
                 )
                     .run_if(
                         in_state(InGameState::SpellBook)

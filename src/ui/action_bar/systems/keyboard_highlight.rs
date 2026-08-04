@@ -2,10 +2,9 @@ use bevy::prelude::*;
 
 use super::super::components::*;
 use super::super::constants::*;
-use super::spawn::{calculate_action_bar_font_size, effective_slot};
+use super::spawn::{calculate_action_bar_font_size, effective_slot, slot_icon};
 use crate::config::input_bindings::InputBindings;
 use crate::config::{GameConfig, WizardType};
-use crate::game::units::wizard::archetypes::gunslinger::GunState;
 use crate::game::units::wizard::archetypes::gunslinger::GunType;
 use crate::ui::color_utils::border_bright;
 use crate::ui::components::{
@@ -26,7 +25,6 @@ pub(crate) fn update_action_bar_slots(
     layout_progress: Res<ActionBarLayoutProgress>,
     icon_assets: Res<SpellIconAssets>,
     gun_icon_assets: Res<GunIconAssets>,
-    gun_state: Option<Res<GunState>>,
     mp_session: Option<Res<crate::networking::session::MultiplayerSession>>,
     mut slot_text_query: Query<(
         &mut Text,
@@ -44,29 +42,9 @@ pub(crate) fn update_action_bar_slots(
         ),
         Without<ActionBarSlotText>,
     >,
-    mut slot_button_query: Query<(&ActionBarSlot, &mut BorderColor, &ButtonColors)>,
 ) {
-    let is_gunslinger = config.wizard_type == WizardType::Warglock;
-
-    // Update slot highlighting for gunslinger — only when the gun
-    // selection changes, so the per-frame write doesn't stomp on the radial
-    // hover color written by `highlight_radial_hovered_slot`.
-    if is_gunslinger
-        && let Some(ref gs) = gun_state
-        && gs.is_changed()
-    {
-        let guns = GunType::all();
-        for (slot, mut border_color, colors) in &mut slot_button_query {
-            let slot_idx = slot.slot as usize;
-            if slot_idx < 5 && guns[slot_idx] == gs.selected_gun {
-                *border_color = BorderColor::all(GUNSLINGER_SELECTED_COLOR);
-            } else {
-                *border_color = BorderColor::all(colors.border);
-            }
-        }
-    }
-
     if config.is_changed() {
+        let is_gunslinger = config.wizard_type == WizardType::Warglock;
         // Match the radial-morph scale so the icon size stays consistent whether a
         // controller (radial) or mouse/keyboard (linear) is active.
         let icon_px = SPELL_ICON_SIZE
@@ -123,9 +101,13 @@ pub(crate) fn update_action_bar_slots(
             }
         }
 
-        for (mut image_node, mut visibility, mut node, slot_icon) in &mut slot_icon_query {
-            let spell = effective_slot(&config, slot_icon.slot as usize, mp_session.as_deref());
-            if let Some(handle) = spell.and_then(|s| icon_assets.get(&s).cloned()) {
+        for (mut image_node, mut visibility, mut node, marker) in &mut slot_icon_query {
+            if let Some(handle) = slot_icon(
+                &config,
+                marker.slot as usize,
+                mp_session.as_deref(),
+                &icon_assets,
+            ) {
                 *image_node = ImageNode::new(handle);
                 *visibility = Visibility::Inherited;
                 node.width = Val::Px(icon_px);

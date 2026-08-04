@@ -8,6 +8,7 @@ pub(crate) mod components;
 pub(in crate::game) mod constants;
 pub(crate) mod messages;
 mod plugin;
+mod primed_spell_indicator;
 mod spell_enum;
 mod spell_range_indicator;
 mod spell_status_effects;

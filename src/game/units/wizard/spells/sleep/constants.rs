@@ -11,7 +11,7 @@ pub const PRIMED_SLEEP: PrimedSpell = PrimedSpell {
 
 pub const CAST_TIME: f32 = 2.5;
 pub const MANA_COST: f32 = 35.0;
-pub const CIRCLE_RADIUS: f32 = 120.0;
+pub const CIRCLE_RADIUS: f32 = 156.0;
 pub const SLEEP_DURATION: f32 = 8.0;
 pub const BONUS_DAMAGE_MULTIPLIER: f32 = 2.0;
 

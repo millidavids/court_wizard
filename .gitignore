@@ -35,3 +35,4 @@ credentials.json
 secrets.toml
 config.vdf
 ssfn*
+.DS_Store

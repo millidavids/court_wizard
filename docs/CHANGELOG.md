@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Added
+- **You can see which spell is ready at a glance** — the icon of your primed spell now floats and gently bobs above your wizard's head, so you no longer have to cast one to find out what's loaded. It swaps the instant you switch, and the Warglock's chosen gun appears the same way. It's especially handy for the Rune Caster and the Randomancer, who never picked the spell themselves — now you can see what your runes or the wheel actually handed you, long after the announcement has faded.
+- **The action bar marks the spell you have ready** — the slot holding your primed spell now keeps a lit border, instead of only flashing for a moment as you press it.
+- **The spell menu shows your whole hotkey loadout** — the five assignment boxes each display the icon of the spell bound to them, with the slot number tucked into the corner, so you can see everything you have equipped without clicking through spell by spell. The spell you're reading about also shows its icon beside its name.
+
+### Changed
+- **Sleep covers noticeably more ground** — the spell's circle is 30% wider, so a single casting catches a good deal more of an advancing crowd. Anything that widens the circle further builds on the new, larger size.
+
+### Fixed
+- **The game no longer fails to launch on some Linux setups** — on Wayland desktops with NVIDIA graphics, it could crash before the main menu ever appeared. It now starts through a more reliable display path by default. Steam Deck and other handheld sessions are unaffected and keep their native one, and anyone whose Wayland setup already worked well can launch with `COURT_WIZARD_WAYLAND=1` to keep it.
+- **The Warglock's selected gun is now actually highlighted** — the action bar was meant to mark which of the five guns you had in hand, but the highlight was drawn somewhere it could never be seen.
+- **The action bar no longer stacks copies of itself** — every trip into the spell book, cauldron, or pause menu quietly left another row of slots piled on the last one.
+- **The spell menu's hotkey boxes no longer disagree about which is picked** — switching between spells could leave an old box still looking selected while the new one lit up as well.
+
 ## [v1.0.33] - 2026-08-01
 
 ### Changed

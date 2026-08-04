@@ -4,12 +4,12 @@ use super::setup::JustEnteredSpellBook;
 use bevy::prelude::*;
 
 use super::components::*;
-use super::constants::*;
+use super::hotkey_slots::SLOT_COUNT;
 use crate::config::GameConfig;
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
+use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::state::{InGameState, MultiplayerGameState};
-use crate::ui::components::ButtonColors;
 use crate::ui::concentration::ConcentrationUIRoot;
 
 // ---------------------------------------------------------------------------
@@ -51,231 +51,46 @@ pub(super) fn button_action(
     }
 }
 
-/// Updates the detail panel text and hotkey highlights when the selected spell changes.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn update_detail_panel(
-    mut commands: Commands,
-    selected: Res<SelectedSpellPreview>,
-    config: Res<GameConfig>,
-    mut name_query: Query<
-        &mut Text,
-        (
-            With<DetailName>,
-            Without<DetailDamageType>,
-            Without<DetailDescription>,
-            Without<DetailInstructions>,
-        ),
-    >,
-    mut type_query: Query<
-        &mut Text,
-        (
-            With<DetailDamageType>,
-            Without<DetailName>,
-            Without<DetailDescription>,
-            Without<DetailInstructions>,
-        ),
-    >,
-    mut desc_query: Query<
-        &mut Text,
-        (
-            With<DetailDescription>,
-            Without<DetailName>,
-            Without<DetailDamageType>,
-            Without<DetailInstructions>,
-        ),
-    >,
-    mut instr_query: Query<
-        &mut Text,
-        (
-            With<DetailInstructions>,
-            Without<DetailName>,
-            Without<DetailDamageType>,
-            Without<DetailDescription>,
-        ),
-    >,
-    mut hotkey_query: Query<(
-        Entity,
-        &HotkeySlotButton,
-        &mut BackgroundColor,
-        &mut BorderColor,
-        &mut ButtonColors,
-    )>,
-    children_query: Query<&Children>,
-    mut hotkey_text_query: Query<&mut TextColor>,
-    mut spell_list_query: Query<
-        (Entity, &SpellListButton, &mut BorderColor),
-        Without<HotkeySlotButton>,
-    >,
-) {
-    if !selected.is_changed() && !config.is_changed() {
-        return;
-    }
-
-    let spell = selected.0;
-
-    // Update detail text
-    if let Ok(mut text) = name_query.single_mut() {
-        **text = spell.display_name().to_string();
-    }
-    if let Ok(mut text) = type_query.single_mut() {
-        **text = spell.damage_type().display_name().to_string();
-    }
-    if let Ok(mut text) = desc_query.single_mut() {
-        **text = spell.description().to_string();
-    }
-    if let Ok(mut text) = instr_query.single_mut() {
-        **text = spell.instructions().to_string();
-    }
-
-    // Update hotkey box highlights — collect entity→color mapping first
-    let mut hotkey_text_updates: Vec<(Entity, Color)> = Vec::new();
-    for (entity, slot_btn, mut bg, mut border, mut colors) in &mut hotkey_query {
-        let is_active = config.action_bar_slots[slot_btn.0 as usize] == Some(spell);
-        let (new_bg, new_border, new_text_color) = if is_active {
-            (HOTKEY_ACTIVE_BG, HOTKEY_ACTIVE_BORDER, HOTKEY_ACTIVE_TEXT)
-        } else {
-            (
-                HOTKEY_INACTIVE_BG,
-                HOTKEY_INACTIVE_BORDER,
-                HOTKEY_INACTIVE_TEXT,
-            )
-        };
-        bg.0 = new_bg;
-        *border = BorderColor::all(new_border);
-        colors.background = new_bg;
-        colors.border = new_border;
-        hotkey_text_updates.push((entity, new_text_color));
-    }
-
-    // Apply text color updates to hotkey button descendants
-    for (btn_entity, new_text_color) in &hotkey_text_updates {
-        if let Ok(children) = children_query.get(*btn_entity) {
-            for child in children.iter() {
-                if let Ok(mut tc) = hotkey_text_query.get_mut(child) {
-                    tc.0 = *new_text_color;
-                }
-                if let Ok(grandchildren) = children_query.get(child) {
-                    for gc in grandchildren.iter() {
-                        if let Ok(mut tc) = hotkey_text_query.get_mut(gc) {
-                            tc.0 = *new_text_color;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    for (entity, list_btn, mut border) in &mut spell_list_query {
-        let is_selected = list_btn.0 == spell;
-        *border = BorderColor::all(if is_selected {
-            SPELL_BUTTON_SELECTED_BORDER
-        } else {
-            SPELL_BUTTON_BORDER
-        });
-        if is_selected {
-            commands
-                .entity(entity)
-                .insert(crate::ui::components::ButtonActive);
-        } else {
-            commands
-                .entity(entity)
-                .remove::<crate::ui::components::ButtonActive>();
-        }
+/// Assigns or unassigns a slot. The boxes' appearance is `refresh_hotkey_slots`'
+/// job — it reacts to the `GameConfig` change these two write.
+fn toggle_slot(config: &mut GameConfig, slot_idx: usize, spell: Spell) {
+    if config.action_bar_slots.get(slot_idx) == Some(&Some(spell)) {
+        config.action_bar_slots[slot_idx] = None;
+    } else {
+        config.action_bar_slots[slot_idx] = Some(spell);
     }
 }
 
 /// Handles clicking a hotkey slot button to assign the selected spell.
 pub(super) fn handle_hotkey_click(
-    mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
-    hotkey_query: Query<(Entity, &HotkeySlotButton)>,
-    all_hotkey_buttons: Query<(Entity, &HotkeySlotButton), With<Button>>,
+    hotkey_query: Query<&HotkeySlotButton>,
     selected: Res<SelectedSpellPreview>,
     mut config: ResMut<GameConfig>,
     mut config_changed: MessageWriter<crate::config::ConfigChanged>,
 ) {
     for event in button_clicked.read() {
-        let Ok((_, slot_btn)) = hotkey_query.get(event.button) else {
+        let Ok(slot_btn) = hotkey_query.get(event.button) else {
             continue;
         };
-        let slot_idx = slot_btn.0 as usize;
-
-        // Toggle: if already assigned to this slot, unassign; otherwise assign
-        if config.action_bar_slots.get(slot_idx) == Some(&Some(selected.0)) {
-            config.action_bar_slots[slot_idx] = None;
-        } else {
-            config.action_bar_slots[slot_idx] = Some(selected.0);
-        }
+        toggle_slot(&mut config, slot_btn.0 as usize, selected.0);
         config_changed.write(crate::config::ConfigChanged);
-
-        // Update ButtonActive on all hotkey buttons to reflect new state
-        for (entity, btn) in &all_hotkey_buttons {
-            let is_active = config.action_bar_slots[btn.0 as usize] == Some(selected.0);
-            if is_active {
-                commands.entity(entity).insert((
-                    crate::ui::components::ButtonActive,
-                    ButtonColors {
-                        background: HOTKEY_ACTIVE_BG,
-                        border: HOTKEY_ACTIVE_BORDER,
-                    },
-                ));
-            } else {
-                commands
-                    .entity(entity)
-                    .remove::<crate::ui::components::ButtonActive>();
-                commands.entity(entity).insert(ButtonColors {
-                    background: HOTKEY_INACTIVE_BG,
-                    border: HOTKEY_INACTIVE_BORDER,
-                });
-            }
-        }
     }
 }
 
 /// Handles number key presses to assign/unassign the selected spell to an action bar slot.
 pub(super) fn handle_number_key_assignment(
-    mut commands: Commands,
     mut action_bar_key: MessageReader<ActionBarKeyPressed>,
-    all_hotkey_buttons: Query<(Entity, &HotkeySlotButton), With<Button>>,
     selected: Res<SelectedSpellPreview>,
     mut config: ResMut<GameConfig>,
     mut config_changed: MessageWriter<crate::config::ConfigChanged>,
 ) {
     for event in action_bar_key.read() {
-        if event.slot >= 5 {
+        if event.slot >= SLOT_COUNT {
             continue;
         }
-        let slot_idx = event.slot as usize;
-
-        // Toggle: if already assigned, unassign; otherwise assign
-        if config.action_bar_slots.get(slot_idx) == Some(&Some(selected.0)) {
-            config.action_bar_slots[slot_idx] = None;
-        } else {
-            config.action_bar_slots[slot_idx] = Some(selected.0);
-        }
+        toggle_slot(&mut config, event.slot as usize, selected.0);
         config_changed.write(crate::config::ConfigChanged);
-
-        // Update ButtonActive on all hotkey buttons
-        for (entity, btn) in &all_hotkey_buttons {
-            let is_active = config.action_bar_slots[btn.0 as usize] == Some(selected.0);
-            if is_active {
-                commands.entity(entity).insert((
-                    crate::ui::components::ButtonActive,
-                    ButtonColors {
-                        background: HOTKEY_ACTIVE_BG,
-                        border: HOTKEY_ACTIVE_BORDER,
-                    },
-                ));
-            } else {
-                commands
-                    .entity(entity)
-                    .remove::<crate::ui::components::ButtonActive>();
-                commands.entity(entity).insert(ButtonColors {
-                    background: HOTKEY_INACTIVE_BG,
-                    border: HOTKEY_INACTIVE_BORDER,
-                });
-            }
-        }
     }
 }
 
