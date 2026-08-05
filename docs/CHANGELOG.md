@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Fixed
+- **Turning off the CRT screen effect now sticks between sessions** — the setting was saved and still showed as Off in Accessibility, but the scanlines, screen curve, and vignette came back every time the game was reopened, until you toggled the option off and on again.
+
 ## [v1.0.34] - 2026-08-04
 
 ### Added

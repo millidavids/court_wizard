@@ -274,6 +274,13 @@ fn setup(
         },
         Transform::from_xyz(-1000.0, 2500.0, 2500.0) // Zoomed out further back and higher up, shifted left
             .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y), // Looking at origin
+        // These post-processing settings start at their type defaults and are
+        // overwritten from the saved accessibility config by the `crt_effect`
+        // `sync_*` systems, which run on `GameConfig` change. That works because
+        // this camera is spawned at `Startup`, so it already exists when the
+        // config resource lands on the first `Update` — a camera spawned later
+        // would keep these defaults until the next config change and would need
+        // its own sync.
         CrtEffectSettings::default(),
         LensingSettings::default(),
         HeatDistortionSettings::default(),

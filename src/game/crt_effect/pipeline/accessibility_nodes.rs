@@ -161,6 +161,18 @@ impl ViewNode for HighContrastNode {
 }
 
 // --- Main-world sync / update systems ---
+//
+// The `sync_*` systems below only run when `GameConfig` changes, and they assume
+// the single camera spawned in `main::setup` at `Startup` — which already exists
+// by the first `Update`, so the saved config lands before the first frame is drawn.
+// A camera spawned any later would keep its `Default` settings until the next
+// config change, so anything that spawns one needs its own sync.
+//
+// They deliberately write unconditionally rather than caching the previous value:
+// these settings components are extracted and re-uploaded to the GPU every frame
+// regardless (`extract_components` has no `Changed` filter), so a cache saves
+// nothing — and a cache seeded with a type default silently skips the very first
+// sync whenever that default happens to match the saved config.
 
 pub(crate) fn update_crt_time(time: Res<Time>, mut query: Query<&mut CrtEffectSettings>) {
     for mut settings in &mut query {
@@ -169,18 +181,10 @@ pub(crate) fn update_crt_time(time: Res<Time>, mut query: Query<&mut CrtEffectSe
 }
 
 /// Syncs GameConfig colorblind settings to the camera's ColorblindCorrectionSettings component.
-/// Uses Local to track previous values and skip no-op updates (avoids unnecessary GPU re-uploads
-/// when unrelated GameConfig fields like volume change).
 pub(crate) fn sync_colorblind_settings(
     config: Res<GameConfig>,
     mut query: Query<&mut ColorblindCorrectionSettings>,
-    mut last: Local<(crate::config::ColorblindType, u32)>,
 ) {
-    let strength_bits = config.colorblind_strength.to_bits();
-    if last.0 == config.colorblind_type && last.1 == strength_bits {
-        return;
-    }
-    *last = (config.colorblind_type, strength_bits);
     let new_settings =
         ColorblindCorrectionSettings::for_type(config.colorblind_type, config.colorblind_strength);
     for mut settings in &mut query {
@@ -191,15 +195,7 @@ pub(crate) fn sync_colorblind_settings(
 /// Syncs the CRT effect enabled state from GameConfig to the camera component.
 /// Also zeroes barrel_distortion when disabled so the shader samples undistorted UVs
 /// and cursor correction (which checks `is_barrel_active()`) is skipped.
-pub(crate) fn sync_crt_enabled(
-    config: Res<GameConfig>,
-    mut query: Query<&mut CrtEffectSettings>,
-    mut last: Local<bool>,
-) {
-    if *last == config.crt_enabled {
-        return;
-    }
-    *last = config.crt_enabled;
+pub(crate) fn sync_crt_enabled(config: Res<GameConfig>, mut query: Query<&mut CrtEffectSettings>) {
     for mut settings in &mut query {
         if config.crt_enabled {
             settings.enabled = 1.0;
@@ -215,13 +211,7 @@ pub(crate) fn sync_crt_enabled(
 pub(crate) fn sync_high_contrast(
     config: Res<GameConfig>,
     mut query: Query<&mut HighContrastSettings>,
-    mut last: Local<u32>,
 ) {
-    let bits = config.high_contrast_strength.to_bits();
-    if *last == bits {
-        return;
-    }
-    *last = bits;
     let enabled = if config.high_contrast_strength > 0.01 {
         1.0
     } else {
@@ -237,12 +227,7 @@ pub(crate) fn sync_high_contrast(
 pub(crate) fn sync_flicker_intensity(
     config: Res<GameConfig>,
     mut query: Query<&mut CrtEffectSettings>,
-    mut last: Local<bool>,
 ) {
-    if *last == config.reduce_flashes {
-        return;
-    }
-    *last = config.reduce_flashes;
     let intensity = if config.reduce_flashes {
         0.0
     } else {
