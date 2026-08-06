@@ -52,3 +52,7 @@ jobs:
           name: court_wizard-${{ matrix.platform }}
           path: court_wizard-v*-${{ matrix.suffix }}.zip
           if-no-files-found: error
+          # These only need to outlive the gap between a dev build and the
+          # promotion that reuses it — usually minutes, occasionally days. The
+          # durable copies are the GitHub Release assets.
+          retention-days: 14

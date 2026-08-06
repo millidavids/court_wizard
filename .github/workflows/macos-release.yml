@@ -2,40 +2,44 @@ name: macOS Release
 
 # Builds a universal (arm64 + x86_64) Court Wizard.app, signs it with a
 # Developer ID certificate via rcodesign, notarizes + staples it through
-# Apple's notary service, verifies the result, and uploads it to Steam depot
-# 4550881 (app 4550880).
+# Apple's notary service, verifies the result, and publishes it as the
+# `court_wizard-macos` artifact.
 #
-# This workflow is deliberately NOT part of the every-push build matrix
-# (build.yml) — the shipped macOS build must be signed/notarized, which is
-# slow, so it runs exactly once per release. It runs via:
-#   - workflow_call — release.yml calls it as a nested job of the release
-#     pipeline (the normal path: builds off main, shows in the main graph)
+# BUILD ONLY. This workflow does not touch Steam and does not touch GitHub
+# Releases. dev-release.yml calls it, then hands its artifact to
+# steam-upload.yml alongside the Windows/Linux zips so all three platforms go
+# up as a SINGLE Steam build (one build id = one promotion confirmation).
+#
+# Deliberately NOT part of the every-push build matrix (build.yml) — the
+# shipped macOS build must be signed/notarized, which is slow, so it runs only
+# on a release. It runs via:
+#   - workflow_call — dev-release.yml calls it (the normal path)
 #   - workflow_dispatch — manual run from the Actions tab
-#   - manually pushed v* tags (release.yml's own GITHUB_TOKEN-pushed tags
-#     cannot fire this trigger — GitHub recursion guard — which is why the
-#     normal path is workflow_call, not a tag trigger)
 
 on:
   workflow_call:
-  push:
-    tags: ['v*']
   workflow_dispatch:
 
 # Standalone-run dedupe (ignored for workflow_call invocations — those are
 # covered by the job-level group below). Steam upload serialization is
 # handled separately by steam-upload.yml's shared group.
 concurrency:
-  group: macos-release
+  group: macos-release-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
   build-sign-notarize:
     name: Build, sign, notarize (universal .app)
     runs-on: macos-latest
-    # Job-level (works for both standalone and workflow_call runs): never
-    # build/notarize the same release twice concurrently.
+    # Keyed per-commit, NOT a static group. GitHub allows only one *pending*
+    # job per concurrency group and cancels the previously pending one — so a
+    # static group here meant a dev release fired while an earlier build was
+    # still queued would silently cancel that earlier build. Promotion looks up
+    # a specific commit's run, so a cancelled build stalls the release. Per-SHA
+    # keeps the "never build the same commit twice at once" guarantee without
+    # letting different commits evict each other.
     concurrency:
-      group: macos-build-sign
+      group: macos-build-sign-${{ github.sha }}
       cancel-in-progress: false
     # Cold-cache reality check (v1.0.13 first run): a fat-LTO, codegen-units=1
     # release build of both Apple targets alone exceeds 90 minutes — the run
@@ -191,56 +195,22 @@ jobs:
           name: court_wizard-macos
           path: court_wizard-v*-macos-universal.zip
           if-no-files-found: error
+          # Only needs to outlive the gap between a dev build and the promotion
+          # that reuses it. The durable copy is the GitHub Release asset.
+          retention-days: 14
 
-  steam-deploy-macos:
-    # Shares release.yml's reusable upload workflow (single source for the
-    # action pin, branch strategy, and steamcmd-login serialization). Same
-    # repo-wide vars.STEAM_DEPLOY gate as the Win/Linux deploy; while CI upload
-    # stays disabled the manual path is scripts/upload_to_steam.sh (see
-    # steam/README.md). require_release_version refuses to upload a version
-    # that was never released (e.g. a dispatch from a bumped dev branch).
-    needs: build-sign-notarize
-    if: vars.STEAM_DEPLOY == 'true'
-    uses: ./.github/workflows/steam-upload.yml
-    secrets: inherit
-    with:
-      app_id: '4550880'
-      first_depot_id: '4550881' # single-depot invocation: depot1 = macOS depot
-      build_description: v${{ needs.build-sign-notarize.outputs.version }} (${{ github.sha }})
-      depot1_artifact: court_wizard-macos
-      depot1_dir: macos
-      require_release_version: ${{ needs.build-sign-notarize.outputs.version }}
-
-  attach-to-github-release:
-    # release.yml no longer produces a macOS zip, so attach the signed one to
-    # the GitHub Release for this version — if that release already exists.
-    needs: build-sign-notarize
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      VERSION: ${{ needs.build-sign-notarize.outputs.version }}
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          path: artifacts
-
-      - name: Attach zip to existing GitHub release
-        run: |
-          set -euo pipefail
-          # Exact expected name from the build job's version output — fails
-          # loudly if the naming convention ever drifts, instead of silently
-          # skipping the attach.
-          ZIP="artifacts/court_wizard-macos/court_wizard-v${VERSION}-macos-universal.zip"
-          if [ ! -f "$ZIP" ]; then
-            echo "::error::Expected artifact zip not found: $ZIP"
-            exit 1
-          fi
-          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release upload "v$VERSION" "$ZIP" --repo "$GITHUB_REPOSITORY" --clobber
-            echo "Attached $(basename "$ZIP") to release v$VERSION"
-          else
-            echo "::notice::No GitHub release v$VERSION exists yet — skipping attach (run release.yml first)."
-          fi
+# NOTE: this workflow used to own two more jobs, both deliberately removed.
+#
+#   steam-deploy-macos — uploaded the macOS depot on its own, producing a
+#     SECOND Steam build id per release. Promotion to the default branch needs a
+#     Steam Mobile confirmation per build id, so two ids meant two phone taps
+#     and a window where default had the new macOS build but the old Windows
+#     and Linux ones. dev-release.yml now hands this artifact to
+#     steam-upload.yml together with the other two, as one build.
+#
+#   attach-to-github-release — did `gh release upload v$VERSION --clobber`.
+#     Harmless while this workflow only ran off main after the release existed,
+#     but it now runs off dev, where Cargo.toml still holds the ALREADY-RELEASED
+#     version until a local debug build bumps it. It would therefore have
+#     overwritten the published release's macOS asset with an unreleased dev
+#     build. release.yml attaches all three zips from the dev run instead.

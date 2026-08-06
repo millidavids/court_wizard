@@ -1,13 +1,31 @@
 # Steamworks Depot Upload
 
-Builds are uploaded to Steamworks (App ID `4550880`) **manually from a local machine** using `scripts/upload_to_steam.sh`. Builds publish to the **`staging`** Steam branch — promote to `default` (live) manually from the Steamworks dashboard when ready.
+Builds reach Steamworks (App ID `4550880`) from **GitHub Actions**, gated on the `STEAM_DEPLOY` repo variable. `scripts/upload_to_steam.sh` still exists as a local fallback for when CI can't do it.
 
-The CI-based upload step (`game-ci/steam-deploy@v3` in `release.yml`) still exists but is gated off via the `STEAM_DEPLOY` repo variable. We hit two issues with the automated flow that made the local approach simpler for now:
+## The flow
 
-1. Steam's anti-fraud locks builder sub-accounts after repeated logins from different GitHub-runner IPs (the configVdf sentry mechanism is fragile against IP variation).
-2. Mobile-authenticator accounts can't be used headlessly.
+```
+/game-release            → push to dev  → dev-release.yml  → Steam `staging`
+   (play-test staging)
+/game-release main       → push to main → release.yml       → Steam `default` (pending phone approval)
+```
 
-If we ever want to revive CI-side uploads, switch to TOTP-per-release (a `workflow_dispatch` input that takes a fresh email Steam Guard code each time).
+**`dev-release.yml`** (any push to `dev` touching `docs/CHANGELOG.md`) runs the test/clippy/fmt gate, builds Windows + Linux + the signed universal macOS `.app`, and uploads **all three depots in one steamcmd invocation** — deliberately, so a release is a single Steam build id.
+
+**`release.yml`** (push to `main`) builds nothing. It locates the `dev-release.yml` run for that exact commit, reuses its zips for the tag and GitHub Release, and calls `ISteamApps/SetAppBuildLive` to set *that same build* live on the default branch. Because the release skill fast-forwards `main` onto the built dev commit, the SHAs match, and players get the exact bits that were on `staging`.
+
+### Promotion needs your phone
+
+Setting a build live on the **default** branch of a released app always sends an authorization prompt to the Steam Mobile app — there is no opt-out (Valve, Oct 2023). So `SetAppBuildLive` returns **HTTP 201 = pending confirmation** as its normal response. CI picks the correct build id and requests the promotion; you approve on your phone. The API notes:
+
+- the default branch's `betakey` is **`public`**, not `default`;
+- `steamid` is required whenever a released app's `betakey` is `public`.
+
+Required secrets: `STEAM_PUBLISHER_API_KEY` (publisher Web API key with *Edit App* + *Publish*) and `STEAM_PUBLISH_STEAMID` (the SteamID64 that receives the prompt). Rollback stays a manual dashboard action — it would need the same confirmation anyway.
+
+### Finding the build
+
+CI stamps `r<github_run_id>` into the Steam build description, and promotion matches on that. It is deliberately not the version or the commit SHA: a re-run produces a second build with an identical version and SHA, and silently setting the older one live would be a shipping bug. Note `scripts/upload_to_steam.sh` writes a *short* SHA and no run id, so a locally-uploaded build will never match the selector — promote those by hand.
 
 ## Depot layout
 
@@ -72,19 +90,15 @@ Each invocation uploads only the depots whose zips are present, so this works fi
 
 ### Promote to live
 
-Steamworks dashboard → App `4550880` → Builds → select the new build → set live on `default`.
+Normally you don't — `/game-release main` requests it and you approve the Steam Mobile prompt (see *The flow* above).
+
+By hand, for a locally-uploaded build or a rollback: Steamworks dashboard → App `4550880` → Builds → select the build → set live on `default`. Same phone confirmation applies.
 
 ## Files in this directory
 
 - `app_build_4550880.vdf` — template; the upload script substitutes `$VERSION`, `$SHA`, `$CONTENTROOT`, `$BUILDOUTPUT`, `$DEPOT_LINES`.
 - `depot_windows.vdf`, `depot_linux.vdf`, `depot_macos.vdf` — per-depot file mappings.
 - `app_build_4550880.generated.vdf` — produced by the upload script (gitignored).
-
-## Playtest (app 4820340)
-
-The CI playtest deploy job was removed from `release.yml` — the Playtest is disabled in
-Steamworks. If it ever comes back, note its depot IDs were 4820342 (windows), 4820343 (macOS),
-4820344 (linux), assigned by `firstDepotIdOverride` increment in that order.
 
 ## Prerequisites
 

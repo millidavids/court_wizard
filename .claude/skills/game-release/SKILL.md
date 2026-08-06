@@ -8,11 +8,20 @@ user-invocable: true
 
 This skill has three modes determined by the argument:
 
-- **No argument** → *dev mode*. Aggregate the latest uncommitted changes into a single `[pending]` block at the top of `docs/CHANGELOG.md`, commit, and push to `origin/dev`. Does not bump versions, does not touch `main`, does not sync the website, does not trigger CI.
-- **`consolidate` argument** → *consolidate mode*. Rewrite the existing `[pending]` block into a clean, minimal set of bullets — merging overlapping entries and dropping ones that cancel each other out — then commit and push to `origin/dev`. Does not bump versions, does not touch `main`.
-- **`main` argument** → *promotion mode*. Lock the accumulated `[pending]` block to a real version, fast-forward `main` from `dev`, push `main` (which triggers CI build + Steam deploy), and sync the website.
+- **No argument** → *dev mode*. Aggregate the latest uncommitted changes into a single `[pending]` block at the top of `docs/CHANGELOG.md`, commit, and push to `origin/dev`. Does not bump versions, does not touch `main`, does not sync the website. **Triggers a full release build that publishes to Steam `staging`.**
+- **`consolidate` argument** → *consolidate mode*. Rewrite the existing `[pending]` block into a clean, minimal set of bullets — merging overlapping entries and dropping ones that cancel each other out — then commit and push to `origin/dev`. Does not bump versions, does not touch `main`. Also triggers a dev build (harmless).
+- **`main` argument** → *promotion mode*. Lock the accumulated `[pending]` block to a real version, fast-forward `main` from `dev`, push `main` (which tags, publishes the GitHub Release, and asks Steam to set the staging build live on the default branch), and sync the website.
 
-CI (`.github/workflows/release.yml`) only runs on push to `main`, so the dev-mode and consolidate-mode loops are safe to run as often as desired without burning runner minutes.
+## How CI is wired (read this before reporting anything to the user)
+
+**`dev-release.yml` runs on any push to `dev` that touches `docs/CHANGELOG.md`** — which is every mode of this skill. It runs `cargo test` / `clippy -D warnings` / `fmt --check`, builds Windows + Linux + the signed universal macOS `.app`, and uploads all three depots as a **single** Steam build to the `staging` branch. Ordinary development pushes that don't touch the changelog don't build.
+
+**`release.yml` runs on push to `main` and builds nothing.** It finds the `dev-release.yml` run for that exact commit, reuses *its* artifacts for the tag and GitHub Release, and asks Steam to set *its* build live on the default branch. This works because Mode B fast-forwards `main` onto the dev commit, so the SHAs match.
+
+Two consequences worth stating plainly:
+
+- **A dev release is no longer free.** Each one is a full three-platform signed build. That is intended — it is how a build reaches Steam `staging` to be play-tested — but don't run dev mode for trivial changelog touch-ups expecting it to be a no-op.
+- **Promotion is not fully automatic.** Setting a build live on the default branch of a released app always sends an authorization prompt to the Steam Mobile app; there is no opt-out. CI picks the correct build id and requests the promotion, then it sits pending until the user approves on their phone. Never report a `main` release as "live" — report it as "pending your Steam Mobile confirmation".
 
 ---
 
@@ -53,6 +62,17 @@ Format rules for bullets (apply in all modes):
    If unsure which non-changelog files belong, ask the user before staging.
 2. Commit with a short message describing the change. No `Co-Authored-By` line.
 3. `git push origin dev`.
+
+### A4. Report what CI is doing
+
+The push just started `dev-release.yml`: test/clippy/fmt gate, then Windows + Linux + signed macOS, then a single Steam upload to the **`staging`** branch.
+
+Tell the user:
+- that the build is running and will land on Steam `staging` when it finishes (the macOS signing/notarization leg is the slow one);
+- the run URL — `gh run list --workflow=dev-release.yml --limit 1` if `gh` is available, otherwise the repo's Actions tab;
+- that they should play-test from `staging` before running `/game-release main`.
+
+If the changelog ended up unchanged (every bullet was already present), say so — no build will have been triggered, and a manual `dev-release.yml` dispatch is needed if they wanted one.
 
 Stop here. Do not touch `main`, do not run `sync_content.sh`, do not bump the version.
 
@@ -119,11 +139,11 @@ Stop here. Do not touch `main`, do not run `sync_content.sh`, do not bump the ve
 
 1. Stage specific paths: `git add docs/CHANGELOG.md Cargo.toml Cargo.lock` (include `Cargo.lock` only if it changed).
 2. Commit on `dev`: `git commit -m "v<version>: lock changelog for release"`.
-3. Push `dev`: `git push origin dev`.
+3. Push `dev`: `git push origin dev`. **This starts one more `dev-release.yml` build** — of the lock commit. It is not redundant: `docs/CHANGELOG.md` is `include_str!`'d into the binary (`src/ui/manual/systems.rs`), so the lock commit genuinely changes the shipped bits, and this is the build that must go live. Promotion below reuses exactly this build.
 4. Switch to main: `git switch main`.
 5. Pull latest: `git pull --ff-only`.
 6. Fast-forward merge dev: `git merge --ff-only dev`. If this fails (main has commits dev doesn't), stop and surface the error — do not force-push, do not rebase silently.
-7. Push main: `git push origin main`. This triggers `.github/workflows/release.yml` which builds all platforms, attaches zips to a GitHub Release, and uploads to Steam `staging`.
+7. Push main: `git push origin main`. This triggers `.github/workflows/release.yml`, which builds nothing — it waits for step 3's build, then tags, publishes the GitHub Release from that build's zips, and asks Steam to set that build live on the default branch. The fast-forward is what makes this work: `main` and the built dev commit are the same SHA.
 8. Switch back to dev: `git switch dev`.
 
 ### B4. Sync website
@@ -136,10 +156,16 @@ If `sync_content.sh` errors out (e.g., game repo not found at `../court_wizard`)
 
 ### B5. Report
 
+Be precise about what has and has not happened — the release is **not** live at this point.
+
 Tell the user:
-- The new version that just shipped to `main`.
-- The CI run URL (`gh run list --workflow=release.yml --limit 1`) so they can monitor the build.
+- The version now on `main`.
+- That two runs are in flight: the lock commit's `dev-release.yml` build, and `release.yml` waiting on it. Give both URLs (`gh run list --limit 5` if `gh` is available, otherwise the Actions tab).
+- **That promotion will finish only after they approve the prompt in their Steam Mobile app.** Setting a build live on the default branch of a released app always requires that confirmation — CI picks the right build id and requests it, nothing more. Do not describe the release as live, shipped, or out.
+- That the Steamworks announcement BBCode is on the `release.yml` run's summary page (and as the `steam-announcement` artifact), ready to paste into Steamworks → Court Wizard → Hub Admin → create event → *Small Update / Patch Notes*.
 - Whether the website sync produced a commit.
+
+If `release.yml` fails at the promotion step, the retry is *Actions → Release → Run workflow* with **`force: true`** — the tag already exists by then, so a plain re-run would skip everything.
 
 ---
 

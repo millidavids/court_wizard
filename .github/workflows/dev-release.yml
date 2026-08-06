@@ -1,0 +1,121 @@
+name: Dev Release
+
+# Builds a full release off `dev` and publishes it to the Steam `staging`
+# branch, so a build can be play-tested on Steam BEFORE it is promoted to
+# players. release.yml (on `main`) then takes THIS run's Steam build live on
+# the default branch — it never rebuilds.
+#
+# Trigger: any push to dev that touches docs/CHANGELOG.md. Every mode of the
+# /game-release skill edits that file and ordinary development pushes do not,
+# so this fires on deliberate releases without needing a marker convention or
+# the gh CLI. Two known edges, both benign:
+#   - a dev-release whose bullets were all already present changes nothing in
+#     the changelog and so does not build — use workflow_dispatch;
+#   - any other changelog edit (typo fix, consolidate) does build. Harmless.
+#
+# Everything here is keyed to github.sha. release.yml finds this run by
+# head_sha, which works because the skill fast-forwards main onto the very
+# dev commit that produced the build.
+
+on:
+  push:
+    branches: [dev]
+    paths: ['docs/CHANGELOG.md']
+  workflow_dispatch:
+
+# Per-commit, not a static group: GitHub cancels the previously PENDING job in
+# a group, and a cancelled dev build is a release that can never be promoted.
+concurrency:
+  group: dev-release-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Test, clippy, fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable channel (pinned)
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: check
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev pkg-config
+
+      # CLAUDE.md calls these non-negotiable before a release. Nothing enforced
+      # them until now, so a broken build could reach Steam staging.
+      - name: cargo fmt
+        run: cargo fmt --check
+
+      - name: cargo clippy
+        run: cargo clippy -- -D warnings
+
+      - name: cargo test
+        run: cargo test
+
+  version:
+    name: Resolve version
+    needs: check
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      build_description: ${{ steps.get_version.outputs.build_description }}
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: Extract version and compose Steam build description
+        id: get_version
+        run: |
+          set -euo pipefail
+          VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          # `r<run_id>` is the key release.yml matches on to find this exact
+          # build in Steam's build history. It must be unique per run: a re-run
+          # or a workflow_dispatch on the same commit produces another Steam
+          # build, and matching on version or SHA alone would tie. The short SHA
+          # is for humans reading the Steamworks builds list; Steam truncates
+          # long descriptions, so keep this compact.
+          echo "build_description=v$VERSION (${GITHUB_SHA:0:8}) r${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Windows + Linux
+    needs: check
+    uses: ./.github/workflows/build.yml
+
+  macos:
+    name: macOS (signed universal)
+    needs: check
+    uses: ./.github/workflows/macos-release.yml
+    secrets: inherit
+
+  steam-staging:
+    # ONE upload carrying all three depots, so the release is a single Steam
+    # build id. Depot ids increment from firstDepotIdOverride in depot order,
+    # and ours happen to be contiguous — hence macOS first:
+    #   depot1 = 4550881 macOS, depot2 = 4550882 windows, depot3 = 4550883 linux
+    name: Upload to Steam staging
+    needs: [version, build, macos]
+    if: vars.STEAM_DEPLOY == 'true'
+    uses: ./.github/workflows/steam-upload.yml
+    secrets: inherit
+    with:
+      app_id: '4550880'
+      first_depot_id: '4550881'
+      build_description: ${{ needs.version.outputs.build_description }}
+      release_branch: staging
+      depot1_artifact: court_wizard-macos
+      depot1_dir: macos
+      depot2_artifact: court_wizard-windows
+      depot2_dir: windows
+      depot3_artifact: court_wizard-linux
+      depot3_dir: linux

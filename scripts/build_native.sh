@@ -173,9 +173,11 @@ fi
 # the app's install folder to launch it through Steam.
 #
 # DEBUG (`dev`) builds ONLY. NEVER for `release`: that binary ships to the Steam
-# depots, where a bundled steam_appid.txt would FORCE app 4550880 onto Playtest
-# testers (app 4820340) who have no license for it — the exact bug `src/steam/
-# init.rs` guards against. Release builds must use the app id Steam provides.
+# depots, where a bundled steam_appid.txt would FORCE one hardcoded app id on
+# every player — breaking Steam features for anyone whose license is for a
+# different id (a separate demo or playtest app). This has bitten us before.
+# Release builds must use the app id Steam provides; `src/steam/init.rs` is the
+# matching guard on the code side.
 if [ "$PROFILE" = "dev" ]; then
     if [ -f "./steam_appid.txt" ]; then
         cp "./steam_appid.txt" "$BIN_DIR/"

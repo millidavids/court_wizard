@@ -1,10 +1,16 @@
 name: Steam Upload
 
-# Shared Steam depot upload, called by release.yml (Windows + Linux) and
-# macos-release.yml (macOS). Centralizes the steam-deploy action pin, the
-# branch strategy, and — critically — the serialization of steamcmd logins:
-# Steam's anti-fraud locks builder accounts on concurrent logins, so every
-# Steam upload across all workflows shares one static concurrency group.
+# Shared Steam depot upload, called by dev-release.yml with all three depots at
+# once. Centralizes the steam-deploy action pin, the branch strategy, and —
+# critically — the serialization of steamcmd logins: Steam's anti-fraud locks
+# builder accounts on concurrent logins, so every Steam upload across all
+# workflows shares one static concurrency group.
+#
+# All three platforms go up in ONE invocation, producing ONE Steam build id.
+# That matters at promotion time: setting a build live on the default branch of
+# a released app sends a confirmation prompt to the Steam Mobile app, so N build
+# ids means N phone taps — and, in between them, a default branch where some
+# platforms have the new build and others don't.
 
 on:
   workflow_call:
@@ -22,7 +28,7 @@ on:
         required: true
         type: string
       release_branch:
-        description: Steam branch to set live on (promote to default by hand)
+        description: Steam branch to set live on (release.yml promotes to default separately)
         required: false
         type: string
         default: staging
@@ -35,7 +41,7 @@ on:
         required: true
         type: string
       depot2_artifact:
-        description: Optional artifact for depot 2 (empty = single-depot upload)
+        description: Optional artifact for depot 2 (empty = fewer depots)
         required: false
         type: string
         default: ''
@@ -44,8 +50,13 @@ on:
         required: false
         type: string
         default: ''
-      require_release_version:
-        description: If set, refuse to upload unless GitHub release v<value> exists
+      depot3_artifact:
+        description: Optional artifact for depot 3 (empty = fewer depots)
+        required: false
+        type: string
+        default: ''
+      depot3_dir:
+        description: Staging dir for depot 3
         required: false
         type: string
         default: ''
@@ -58,21 +69,29 @@ jobs:
       group: steam-deploy
       cancel-in-progress: false
     steps:
-      - name: Require a published GitHub release
-        if: inputs.require_release_version != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          if ! gh release view "v${{ inputs.require_release_version }}" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            echo "::error::No GitHub release v${{ inputs.require_release_version }} exists — refusing to upload an unreleased version to Steam (run release.yml first)."
-            exit 1
-          fi
-
-      - name: Download build artifacts
+      # Named downloads, one per depot: download-artifact errors out when a
+      # named artifact is missing, so a build leg that silently failed to
+      # publish its zip fails HERE rather than producing a Steam build with a
+      # missing platform.
+      - name: Download depot 1 artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          path: artifacts
+          name: ${{ inputs.depot1_artifact }}
+          path: artifacts/${{ inputs.depot1_artifact }}
+
+      - name: Download depot 2 artifact
+        if: inputs.depot2_artifact != ''
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ inputs.depot2_artifact }}
+          path: artifacts/${{ inputs.depot2_artifact }}
+
+      - name: Download depot 3 artifact
+        if: inputs.depot3_artifact != ''
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ inputs.depot3_artifact }}
+          path: artifacts/${{ inputs.depot3_artifact }}
 
       - name: Stage content
         run: |
@@ -88,6 +107,9 @@ jobs:
           if [ -n "${{ inputs.depot2_artifact }}" ]; then
             stage "${{ inputs.depot2_artifact }}" "${{ inputs.depot2_dir }}"
           fi
+          if [ -n "${{ inputs.depot3_artifact }}" ]; then
+            stage "${{ inputs.depot3_artifact }}" "${{ inputs.depot3_dir }}"
+          fi
 
       - name: Upload build to Steamworks
         uses: game-ci/steam-deploy@8bd9baca6407f9abd210bd1eef3c45f56e12d8d9 # v3.2.0
@@ -100,4 +122,5 @@ jobs:
           rootPath: steam-content
           depot1Path: ${{ inputs.depot1_dir }}/court_wizard
           depot2Path: ${{ inputs.depot2_dir != '' && format('{0}/court_wizard', inputs.depot2_dir) || '' }}
+          depot3Path: ${{ inputs.depot3_dir != '' && format('{0}/court_wizard', inputs.depot3_dir) || '' }}
           releaseBranch: ${{ inputs.release_branch }}

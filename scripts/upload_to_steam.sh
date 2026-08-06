@@ -1,6 +1,12 @@
 #!/bin/bash
 # Upload existing platform zips to Steamworks (App ID 4550880, branch: staging).
 #
+# LOCAL FALLBACK ONLY. The normal path is GitHub Actions: dev-release.yml
+# uploads to `staging` and release.yml promotes to the default branch (see
+# steam/README.md). Builds uploaded by this script carry no `r<run_id>` tag in
+# their description, so release.yml's promotion step cannot find them — promote
+# a local upload by hand from the Steamworks dashboard.
+#
 # Usage:
 #   ./scripts/upload_to_steam.sh <steam_username>
 #
@@ -111,4 +117,5 @@ echo ""
 steamcmd +login "$STEAM_USER" +run_app_build "$GENERATED" +quit
 
 echo ""
-echo "Done. Promote staging → default in the Steamworks dashboard when ready."
+echo "Done. This was a local upload, so release.yml cannot promote it — set it live"
+echo "on 'default' by hand from the Steamworks dashboard when ready."

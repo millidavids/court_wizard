@@ -25,9 +25,9 @@ impl Plugin for SteamPlugin {
         match init_steam_plugin() {
             Ok(steamworks_plugin) => {
                 app.add_plugins(steamworks_plugin);
-                // Log the app id Steam ACTUALLY initialized under (4550880 main /
-                // 4820340 playtest), not the constant — this is the line to check
-                // when diagnosing playtest licensing.
+                // Log the app id Steam ACTUALLY initialized under, not the
+                // constant — this is the line to check when diagnosing licensing
+                // or "why do I have no Steam features" reports.
                 match app.world().get_resource::<Client>() {
                     Some(client) => info!(
                         "Steam initialized successfully (App ID: {})",

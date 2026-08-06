@@ -1,10 +1,38 @@
 name: Release
 
+# PROMOTION ONLY — this workflow builds nothing.
+#
+# dev-release.yml already built this exact commit off `dev` and published it to
+# the Steam `staging` branch. Because the /game-release skill fast-forwards main
+# onto that very dev commit, github.sha here is the same commit, which is how we
+# find that run and reuse its artifacts and its Steam build.
+#
+# What it does:
+#   1. locate the dev-release run for this commit (waiting if it's still going)
+#   2. tag + GitHub Release, using THAT run's zips (never freshly built ones)
+#   3. ask Steam to set that run's build live on the default branch
+#   4. render the changelog as Steam BBCode for pasting into a Steamworks event
+#   5. announce on Discord
+#
+# Step 3 cannot complete unattended: setting a build live on the default branch
+# of a released app always sends an authorization prompt to the Steam Mobile
+# app. The job requests the promotion and reports that it is pending; you
+# approve on your phone.
+
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      force:
+        description: >-
+          Re-run even if the tag already exists. Needed to retry a failed Steam
+          promotion: the tag is created before the promotion, so the normal
+          tag-exists guard would otherwise block every retry.
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   check-version:
@@ -21,46 +49,141 @@ jobs:
         id: get_version
         run: |
           VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check if tag exists
         id: check_tag
         run: |
-          if git rev-parse "v${{ steps.get_version.outputs.version }}" >/dev/null 2>&1; then
-            echo "should_release=false" >> $GITHUB_OUTPUT
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "force=true — ignoring the tag-exists guard"
+          elif git rev-parse "v${{ steps.get_version.outputs.version }}" >/dev/null 2>&1; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
             echo "Tag v${{ steps.get_version.outputs.version }} already exists, skipping release"
           else
-            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
           fi
 
-  build:
+  locate-dev-build:
+    # Find the dev-release.yml run that built THIS commit. Normally it has long
+    # since finished (you play-test on staging before promoting), but if you
+    # promote straight after a dev release we wait for it rather than failing.
     needs: check-version
     if: needs.check-version.outputs.should_release == 'true'
-    uses: ./.github/workflows/build.yml
+    runs-on: ubuntu-latest
+    # Must be able to outwait a cold macOS build (240m ceiling) plus queue time.
+    timeout-minutes: 330
+    permissions:
+      actions: read
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - name: Find and await the dev-release run for this commit
+        id: find
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
 
-  release:
-    needs: [check-version, build]
+          # Poll rather than one-shot: the run may still be in progress, and a
+          # dev release can legitimately be minutes old at promotion time.
+          deadline=$(( $(date +%s) + 320 * 60 ))
+          api_failures=0
+          while :; do
+            # Don't let a transient API blip during a multi-hour poll get
+            # misreported as "no dev-release run exists". Tolerate a few in a
+            # row, then give up with the real reason.
+            if ! run_json=$(gh api \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/dev-release.yml/runs?head_sha=$GITHUB_SHA&per_page=100" \
+              --jq '[.workflow_runs[]] | sort_by(.run_number) | last // empty'); then
+              api_failures=$(( api_failures + 1 ))
+              if [ "$api_failures" -ge 5 ]; then
+                echo "::error::Could not query the Actions API after $api_failures attempts."
+                exit 1
+              fi
+              echo "Actions API query failed (attempt $api_failures) — retrying…"
+              sleep 30
+              continue
+            fi
+            api_failures=0
+
+            if [ -z "$run_json" ]; then
+              echo "::error::No dev-release run found for $GITHUB_SHA. main must be fast-forwarded onto a dev commit that was built and pushed to Steam staging (see .claude/skills/game-release/SKILL.md). To build and promote from scratch, run dev-release.yml on this commit first."
+              exit 1
+            fi
+
+            run_id=$(printf '%s' "$run_json" | jq -r '.id')
+            status=$(printf '%s' "$run_json" | jq -r '.status')
+            conclusion=$(printf '%s' "$run_json" | jq -r '.conclusion // ""')
+
+            if [ "$status" = "completed" ]; then
+              if [ "$conclusion" = "success" ]; then
+                echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+                echo "Using dev-release run $run_id"
+                exit 0
+              fi
+              echo "::error::dev-release run $run_id for this commit concluded '$conclusion'. Fix and re-run it, then re-run this workflow."
+              exit 1
+            fi
+
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::Timed out waiting for dev-release run $run_id (status: $status)."
+              exit 1
+            fi
+
+            echo "dev-release run $run_id is $status — waiting…"
+            sleep 60
+          done
+
+  github-release:
+    needs: [check-version, locate-dev-build]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
 
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           fetch-depth: 0
 
-      - name: Download build artifacts
+      - name: Download the dev-release run's artifacts
+        # Cross-run download: these zips are the ones already on Steam staging.
+        # Rebuilding here would attach different bytes than players receive.
+        # macos-release.yml runs inside dev-release.yml via workflow_call, so
+        # its court_wizard-macos artifact belongs to that same run id.
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: artifacts
+          run-id: ${{ needs.locate-dev-build.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify all three platform zips are present
+        run: |
+          set -euo pipefail
+          # Single-level glob on purpose: download-artifact lays these out as
+          # artifacts/<artifact-name>/<zip>. (`**` without shopt -s globstar is
+          # just `*` in bash, so relying on it would work only by accident.)
+          missing=0
+          for suffix in windows linux macos-universal; do
+            if ! compgen -G "artifacts/*/court_wizard-v*-$suffix.zip" >/dev/null; then
+              echo "::error::No $suffix zip in the dev-release artifacts — the release would ship missing a platform."
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ]
 
       - name: Create and push tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${{ needs.check-version.outputs.version }}" -m "Release v${{ needs.check-version.outputs.version }}"
-          git push origin "v${{ needs.check-version.outputs.version }}"
+          if git rev-parse "v${{ needs.check-version.outputs.version }}" >/dev/null 2>&1; then
+            echo "Tag v${{ needs.check-version.outputs.version }} already exists (force re-run) — keeping it"
+          else
+            git tag -a "v${{ needs.check-version.outputs.version }}" -m "Release v${{ needs.check-version.outputs.version }}"
+            git push origin "v${{ needs.check-version.outputs.version }}"
+          fi
 
       - name: Extract latest changelog entry
         id: changelog
@@ -80,39 +203,187 @@ jobs:
           body: ${{ steps.changelog.outputs.body }}
           files: artifacts/**/*.zip
 
-  steam-deploy:
-    # macOS (depot 4550881) is uploaded separately by macos-release.yml through
-    # this same reusable workflow — the signed universal .app never passes
-    # through here. The reusable workflow serializes steamcmd logins across
-    # all callers via a shared concurrency group.
-    needs: [check-version, build, release]
+  steam-request-promotion:
+    # Asks Steam to set the dev-release build live on the DEFAULT branch.
+    #
+    # This cannot complete unattended and that is by design on Valve's side:
+    # since Oct 2023, assigning a build to the default branch of a released app
+    # sends an authorization prompt to the Steam Mobile app of the account in
+    # `steamid`. HTTP 201 is the NORMAL response and means "pending your
+    # confirmation" — not an error, and not "done".
+    #
+    # The value here is that it picks the right build id for you, which is where
+    # dashboard mistakes actually happen.
+    needs: [check-version, locate-dev-build, github-release]
     if: needs.check-version.outputs.should_release == 'true' && vars.STEAM_DEPLOY == 'true'
-    uses: ./.github/workflows/steam-upload.yml
-    secrets: inherit
-    with:
-      app_id: '4550880'
-      first_depot_id: '4550882' # depot1 windows=4550882, depot2 linux=4550883
-      build_description: v${{ needs.check-version.outputs.version }} (${{ github.sha }})
-      depot1_artifact: court_wizard-windows
-      depot1_dir: windows
-      depot2_artifact: court_wizard-linux
-      depot2_dir: linux
+    runs-on: ubuntu-latest
+    # Guards the one key in this repo that can ship to players.
+    #
+    # IMPORTANT: GitHub creates a referenced environment on first use with NO
+    # protection rules, so this line buys nothing until you go to
+    # Settings → Environments → steam-promotion and add required reviewers.
+    # Until then the job runs unguarded. The secrets below resolve from repo
+    # scope either way, so nothing breaks if you'd rather delete this line.
+    environment: steam-promotion
+    steps:
+      - name: Set the staging build live on default
+        env:
+          STEAM_PUBLISHER_API_KEY: ${{ secrets.STEAM_PUBLISHER_API_KEY }}
+          STEAM_PUBLISH_STEAMID: ${{ secrets.STEAM_PUBLISH_STEAMID }}
+          APP_ID: '4550880'
+          RUN_ID: ${{ needs.locate-dev-build.outputs.run_id }}
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          set -euo pipefail
 
-  macos-release:
-    # The signed/notarized macOS .app pipeline, nested into this run so it
-    # builds off main and shows in this graph. Runs exactly once per release
-    # (same should_release gate), never on ordinary pushes. Its Steam upload
-    # job is gated on vars.STEAM_DEPLOY internally, same as steam-deploy above.
-    needs: [check-version, release]
+          if [ -z "${STEAM_PUBLISHER_API_KEY:-}" ] || [ -z "${STEAM_PUBLISH_STEAMID:-}" ]; then
+            echo "::error::STEAM_PUBLISHER_API_KEY and STEAM_PUBLISH_STEAMID must both be set (publisher Web API key with Edit App + Publish, and the SteamID64 that should receive the confirmation prompt)."
+            exit 1
+          fi
+
+          # `count` is explicit: the default (10) is easily exceeded by frequent
+          # dev releases plus re-runs, and a silent miss would look like "build
+          # not found" long after the cause scrolled away.
+          builds=$(curl -sS --fail-with-body -G \
+            "https://partner.steam-api.com/ISteamApps/GetAppBuilds/v1/" \
+            --data-urlencode "key=$STEAM_PUBLISHER_API_KEY" \
+            --data-urlencode "appid=$APP_ID" \
+            --data-urlencode "count=200")
+
+          if [ "$(printf '%s' "$builds" | jq -r '.response.result // 0')" != "1" ]; then
+            echo "::error::GetAppBuilds did not return result=1. Raw payload follows."
+            printf '%s\n' "$builds"
+            exit 1
+          fi
+
+          # Response shape (verified against the live API):
+          #   .response.builds is an OBJECT keyed by build id, each value having
+          #   .BuildID, .Description, and .depots keyed by depot id.
+          #
+          # Match on the r<run_id> tag dev-release.yml stamps into the
+          # description. Deliberately not the version or the SHA: Steam's build
+          # history genuinely contains multiple builds sharing an identical
+          # "v<version> (<sha>)" description, so either would tie.
+          #
+          # This also excludes Steam's auto-generated "Merged build X into
+          # build Y" entries, which carry no run id — and which only appear
+          # when an upload was partial. Ours never is.
+          matches=$(printf '%s' "$builds" \
+            | jq -r --arg key "r$RUN_ID" '
+                .response.builds
+                | to_entries
+                | map(select(.value.Description | contains($key)))
+                | map(.value.BuildID | tostring)
+                | .[]
+              ') || {
+            echo "::error::Could not parse the GetAppBuilds response. Raw payload follows."
+            printf '%s\n' "$builds"
+            exit 1
+          }
+
+          count=$(printf '%s' "$matches" | grep -c . || true)
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No Steam build found whose description contains 'r$RUN_ID'. Did dev-release run $RUN_ID actually upload (vars.STEAM_DEPLOY)? Note Steam truncates long build descriptions."
+            exit 1
+          fi
+          if [ "$count" -gt 1 ]; then
+            echo "::error::Expected exactly one Steam build for 'r$RUN_ID', found $count: $(printf '%s' "$matches" | tr '\n' ' '). Refusing to guess which to set live."
+            exit 1
+          fi
+
+          build_id=$(printf '%s' "$matches" | head -1)
+
+          # A build only covers the depots its upload included. Steam papers over
+          # partial uploads by auto-generating "Merged build …" entries, but a
+          # merge carries no run id, so if a platform leg had silently gone
+          # missing we would be about to set a build live that ships an
+          # incomplete game. Assert all three depots are actually in there.
+          missing=$(printf '%s' "$builds" | jq -r --arg id "$build_id" '
+              (.response.builds[$id].depots // {} | keys) as $have
+              | ["4550881", "4550882", "4550883"] - $have
+              | .[]
+            ')
+          if [ -n "$missing" ]; then
+            echo "::error::Steam build $build_id is missing depot(s): $(printf '%s' "$missing" | tr '\n' ' ')(4550881=macOS, 4550882=windows, 4550883=linux). Refusing to promote a partial build."
+            exit 1
+          fi
+
+          echo "Requesting promotion of Steam build $build_id (v$VERSION, all 3 depots) to the default branch"
+
+          # betakey=public is the DEFAULT branch. `default` is not a valid value.
+          # steamid is required whenever a released app's betakey is public.
+          http_code=$(curl -sS -o response.json -w '%{http_code}' -X POST \
+            "https://partner.steam-api.com/ISteamApps/SetAppBuildLive/v2/" \
+            --data-urlencode "key=$STEAM_PUBLISHER_API_KEY" \
+            --data-urlencode "appid=$APP_ID" \
+            --data-urlencode "buildid=$build_id" \
+            --data-urlencode "betakey=public" \
+            --data-urlencode "steamid=$STEAM_PUBLISH_STEAMID" \
+            --data-urlencode "description=v$VERSION")
+
+          cat response.json
+
+          case "$http_code" in
+            201)
+              {
+                echo "### Steam promotion requested — action needed"
+                echo ""
+                echo "Build \`$build_id\` (v$VERSION) is queued for the **default** branch."
+                echo "**Approve the prompt in your Steam Mobile app** to finish going live."
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "::notice title=Steam promotion pending::Approve build $build_id in the Steam Mobile app to finish going live."
+              ;;
+            200)
+              {
+                echo "### Steam promotion applied"
+                echo ""
+                echo "Build \`$build_id\` (v$VERSION) is live on the **default** branch."
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "Build $build_id set live on default."
+              ;;
+            *)
+              echo "::error::SetAppBuildLive returned HTTP $http_code for build $build_id."
+              exit 1
+              ;;
+          esac
+
+  steam-announcement:
+    # Steamworks has no supported API for creating events/announcements, so
+    # render the patch notes as BBCode and hand them over for pasting.
+    needs: [check-version, github-release]
     if: needs.check-version.outputs.should_release == 'true'
-    uses: ./.github/workflows/macos-release.yml
-    secrets: inherit
-    permissions:
-      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: Render changelog as Steam BBCode
+        run: |
+          set -euo pipefail
+          ./scripts/changelog_to_bbcode.sh > steam-announcement.bbcode
+          {
+            echo "### Steamworks announcement (copy-paste)"
+            echo ""
+            echo "Steamworks → Court Wizard → Hub Admin → create event → *Small Update / Patch Notes*."
+            echo ""
+            echo '```'
+            cat steam-announcement.bbcode
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload announcement
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: steam-announcement
+          path: steam-announcement.bbcode
+          if-no-files-found: error
+          retention-days: 14
 
   notify-discord:
-    needs: [check-version, release]
-    if: needs.check-version.outputs.should_release == 'true'
+    # Gated on the promotion request, so Discord never claims a version shipped
+    # when the promotion failed. The message says "pending approval" because at
+    # this point it is: the Steam Mobile confirmation is still outstanding.
+    needs: [check-version, github-release, steam-request-promotion]
+    if: always() && needs.check-version.outputs.should_release == 'true' && needs.github-release.result == 'success' && needs.steam-request-promotion.result != 'failure'
     runs-on: ubuntu-latest
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}

@@ -7,9 +7,10 @@ set -e
 # Steam auto-discovers the IGA manifest at the depot/install ROOT:
 # controller_config/game_actions_<appid>.vdf. The manifests also live under
 # assets/ (for the runtime SetInputActionManifestFilePath fallback), but Steam
-# only looks at the root — so every packaged layout mirrors them there. Both
-# the main app and the Playtest read the same depot; each app picks the file
-# named for its own id.
+# only looks at the root — so every packaged layout mirrors them there.
+#
+# One file per app id the depot is published under; each app picks the one
+# named for its own id. Today that's just game_actions_4550880.vdf.
 #
 # Usage: ./scripts/copy_iga_manifests.sh <dest_dir>
 # Must be run from the repo root (all callers cd there first).

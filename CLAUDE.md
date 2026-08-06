@@ -180,12 +180,20 @@ This is the right tool for the inner loop of mechanical refactors (file splits, 
 You can also use `cargo fix --bin court_wizard --allow-dirty --target=x86_64-pc-windows-gnu` to auto-remove unused imports surfaced by `cargo check`.
 
 ### Final build (when handing off to the user)
-**IMPORTANT**: This machine is WSL2 — the user runs the game on Windows. Run the full Windows cross-compile only when you're done with a feature/task and ready to hand the work back to the user:
+Run the full build only when you're done with a feature/task and ready to hand the work back.
+
+The game is play-tested on Windows, so the usual hand-off build is the Windows cross-compile:
 ```bash
 ./scripts/build_native.sh windows
 ```
 
-Do NOT run `./scripts/build_native.sh` without `windows` on this machine — the Linux build requires system dev packages (libasound2-dev, libwayland-dev, libxkbcommon-dev, libudev-dev) that are not installed, and the user tests natively on Windows anyway.
+**Check the toolchain is actually present before promising this build.** The Windows target needs both the Rust target and a MinGW linker:
+- `rustup target add x86_64-pc-windows-gnu`
+- the linker — `apt install gcc-mingw-w64-x86-64` on Linux/WSL2, `brew install mingw-w64` on macOS
+
+Without the linker, `cargo check --target=x86_64-pc-windows-gnu` fails at `cc-rs`, not at your code. If it isn't installed, say so rather than reporting an unverified build; plain `cargo check` / `cargo build` on the host target still validates the code.
+
+A Linux build additionally needs system dev packages (libasound2-dev, libwayland-dev, libxkbcommon-dev, libudev-dev).
 
 ### Release Build
 ```bash
@@ -204,6 +212,20 @@ This script:
 - Never add [Unreleased] sections to the changelog
 - Don't spoil achievements or unlockables in the changelog
 - Don't reveal any secrets or hidden content in the changelog
+- `docs/CHANGELOG.md` is `include_str!`'d into the binary (`src/ui/manual/systems.rs`) for the in-game Changelog screen. Editing it changes the shipped bits — which is why the release flow builds the changelog-lock commit rather than promoting an earlier build.
+
+### Release pipeline
+Driven by the `/game-release` skill; see `.claude/skills/game-release/SKILL.md` and `steam/README.md`.
+
+```
+/game-release        → push dev  → dev-release.yml → test/clippy/fmt, build all 3 platforms, Steam `staging`
+/game-release main   → push main → release.yml     → tag + GitHub Release from that build, request Steam `default`
+```
+
+- **A dev release is a full three-platform signed build.** `dev-release.yml` fires on any push to `dev` that touches `docs/CHANGELOG.md`.
+- **`release.yml` builds nothing.** It reuses the `dev-release.yml` run for the same commit, which works because promotion fast-forwards `main` onto the built dev commit.
+- **Promotion to Steam's default branch needs a phone tap.** Valve always sends a Steam Mobile confirmation for a released app's default branch. CI picks the build id and requests it; never describe a `main` release as live until that's approved.
+- Steamworks announcements are generated, not posted (`scripts/changelog_to_bbcode.sh`) — Steam has no supported events API.
 
 ### Testing
 ```bash
