@@ -14,7 +14,7 @@ mod systems;
 // Public API exports - only export what's actually used externally
 pub(crate) use input_bindings::InputBindings;
 pub use messages::ConfigChanged;
-pub use plugin::ConfigPlugin;
+pub use plugin::{ConfigPlugin, PreExitCleanupSet};
 pub(crate) use resource_paths::resource_root;
 pub(crate) use resources::SavedWindowedGeometry;
 pub use resources::{

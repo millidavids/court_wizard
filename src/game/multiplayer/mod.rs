@@ -18,6 +18,7 @@ pub(crate) mod pause_request;
 mod plugin;
 mod registration;
 pub(in crate::game) mod score_stats;
+pub(crate) mod session_reset;
 pub(crate) mod spawning;
 pub(in crate::game) mod spell_sync;
 mod systems;

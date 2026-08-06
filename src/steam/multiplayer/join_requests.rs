@@ -7,8 +7,8 @@ use bevy_steamworks::{Client, LobbyId};
 use crate::networking::resources::{ConnectionState, NetworkConnection};
 use crate::state::AppState;
 
-use super::lobby_state::{SteamLobbyBridge, SteamLobbyState, shutdown_steam_session};
-use super::lobby_systems::accept_incoming_join;
+use super::invite_accept::accept_incoming_join;
+use super::lobby_state::{SteamLobbyBridge, SteamLobbyState};
 use super::sockets::SteamP2pSocket;
 
 /// Inserted at Startup when Steam launched the binary with `+connect_lobby <id>`.
@@ -72,8 +72,8 @@ pub(super) fn parse_launch_command_at_startup(mut commands: Commands, client: Op
 /// - `MainMenu` → head to the wizard tower (`MetaGameState` has a single variant,
 ///   `WizardTower`, so entering `MetaGame` lands there automatically). Keep the
 ///   intent so the `MetaGame` branch finishes the join.
-/// - `MetaGame`/`WizardTower` → terminal: force the Multiplayer tab, clear any
-///   stale lobby we already had open, `accept_incoming_join`, and drop the intent.
+/// - `MetaGame`/`WizardTower` → terminal: force the Multiplayer tab, reset the
+///   multiplayer stack to baseline, `accept_incoming_join`, and drop the intent.
 /// - anything else (`Splash`/`Loading`/active run) → wait; another frame (or
 ///   `abandon_run_for_steam_invite`) will get us to a menu.
 #[allow(clippy::too_many_arguments)]
@@ -88,6 +88,11 @@ pub(super) fn route_pending_steam_join(
     mut next_app_state: ResMut<NextState<AppState>>,
     mut socket: Option<ResMut<SteamP2pSocket>>,
     mut tab: Option<ResMut<crate::ui::wizard_tower::WizardTowerTab>>,
+    transport: Option<Res<crate::networking::transport::TransportHandle>>,
+    mut lobby: ResMut<crate::ui::wizard_tower::MultiplayerLobby>,
+    mut host_selection: ResMut<crate::ui::wizard_tower::CoopHostSelection>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
+    coop_pending: Option<Res<crate::game::multiplayer::coop::CoopPendingSession>>,
 ) {
     match app_state.get() {
         AppState::MainMenu => {
@@ -96,6 +101,16 @@ pub(super) fn route_pending_steam_join(
             next_app_state.set(AppState::MetaGame);
         }
         AppState::MetaGame => {
+            // The host clicks a co-op Start button in `Update` while the AppState is
+            // still `MetaGame` (the transition applies next frame). An invite landing
+            // on exactly that frame must not delete `CoopPendingSession`, or
+            // `init_loading_progress` never builds the host's session while the guest
+            // has already been pulled into `MultiplayerLoading`. Mirrors the same
+            // guard in `reset_lobby_on_exit`.
+            if coop_pending.is_some() {
+                return;
+            }
+
             // Steam resources may not exist for one frame at boot (the bridge is
             // built in a Startup system) — the Option guard just retries next frame.
             let (Some(client), Some(bridge), Some(lobby_state)) = (
@@ -110,26 +125,51 @@ pub(super) fn route_pending_steam_join(
             // ran in OnEnter) so we beat its dormant-roguelite-run tab override.
             crate::ui::wizard_tower::force_mp_tab(&mut tab, &mut commands);
 
-            // If we already had a lobby open (e.g. mid-host or already connected to
-            // a peer in the tower), fully tear it down before joining the new one —
-            // `shutdown_steam_session` leaves the lobby AND the P2P socket, matching
-            // `do_mp_disconnect`/`reset_lobby_on_exit`. `accept_incoming_join` also
-            // refuses on any non-Idle lobby, so the leave is required, not optional.
-            if !matches!(lobby_state, SteamLobbyState::Idle) {
-                shutdown_steam_session(Some(client), Some(lobby_state), socket.as_deref_mut());
-                connection.reset();
-            }
+            // Reset UNCONDITIONALLY — not just when the Steam lobby is non-Idle.
+            //
+            // This is the fix for the "stuck on Connecting after a failed invite"
+            // bug. After a peer leaves, `process_lobby_chat_updates` has already set
+            // the lobby state to `Idle`, so the old `if !Idle` guard skipped the
+            // teardown entirely and left behind:
+            //   - `LobbyPhase::Failed`, which makes `sync_lobby_with_connection`
+            //     return early — the new join then completes underneath a UI that has
+            //     stopped listening, so the guest never enters `Handshake` and never
+            //     sends the `PlayerInfo` the host is waiting on;
+            //   - a stale `ConnectionState::Connected`, which makes
+            //     `accept_incoming_join` refuse outright;
+            //   - a stale `MultiplayerSession`, which blocks the `→ Handshake`
+            //     transition even when the phase is right.
+            // Resetting first makes all three impossible.
+            crate::game::multiplayer::session_reset::reset_multiplayer_to_baseline(
+                "steam invite accepted",
+                &mut commands,
+                &mut connection,
+                &mut lobby,
+                &mut host_selection,
+                transport.as_deref(),
+                Some(client),
+                Some(lobby_state),
+                socket.as_deref_mut(),
+                session.is_some(),
+            );
 
-            accept_incoming_join(
+            let dispatched = accept_incoming_join(
                 client,
                 bridge,
                 lobby_state,
                 &mut connection,
                 pending.lobby_id,
             );
-            // Make sure we're not stuck in a stale Connected state from a previous match.
-            if connection.state == ConnectionState::Connected {
-                connection.state = ConnectionState::WaitingForSignaling;
+            // Unreachable after the reset above (which forces `Idle` +
+            // `Disconnected`), but never drop an invite silently: a refusal has to
+            // surface as the Failed panel rather than a permanent "Connecting…".
+            if !dispatched {
+                warn!("[Steam MP] Join refused despite a baseline reset — surfacing as Failed");
+                connection.error = Some(
+                    "Couldn't start the Steam join — ask your friend to invite you again."
+                        .to_string(),
+                );
+                connection.state = ConnectionState::Failed;
             }
             commands.remove_resource::<PendingSteamJoin>();
         }

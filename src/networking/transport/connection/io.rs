@@ -3,6 +3,7 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicU16;
 
+use bevy::log::warn;
 use crossbeam_channel::{Receiver, Sender};
 use iroh::Endpoint;
 use iroh::endpoint::Connection;
@@ -42,6 +43,29 @@ pub(super) async fn run_connection_io(
     reliable_notify: &Arc<Notify>,
     unreliable_notify: &Arc<Notify>,
 ) -> ConnectionExitReason {
+    // Discard anything left in the outgoing queues from a PREVIOUS session.
+    //
+    // The queues are process-lifetime unbounded crossbeam channels shared by every
+    // session, and `transport_bridge_system` pushes into them from the Bevy side.
+    // The per-session send loops exit at teardown leaving whatever they hadn't sent
+    // still queued — which then flushes to the NEXT peer, ahead of the
+    // `HandshakeVersion` frame. The receiver enforces "HandshakeVersion must come
+    // first" and would reject a perfectly good connection as a version mismatch.
+    //
+    // MUST be the first statement, before any `.await`. Our callers emit
+    // `StateChanged(Connected)` immediately before calling us, and once Bevy
+    // observes that it starts pushing this session's `HandshakeVersion` +
+    // `PlayerInfo`. Draining after a yield point (e.g. below the stream setup)
+    // would race that and eat the handshake — reintroducing the exact deadlock
+    // this drain exists to prevent. With no await between the event and here, the
+    // window is nanoseconds against Bevy's frame-plus-a-system.
+    let stale = reliable_rx.len() + unreliable_rx.len();
+    if stale > 0 {
+        warn!("[Transport] Discarding {stale} queued message(s) from a previous session");
+        while reliable_rx.try_recv().is_ok() {}
+        while unreliable_rx.try_recv().is_ok() {}
+    }
+
     // Deterministic stream setup: host opens, guest accepts.
     let (send_stream, recv_stream) = if is_host {
         match conn.open_bi().await {
@@ -91,7 +115,7 @@ pub(super) async fn run_connection_io(
 
     // Wait for disconnect command or connection close.
     let reason = tokio::select! {
-        _ = wait_for_disconnect(command_rx) => {
+        _ = wait_for_disconnect(command_rx, event_tx) => {
             conn.close(0u8.into(), b"disconnect");
             ConnectionExitReason::Disconnect
         }

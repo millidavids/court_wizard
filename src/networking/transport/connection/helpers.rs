@@ -17,13 +17,28 @@ pub(super) fn send_error_and_fail(tx: &Sender<TransportEvent>, msg: String) {
 }
 
 /// Async wait for a Disconnect command on the tokio mpsc channel.
+///
+/// A `CreateHost`/`ConnectToHost` arriving here means the UI asked to start a new
+/// session while this one is still winding down. The runtime is a single serial
+/// loop, so it cannot honour that — but dropping it silently (which is what this
+/// used to do) makes the button look broken: the player clicks Host Game and
+/// literally nothing happens, forever. Surface it so the lobby shows a Failed
+/// panel with a Retry that will work.
 pub(super) async fn wait_for_disconnect(
     command_rx: &mut tokio::sync::mpsc::UnboundedReceiver<TransportCommand>,
+    event_tx: &Sender<TransportEvent>,
 ) {
     loop {
         match command_rx.recv().await {
             Some(TransportCommand::Disconnect) | None => return,
-            Some(_) => continue, // Ignore non-disconnect commands during active connection.
+            Some(other) => {
+                send_error_and_fail(
+                    event_tx,
+                    format!(
+                        "A previous connection was still closing ({other:?} ignored). Try again."
+                    ),
+                );
+            }
         }
     }
 }

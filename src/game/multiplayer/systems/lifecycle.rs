@@ -12,9 +12,11 @@ use crate::networking::entity_map::{EntityIdCounter, NetworkEntityMap};
 use crate::networking::resources::NetworkConnection;
 use crate::networking::session::MultiplayerSession;
 use crate::networking::snapshot::SnapshotTick;
-use crate::networking::transport::{TransportCommand, TransportHandle};
+use crate::networking::transport::TransportHandle;
 use crate::state::{AppState, MultiplayerGameState};
-use crate::ui::wizard_tower::MultiplayerLobby;
+use crate::ui::wizard_tower::{CoopHostSelection, MultiplayerLobby};
+
+use super::super::session_reset::reset_multiplayer_to_baseline;
 
 use super::super::components::{OnMultiplayerGameScreen, PendingRematch};
 
@@ -240,9 +242,14 @@ pub(crate) fn cleanup_mp_game(
 /// paths plus the score-screen Escape handler. `transport` is `Option`: the
 /// disconnected-overlay path passes `None` (the peer is already gone, so there's
 /// nothing to signal); every other path passes the live handle so the peer is
-/// told to disconnect. Steam teardown happens BEFORE `connection.reset()` — once
-/// `reset` zeroes `mode` to `Online`, downstream cleanup hooks can no longer tell
-/// this was a Steam session.
+/// told to disconnect.
+///
+/// This is just the canonical baseline reset plus the navigation. Note the reset
+/// also clears `PendingRematch`: disconnecting cancels any rematch, and clearing
+/// it defensively stops a confirm-rematch-on-the-same-frame-as-leave race from
+/// carrying it into the main menu and rematching on the session we just tore
+/// down. (`PendingRematch` is only set on the normal both-ready path, which never
+/// calls this helper, so a legitimate rematch is unaffected.)
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn do_mp_disconnect(
     connection: &mut NetworkConnection,
@@ -251,24 +258,22 @@ pub(crate) fn do_mp_disconnect(
     steam_lobby: Option<&mut crate::steam::multiplayer::SteamLobbyState>,
     steam_socket: Option<&mut crate::steam::multiplayer::SteamP2pSocket>,
     lobby: &mut MultiplayerLobby,
+    host_selection: &mut CoopHostSelection,
     commands: &mut Commands,
     next_app_state: &mut NextState<AppState>,
+    session_present: bool,
 ) {
-    if let Some(transport) = transport {
-        transport.send_command(TransportCommand::Disconnect);
-    }
-    crate::steam::multiplayer::shutdown_steam_session(steam_client, steam_lobby, steam_socket);
-    connection.reset();
-    commands.remove_resource::<MultiplayerSession>();
-    // Disconnecting cancels any rematch. Clear PendingRematch defensively so a
-    // confirm-rematch-on-the-same-frame-as-leave race can't carry it into the
-    // main menu and then try to rematch on the session we just tore down.
-    // (PendingRematch is only set on the normal both-ready path, which never
-    // calls this helper, so this never affects a legitimate rematch.)
-    commands.remove_resource::<PendingRematch>();
-    // Going MultiplayerGame → MainMenu skips the WizardTower-exit hook that
-    // normally resets the lobby, so any stale phase / peer_protocol_version from
-    // this session would block reconnecting later. Reset here.
-    *lobby = MultiplayerLobby::new();
+    reset_multiplayer_to_baseline(
+        "multiplayer disconnect",
+        commands,
+        connection,
+        lobby,
+        host_selection,
+        transport,
+        steam_client,
+        steam_lobby,
+        steam_socket,
+        session_present,
+    );
     next_app_state.set(AppState::MainMenu);
 }

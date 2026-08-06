@@ -42,6 +42,8 @@ pub(crate) fn abandon_run_for_steam_invite(
     // `MultiplayerLobby` is init_resource (always present), so a non-Option binding
     // turns any future absence into a loud panic rather than a silent stuck-invite.
     mut lobby: ResMut<crate::ui::wizard_tower::MultiplayerLobby>,
+    mut host_selection: ResMut<crate::ui::wizard_tower::CoopHostSelection>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
     match app_state.get() {
         // Single-player: discard the in-progress run and return to the main menu,
@@ -65,8 +67,10 @@ pub(crate) fn abandon_run_for_steam_invite(
                 steam_lobby.as_deref_mut(),
                 steam_socket.as_deref_mut(),
                 &mut lobby,
+                &mut host_selection,
                 &mut commands,
                 &mut next_app_state,
+                session.is_some(),
             );
         }
         _ => {}

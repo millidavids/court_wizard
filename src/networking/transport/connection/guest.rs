@@ -1,6 +1,7 @@
 //! Guest flow — parse connection code, connect to host, run I/O.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use crossbeam_channel::{Receiver, Sender};
 use iroh::{Endpoint, endpoint::presets};
@@ -9,10 +10,15 @@ use tokio::sync::Notify;
 use crate::networking::resources::ConnectionState;
 
 use super::endpoint::{ALPN, build_transport_config, close_endpoint};
-use super::helpers::{send_error_and_fail, send_event};
+use super::helpers::{send_error_and_fail, send_event, wait_for_disconnect};
 use super::io::run_connection_io;
 use super::ticket::decode_endpoint_addr;
 use crate::networking::transport::runtime::{TransportCommand, TransportEvent};
+
+/// Ceiling on a single dial attempt. Generous enough for relay selection and NAT
+/// traversal on a slow link, but bounded so a host that has stopped listening
+/// surfaces as an error instead of an indefinite "Connecting…".
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Guest flow: parse connection code, connect to host, run I/O.
 #[allow(clippy::too_many_arguments)]
@@ -50,10 +56,42 @@ pub(super) async fn handle_guest(
         }
     };
 
-    let conn = match ep.connect(endpoint_addr, ALPN).await {
-        Ok(conn) => conn,
-        Err(e) => {
-            send_error_and_fail(event_tx, format!("Failed to connect to host: {e}"));
+    // The dial must be cancellable and bounded. Previously this was a bare
+    // `.await`, so between emitting `Connecting` and entering `run_connection_io`
+    // the guest never looked at `command_rx` — unlike `handle_host`, which
+    // `select!`s against `wait_for_disconnect` around `ep.accept()`.
+    //
+    // Two consequences, both of which stranded the player:
+    //   - Cancel didn't cancel. The UI reset to the Connect screen while this task
+    //     kept dialling; if the dial later SUCCEEDED it emitted `Connected` into a
+    //     lobby that had moved on, leaving a permanently stale
+    //     `ConnectionState::Connected` that made every later Steam invite get
+    //     refused by `accept_incoming_join`.
+    //   - A host that vanished mid-dial left this pending with no deadline at all.
+    let conn = tokio::select! {
+        result = ep.connect(endpoint_addr, ALPN) => match result {
+            Ok(conn) => conn,
+            Err(e) => {
+                send_error_and_fail(event_tx, format!("Failed to connect to host: {e}"));
+                close_endpoint(&ep).await;
+                return;
+            }
+        },
+        _ = wait_for_disconnect(command_rx, event_tx) => {
+            // Cancelled locally. Report Disconnected (not Failed) — the player did
+            // this on purpose and shouldn't be shown an error panel.
+            close_endpoint(&ep).await;
+            send_event(
+                event_tx,
+                TransportEvent::StateChanged(ConnectionState::Disconnected),
+            );
+            return;
+        }
+        _ = tokio::time::sleep(CONNECT_TIMEOUT) => {
+            send_error_and_fail(
+                event_tx,
+                "Couldn't reach the host — they may have stopped hosting.".to_string(),
+            );
             close_endpoint(&ep).await;
             return;
         }

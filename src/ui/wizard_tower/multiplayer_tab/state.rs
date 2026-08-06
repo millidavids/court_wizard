@@ -14,7 +14,7 @@ use crate::game::units::wizard::components::Spell;
 ///
 /// This is the single source of truth for which phase the lobby is in,
 /// plus transient UI state (relay toggle, join-code text input).
-#[derive(Resource, PartialEq)]
+#[derive(Resource, Debug, PartialEq)]
 pub(crate) struct MultiplayerLobby {
     /// Current phase of the lobby flow.
     pub phase: LobbyPhase,
@@ -60,7 +60,7 @@ impl Default for MultiplayerLobby {
 /// `process_lobby_messages`) and rendered in the guest's Multiplayer-tab LEFT
 /// panel so the guest sees what the host is about to start. Host-only fields are
 /// pre-formatted into `detail_lines` so the guest needs no game-mode resources.
-#[derive(Resource, Default, PartialEq, Clone)]
+#[derive(Resource, Debug, Default, PartialEq, Clone)]
 pub(crate) struct CoopHostSelection {
     pub mode: crate::networking::protocol::HostMode,
     pub host_wizard: Option<WizardType>,
@@ -74,7 +74,7 @@ pub(crate) struct CoopHostSelection {
 // ---------------------------------------------------------------------------
 
 /// Phase of the multiplayer lobby flow.
-#[derive(Default, PartialEq, Clone)]
+#[derive(Default, Debug, PartialEq, Clone)]
 pub(crate) enum LobbyPhase {
     /// Initial screen — show Host Game, Join Game, Use Relay toggle.
     #[default]

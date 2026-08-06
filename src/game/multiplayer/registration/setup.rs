@@ -68,4 +68,17 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
             .chain(),
     );
     app.add_systems(OnExit(AppState::MultiplayerGame), cleanup_mp_game);
+
+    // ── Main-menu catch-all reset ────────────────────────────────
+    // Landing on the main menu means nothing multiplayer is live, but several
+    // routes get here with no multiplayer teardown at all (notably every
+    // single-player quit button, which is what the co-op host uses since it plays
+    // in `AppState::InGame`). Exempt the rematch flow, which intentionally passes
+    // through MainMenu carrying a live session.
+    app.add_systems(
+        OnEnter(AppState::MainMenu),
+        crate::game::multiplayer::session_reset::reset_multiplayer_on_main_menu.run_if(not(
+            resource_exists::<crate::game::multiplayer::components::PendingRematch>,
+        )),
+    );
 }

@@ -4,13 +4,12 @@ use bevy::prelude::*;
 
 use crate::config::WizardType;
 use crate::game::multiplayer::components::PendingRematch;
+use crate::game::multiplayer::session_reset::reset_multiplayer_to_baseline;
 use crate::networking::protocol::NetworkMessage;
-use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection};
-use crate::networking::transport::{TransportCommand, TransportHandle};
+use crate::networking::resources::NetworkConnection;
+use crate::networking::transport::TransportHandle;
 use crate::state::AppState;
-use crate::steam::multiplayer::{
-    SteamLobbyState, SteamP2pSocket, leave_steam_lobby, tear_down_socket,
-};
+use crate::steam::multiplayer::{SteamLobbyState, SteamP2pSocket};
 use crate::ui::wizard_tower::layout::WizardTowerTab;
 use crate::ui::wizard_tower::wizard_cards::SelectedWizard;
 
@@ -113,6 +112,7 @@ pub(super) fn handle_pending_rematch_on_enter(
 /// when the destination is a multiplayer loading/game state.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn reset_lobby_on_exit(
+    mut commands: Commands,
     mut lobby: ResMut<MultiplayerLobby>,
     mut connection: ResMut<NetworkConnection>,
     transport: Option<Res<TransportHandle>>,
@@ -122,6 +122,7 @@ pub(super) fn reset_lobby_on_exit(
     mut steam_socket: Option<ResMut<SteamP2pSocket>>,
     coop_pending: Option<Res<crate::game::multiplayer::coop::CoopPendingSession>>,
     mut host_selection: ResMut<CoopHostSelection>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
     // Preserve the connection when leaving the tower INTO a match: versus goes to
     // MultiplayerLoading/MultiplayerGame; the co-op host goes to the single-player
@@ -136,35 +137,21 @@ pub(super) fn reset_lobby_on_exit(
         return;
     }
 
-    // Iroh teardown — only when iroh was actually live. Sending Disconnect
-    // unconditionally would write a no-op into the command channel on every
-    // WizardTower exit (including Steam-mode exits and exits from a tab the
-    // player never touched), which changes the channel's "only written when
-    // there is work to cancel" contract.
-    if connection.mode != ConnectionMode::Steam
-        && connection.state != ConnectionState::Disconnected
-        && let Some(t) = transport
-    {
-        t.send_command(TransportCommand::Disconnect);
-    }
-
-    // Steam teardown: leave the lobby + clear rich presence + close the socket.
-    // No-op when Steam isn't initialized.
-    if connection.mode == ConnectionMode::Steam {
-        if let (Some(client), Some(lobby_state)) =
-            (steam_client.as_deref(), steam_lobby_state.as_deref_mut())
-        {
-            leave_steam_lobby(client, lobby_state);
-        }
-        if let Some(socket) = steam_socket.as_deref_mut() {
-            tear_down_socket(socket);
-        }
-    }
-
-    // Always reset — calling unconditionally clears stranded `mode == Steam`
-    // flags from partially-completed flows that left `state` already
-    // `Disconnected`.
-    connection.reset();
-    *lobby = MultiplayerLobby::new();
-    *host_selection = CoopHostSelection::default();
+    // Teardown is unconditional (rather than branching on `connection.mode`)
+    // because every branch was itself a way to miss something: a partially
+    // completed flow can leave a stranded `mode == Steam` with `state` already
+    // `Disconnected`, or a live Steam lobby with `mode` reset to `Online`. The
+    // helper's individual steps are all no-ops when there's nothing to undo.
+    reset_multiplayer_to_baseline(
+        "wizard tower exit",
+        &mut commands,
+        &mut connection,
+        &mut lobby,
+        &mut host_selection,
+        transport.as_deref(),
+        steam_client.as_deref(),
+        steam_lobby_state.as_deref_mut(),
+        steam_socket.as_deref_mut(),
+        session.is_some(),
+    );
 }

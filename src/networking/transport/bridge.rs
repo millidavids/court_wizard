@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use crossbeam_channel::unbounded;
 
 use crate::networking::protocol::NetworkMessage;
-use crate::networking::resources::{ConnectionMode, NetworkConnection};
+use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection};
 
 use super::connection;
 use super::runtime::{TransportEvent, TransportHandle};
@@ -106,6 +106,24 @@ fn transport_bridge_system(
 
     if !has_outgoing && !has_incoming {
         return;
+    }
+
+    // Never queue bytes for a link that is down. The transport channels are
+    // process-lifetime and shared across sessions, so anything pushed while
+    // disconnected would be delivered to the NEXT peer ahead of its
+    // `HandshakeVersion` — which the receiver rejects as a version mismatch.
+    // (`run_connection_io` also drains at session start; this stops the queue
+    // growing in the first place.)
+    //
+    // Deliberately NOT `!= Connected`: this system is itself what promotes `state`
+    // to `Connected` from the event queue below, so a stricter gate would drop
+    // everything queued during the `Connecting → Connected` window.
+    if matches!(
+        connection.state,
+        ConnectionState::Disconnected | ConnectionState::Failed
+    ) {
+        connection.outgoing_messages.clear();
+        connection.outgoing_unreliable.clear();
     }
 
     // Send outgoing reliable messages.

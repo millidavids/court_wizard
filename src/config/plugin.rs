@@ -2,6 +2,19 @@ use bevy::prelude::*;
 
 use super::systems::*;
 
+/// Last chance to run cleanup before the process is killed.
+///
+/// `force_exit_after_save` calls `std::process::exit(0)` in `Last` (Bevy's own
+/// shutdown can stall for tens of seconds on macOS), which skips every `Drop`
+/// impl and every remaining system. Anything that MUST tell the outside world we
+/// are leaving — closing a Steam lobby, clearing rich presence — has to run
+/// inside this set, which is ordered before that exit.
+///
+/// Exposed as a set rather than by making `force_exit_after_save` public so other
+/// modules can order against exit without reaching into `config::systems`.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PreExitCleanupSet;
+
 /// Configuration plugin for managing game settings on disk.
 ///
 /// This plugin provides a complete configuration system that:
@@ -58,7 +71,14 @@ impl Plugin for ConfigPlugin {
         // immediately force the OS process to terminate — Bevy's own shutdown
         // path can stall for tens of seconds on macOS after a gameplay
         // session, never returning from `app.run()`.
-        app.add_systems(Last, (save_on_exit, force_exit_after_save).chain());
+        //
+        // `PreExitCleanupSet` sits between the two so other modules (Steam lobby
+        // teardown) can get a word in before the process is killed.
+        app.configure_sets(Last, PreExitCleanupSet.after(save_on_exit));
+        app.add_systems(
+            Last,
+            (save_on_exit, force_exit_after_save.after(PreExitCleanupSet)),
+        );
     }
 
     fn name(&self) -> &str {

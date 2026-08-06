@@ -2,9 +2,10 @@
 
 use bevy::prelude::*;
 
+use crate::game::multiplayer::session_reset::reset_multiplayer_to_baseline;
 use crate::networking::resources::{ConnectionState, NetworkConnection};
 use crate::networking::session::MultiplayerSession;
-use crate::networking::transport::{TransportCommand, TransportHandle};
+use crate::networking::transport::TransportHandle;
 use crate::state::{AppState, MultiplayerGameState};
 use crate::ui::components::ButtonStyle;
 use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_PRIMARY};
@@ -96,6 +97,8 @@ pub(crate) fn handle_mp_disconnected_buttons(
     mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
     mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
     mut lobby: ResMut<crate::ui::wizard_tower::MultiplayerLobby>,
+    mut host_selection: ResMut<crate::ui::wizard_tower::CoopHostSelection>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     for event in button_clicked.read() {
         if button_query.get(event.button).is_ok() {
@@ -108,8 +111,10 @@ pub(crate) fn handle_mp_disconnected_buttons(
                 steam_lobby.as_deref_mut(),
                 steam_socket.as_deref_mut(),
                 &mut lobby,
+                &mut host_selection,
                 &mut commands,
                 &mut next_app_state,
+                session.is_some(),
             );
             return;
         }
@@ -119,14 +124,21 @@ pub(crate) fn handle_mp_disconnected_buttons(
 /// Detects unexpected connection loss and transitions to the Disconnected overlay.
 ///
 /// Only triggers on `Failed` state — intentional disconnects are handled by button actions.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn detect_mp_disconnect(
     mut commands: Commands,
-    connection: Res<NetworkConnection>,
+    mut connection: ResMut<NetworkConnection>,
     session: Option<Res<MultiplayerSession>>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     mut next_mp_state: ResMut<NextState<MultiplayerGameState>>,
     mut next_app_state: ResMut<NextState<crate::state::AppState>>,
     mut notifications: ResMut<crate::ui::notification::NotificationQueue>,
+    transport: Option<Res<TransportHandle>>,
+    steam_client: Option<Res<bevy_steamworks::Client>>,
+    mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
+    mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
+    mut lobby: ResMut<crate::ui::wizard_tower::MultiplayerLobby>,
+    mut host_selection: ResMut<crate::ui::wizard_tower::CoopHostSelection>,
 ) {
     // Only check if we still have an active session — avoids double-triggering
     // after an intentional disconnect already queued a state transition.
@@ -153,13 +165,27 @@ pub(crate) fn detect_mp_disconnect(
 
     if session.is_coop() {
         // Co-op guest: the host keeps playing solo, so there's no "match over"
-        // dead-end for the guest. Drop the per-match co-op state and return to
-        // the wizard tower's Multiplayer tab, where the guest can rejoin (the
-        // host's endpoint stays bound and re-listens — see the transport
-        // re-accept loop). Clearing the session lets a fresh `StartGame` build
-        // a clean one on rejoin.
-        commands.remove_resource::<MultiplayerSession>();
-        commands.remove_resource::<crate::game::multiplayer::coop::CoopGuestLevel>();
+        // dead-end for the guest — return to the wizard tower's Multiplayer tab
+        // where a fresh invite can be accepted.
+        //
+        // This used to drop only the session + `CoopGuestLevel`, which left the
+        // guest sitting in the host's Steam lobby with a dead `SteamP2pSocket`, a
+        // stale `mode = Steam` / `role = Guest`, and a `LobbyPhase` from the old
+        // match. All three block the next connection, so tear all the way down —
+        // the link is already gone (that is why we're in this branch), so there is
+        // nothing live to preserve.
+        reset_multiplayer_to_baseline(
+            "co-op host disconnected",
+            &mut commands,
+            &mut connection,
+            &mut lobby,
+            &mut host_selection,
+            transport.as_deref(),
+            steam_client.as_deref(),
+            steam_lobby.as_deref_mut(),
+            steam_socket.as_deref_mut(),
+            true,
+        );
         // The co-op guest returns silently to the tower, so flag the reason with a
         // toast — otherwise it's not obvious the host dropped the game.
         notifications.push(crate::ui::notification::NotificationEntry::Toast {
@@ -199,6 +225,8 @@ pub(crate) fn detect_mp_loading_disconnect(
             With<super::super::components::OnMultiplayerGameScreen>,
         )>,
     >,
+    mut lobby: ResMut<crate::ui::wizard_tower::MultiplayerLobby>,
+    mut host_selection: ResMut<crate::ui::wizard_tower::CoopHostSelection>,
 ) {
     // Mirror `detect_mp_disconnect`'s guard: a missing session means we're
     // not actually in a live match — the `Disconnected` default-state could
@@ -212,16 +240,6 @@ pub(crate) fn detect_mp_loading_disconnect(
         ConnectionState::Failed | ConnectionState::Disconnected
     ) {
         warn!("[MP] Connection lost during loading; returning to wizard tower.");
-        if let Some(t) = transport.as_ref() {
-            t.send_command(TransportCommand::Disconnect);
-        }
-        // Steam teardown must run BEFORE connection.reset() so we can still
-        // see `mode == Steam` and find the SteamLobbyState we need to leave.
-        crate::steam::multiplayer::shutdown_steam_session(
-            steam_client.as_deref(),
-            steam_lobby.as_deref_mut(),
-            steam_socket.as_deref_mut(),
-        );
         // Clean up everything the loading queue had already spawned —
         // `OnExit(MultiplayerLoading)` only tears down the loading screen
         // and queue resources, so without these despawns the partially-built
@@ -232,8 +250,18 @@ pub(crate) fn detect_mp_loading_disconnect(
             }
         }
         commands.remove_resource::<crate::game::pathfinding::resources::PathfindingGrid>();
-        connection.reset();
-        commands.remove_resource::<MultiplayerSession>();
+        reset_multiplayer_to_baseline(
+            "connection lost during loading",
+            &mut commands,
+            &mut connection,
+            &mut lobby,
+            &mut host_selection,
+            transport.as_deref(),
+            steam_client.as_deref(),
+            steam_lobby.as_deref_mut(),
+            steam_socket.as_deref_mut(),
+            true,
+        );
         // `MetaGameState` is a SubState of `AppState::MetaGame` and is
         // re-initialised to its `#[default] = WizardTower` whenever the
         // parent state enters — no explicit `next_meta_state.set` needed.

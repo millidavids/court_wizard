@@ -6,17 +6,17 @@ use crate::state::{MenuState, MetaGameState};
 use crate::ui::plugin::ButtonActionSet;
 use crate::ui::wizard_tower::wizard_cards::SelectedWizard;
 
+use super::host_mode_broadcast::broadcast_host_mode_to_guest;
 use super::interaction::{cancel_host_on_tab_leave, handle_mp_tab_actions};
 use super::lobby_messages::process_lobby_messages;
 use super::state::{CoopHostSelection, MultiplayerLobby};
-use super::sync::{
-    broadcast_host_mode_to_guest, sync_lobby_with_connection, sync_mp_wizard_selection,
-};
+use super::sync::{sync_lobby_with_connection, sync_mp_wizard_selection};
 use super::systems::{
     handle_pending_rematch_on_enter, mp_tab_selected, reset_lobby_on_exit,
     route_pending_rematch_from_menu,
 };
 use super::text_input::handle_join_code_input;
+use super::timeout::timeout_stalled_lobby_phase;
 
 /// Plugin that registers all systems for the multiplayer tab.
 pub struct MultiplayerTabPlugin;
@@ -39,6 +39,16 @@ impl Plugin for MultiplayerTabPlugin {
             .add_systems(
                 Update,
                 (process_lobby_messages, sync_lobby_with_connection)
+                    .run_if(in_state(MetaGameState::WizardTower)),
+            )
+            // Deadlines for the connecting phases. Runs on any tower tab (like the
+            // pump above) so a stall is still caught if the player switches tabs
+            // mid-connect, and ordered after the sync so it judges the phase the
+            // transport just produced rather than the previous frame's.
+            .add_systems(
+                Update,
+                timeout_stalled_lobby_phase
+                    .after(sync_lobby_with_connection)
                     .run_if(in_state(MetaGameState::WizardTower)),
             )
             // The host broadcasts its selected mode to the guest on ANY tab (it

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [pending]
+
+### Fixed
+- **Inviting a friend again after a failed connection now works** — if a connection attempt failed or was cancelled, every later invite would quietly go nowhere: both players sat on "Connecting" forever, and the only way out was for both of you to restart the game. Reconnecting now works straight away.
+- **The Steam invite button no longer does nothing** — after finishing a co-op game and returning to the tower, "Invite Friend on Steam" could stop responding entirely, with no message to explain why. It works again, and if an invite is already open it now says so instead of ignoring the click.
+- **Connection attempts that stall now tell you** — a join that never completed used to leave you watching "Connecting via Steam relay…" indefinitely. You now get a plain-language explanation and a Try Again button after a short wait.
+- **Leaving the game closes your Steam lobby** — quitting used to leave your lobby advertised to friends, so a friend clicking Join Game could be dropped into a session that no longer existed.
+- **A friend dropping out of co-op no longer breaks your next game** — when your partner disconnected mid-level, leftover connection state could stop you starting a new session together until both of you restarted.
+
 ## [v1.0.35] - 2026-08-05
 
 ### Fixed

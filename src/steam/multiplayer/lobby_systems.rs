@@ -1,5 +1,8 @@
-//! Update systems that drain the lobby-bridge channels + the
-//! `SteamworksEvent` message bus and drive the lobby state machine.
+//! Startup wiring plus the systems that drain the two `FnOnce` call-result
+//! channels (`create_lobby` / `join_lobby`) and advance the lobby state machine.
+//!
+//! Membership changes live in `lobby_members.rs`; inbound invite handling lives
+//! in `invite_accept.rs`.
 //!
 //! All UI-state mutation flows through `NetworkConnection` (error / state),
 //! which the existing `sync_lobby_with_connection` system in the multiplayer
@@ -7,16 +10,14 @@
 //! internals encapsulated.
 
 use bevy::prelude::*;
-use bevy_steamworks::{CallbackResult, ChatMemberStateChange, Client, LobbyId, SteamworksEvent};
+use bevy_steamworks::{Client, LobbyId};
 
 use crate::networking::protocol::PROTOCOL_VERSION;
-use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection, PeerRole};
+use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection};
 
 use super::constants::{LOBBY_KEY_PROTOCOL_VERSION, RICH_PRESENCE_CONNECT_KEY};
-use super::lobby_state::{
-    SteamLobbyBridge, SteamLobbyState, format_steam_error, leave_steam_lobby,
-};
-use super::sockets::{SteamP2pSocket, start_connecting, start_listening, tear_down_socket};
+use super::lobby_state::{SteamLobbyBridge, SteamLobbyState, format_steam_error};
+use super::sockets::{SteamP2pSocket, start_connecting};
 
 /// Startup system: construct the bridge (channels + persistent
 /// LobbyChatUpdate callback handle) and insert it as a resource.
@@ -159,6 +160,23 @@ pub(super) fn process_join_lobby_result(
                     continue;
                 }
 
+                // `SteamP2pSocket` is `init_resource`, so this is only `None` in a
+                // build without the Steam plugin. Bail before advancing any state:
+                // the old code moved to `Joined` + `Connecting` regardless, which
+                // meant `start_connecting` never ran and never got another chance —
+                // `poll_steam_guest_connection_state` then returned early on the
+                // absent `socket.connection` every frame, forever.
+                let Some(socket) = socket.as_deref_mut() else {
+                    warn!("[Steam MP] Joined lobby but no P2P socket resource — cannot dial host");
+                    client.matchmaking().leave_lobby(lobby_id);
+                    *lobby_state = SteamLobbyState::Idle;
+                    connection.error = Some(
+                        "Steam networking is unavailable. Try restarting the game.".to_string(),
+                    );
+                    connection.state = ConnectionState::Failed;
+                    continue;
+                };
+
                 info!(
                     "[Steam MP] Joined lobby {} (host={}), initiating P2P",
                     lobby_id.raw(),
@@ -168,9 +186,7 @@ pub(super) fn process_join_lobby_result(
                     lobby_id,
                     peer: host,
                 };
-                if let Some(socket) = socket.as_deref_mut() {
-                    start_connecting(client, socket, &mut connection, host);
-                }
+                start_connecting(client, socket, &mut connection, host);
                 // start_connecting flips state to Failed on error; don't
                 // overwrite that with Connecting.
                 if connection.state != ConnectionState::Failed {
@@ -187,213 +203,12 @@ pub(super) fn process_join_lobby_result(
     }
 }
 
-/// Drain `LobbyChatUpdate` callbacks. On host: when the invited friend
-/// enters, open the listen socket and transition to `Joined`. On either
-/// side: when the peer leaves/disconnects, tear down the socket + lobby
-/// and signal the existing disconnect-detection flow.
-pub(super) fn process_lobby_chat_updates(
-    client: Option<Res<Client>>,
-    bridge: Option<Res<SteamLobbyBridge>>,
-    mut lobby_state: Option<ResMut<SteamLobbyState>>,
-    mut socket: Option<ResMut<SteamP2pSocket>>,
-    mut connection: ResMut<NetworkConnection>,
-) {
-    let (Some(client), Some(bridge), Some(lobby_state)) = (
-        client.as_deref(),
-        bridge.as_deref(),
-        lobby_state.as_deref_mut(),
-    ) else {
-        return;
-    };
-
-    while let Ok(update) = bridge.chat_update_rx.try_recv() {
-        // Always use `user_changed` — `making_change` is mis-mapped to the same
-        // SteamID field in steamworks 0.12.2 (`matchmaking.rs:1128`).
-        let peer = update.user_changed;
-        let change = update.member_state_change;
-
-        // Skip our own enter event (we already created the lobby on host,
-        // or we're the guest who just entered — handled by join_lobby
-        // callback, not here).
-        let local_id = client.user().steam_id();
-        if peer == local_id {
-            continue;
-        }
-
-        match change {
-            ChatMemberStateChange::Entered => match lobby_state {
-                SteamLobbyState::Hosting { lobby_id } => {
-                    let lobby_id = *lobby_id;
-                    info!(
-                        "[Steam MP] Guest {} entered lobby {}, opening listen socket",
-                        peer.raw(),
-                        lobby_id.raw()
-                    );
-                    *lobby_state = SteamLobbyState::Joined { lobby_id, peer };
-                    if let Some(socket) = socket.as_deref_mut() {
-                        start_listening(client, socket, &mut connection, peer);
-                    }
-                }
-                // Idempotent: if we already transitioned, ignore stale events.
-                SteamLobbyState::Joined { .. } | SteamLobbyState::Idle => {}
-                // Guest path uses join_lobby result, not LobbyChatUpdate.
-                SteamLobbyState::Creating | SteamLobbyState::AwaitingJoin { .. } => {}
-            },
-            ChatMemberStateChange::Left
-            | ChatMemberStateChange::Disconnected
-            | ChatMemberStateChange::Kicked
-            | ChatMemberStateChange::Banned => {
-                if matches!(lobby_state, SteamLobbyState::Joined { .. }) {
-                    info!(
-                        "[Steam MP] Peer {} left (change={:?}), tearing down",
-                        peer.raw(),
-                        change
-                    );
-                    if let Some(socket) = socket.as_deref_mut() {
-                        tear_down_socket(socket);
-                    }
-                    leave_steam_lobby(client, lobby_state);
-                    // Set a Steam-specific error so the Failed panel reads
-                    // "Your friend left the lobby" instead of generic
-                    // "Connection lost".
-                    connection.error = Some(match change {
-                        ChatMemberStateChange::Left => "Your friend left the lobby.".to_string(),
-                        ChatMemberStateChange::Disconnected => {
-                            "Your friend disconnected from Steam.".to_string()
-                        }
-                        ChatMemberStateChange::Kicked => {
-                            "Your friend was kicked from the lobby.".to_string()
-                        }
-                        ChatMemberStateChange::Banned => {
-                            "Your friend was banned from the lobby.".to_string()
-                        }
-                        _ => "Your friend left the lobby.".to_string(),
-                    });
-                    connection.state = ConnectionState::Disconnected;
-                }
-            }
-        }
-    }
-}
-
-/// Friend clicked "Join Game" on a lobby invite (or accepted an invite overlay)
-/// while our game is already running. Steam delivers the lobby ID directly. We
-/// just record the intent in `PendingSteamJoin`; the routing pipeline
-/// (`abandon_run_for_steam_invite` + `route_pending_steam_join`) handles
-/// abandoning any active run, navigating to the multiplayer tab, and connecting
-/// — so this works from any game state, not just the menus.
-pub(super) fn process_game_lobby_join_requested(
-    mut events: MessageReader<SteamworksEvent>,
-    mut commands: Commands,
-) {
-    for evt in events.read() {
-        let SteamworksEvent::CallbackResult(CallbackResult::GameLobbyJoinRequested(req)) = evt
-        else {
-            continue;
-        };
-        info!(
-            "[Steam MP] GameLobbyJoinRequested: lobby={} friend={}",
-            req.lobby_steam_id.raw(),
-            req.friend_steam_id.raw()
-        );
-        commands.insert_resource(super::join_requests::PendingSteamJoin {
-            lobby_id: req.lobby_steam_id,
-        });
-    }
-}
-
-/// Friend right-clicked our name and hit "Join Game" from their friend list
-/// while our game is running. Steam delivers the `connect` string we set via
-/// rich presence (`+connect_lobby <id>`); we parse the lobby ID back out with the
-/// same helper used for cold-start launches, then record the intent.
-pub(super) fn process_game_rich_presence_join_requested(
-    mut events: MessageReader<SteamworksEvent>,
-    mut commands: Commands,
-) {
-    for evt in events.read() {
-        let SteamworksEvent::CallbackResult(CallbackResult::GameRichPresenceJoinRequested(req)) =
-            evt
-        else {
-            continue;
-        };
-        let Some(lobby_id) = super::join_requests::parse_connect_lobby(&req.connect) else {
-            warn!(
-                "[Steam MP] Could not parse rich-presence connect string '{}' (expected '+connect_lobby <id>')",
-                req.connect
-            );
-            continue;
-        };
-        info!(
-            "[Steam MP] GameRichPresenceJoinRequested: lobby={} (from friend={})",
-            lobby_id.raw(),
-            req.friend_steam_id.raw()
-        );
-        commands.insert_resource(super::join_requests::PendingSteamJoin { lobby_id });
-    }
-}
-
-/// Shared guest-side entry point: set role, mode, and state, then dispatch
-/// `join_lobby` whose result will flow through `process_join_lobby_result`.
-pub(super) fn accept_incoming_join(
-    client: &Client,
-    bridge: &SteamLobbyBridge,
-    lobby_state: &mut SteamLobbyState,
-    connection: &mut NetworkConnection,
-    lobby_id: LobbyId,
-) {
-    // Refuse if we already have any session/lobby in flight. Includes Creating /
-    // Hosting so a stray invite can't make us join while we're hosting our own
-    // lobby (which would orphan it on Steam). Callers that intend to REPLACE an
-    // existing lobby must `leave_steam_lobby` (→ Idle) first.
-    if connection.state == ConnectionState::Connected
-        || matches!(
-            lobby_state,
-            SteamLobbyState::Creating
-                | SteamLobbyState::Hosting { .. }
-                | SteamLobbyState::Joined { .. }
-                | SteamLobbyState::AwaitingJoin { .. }
-        )
-    {
-        warn!("[Steam MP] Ignoring join request — session already in flight");
-        return;
-    }
-
-    connection.error = None;
-    connection.mode = ConnectionMode::Steam;
-    connection.role = Some(PeerRole::Guest);
-    connection.state = ConnectionState::WaitingForSignaling;
-    *lobby_state = SteamLobbyState::AwaitingJoin { lobby_id };
-
-    let tx = bridge.join_lobby_tx.clone();
-    client.matchmaking().join_lobby(lobby_id, move |result| {
-        let _ = tx.send(result);
-    });
-}
-
 /// Drop a `LobbyId` whose `create_lobby` result arrived after the player
 /// already cancelled (or switched to iroh). Steam created the lobby on our
 /// behalf, so we have to leave it explicitly or it sits there advertising a
 /// ghost session. Only touches rich presence if we created the lobby — the
 /// lobby_id we got here is proof of that.
-pub(super) fn discard_stale_lobby(client: &Client, lobby_id: LobbyId) {
+fn discard_stale_lobby(client: &Client, lobby_id: LobbyId) {
     client.matchmaking().leave_lobby(lobby_id);
     client.friends().clear_rich_presence();
-}
-
-/// Mirrors the connected Steam friend's persona name into `CoopPeerInfo` so the
-/// wizard-tower header and co-op save tagging can show "<name> connected".
-/// Cleared to `None` whenever we're not in a lobby (then the UI falls back to a
-/// generic "MP connected").
-pub(super) fn sync_coop_peer_name(
-    client: Res<Client>,
-    lobby_state: Res<SteamLobbyState>,
-    mut peer_info: ResMut<crate::game::multiplayer::coop::CoopPeerInfo>,
-) {
-    let name = match *lobby_state {
-        SteamLobbyState::Joined { peer, .. } => Some(client.friends().get_friend(peer).name()),
-        _ => None,
-    };
-    if peer_info.name != name {
-        peer_info.name = name;
-    }
 }

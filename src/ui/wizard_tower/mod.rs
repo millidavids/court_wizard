@@ -23,7 +23,11 @@ pub(crate) use components::{SelectedStudySpell, StudyAllocAdjustButton, TalentCa
 pub(crate) use layout::{
     RightPanelView, WizardTowerLeftPanel, WizardTowerRightPanel, WizardTowerTab, WizardTowerTabRow,
 };
-pub(crate) use multiplayer_tab::{MultiplayerLobby, force_mp_tab};
+pub(crate) use multiplayer_tab::{CoopHostSelection, MultiplayerLobby, force_mp_tab};
+// Only the `session_reset` regression test needs to name a phase from outside the
+// tab module; production code that inspects `LobbyPhase` all lives inside it.
+#[cfg(test)]
+pub(crate) use multiplayer_tab::LobbyPhase;
 pub(crate) use roguelite_tab::{RogueliteScrollableLeft, SeedInputBox};
 pub(crate) use study_tab::is_spell_unlocked;
 pub(crate) use wizard_cards::WizardCardScrollContainer;

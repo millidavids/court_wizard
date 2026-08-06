@@ -95,7 +95,7 @@ pub(super) async fn handle_host(
                     }
                 }
             }
-            _ = wait_for_disconnect(command_rx) => {
+            _ = wait_for_disconnect(command_rx, event_tx) => {
                 close_endpoint(&ep).await;
                 send_event(event_tx, TransportEvent::StateChanged(ConnectionState::Disconnected));
                 return;

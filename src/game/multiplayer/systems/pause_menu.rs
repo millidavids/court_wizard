@@ -160,7 +160,9 @@ pub(crate) fn handle_mp_pause_buttons(
     mut lobby: ResMut<crate::ui::wizard_tower::MultiplayerLobby>,
     session: Option<Res<crate::networking::session::MultiplayerSession>>,
     coop_pause: Option<Res<super::super::coop_pause::CoopPauseState>>,
+    mut host_selection: ResMut<crate::ui::wizard_tower::CoopHostSelection>,
 ) {
+    let session_present = session.is_some();
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
@@ -188,8 +190,10 @@ pub(crate) fn handle_mp_pause_buttons(
                         steam_lobby.as_deref_mut(),
                         steam_socket.as_deref_mut(),
                         &mut lobby,
+                        &mut host_selection,
                         &mut commands,
                         &mut next_app_state,
+                        session_present,
                     );
                 }
             }

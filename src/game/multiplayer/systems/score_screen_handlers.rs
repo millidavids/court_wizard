@@ -28,7 +28,10 @@ pub(crate) fn handle_mp_score_buttons(
     mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
     mut commands: Commands,
     mut lobby: ResMut<crate::ui::wizard_tower::MultiplayerLobby>,
+    mut host_selection: ResMut<crate::ui::wizard_tower::CoopHostSelection>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
+    let session_present = session.is_some();
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
@@ -55,8 +58,10 @@ pub(crate) fn handle_mp_score_buttons(
                         steam_lobby.as_deref_mut(),
                         steam_socket.as_deref_mut(),
                         &mut lobby,
+                        &mut host_selection,
                         &mut commands,
                         &mut next_app_state,
+                        session_present,
                     );
                 }
             }
@@ -79,10 +84,13 @@ pub(crate) fn mp_score_escape_handler(
     mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
     mut commands: Commands,
     mut lobby: ResMut<crate::ui::wizard_tower::MultiplayerLobby>,
+    mut host_selection: ResMut<crate::ui::wizard_tower::CoopHostSelection>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
 ) {
     if !keyboard.just_pressed(KeyCode::Escape) {
         return;
     }
+    let session_present = session.is_some();
     do_mp_disconnect(
         &mut connection,
         transport.as_deref(),
@@ -90,8 +98,10 @@ pub(crate) fn mp_score_escape_handler(
         steam_lobby.as_deref_mut(),
         steam_socket.as_deref_mut(),
         &mut lobby,
+        &mut host_selection,
         &mut commands,
         &mut next_app_state,
+        session_present,
     );
 }
 
