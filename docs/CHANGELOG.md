@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [pending]
+## [v1.0.36] - 2026-08-10
 
 ### Fixed
 - **Inviting a friend again after a failed connection now works** — if a connection attempt failed or was cancelled, every later invite would quietly go nowhere: both players sat on "Connecting" forever, and the only way out was for both of you to restart the game.
