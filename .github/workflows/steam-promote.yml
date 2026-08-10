@@ -1,0 +1,130 @@
+name: Steam Promote
+
+# Retries the ONE step of a release that can legitimately fail for reasons that
+# have nothing to do with the build: asking Steam to set it live on the default
+# branch.
+#
+# Valve refuses that request outright while the approver account is inside the
+# cooling-off window after a security event, and the API does not say when the
+# window ends. Rather than have a release sit half-finished until someone
+# remembers to re-run it by hand, this workflow re-asks on a schedule and goes
+# quiet the moment the request lands.
+#
+# It promotes the build belonging to the tag `v<version>` — NOT to main's tip.
+# main moves on (CI changes, docs) while a stuck promotion is outstanding, and
+# only the tagged commit is guaranteed to have a dev-release build behind it.
+#
+# Success here means Steam ACCEPTED the request (HTTP 201) and pushed the
+# confirmation prompt to the approver's phone. Going live still needs that tap;
+# the marker tag stops this workflow re-prompting daily while it waits.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to promote, without the leading v. Defaults to the version on main.'
+        required: false
+        type: string
+      ignore-marker:
+        description: Re-request even if this version was already promoted successfully.
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    # Every 6 hours. The restriction lifts at an hour nobody can predict, and a
+    # missed window means the release sits unfinished until the next check.
+    - cron: '23 */6 * * *'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  retry-promotion:
+    if: vars.STEAM_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    environment: steam-promotion
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Work out what, if anything, is waiting to be promoted
+        id: target
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_VERSION: ${{ inputs.version }}
+          IGNORE_MARKER: ${{ inputs.ignore-marker }}
+        run: |
+          set -euo pipefail
+
+          version="${INPUT_VERSION:-}"
+          if [ -z "$version" ]; then
+            version=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Considering v$version"
+
+          # No release tag means this version was never promoted to main at all,
+          # so there is nothing on staging waiting to go live.
+          if ! git rev-parse "v$version" >/dev/null 2>&1; then
+            echo "No tag v$version — nothing to promote."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Marker written by this workflow once Steam has accepted the request.
+          # Without it a scheduled retry would re-prompt the approver's phone
+          # every 6 hours while they simply hadn't tapped yet.
+          if [ "$IGNORE_MARKER" != "true" ] && git rev-parse "promoted/v$version" >/dev/null 2>&1; then
+            echo "v$version was already promoted (tag promoted/v$version) — nothing to do."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # The tagged commit, not main's tip: main may have moved past it.
+          sha=$(git rev-list -n 1 "v$version")
+          echo "v$version is commit $sha"
+
+          run_id=$(gh api \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/dev-release.yml/runs?head_sha=$sha&per_page=100" \
+            --jq '[.workflow_runs[] | select(.conclusion=="success")] | sort_by(.run_number) | last | .id // empty')
+
+          if [ -z "$run_id" ]; then
+            echo "::warning::No successful dev-release run for $sha (v$version) — nothing on staging to promote."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Request promotion
+        id: promote
+        if: steps.target.outputs.proceed == 'true'
+        uses: ./.github/actions/steam-promote
+        with:
+          publisher-api-key: ${{ secrets.STEAM_PUBLISHER_API_KEY }}
+          steamid: ${{ secrets.STEAM_PUBLISH_STEAMID }}
+          app-id: '4550880'
+          run-id: ${{ steps.target.outputs.run_id }}
+          version: ${{ steps.target.outputs.version }}
+          # A scheduled run that is still blocked is expected, not broken —
+          # failing it would email a red run every 6 hours for days.
+          restricted-is-failure: ${{ github.event_name != 'schedule' }}
+
+      - name: Mark this version as promoted
+        if: steps.promote.outputs.outcome == 'requested' || steps.promote.outputs.outcome == 'applied'
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "promoted/v$VERSION" >/dev/null 2>&1; then
+            echo "Marker promoted/v$VERSION already exists."
+          else
+            git tag -a "promoted/v$VERSION" -m "Steam promotion requested for v$VERSION"
+            git push origin "promoted/v$VERSION"
+          fi

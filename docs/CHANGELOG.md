@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.37] - 2026-08-10
+
+### Changed
+- **Improvements to our build processes** — changes to how updates are put together and delivered to you. Nothing in the game itself is affected.
+
 ## [v1.0.36] - 2026-08-10
 
 ### Fixed

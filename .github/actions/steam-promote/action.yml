@@ -1,0 +1,197 @@
+name: Steam promote
+description: >-
+  Ask Steam to set a dev-release build live on the DEFAULT branch. Shared by
+  release.yml (at promotion time) and steam-promote.yml (dispatch + scheduled
+  retry) so the build-matching and depot-completeness guards cannot drift apart.
+
+inputs:
+  publisher-api-key:
+    description: Publisher Web API key with Edit App + Publish.
+    required: true
+  steamid:
+    description: SteamID64 that receives the Steam Mobile confirmation prompt.
+    required: true
+  app-id:
+    description: Steam app id.
+    required: true
+  run-id:
+    description: >-
+      dev-release.yml run id whose Steam build should go live. Matched against
+      the r<run_id> tag stamped into the build description.
+    required: true
+  version:
+    description: Version string without the leading v, e.g. 1.0.36.
+    required: true
+  restricted-is-failure:
+    description: >-
+      What to do when Steam refuses because the approver account has a recent
+      security event. 'true' fails the step (a human asked for this now and
+      wants to see it fail). 'false' warns and succeeds, for scheduled retries
+      that should stay quiet until the restriction lifts.
+    required: false
+    default: 'true'
+
+outputs:
+  outcome:
+    description: requested (201) | applied (200) | restricted (403, tolerated)
+    value: ${{ steps.promote.outputs.outcome }}
+  build-id:
+    description: The Steam build id that was acted on.
+    value: ${{ steps.promote.outputs.build_id }}
+
+runs:
+  using: composite
+  steps:
+    - id: promote
+      shell: bash
+      env:
+        STEAM_PUBLISHER_API_KEY: ${{ inputs.publisher-api-key }}
+        STEAM_PUBLISH_STEAMID: ${{ inputs.steamid }}
+        APP_ID: ${{ inputs.app-id }}
+        RUN_ID: ${{ inputs.run-id }}
+        VERSION: ${{ inputs.version }}
+        RESTRICTED_IS_FAILURE: ${{ inputs.restricted-is-failure }}
+      run: |
+        set -euo pipefail
+
+        if [ -z "${STEAM_PUBLISHER_API_KEY:-}" ] || [ -z "${STEAM_PUBLISH_STEAMID:-}" ]; then
+          echo "::error::STEAM_PUBLISHER_API_KEY and STEAM_PUBLISH_STEAMID must both be set (publisher Web API key with Edit App + Publish, and the SteamID64 that should receive the confirmation prompt)."
+          exit 1
+        fi
+
+        # `count` is explicit: the default (10) is easily exceeded by frequent
+        # dev releases plus re-runs, and a silent miss would look like "build
+        # not found" long after the cause scrolled away.
+        builds=$(curl -sS --fail-with-body -G \
+          "https://partner.steam-api.com/ISteamApps/GetAppBuilds/v1/" \
+          --data-urlencode "key=$STEAM_PUBLISHER_API_KEY" \
+          --data-urlencode "appid=$APP_ID" \
+          --data-urlencode "count=200")
+
+        if [ "$(printf '%s' "$builds" | jq -r '.response.result // 0')" != "1" ]; then
+          echo "::error::GetAppBuilds did not return result=1. Raw payload follows."
+          printf '%s\n' "$builds"
+          exit 1
+        fi
+
+        # Response shape (verified against the live API):
+        #   .response.builds is an OBJECT keyed by build id, each value having
+        #   .BuildID, .Description, and .depots keyed by depot id.
+        #
+        # Match on the r<run_id> tag dev-release.yml stamps into the
+        # description. Deliberately not the version or the SHA: Steam's build
+        # history genuinely contains multiple builds sharing an identical
+        # "v<version> (<sha>)" description, so either would tie.
+        #
+        # This also excludes Steam's auto-generated "Merged build X into
+        # build Y" entries, which carry no run id — and which only appear
+        # when an upload was partial. Ours never is.
+        matches=$(printf '%s' "$builds" \
+          | jq -r --arg key "r$RUN_ID" '
+              .response.builds
+              | to_entries
+              | map(select(.value.Description | contains($key)))
+              | map(.value.BuildID | tostring)
+              | .[]
+            ') || {
+          echo "::error::Could not parse the GetAppBuilds response. Raw payload follows."
+          printf '%s\n' "$builds"
+          exit 1
+        }
+
+        count=$(printf '%s' "$matches" | grep -c . || true)
+        if [ "$count" -eq 0 ]; then
+          echo "::error::No Steam build found whose description contains 'r$RUN_ID'. Did dev-release run $RUN_ID actually upload (vars.STEAM_DEPLOY)? Note Steam truncates long build descriptions."
+          exit 1
+        fi
+        if [ "$count" -gt 1 ]; then
+          echo "::error::Expected exactly one Steam build for 'r$RUN_ID', found $count: $(printf '%s' "$matches" | tr '\n' ' '). Refusing to guess which to set live."
+          exit 1
+        fi
+
+        build_id=$(printf '%s' "$matches" | head -1)
+        echo "build_id=$build_id" >> "$GITHUB_OUTPUT"
+
+        # A build only covers the depots its upload included. Steam papers over
+        # partial uploads by auto-generating "Merged build …" entries, but a
+        # merge carries no run id, so if a platform leg had silently gone
+        # missing we would be about to set a build live that ships an
+        # incomplete game. Assert all three depots are actually in there.
+        missing=$(printf '%s' "$builds" | jq -r --arg id "$build_id" '
+            (.response.builds[$id].depots // {} | keys) as $have
+            | ["4550881", "4550882", "4550883"] - $have
+            | .[]
+          ')
+        if [ -n "$missing" ]; then
+          echo "::error::Steam build $build_id is missing depot(s): $(printf '%s' "$missing" | tr '\n' ' ')(4550881=macOS, 4550882=windows, 4550883=linux). Refusing to promote a partial build."
+          exit 1
+        fi
+
+        echo "Requesting promotion of Steam build $build_id (v$VERSION, all 3 depots) to the default branch"
+
+        # betakey=public is the DEFAULT branch. `default` is not a valid value.
+        # steamid is required whenever a released app's betakey is public.
+        http_code=$(curl -sS -o response.json -w '%{http_code}' -X POST \
+          "https://partner.steam-api.com/ISteamApps/SetAppBuildLive/v2/" \
+          --data-urlencode "key=$STEAM_PUBLISHER_API_KEY" \
+          --data-urlencode "appid=$APP_ID" \
+          --data-urlencode "buildid=$build_id" \
+          --data-urlencode "betakey=public" \
+          --data-urlencode "steamid=$STEAM_PUBLISH_STEAMID" \
+          --data-urlencode "description=v$VERSION")
+
+        cat response.json
+        steam_message=$(jq -r '.response.message // ""' response.json 2>/dev/null || true)
+
+        case "$http_code" in
+          201)
+            echo "outcome=requested" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Steam promotion requested — action needed"
+              echo ""
+              echo "Build \`$build_id\` (v$VERSION) is queued for the **default** branch."
+              echo "**Approve the prompt in your Steam Mobile app** to finish going live."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice title=Steam promotion pending::Approve build $build_id in the Steam Mobile app to finish going live."
+            ;;
+          200)
+            echo "outcome=applied" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Steam promotion applied"
+              echo ""
+              echo "Build \`$build_id\` (v$VERSION) is live on the **default** branch."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "Build $build_id set live on default."
+            ;;
+          403)
+            # Valve returns EResult 15 (AccessDenied) with this message when the
+            # approver account is inside the cooling-off window that follows a
+            # security event (password reset, email change, authenticator moved
+            # to a new device). It is time-bound and no permission grant clears
+            # it — only waiting, or an approver account that is not restricted.
+            #
+            # Surfaced as its own case because it is the one failure that is
+            # worth retrying unattended: nothing about the build is wrong.
+            echo "outcome=restricted" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Steam promotion refused — approver restricted"
+              echo ""
+              echo "Build \`$build_id\` (v$VERSION) is built, uploaded, and waiting on \`staging\`."
+              echo ""
+              echo "> $steam_message"
+              echo ""
+              echo "Nothing needs rebuilding. This clears when the approver account's"
+              echo "restriction lapses; the scheduled retry will request it again."
+            } >> "$GITHUB_STEP_SUMMARY"
+            if [ "$RESTRICTED_IS_FAILURE" = "false" ]; then
+              echo "::warning title=Steam promotion still blocked::$steam_message"
+              exit 0
+            fi
+            echo "::error::SetAppBuildLive returned HTTP 403 for build $build_id: $steam_message"
+            exit 1
+            ;;
+          *)
+            echo "::error::SetAppBuildLive returned HTTP $http_code for build $build_id. $steam_message"
+            exit 1
+            ;;
+        esac
