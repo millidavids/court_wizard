@@ -222,7 +222,9 @@ Driven by the `/game-release` skill; see `.claude/skills/game-release/SKILL.md` 
 /game-release main   → push main → release.yml     → tag + GitHub Release from that build, request Steam `default`
 ```
 
+- **The version is assigned on `dev`, not at promotion.** `docs/CHANGELOG.md` is `include_str!`'d into the binary, so every changelog edit changes the shipped bits. The top block of the changelog is always the open, already-numbered, already-dated version; each dev release appends to it. There is no `[pending]` block.
 - **A dev release is a full three-platform signed build.** `dev-release.yml` fires on any push to `dev` that touches `docs/CHANGELOG.md`.
+- **Promotion changes no files and builds nothing.** `/game-release main` is a pure fast-forward, so the binary that goes live is byte-identical to the one play-tested on `staging`. The corollary is that the dev tip must already have a `dev-release.yml` run — promoting a commit that was never built leaves `release.yml` with nothing to promote.
 - **`release.yml` builds nothing.** It reuses the `dev-release.yml` run for the same commit, which works because promotion fast-forwards `main` onto the built dev commit.
 - **Promotion to Steam's default branch needs a phone tap.** Valve always sends a Steam Mobile confirmation for a released app's default branch. CI picks the build id and requests it; never describe a `main` release as live until that's approved.
 - Steamworks announcements are generated, not posted (`scripts/changelog_to_bbcode.sh`) — Steam has no supported events API.
