@@ -12,12 +12,16 @@ name: Release
 #   2. tag + GitHub Release, using THAT run's zips (never freshly built ones)
 #   3. ask Steam to set that run's build live on the default branch
 #   4. render the changelog as Steam BBCode for pasting into a Steamworks event
-#   5. announce on Discord
 #
 # Step 3 cannot complete unattended: setting a build live on the default branch
 # of a released app always sends an authorization prompt to the Steam Mobile
 # app. The job requests the promotion and reports that it is pending; you
 # approve on your phone.
+#
+# Which is why announcing does NOT happen here. steam-promote.yml picks the
+# release up from this point — retrying the request while the approver is
+# blocked, then watching for the build to actually go live on `public`, and
+# only then posting to Discord.
 
 on:
   push:
@@ -232,6 +236,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve the Steam build id
+        id: build
+        uses: ./.github/actions/steam-build-id
+        with:
+          publisher-api-key: ${{ secrets.STEAM_PUBLISHER_API_KEY }}
+          app-id: '4550880'
+          run-id: ${{ needs.locate-dev-build.outputs.run_id }}
+
       - name: Set the staging build live on default
         id: promote
         uses: ./.github/actions/steam-promote
@@ -239,7 +251,7 @@ jobs:
           publisher-api-key: ${{ secrets.STEAM_PUBLISHER_API_KEY }}
           steamid: ${{ secrets.STEAM_PUBLISH_STEAMID }}
           app-id: '4550880'
-          run-id: ${{ needs.locate-dev-build.outputs.run_id }}
+          build-id: ${{ steps.build.outputs.build-id }}
           version: ${{ needs.check-version.outputs.version }}
 
       - name: Mark this version as promoted
@@ -291,43 +303,11 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  notify-discord:
-    # Gated on the promotion request, so Discord never claims a version shipped
-    # when the promotion failed. The message says "pending approval" because at
-    # this point it is: the Steam Mobile confirmation is still outstanding.
-    needs: [check-version, github-release, steam-request-promotion]
-    if: always() && needs.check-version.outputs.should_release == 'true' && needs.github-release.result == 'success' && needs.steam-request-promotion.result != 'failure'
-    runs-on: ubuntu-latest
-    env:
-      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-
-    steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-
-      - name: Extract latest changelog entry
-        id: changelog
-        run: |
-          full_title=$(sed -n '/^## \[/{s/^## \[\(.*\)\] - \(.*\)/\1 - \2/;p;q}' docs/CHANGELOG.md)
-          body=$(sed -n '/^## \[/{n; :a; /^## \[/q; p; n; ba}' docs/CHANGELOG.md)
-          body=$(echo "$body" | sed '/./,$!d' | sed -e :a -e '/^[[:space:]]*$/d;N;ba')
-          # Discord's embed description hard-limits at 4096 characters. Trim
-          # with python so multi-byte characters are counted correctly, ending
-          # on a clean line break with an ellipsis if we had to cut.
-          body=$(printf '%s' "$body" | python3 -c 'import sys; s = sys.stdin.read(); s = (s[:3990].rsplit(chr(10), 1)[0] + chr(10) + "…") if len(s) > 4000 else s; sys.stdout.write(s)')
-          echo "full_title=$full_title" >> "$GITHUB_OUTPUT"
-          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-          echo "body<<$EOF" >> "$GITHUB_OUTPUT"
-          echo "$body" >> "$GITHUB_OUTPUT"
-          echo "$EOF" >> "$GITHUB_OUTPUT"
-
-      - name: Post to Discord
-        if: env.DISCORD_WEBHOOK_URL != ''
-        env:
-          FULL_TITLE: ${{ steps.changelog.outputs.full_title }}
-          BODY: ${{ steps.changelog.outputs.body }}
-        run: |
-          payload=$(jq -n \
-            --arg title "$FULL_TITLE" \
-            --arg desc "$BODY" \
-            '{embeds: [{title: $title, description: $desc, color: 16744448}]}')
-          curl -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"
+  # Discord is deliberately NOT notified here. A successful promotion step means
+  # Steam returned HTTP 201 — "confirmation sent to the approver's phone" — not
+  # that players have the build. Announcing on that would advertise a release
+  # that is still one untapped prompt away, and if the prompt were declined it
+  # would never arrive at all.
+  #
+  # steam-promote.yml owns the announcement instead: it checks GetAppBetas every
+  # 6 hours and posts once `public` actually points at our build.

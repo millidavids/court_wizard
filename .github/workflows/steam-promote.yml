@@ -1,38 +1,44 @@
 name: Steam Promote
 
-# Retries the ONE step of a release that can legitimately fail for reasons that
-# have nothing to do with the build: asking Steam to set it live on the default
-# branch.
+# Owns everything that happens AFTER a build reaches Steam staging, because all
+# of it depends on a human tapping a phone at an unpredictable time and no part
+# of it can be finished inside the release run.
 #
-# Valve refuses that request outright while the approver account is inside the
-# cooling-off window after a security event, and the API does not say when the
-# window ends. Rather than have a release sit half-finished until someone
-# remembers to re-run it by hand, this workflow re-asks on a schedule and goes
-# quiet the moment the request lands.
+# Each pass advances the release through one state:
 #
-# It promotes the build belonging to the tag `v<version>` — NOT to main's tip.
-# main moves on (CI changes, docs) while a stuck promotion is outstanding, and
-# only the tagged commit is guaranteed to have a dev-release build behind it.
+#   not requested yet   -> ask Steam to set the build live on `public`
+#   requested, not live -> wait quietly (the approver has not tapped yet)
+#   live, not announced -> post to Discord, exactly once
+#   announced           -> nothing to do
 #
-# Success here means Steam ACCEPTED the request (HTTP 201) and pushed the
-# confirmation prompt to the approver's phone. Going live still needs that tap;
-# the marker tag stops this workflow re-prompting daily while it waits.
+# Two marker tags hold that state, so it survives across runs and cannot repeat:
+#   promoted/v<version>   Steam accepted the request (phone prompt sent)
+#   announced/v<version>  the build is live on default and Discord was told
+#
+# Being live is read from GetAppBetas (.response.betas.public.BuildID), which is
+# the only place Steam reports branch assignment — GetAppBuilds does not carry
+# it. Announcing on the promotion REQUEST instead would be wrong: HTTP 201 means
+# "confirmation sent", not "players have it".
+#
+# It works on the build behind the tag `v<version>` — NOT main's tip. main moves
+# on (CI changes, docs) while a promotion is outstanding, and only the tagged
+# commit is guaranteed to have a dev-release build behind it.
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to promote, without the leading v. Defaults to the version on main.'
+        description: 'Version to act on, without the leading v. Defaults to the version on main.'
         required: false
         type: string
       ignore-marker:
-        description: Re-request even if this version was already promoted successfully.
+        description: Re-request promotion even if it was already requested successfully.
         required: false
         type: boolean
         default: false
   schedule:
-    # Every 6 hours. The restriction lifts at an hour nobody can predict, and a
-    # missed window means the release sits unfinished until the next check.
+    # Every 6 hours. The restriction lifts, and the approver taps, at hours
+    # nobody can predict; a missed window means the release sits unfinished.
     - cron: '23 */6 * * *'
 
 permissions:
@@ -40,17 +46,22 @@ permissions:
   actions: read
 
 jobs:
-  retry-promotion:
+  advance-release:
     if: vars.STEAM_DEPLOY == 'true'
     runs-on: ubuntu-latest
     environment: steam-promotion
+    env:
+      APP_ID: '4550880'
+      # Job-level so the step `if:` can test it — the `secrets` context is not
+      # available in an `if:` expression.
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           ref: main
           fetch-depth: 0
 
-      - name: Work out what, if anything, is waiting to be promoted
+      - name: Work out what, if anything, is outstanding
         id: target
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -69,19 +80,24 @@ jobs:
           # No release tag means this version was never promoted to main at all,
           # so there is nothing on staging waiting to go live.
           if ! git rev-parse "v$version" >/dev/null 2>&1; then
-            echo "No tag v$version — nothing to promote."
+            echo "No tag v$version — nothing to do."
             echo "proceed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # Marker written by this workflow once Steam has accepted the request.
-          # Without it a scheduled retry would re-prompt the approver's phone
-          # every 6 hours while they simply hadn't tapped yet.
-          if [ "$IGNORE_MARKER" != "true" ] && git rev-parse "promoted/v$version" >/dev/null 2>&1; then
-            echo "v$version was already promoted (tag promoted/v$version) — nothing to do."
+          announced=false
+          if git rev-parse "announced/v$version" >/dev/null 2>&1; then announced=true; fi
+          if [ "$announced" = "true" ]; then
+            echo "v$version is live and already announced — nothing to do."
             echo "proceed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
+          requested=false
+          if [ "$IGNORE_MARKER" != "true" ] && git rev-parse "promoted/v$version" >/dev/null 2>&1; then
+            requested=true
+          fi
+          echo "already_requested=$requested" >> "$GITHUB_OUTPUT"
 
           # The tagged commit, not main's tip: main may have moved past it.
           sha=$(git rev-list -n 1 "v$version")
@@ -100,21 +116,69 @@ jobs:
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
           echo "proceed=true" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve the Steam build id
+        id: build
+        if: steps.target.outputs.proceed == 'true'
+        uses: ./.github/actions/steam-build-id
+        with:
+          publisher-api-key: ${{ secrets.STEAM_PUBLISHER_API_KEY }}
+          app-id: ${{ env.APP_ID }}
+          run-id: ${{ steps.target.outputs.run_id }}
+
+      - name: Is it live on the default branch?
+        id: live
+        if: steps.target.outputs.proceed == 'true'
+        env:
+          STEAM_PUBLISHER_API_KEY: ${{ secrets.STEAM_PUBLISHER_API_KEY }}
+          BUILD_ID: ${{ steps.build.outputs.build-id }}
+        run: |
+          set -euo pipefail
+
+          # GetAppBetas is the only endpoint that reports branch assignment.
+          # Shape: .response.betas is an OBJECT keyed by branch name ("public",
+          # "staging", …), each with .BuildID and .Description.
+          betas=$(curl -sS --fail-with-body -G \
+            "https://partner.steam-api.com/ISteamApps/GetAppBetas/v1/" \
+            --data-urlencode "key=$STEAM_PUBLISHER_API_KEY" \
+            --data-urlencode "appid=$APP_ID")
+
+          if [ "$(printf '%s' "$betas" | jq -r '.response.result // 0')" != "1" ]; then
+            echo "::error::GetAppBetas did not return result=1. Raw payload follows."
+            printf '%s\n' "$betas"
+            exit 1
+          fi
+
+          public_build=$(printf '%s' "$betas" | jq -r '.response.betas.public.BuildID // empty')
+          if [ -z "$public_build" ]; then
+            echo "::error::GetAppBetas returned no public branch. Raw payload follows."
+            printf '%s\n' "$betas"
+            exit 1
+          fi
+
+          echo "default branch is on build $public_build; ours is $BUILD_ID"
+          if [ "$public_build" = "$BUILD_ID" ]; then
+            echo "is_live=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_live=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ---- state: not requested yet -> ask Steam ----
+
       - name: Request promotion
         id: promote
-        if: steps.target.outputs.proceed == 'true'
+        if: steps.target.outputs.proceed == 'true' && steps.live.outputs.is_live == 'false' && steps.target.outputs.already_requested == 'false'
         uses: ./.github/actions/steam-promote
         with:
           publisher-api-key: ${{ secrets.STEAM_PUBLISHER_API_KEY }}
           steamid: ${{ secrets.STEAM_PUBLISH_STEAMID }}
-          app-id: '4550880'
-          run-id: ${{ steps.target.outputs.run_id }}
+          app-id: ${{ env.APP_ID }}
+          build-id: ${{ steps.build.outputs.build-id }}
           version: ${{ steps.target.outputs.version }}
           # A scheduled run that is still blocked is expected, not broken —
           # failing it would email a red run every 6 hours for days.
           restricted-is-failure: ${{ github.event_name != 'schedule' }}
 
-      - name: Mark this version as promoted
+      - name: Mark promotion as requested
         if: steps.promote.outputs.outcome == 'requested' || steps.promote.outputs.outcome == 'applied'
         env:
           VERSION: ${{ steps.target.outputs.version }}
@@ -122,9 +186,94 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git rev-parse "promoted/v$VERSION" >/dev/null 2>&1; then
-            echo "Marker promoted/v$VERSION already exists."
-          else
+          if ! git rev-parse "promoted/v$VERSION" >/dev/null 2>&1; then
             git tag -a "promoted/v$VERSION" -m "Steam promotion requested for v$VERSION"
             git push origin "promoted/v$VERSION"
           fi
+
+      # ---- state: requested but not live -> say so and wait ----
+
+      - name: Still waiting on the mobile confirmation
+        if: steps.target.outputs.proceed == 'true' && steps.live.outputs.is_live == 'false' && steps.target.outputs.already_requested == 'true'
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+          BUILD_ID: ${{ steps.build.outputs.build-id }}
+        run: |
+          echo "::notice title=Awaiting Steam Mobile approval::Build $BUILD_ID (v$VERSION) was requested but is not live yet. Approve the prompt in the Steam Mobile app."
+
+      # ---- state: live but not announced -> announce, once ----
+
+      - name: Extract changelog entry
+        id: changelog
+        if: steps.live.outputs.is_live == 'true'
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Select the block for the version being announced, NOT the top block.
+          # They are the same in the normal flow, but a dispatch with an explicit
+          # `version` can target an older release while main's changelog has
+          # already moved on — announcing the top block there would ship the
+          # wrong notes.
+          full_title=$(sed -n "s/^## \[v$VERSION\] - \(.*\)/v$VERSION - \1/p" docs/CHANGELOG.md | head -1)
+          # Literal prefix matching, not regex: a version contains dots, and
+          # escaping "## [v1.0.37]" into an awk regex is a reliable way to
+          # silently match nothing.
+          body=$(awk -v hdr="## [v$VERSION]" '
+              index($0, hdr) == 1 { inblock = 1; next }
+              inblock && index($0, "## [") == 1 { exit }
+              inblock { print }
+            ' docs/CHANGELOG.md)
+          if [ -z "$full_title" ] || [ -z "$body" ]; then
+            echo "::error::No changelog block found for v$VERSION in docs/CHANGELOG.md."
+            exit 1
+          fi
+          body=$(echo "$body" | sed '/./,$!d' | sed -e :a -e '/^[[:space:]]*$/d;N;ba')
+          # Discord's embed description hard-limits at 4096 characters. Trim
+          # with python so multi-byte characters are counted correctly, ending
+          # on a clean line break with an ellipsis if we had to cut.
+          body=$(printf '%s' "$body" | python3 -c 'import sys; s = sys.stdin.read(); s = (s[:3990].rsplit(chr(10), 1)[0] + chr(10) + "…") if len(s) > 4000 else s; sys.stdout.write(s)')
+          echo "full_title=$full_title" >> "$GITHUB_OUTPUT"
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "body<<$EOF" >> "$GITHUB_OUTPUT"
+          echo "$body" >> "$GITHUB_OUTPUT"
+          echo "$EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Post to Discord
+        id: announce
+        if: steps.live.outputs.is_live == 'true' && env.DISCORD_WEBHOOK_URL != ''
+        env:
+          FULL_TITLE: ${{ steps.changelog.outputs.full_title }}
+          BODY: ${{ steps.changelog.outputs.body }}
+        run: |
+          set -euo pipefail
+          payload=$(jq -n \
+            --arg title "$FULL_TITLE" \
+            --arg desc "$BODY" \
+            '{embeds: [{title: $title, description: $desc, color: 16744448}]}')
+          curl -sS --fail-with-body -H "Content-Type: application/json" \
+            -d "$payload" "$DISCORD_WEBHOOK_URL"
+
+      - name: Mark version as announced
+        if: steps.live.outputs.is_live == 'true'
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+          BUILD_ID: ${{ steps.build.outputs.build-id }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Also backfill the promoted marker: a promotion applied straight from
+          # release.yml, or approved before this workflow ever saw it, can reach
+          # live without this workflow having written it.
+          for tag in "promoted/v$VERSION" "announced/v$VERSION"; do
+            if ! git rev-parse "$tag" >/dev/null 2>&1; then
+              git tag -a "$tag" -m "v$VERSION live on default as build $BUILD_ID"
+              git push origin "$tag"
+            fi
+          done
+          {
+            echo "### v$VERSION is live"
+            echo ""
+            echo "Build \`$BUILD_ID\` is live on the **default** branch and Discord has been notified."
+          } >> "$GITHUB_STEP_SUMMARY"

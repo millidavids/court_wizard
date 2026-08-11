@@ -1,0 +1,114 @@
+name: Resolve Steam build id
+description: >-
+  Find the Steam build produced by a given dev-release run and assert it covers
+  all three platform depots. Split out from steam-promote so callers can ask
+  "which build is this?" without also asking to promote it — the live-on-default
+  check needs the id, not the promotion.
+
+inputs:
+  publisher-api-key:
+    description: Publisher Web API key with Edit App + Publish.
+    required: true
+  app-id:
+    description: Steam app id.
+    required: true
+  run-id:
+    description: >-
+      dev-release.yml run id. Matched against the r<run_id> tag stamped into
+      the Steam build description.
+    required: true
+
+outputs:
+  build-id:
+    description: The Steam build id for that run.
+    value: ${{ steps.resolve.outputs.build_id }}
+
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      shell: bash
+      env:
+        STEAM_PUBLISHER_API_KEY: ${{ inputs.publisher-api-key }}
+        APP_ID: ${{ inputs.app-id }}
+        RUN_ID: ${{ inputs.run-id }}
+      run: |
+        set -euo pipefail
+
+        if [ -z "${STEAM_PUBLISHER_API_KEY:-}" ]; then
+          echo "::error::STEAM_PUBLISHER_API_KEY must be set (publisher Web API key with Edit App + Publish)."
+          exit 1
+        fi
+
+        # `count` is explicit: the default (10) is easily exceeded by frequent
+        # dev releases plus re-runs, and a silent miss would look like "build
+        # not found" long after the cause scrolled away.
+        builds=$(curl -sS --fail-with-body -G \
+          "https://partner.steam-api.com/ISteamApps/GetAppBuilds/v1/" \
+          --data-urlencode "key=$STEAM_PUBLISHER_API_KEY" \
+          --data-urlencode "appid=$APP_ID" \
+          --data-urlencode "count=200")
+
+        if [ "$(printf '%s' "$builds" | jq -r '.response.result // 0')" != "1" ]; then
+          echo "::error::GetAppBuilds did not return result=1. Raw payload follows."
+          printf '%s\n' "$builds"
+          exit 1
+        fi
+
+        # Response shape (verified against the live API):
+        #   .response.builds is an OBJECT keyed by build id, each value having
+        #   .BuildID, .Description, .CreationTime, .AccountIDCreator, and
+        #   .depots keyed by depot id. There is NO branch information here —
+        #   which build is live on which branch comes from GetAppBetas.
+        #
+        # Match on the r<run_id> tag dev-release.yml stamps into the
+        # description. Deliberately not the version or the SHA: Steam's build
+        # history genuinely contains multiple builds sharing an identical
+        # "v<version> (<sha>)" description, so either would tie.
+        #
+        # This also excludes Steam's auto-generated "Merged build X into
+        # build Y" entries, which carry no run id — and which only appear
+        # when an upload was partial. Ours never is.
+        matches=$(printf '%s' "$builds" \
+          | jq -r --arg key "r$RUN_ID" '
+              .response.builds
+              | to_entries
+              | map(select(.value.Description | contains($key)))
+              | map(.value.BuildID | tostring)
+              | .[]
+            ') || {
+          echo "::error::Could not parse the GetAppBuilds response. Raw payload follows."
+          printf '%s\n' "$builds"
+          exit 1
+        }
+
+        count=$(printf '%s' "$matches" | grep -c . || true)
+        if [ "$count" -eq 0 ]; then
+          echo "::error::No Steam build found whose description contains 'r$RUN_ID'. Did dev-release run $RUN_ID actually upload (vars.STEAM_DEPLOY)? Note Steam truncates long build descriptions."
+          exit 1
+        fi
+        if [ "$count" -gt 1 ]; then
+          echo "::error::Expected exactly one Steam build for 'r$RUN_ID', found $count: $(printf '%s' "$matches" | tr '\n' ' '). Refusing to guess which to set live."
+          exit 1
+        fi
+
+        build_id=$(printf '%s' "$matches" | head -1)
+
+        # A build only covers the depots its upload included. Steam papers over
+        # partial uploads by auto-generating "Merged build …" entries, but a
+        # merge carries no run id, so if a platform leg had silently gone
+        # missing we would be about to set a build live that ships an
+        # incomplete game. This is not hypothetical: build 24579663 on this app
+        # contains depot 4550881 alone. Assert all three are present.
+        missing=$(printf '%s' "$builds" | jq -r --arg id "$build_id" '
+            (.response.builds[$id].depots // {} | keys) as $have
+            | ["4550881", "4550882", "4550883"] - $have
+            | .[]
+          ')
+        if [ -n "$missing" ]; then
+          echo "::error::Steam build $build_id is missing depot(s): $(printf '%s' "$missing" | tr '\n' ' ')(4550881=macOS, 4550882=windows, 4550883=linux). Refusing to promote a partial build."
+          exit 1
+        fi
+
+        echo "build_id=$build_id" >> "$GITHUB_OUTPUT"
+        echo "dev-release run $RUN_ID produced Steam build $build_id (all 3 depots)"
