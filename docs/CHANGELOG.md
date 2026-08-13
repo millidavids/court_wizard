@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [v1.0.38] - 2026-08-13
 
+### Description
+The Arcane Crystal now takes on the character of almost any spell you feed it — grease, ice storms, war hymns, lightning rods — instead of only echoing damage.
+
 ### Added
 - **The Arcane Crystal now answers to most of your spellbook** — it used to only react to six, all of them damage. Feed it a slick of grease, a healing plume, a war hymn, a swarm of vines, an ice storm, a lightning rod, and it takes on that spell's character instead: laying oil around itself, mending everyone nearby, rooting whatever wanders too close. The crystal has stopped being a damage multiplier and started being whatever you decide it should be that fight.
 - **Every charge has two halves** — the moment a spell lands on the crystal you get a burst at full strength, and then a weaker version of the same thing repeats for the rest of the crystal's life. Hit it with something else and it changes its mind, though anything it already put on the ground stays there until it burns out on its own.
@@ -21,6 +24,8 @@ All notable changes to this project will be documented in this file.
 - **Black holes no longer eat crystals that were meant to last** — a permanent crystal caught in one would vanish and stay gone, including from later levels.
 - **Three spells were describing themselves wrong** — Black Hole, Wall of Fire, and Entangle each listed a duration that didn't match how long they actually last.
 - **Dispel now works both ways in co-op** — whichever of you cast a lingering spell, the other could not clear it away. Walls of fire, spike fields, grease, plague clouds and black holes summoned by your partner simply ignored your Dispel.
+- **Reconnecting after a dropped connection no longer wedges the second player** — if a connection stalled and then completed a moment too late, the joining player could end up in a state where they never finished introducing themselves. Their partner sat on "Exchanging player info" forever, and every retry failed the same way until the joining player restarted the game entirely.
+- **Starting a fresh join while still connected no longer leaves the old session hanging around** — joining a new game with a code while already linked to a co-op partner kept you listed in their lobby with a live connection you had walked away from.
 
 ## [v1.0.37] - 2026-08-10
 

@@ -121,8 +121,15 @@ pub(crate) fn sync_lobby_with_connection(
     // guard prevents this from misfiring during the brief
     // `Disconnected → Connecting` window the moment the player clicks
     // Host or Join (which used to bounce them straight to a Failed panel).
+    // `role.is_some()` separates "the link died under us" from "we deliberately
+    // tore the session down". `connection.reset()` nulls the role, so a caller
+    // that just reset to baseline and moved the player straight to another phase
+    // (Join Game does exactly this) is not mistaken for a dropped connection —
+    // `saw_active` is still true from the session that was just torn down, and
+    // without this the player lands on "Connection lost" instead of the code box.
     if connection.state == ConnectionState::Disconnected
         && *saw_active
+        && connection.role.is_some()
         && !matches!(&lobby.phase, LobbyPhase::Connect)
     {
         let reason = connection
@@ -138,12 +145,24 @@ pub(crate) fn sync_lobby_with_connection(
     // GameLobbyJoinRequested handler in the Steam plugin has set mode/role
     // and started join_lobby, flip the visible phase to SteamJoining so the
     // UI matches the in-flight transport state.
+    // `Connected` belongs in this set, not just the in-flight states. The resume
+    // path above drops a stalled guest back to `Connect` precisely so this chain
+    // can run — but if the transport finished connecting while the Failed panel
+    // was up, the guest arrives here already `Connected`. Without `Connected`
+    // here it never reaches `SteamJoining`, and the `-> Handshake` block below
+    // does not accept `Connect`, so the guest parks at `Connect` + `Connected`
+    // forever: it never sends `PlayerInfo` (the only place it is ever sent), and
+    // `budget_for(PhaseKind::Connect, _)` is `None`, so nothing times it out.
+    // The host sits at "Exchanging player info…" until its own handshake budget
+    // expires, and every retry fails the same way until the guest is restarted.
     if matches!(lobby.phase, LobbyPhase::Connect)
         && connection.mode == ConnectionMode::Steam
         && connection.role == Some(PeerRole::Guest)
         && matches!(
             connection.state,
-            ConnectionState::WaitingForSignaling | ConnectionState::Connecting
+            ConnectionState::WaitingForSignaling
+                | ConnectionState::Connecting
+                | ConnectionState::Connected
         )
     {
         lobby.phase = LobbyPhase::SteamJoining;

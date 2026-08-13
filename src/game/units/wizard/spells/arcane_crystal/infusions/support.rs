@@ -8,7 +8,6 @@ use super::super::setup::register_infusion_spawn;
 use super::driver::{InfusedCrystals, begin_infusion_tick, needs_sustained_source};
 use super::kinds::CrystalInfusion;
 use super::run_conditions::is_infused;
-use crate::game::multiplayer::components::GhostEntity;
 use crate::game::units::components::{Corpse, Health, MarkedForDeathModifier, Team};
 use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::healing_plume::aura::spawn_healing_plume_zone;
@@ -65,13 +64,16 @@ pub(crate) fn tick_mark_of_death_infusion(
     time: Res<Time>,
     mut commands: Commands,
     mut crystals: InfusedCrystals,
+    // Ghost units are deliberately NOT excluded. On the guest every unit is a
+    // ghost, so filtering them out would leave this infusion doing nothing at
+    // all there — the guest is *supposed* to insert the status onto the ghost,
+    // which `forward_status_effects_to_host` then ships to the host.
     candidates: Query<
         (Entity, &Transform, &Health, &Team),
         (
             Without<Corpse>,
             Without<Wizard>,
             Without<ActiveMarkOfDeath>,
-            Without<GhostEntity>,
             Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,

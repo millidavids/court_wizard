@@ -40,6 +40,13 @@ pub(crate) fn tick_battle_hymn_infusion(
             Option<&mut TemporaryHitPoints>,
             Option<&mut HasteModifier>,
         ),
+        // Ghosts excluded here, unlike the other status infusions — not a
+        // choice, but a requirement: `apply_battle_hymn_buff` declares this
+        // exact filter in its own signature, so the crystal path cannot include
+        // ghosts without changing the helper the hand-cast spell also uses.
+        // That means a Battle Hymn crystal buffs nothing on the guest, matching
+        // whatever the hand-cast spell already does there. Fixing it properly
+        // means widening the helper, which is a change to Battle Hymn itself.
         (
             Without<Wizard>,
             Without<GhostEntity>,

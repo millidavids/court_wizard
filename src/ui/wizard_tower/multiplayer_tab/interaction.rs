@@ -77,6 +77,29 @@ pub(crate) fn handle_mp_tab_actions(
                 lobby.phase = LobbyPhase::Hosting;
             }
             MpTabAction::JoinGame => {
+                // Starting a fresh join, so tear down anything still live first.
+                // A co-op guest sitting in the tower between levels still holds
+                // the host's Steam lobby and a live `SteamP2pSocket`; dialling a
+                // host over iroh on top of that leaves the old session dangling
+                // and the player advertised in a lobby they have left.
+                //
+                // This runs here rather than in `ConfirmJoin` for two reasons:
+                // the reset clears `join_code_input`, which `ConfirmJoin` needs,
+                // and it resets `lobby.phase`, which would drop the player out of
+                // the code-entry screen they are standing on. `ConfirmJoin` is
+                // only reachable through this arm, so covering it here is enough.
+                reset_multiplayer_to_baseline(
+                    "starting a new join",
+                    &mut commands,
+                    &mut connection,
+                    &mut lobby,
+                    &mut host_selection,
+                    transport.as_deref(),
+                    steam_client.as_deref(),
+                    steam_lobby.as_deref_mut(),
+                    steam_socket.as_deref_mut(),
+                    session_present,
+                );
                 lobby.status_message = None;
                 lobby.phase = LobbyPhase::Joining;
                 lobby.join_code_input.clear();

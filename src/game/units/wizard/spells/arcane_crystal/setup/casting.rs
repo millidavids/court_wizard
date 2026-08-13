@@ -110,8 +110,14 @@ pub(crate) fn handle_arcane_crystal_casting(
         }
     }
 
-    let completed =
-        arcane_crystal_casting_logic(&input, &time, &mut casting_state, &mut mana, primed_spell);
+    let completed = arcane_crystal_casting_logic(
+        &input,
+        &time,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        clamped_cursor,
+    );
 
     if completed {
         vfx::systems::spawn_school_flare_synced(
@@ -161,26 +167,40 @@ pub(crate) fn handle_arcane_crystal_casting(
             }
         }
 
-        // Spawn crystal using indicator position
-        if let Ok(caster) = caster_query.get(wizard_entity)
-            && let Some(indicator_entity) = caster.indicator_entity
-        {
-            if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                spawn_crystal(
-                    &mut commands,
-                    &visual_assets,
-                    indicator.position,
-                    primed_spell.empowerment,
-                    &talent_params,
-                );
-                audio::play_sfx(
-                    &mut commands,
-                    &sfx.arcane_crystal_cast,
-                    indicator.position,
-                    &game_config,
-                    &sfx,
-                );
-            }
+        // Spawn the crystal at the indicator, falling back to the clamped cursor
+        // if the indicator has gone. The mana is already spent by this point, so
+        // any path that reaches here without placing a crystal charges the player
+        // for nothing — a stale `SpellCaster` whose indicator was despawned
+        // elsewhere would do exactly that.
+        let caster_indicator = caster_query
+            .get(wizard_entity)
+            .ok()
+            .and_then(|caster| caster.indicator_entity);
+        let spawn_pos = caster_indicator
+            .and_then(|entity| indicator_query.get(entity).ok())
+            .map(|indicator| indicator.position)
+            .or(clamped_cursor);
+
+        if let Some(position) = spawn_pos {
+            spawn_crystal(
+                &mut commands,
+                &visual_assets,
+                position,
+                primed_spell.empowerment,
+                &talent_params,
+            );
+            audio::play_sfx(
+                &mut commands,
+                &sfx.arcane_crystal_cast,
+                position,
+                &game_config,
+                &sfx,
+            );
+        } else {
+            // Nowhere to put it — refund rather than silently pocket the mana.
+            mana.current = (mana.current + MANA_COST).min(mana.max);
+        }
+        if let Some(indicator_entity) = caster_indicator {
             commands.entity(indicator_entity).try_despawn();
         }
         commands.entity(wizard_entity).remove::<SpellCaster>();
@@ -197,6 +217,7 @@ fn arcane_crystal_casting_logic(
     casting_state: &mut CastingState,
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
+    clamped_cursor: Option<Vec3>,
 ) -> bool {
     // Release is handled by the wrappers before calling this function
     if input.just_released {
@@ -220,7 +241,14 @@ fn arcane_crystal_casting_logic(
             }
         }
         CastingState::Resting => {
-            if input.just_pressed || input.pressed {
+            // Must match the indicator's spawn condition in the wrapper above.
+            // Without the mana and cursor checks the cast starts anyway, runs to
+            // completion, spends the mana — and then finds no indicator to read a
+            // position from, so no crystal is ever placed. The mana is simply gone.
+            if (input.just_pressed || input.pressed)
+                && mana.can_afford(MANA_COST)
+                && clamped_cursor.is_some()
+            {
                 casting_state.start_cast();
             }
         }

@@ -55,6 +55,8 @@ jobs:
       # Job-level so the step `if:` can test it — the `secrets` context is not
       # available in an `if:` expression.
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      BLUESKY_USERNAME: ${{ secrets.BLUESKY_USERNAME }}
+      BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
@@ -253,6 +255,25 @@ jobs:
             '{embeds: [{title: $title, description: $desc, color: 16744448}]}')
           curl -sS --fail-with-body -H "Content-Type: application/json" \
             -d "$payload" "$DISCORD_WEBHOOK_URL"
+
+      # Sits in the same "live but not announced" arm as Discord, so a post only
+      # goes out once the build is genuinely live on Steam's default branch, and
+      # the `announced/v<version>` tag below stops it ever repeating.
+      #
+      # `continue-on-error` on purpose: a Bluesky outage or a rotated app
+      # password must not fail the promotion or, worse, leave the version
+      # untagged and re-announce to Discord on the next run.
+      - name: Post to Bluesky
+        if: >-
+          steps.live.outputs.is_live == 'true'
+          && env.BLUESKY_USERNAME != ''
+          && env.BLUESKY_APP_PASSWORD != ''
+        continue-on-error: true
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+        run: |
+          set -euo pipefail
+          python3 scripts/post_to_bluesky.py --version "$VERSION" --app-id "$APP_ID"
 
       - name: Mark version as announced
         if: steps.live.outputs.is_live == 'true'

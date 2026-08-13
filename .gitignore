@@ -36,3 +36,7 @@ secrets.toml
 config.vdf
 ssfn*
 .DS_Store
+
+# Byte-cache from the release scripts in scripts/
+__pycache__/
+*.pyc

@@ -71,7 +71,53 @@ Consolidate mode uses the same shape with a subject describing the cleanup, e.g.
 - Layman's terms only. No code references, no jargon.
 - Bold the first phrase as a short summary, then describe in plain language.
 - Don't spoil achievements, unlockables, or hidden content.
-- Use only `### Added`, `### Changed`, `### Fixed`. Never an `[Unreleased]` section.
+- Use only `### Description`, `### Added`, `### Changed`, `### Fixed`. Never an
+  `[Unreleased]` section.
+
+## The `### Description` section (all modes)
+
+Every version block opens with a `### Description` section holding **one short
+paragraph of plain prose** — no bullet, no bold lead-in. It is the release's
+public hook, and unlike the rest of the block it is not a list of changes:
+
+```markdown
+## [v1.0.38] - 2026-08-13
+
+### Description
+The Arcane Crystal now takes on the character of almost any spell you feed it —
+grease, ice storms, war hymns, lightning rods — instead of only echoing damage.
+
+### Added
+- **...**
+```
+
+**It is published verbatim.** `scripts/post_to_bluesky.py` uses it as the body
+of the Bluesky announcement, and it appears in the Discord embed along with the
+rest of the block. Write it for someone who has never heard of the game.
+
+**Hard constraint: it must fit a Bluesky post.** The limit is 300 characters
+*including* the `Court Wizard v<version>` title and the `Steam · Website ·
+Studio` link footer, which together cost roughly 45. That leaves about **250
+characters** for the description. Longer text is truncated on a word boundary
+with an ellipsis, so an over-long description ships as a cut-off sentence.
+
+Check it before committing — the script needs no credentials to render:
+
+```bash
+python3 scripts/post_to_bluesky.py --version <version> --dry-run
+```
+
+That prints the exact post and the resolved link targets.
+
+**Dev mode:** create the section when opening a new version; on a later push to
+the same version, rewrite it so it still describes the release as a whole rather
+than only the newest push.
+
+**Consolidate mode:** rewrite it to match the consolidated block — it is a
+summary of the net change, so it must be redone when the bullets are.
+
+If a release genuinely has no player-facing hook (a build-process-only version),
+still write one honest sentence; the post goes out either way.
 
 ---
 

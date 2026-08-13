@@ -29,13 +29,15 @@ pub(crate) fn tick_banishment_infusion(
     mut commands: Commands,
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut crystals: InfusedCrystals,
+    // Ghosts included on purpose — see the note in `support.rs`. Banishment is a
+    // status effect, so the guest inserts it on a ghost and the status forwarder
+    // carries it to the host.
     targets: Query<
         (Entity, &Transform, &Team),
         (
             Without<Corpse>,
             Without<Wizard>,
             Without<BanishedModifier>,
-            Without<GhostEntity>,
             Without<crate::game::pathfinding::StagingAttacker>,
         ),
     >,
@@ -73,9 +75,13 @@ pub(crate) fn tick_banishment_infusion(
             .into_iter()
             .take(params.pick_count(INFUSION_BURST_COUNT, INFUSION_ONGOING_COUNT))
         {
+            // `Visibility::Hidden` travels with the modifier — the hand-cast path
+            // inserts both, and the return tick restores `Visible`. Without it the
+            // target is frozen and untargetable but still drawn, which reads as a
+            // stuck unit rather than a banishment.
             commands
                 .entity(target)
-                .insert(BanishedModifier::new(duration));
+                .insert((BanishedModifier::new(duration), Visibility::Hidden));
         }
     }
 }
