@@ -9,6 +9,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, Health, Team};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -271,6 +272,13 @@ fn sleep_casting_logic(
                             indicator.position,
                             effective_radius,
                             2.5,
+                        );
+                        announce_area_cast(
+                            commands,
+                            Spell::Sleep,
+                            indicator.position,
+                            effective_radius,
+                            primed_spell.empowerment,
                         );
                         let hit_count = apply_sleep(
                             commands,

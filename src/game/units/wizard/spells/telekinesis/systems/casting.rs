@@ -12,6 +12,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, Team, TemporaryHitPoints};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input, cleanup_spell_caster,
@@ -198,6 +199,17 @@ fn telekinesis_casting_logic(
             casting_state.advance(time.delta_secs());
 
             if casting_state.is_complete(config.cast_time.min(primed_spell.cast_time)) {
+                // A pickup circle drawn over a crystal charges it instead of
+                // (as well as) pulling the drop.
+                if let Some(cursor_world_pos) = input.cursor_pos {
+                    announce_area_cast(
+                        commands,
+                        Spell::Telekinesis,
+                        cursor_world_pos,
+                        config.pickup_radius,
+                        primed_spell.empowerment,
+                    );
+                }
                 if config.is_storm {
                     // Telekinetic Storm: grab ALL drops
                     completed = execute_storm_pickup(

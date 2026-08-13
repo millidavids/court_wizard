@@ -23,6 +23,7 @@ pub(crate) mod lightning_bolt;
 pub(crate) mod lightning_rod;
 pub(crate) mod magic_missile;
 pub(crate) mod mark_of_death;
+pub(crate) mod messages;
 pub(crate) mod meteor_fall;
 pub(crate) mod mind_control;
 pub(crate) mod plague_wind;

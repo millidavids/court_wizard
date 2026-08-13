@@ -12,6 +12,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{BerserkerRageModifier, Corpse, Team};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -169,6 +170,13 @@ pub fn handle_berserker_rage_casting(
                     indicator.position,
                     radius,
                     2.5,
+                );
+                announce_area_cast(
+                    &mut commands,
+                    Spell::BerserkerRage,
+                    indicator.position,
+                    radius,
+                    primed_spell.empowerment,
                 );
                 let buffed_count = apply_berserker_rage_buff(
                     &mut commands,

@@ -3,7 +3,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::utils::xz_distance;
 use bevy::prelude::*;
 
-/// Per-impact dedupe state for `forward_dispel_impacts_to_host`. Stores the
+/// Per-impact dedupe state for `forward_dispel_impacts_to_owner`. Stores the
 /// `NetworkEntityId`s that have already been forwarded for this impact so we
 /// don't re-send messages every frame as the radius expands.
 #[derive(Component, Clone, Default)]
@@ -43,19 +43,25 @@ pub fn tick_ghost_dispel_impacts(
     }
 }
 
-/// Guest-side forwarder: ships `DispelSpellEffect` / `DispelShield` messages
-/// for every dispel impact the guest owns. The host then performs the
-/// authoritative despawn / shield-strip via `receive_dispel_messages`. Each
-/// (impact, target) pair is recorded in `DispelForwarded` so we don't spam
-/// the wire — once a target has been forwarded for a given impact entity,
-/// we skip it on subsequent frames.
+/// Ships `DispelSpellEffect` / `DispelShield` messages for every dispel impact
+/// this peer owns, so the peer that *owns* the targeted effect can act on it.
 ///
-/// Runs only on the guest (gated in the plugin); on the host the existing
-/// `update_dispel_impacts` mutates real entities directly.
+/// Runs on **both** peers. `update_dispel_impacts` only ever touches effects the
+/// local peer owns (it is filtered `Without<GhostSpellEffect>`, deliberately —
+/// locally despawning a ghost would stale its id and make it permanently
+/// invisible). That leaves the other peer's effects reachable only by this
+/// hand-off, and dispel is expected to work in both directions.
+///
+/// Each (impact, target) pair is recorded in `DispelForwarded` so we don't spam
+/// the wire as the radius expands.
+///
+/// Shields are forwarded from the guest only: units are host-authoritative, so
+/// a host-cast dispel already strips them locally via `update_dispel_impacts`.
 #[allow(clippy::too_many_arguments)]
-pub fn forward_dispel_impacts_to_host(
+pub fn forward_dispel_impacts_to_owner(
     mut commands: Commands,
     mut connection: ResMut<crate::networking::resources::NetworkConnection>,
+    session: Option<Res<crate::networking::session::MultiplayerSession>>,
     // Guest-local impacts only — host's own dispel impacts mirrored to the
     // guest as ghosts would otherwise be re-forwarded back at the host,
     // wasting wire and racing with the host's own update_dispel_impacts.
@@ -77,6 +83,10 @@ pub fn forward_dispel_impacts_to_host(
         With<SpellShield>,
     >,
 ) {
+    let is_guest = session
+        .as_deref()
+        .is_some_and(|s| s.role == crate::networking::resources::PeerRole::Guest);
+
     for (impact_entity, impact, impact_transform, forwarded) in &impacts {
         let radius = impact.expand_speed * impact.time_alive;
         if radius <= 0.0 {
@@ -104,6 +114,10 @@ pub fn forward_dispel_impacts_to_host(
         }
 
         for (unit_transform, net_id) in &shielded_units {
+            // Host-authoritative: the host strips its own units' shields locally.
+            if !is_guest {
+                break;
+            }
             if already.shielded_units.contains(&net_id.0) {
                 continue;
             }

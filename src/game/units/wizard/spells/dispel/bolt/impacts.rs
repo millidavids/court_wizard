@@ -16,6 +16,7 @@ use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{LocalWizard, Mana, Spell};
 use crate::game::units::wizard::spells::grease::components::{GreaseIgnited, GreaseZone};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
 use crate::game::units::wizard::spells::spike_growth::components::SpikeGrowthZone;
 use crate::game::units::wizard::spells::utils::xz_distance;
@@ -326,6 +327,28 @@ pub fn update_dispel_impacts(
 }
 
 /// Spawns a persistent Null Zone at the given position.
+/// Announces a dispel wave exactly once, at the radius it will grow to reach.
+///
+/// Arcane crystals are excluded from the generic dispel sweep so they detonate
+/// rather than vanish; the crystal's own shatter path listens for this. It has
+/// to be a one-shot: the expansion loop above runs every frame for the impact's
+/// whole lifetime, and announcing from there would spend a crystal's Guardian
+/// Circle ward on one frame and destroy it on the next.
+pub(crate) fn announce_dispel_wave(
+    mut commands: Commands,
+    impacts: Query<(&Transform, &DispelImpact), Added<DispelImpact>>,
+) {
+    for (transform, impact) in &impacts {
+        announce_area_cast(
+            &mut commands,
+            Spell::Dispel,
+            transform.translation,
+            impact.expand_speed * impact.duration,
+            1.0,
+        );
+    }
+}
+
 pub(crate) fn spawn_null_zone(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,

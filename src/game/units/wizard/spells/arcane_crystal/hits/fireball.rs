@@ -1,14 +1,13 @@
 //! Hit detection for fireball spells absorbed by crystals.
 
 use super::super::setup::{
-    find_random_targets_in_range, increment_resonance, scaled_count, spell_echo_multiplier,
+    AbsorptionBookkeeping, absorb_into_crystal, find_random_targets_in_range,
 };
 use bevy::prelude::*;
 
 use super::super::components::*;
 use super::super::constants::*;
 use crate::game::units::components::{Corpse, Health};
-use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::fireball::systems as fireball_systems;
 use crate::game::units::wizard::spells::fireball_constants;
@@ -61,17 +60,27 @@ pub(crate) fn detect_fireball_hits(
             let distance = xz_distance(crystal.position, explosion.origin);
 
             if distance <= explosion.max_radius {
+                // Mark before absorbing, not after: if the crystal ever refuses
+                // an absorption, an unmarked explosion would be re-evaluated
+                // every frame for its whole lifetime.
                 crystal.explosions_processed.insert(explosion_entity);
-                crystal.mark_absorption();
-                crystal.remembered_spell = Some(RememberedSpell::Fireball);
-                crystal.auto_cast_timer = 0.0;
 
-                // Spell Echo: chance to double the emission
                 let rng = &mut game_rng.0;
-                let echo_mult = spell_echo_multiplier(rng, crystal.spell_echo);
+                let Some(absorption) = absorb_into_crystal(
+                    &mut commands,
+                    &mut crystal,
+                    &mut resonance,
+                    &mut progress,
+                    rng,
+                    CrystalInfusion::Fireball,
+                    MINI_FB_COUNT,
+                    AbsorptionBookkeeping::DISCRETE,
+                ) else {
+                    continue;
+                };
 
                 // Emit mini fireballs at random targets
-                let count = scaled_count(MINI_FB_COUNT, crystal.count_mult) * echo_mult;
+                let count = absorption.count;
                 let enemies = find_random_targets_in_range(
                     rng,
                     crystal.position,
@@ -108,12 +117,6 @@ pub(crate) fn detect_fireball_hits(
                         lifetime: None,
                     });
                 }
-
-                // Track progress
-                progress.increment(Spell::ArcaneCrystal, count as u32);
-
-                // Resonance cascade
-                increment_resonance(&mut resonance);
             }
         }
     }

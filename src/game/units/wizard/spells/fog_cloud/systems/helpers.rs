@@ -16,7 +16,7 @@ pub(crate) fn spawn_fog_cloud_zone(
     empowerment: f32,
     talent_params: &FogCloudTalentParams,
     scorched_mult: f32,
-) {
+) -> Entity {
     let duration = constants::ZONE_DURATION * empowerment * scorched_mult;
     let evasion = talent_params.evasion_chance;
     let refresh_dur = talent_params.linger_duration * empowerment;
@@ -65,6 +65,7 @@ pub(crate) fn spawn_fog_cloud_zone(
             speed: constants::ROLLING_FOG_SPEED,
         });
     }
+    zone_entity
 }
 
 /// Returns true if the given position is inside any fog cloud zone (given as origin/radius pairs).

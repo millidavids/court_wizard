@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::super::components::*;
+use super::super::constants::*;
+use super::super::infusions::{CrystalEnraged, CrystalHastened, InfusionFamily};
 use super::super::setup::{
     crystal_beam_geometry, crystal_target_teams, find_random_targets_in_range,
 };
@@ -37,7 +39,12 @@ pub(crate) fn auto_cast_remembered_spell(
     visual_assets: Res<SpellVisualAssets>,
     // Each peer drives its own real crystal only — see hits.rs for rationale.
     mut crystals: Query<
-        (Entity, &mut ArcaneCrystal),
+        (
+            Entity,
+            &mut ArcaneCrystal,
+            Has<CrystalHastened>,
+            Has<CrystalEnraged>,
+        ),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
     mut crystal_beams: Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
@@ -77,18 +84,24 @@ pub(crate) fn auto_cast_remembered_spell(
     // Store Entity IDs for O(1) lookup via get_mut() instead of O(n) iter_mut().nth().
     let crystal_data: Vec<_> = crystals
         .iter()
-        .filter(|(_, c)| !c.permanent)
-        .map(|(e, c)| {
+        .filter(|(_, c, _, _)| !c.permanent)
+        .map(|(e, c, hastened, enraged)| {
             (
                 e,
                 c.position,
                 c.range,
                 c.empowerment,
-                c.remembered_spell,
+                c.infusion,
                 c.auto_cast_timer,
                 c.auto_disintegrate_beam.clone(),
-                c.damage_mult,
+                // Enraged trades crystal lifetime for emission damage.
+                if enraged {
+                    c.damage_mult * ENRAGED_DAMAGE_MULT
+                } else {
+                    c.damage_mult
+                },
                 c.count_mult,
+                hastened,
             )
         })
         .collect();
@@ -103,23 +116,46 @@ pub(crate) fn auto_cast_remembered_spell(
         auto_beam,
         damage_mult,
         count_mult,
+        hastened,
     ) in crystal_data.into_iter()
     {
         let Some(remembered) = remembered else {
-            // No remembered spell — clean up any lingering auto-disintegrate beam
+            // No infusion — clean up any lingering auto-disintegrate beam
             if let Some((beam_entities, _)) = &auto_beam {
                 for beam_entity in beam_entities {
                     commands.entity(*beam_entity).try_despawn();
                 }
-                if let Ok((_, mut crystal)) = crystals.get_mut(entity) {
+                if let Ok((_, mut crystal, _, _)) = crystals.get_mut(entity) {
                     crystal.auto_disintegrate_beam = None;
                 }
             }
             continue;
         };
 
+        // Non-emitter infusions are driven by their own systems in `infusions/`.
+        // Gating on the family here means `CrystalInfusion::family` is the single
+        // place a new variant must be classified — the match below stays exhaustive
+        // over the emitters and cannot silently swallow anything new.
+        //
+        // The beam teardown has to happen BEFORE this gate. A Disintegrate
+        // crystal re-infused with, say, Sleep would otherwise `continue` past the
+        // cleanup below forever, leaving its beams alive and un-aimed — they
+        // carry `CrystalSpawn { lifetime: None }`, so neither expiry sweep
+        // reclaims them and they keep dealing damage along a frozen direction.
+        if remembered.family() != InfusionFamily::Emitter {
+            if let Some((beam_entities, _)) = &auto_beam {
+                for beam_entity in beam_entities {
+                    commands.entity(*beam_entity).try_despawn();
+                }
+                if let Ok((_, mut crystal, _, _)) = crystals.get_mut(entity) {
+                    crystal.auto_disintegrate_beam = None;
+                }
+            }
+            continue;
+        }
+
         // === Special case: Disintegrate = constant single beam ===
-        if remembered == RememberedSpell::Disintegrate {
+        if remembered == CrystalInfusion::Disintegrate {
             handle_auto_disintegrate(
                 &mut game_rng.0,
                 entity,
@@ -144,17 +180,23 @@ pub(crate) fn auto_cast_remembered_spell(
             for beam_entity in beam_entities {
                 commands.entity(*beam_entity).try_despawn();
             }
-            if let Ok((_, mut crystal)) = crystals.get_mut(entity) {
+            if let Ok((_, mut crystal, _, _)) = crystals.get_mut(entity) {
                 crystal.auto_disintegrate_beam = None;
             }
         }
 
         let new_timer = timer + delta;
-        let interval = remembered.auto_cast_interval();
+        // Haste is the one modifier that stacks with an infusion rather than
+        // replacing it: the crystal keeps emitting the same spell, just faster.
+        let interval = if hastened {
+            remembered.interval() / HASTENED_INTERVAL_DIVISOR
+        } else {
+            remembered.interval()
+        };
 
         if new_timer >= interval {
             // Reset timer
-            if let Ok((_, mut crystal)) = crystals.get_mut(entity) {
+            if let Ok((_, mut crystal, _, _)) = crystals.get_mut(entity) {
                 crystal.auto_cast_timer = 0.0;
                 crystal.trigger_pulse();
             }
@@ -168,7 +210,7 @@ pub(crate) fn auto_cast_remembered_spell(
             };
 
             match remembered {
-                RememberedSpell::MagicMissile => {
+                CrystalInfusion::MagicMissile => {
                     auto_cast_magic_missiles(
                         &mut game_rng.0,
                         &autocast,
@@ -178,7 +220,7 @@ pub(crate) fn auto_cast_remembered_spell(
                         target_teams,
                     );
                 }
-                RememberedSpell::Fireball => {
+                CrystalInfusion::Fireball => {
                     auto_cast_fireballs(
                         &mut game_rng.0,
                         &autocast,
@@ -187,7 +229,7 @@ pub(crate) fn auto_cast_remembered_spell(
                         &targets,
                     );
                 }
-                RememberedSpell::ChainLightning => {
+                CrystalInfusion::ChainLightning => {
                     auto_cast_chain_lightning(
                         &mut game_rng.0,
                         &autocast,
@@ -198,7 +240,7 @@ pub(crate) fn auto_cast_remembered_spell(
                         caster_team,
                     );
                 }
-                RememberedSpell::Meteor => {
+                CrystalInfusion::Meteor => {
                     auto_cast_meteors(
                         &mut game_rng.0,
                         &autocast,
@@ -207,7 +249,7 @@ pub(crate) fn auto_cast_remembered_spell(
                         &targets,
                     );
                 }
-                RememberedSpell::FingerOfDeath => {
+                CrystalInfusion::FingerOfDeath => {
                     auto_cast_fod_beams(
                         &mut game_rng.0,
                         &autocast,
@@ -217,11 +259,16 @@ pub(crate) fn auto_cast_remembered_spell(
                         &talent_cfg,
                     );
                 }
-                RememberedSpell::Disintegrate => unreachable!(),
+                CrystalInfusion::Disintegrate => unreachable!(
+                    "Disintegrate is intercepted above and never reaches the emitter match"
+                ),
+                other => unreachable!(
+                    "non-emitter infusion {other:?} passed the InfusionFamily::Emitter gate"
+                ),
             }
         } else {
             // Just advance timer
-            if let Ok((_, mut crystal)) = crystals.get_mut(entity) {
+            if let Ok((_, mut crystal, _, _)) = crystals.get_mut(entity) {
                 crystal.auto_cast_timer = new_timer;
             }
         }
@@ -253,7 +300,12 @@ fn handle_auto_disintegrate(
         ),
     >,
     crystals: &mut Query<
-        (Entity, &mut ArcaneCrystal),
+        (
+            Entity,
+            &mut ArcaneCrystal,
+            Has<CrystalHastened>,
+            Has<CrystalEnraged>,
+        ),
         Without<crate::game::multiplayer::components::GhostSpellEffect>,
     >,
     talent_cfg: &disintegrate_systems::TalentConfig,
@@ -262,7 +314,7 @@ fn handle_auto_disintegrate(
         // Check if any beam entity still exists
         let any_alive = beam_entities.iter().any(|e| crystal_beams.get(*e).is_ok());
         if !any_alive {
-            if let Some(mut crystal) = crystals.get_mut(crystal_entity).ok().map(|(_, c)| c) {
+            if let Some(mut crystal) = crystals.get_mut(crystal_entity).ok().map(|(_, c, _, _)| c) {
                 crystal.auto_disintegrate_beam = None;
             }
             // Fall through to spawn a new beam below
@@ -300,10 +352,12 @@ fn handle_auto_disintegrate(
                 empowerment,
                 Some(talent_cfg),
             );
-            if let Some(mut crystal) = crystals.get_mut(crystal_entity).ok().map(|(_, c)| c) {
+            if let Some(mut crystal) = crystals.get_mut(crystal_entity).ok().map(|(_, c, _, _)| c) {
                 crystal.auto_disintegrate_beam = Some((new_beams, *new_target));
             }
-        } else if let Some(mut crystal) = crystals.get_mut(crystal_entity).ok().map(|(_, c)| c) {
+        } else if let Some(mut crystal) =
+            crystals.get_mut(crystal_entity).ok().map(|(_, c, _, _)| c)
+        {
             crystal.auto_disintegrate_beam = None;
         }
         return;
@@ -321,7 +375,7 @@ fn handle_auto_disintegrate(
             empowerment,
             Some(talent_cfg),
         );
-        if let Some(mut crystal) = crystals.get_mut(crystal_entity).ok().map(|(_, c)| c) {
+        if let Some(mut crystal) = crystals.get_mut(crystal_entity).ok().map(|(_, c, _, _)| c) {
             crystal.auto_disintegrate_beam = Some((beam_entities, *target_entity));
         }
     }

@@ -138,10 +138,14 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
         host_systems::receive_raise_corpse_messages.run_if(host_net.clone()),
     );
 
-    // ── Host: Receive Dispel Messages ─────────────────────
+    // ── Both peers: Receive Dispel Messages ───────────────────────
+    // Each peer's own dispel impact only despawns effects it owns, so the
+    // remote peer's are reachable only through this hand-off. Registering it
+    // host-only meant a host-cast dispel simply passed through everything the
+    // guest had summoned.
     app.add_systems(
         Update,
-        host_systems::receive_dispel_messages.run_if(host_net.clone()),
+        host_systems::receive_dispel_messages.run_if(mp_running.or(host_net.clone())),
     );
 
     // ── Guest: Game Over Message ──────────────────────────────────

@@ -35,6 +35,9 @@ pub fn apply_remote_spell_snapshot(
     mut plague_clouds: Query<
         &mut crate::game::units::wizard::spells::plague_wind::components::PlagueWindCloud,
     >,
+    mut ghost_crystals: Query<
+        &mut crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal,
+    >,
     ghost_projectiles: Query<Entity, With<GhostSpellProjectile>>,
     ghost_arcs: Query<Entity, With<GhostSpellArc>>,
     ghost_missiles: Query<Entity, With<GhostMagicMissile>>,
@@ -65,6 +68,16 @@ pub fn apply_remote_spell_snapshot(
                 if let Ok(mut cloud) = plague_clouds.get_mut(local_entity) {
                     cloud.origin.x = effect.x;
                     cloud.origin.z = effect.z;
+                }
+            } else if effect.kind == SpellEffectKind::ArcaneCrystal as u8 {
+                // A crystal is always placed before it absorbs anything, so its
+                // infusion is never known at ghost-spawn time. Track it per frame
+                // or the guest's crystal stays visually uninfused for its whole
+                // life. Visual only — gameplay systems skip ghost crystals.
+                if let Ok(mut crystal) = ghost_crystals.get_mut(local_entity) {
+                    crystal.infusion =
+                        crate::game::units::wizard::spells::arcane_crystal::infusions::
+                            CrystalInfusion::from_sync_id(effect.extra[3]);
                 }
             }
             continue;

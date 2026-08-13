@@ -51,6 +51,7 @@ impl Plugin for SpellsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<TargetAssistWorldPos>()
             .init_resource::<super::utils::LocalSpellOrigin>()
+            .add_message::<super::messages::SpellAreaCastMessage>()
             // Keep the lock-free local-origin snapshot (used by audio
             // attenuation, the gunslinger's gun spawn position, and other
             // const-context callers) in sync with the `LocalSpellOrigin`

@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.38] - 2026-08-13
+
+### Added
+- **The Arcane Crystal now answers to most of your spellbook** — it used to only react to six, all of them damage. Feed it a slick of grease, a healing plume, a war hymn, a swarm of vines, an ice storm, a lightning rod, and it takes on that spell's character instead: laying oil around itself, mending everyone nearby, rooting whatever wanders too close. The crystal has stopped being a damage multiplier and started being whatever you decide it should be that fight.
+- **Every charge has two halves** — the moment a spell lands on the crystal you get a burst at full strength, and then a weaker version of the same thing repeats for the rest of the crystal's life. Hit it with something else and it changes its mind, though anything it already put on the ground stays there until it burns out on its own.
+- **The crystal changes colour to match what it's holding** — you can tell a fire crystal from a frost one from across the battlefield, instead of trying to remember what you last threw at it.
+- **Haste doesn't overwrite the crystal, it winds it up** — every other spell replaces what the crystal is doing. Haste layers on top, so you can charge it with something devastating and then make it do that twice as often.
+- **Wall of Dirt roots a crystal in place** — an anchored crystal ignores a black hole's pull entirely, which is the counter to having your carefully placed crystal dragged off across the field.
+- **A Guardian Circle wards the crystal itself** — the next thing that would destroy it gets shrugged off once.
+- **Dispel now shatters a crystal instead of quietly deleting it** — it detonates, and the fuller its remaining life the bigger the blast. Your own crystal has become a bomb you can set off on purpose.
+- **Concentration spells can be handed off** — charge the crystal with an ice storm and it keeps the storm going after you stop concentrating, giving you your reserved mana back while the sky keeps falling on them.
+
+### Changed
+- **A crystal swallowed by a black hole goes out with a bang** — it used to simply blink out of existence.
+
+### Fixed
+- **Black holes no longer eat crystals that were meant to last** — a permanent crystal caught in one would vanish and stay gone, including from later levels.
+- **Three spells were describing themselves wrong** — Black Hole, Wall of Fire, and Entangle each listed a duration that didn't match how long they actually last.
+- **Dispel now works both ways in co-op** — whichever of you cast a lingering spell, the other could not clear it away. Walls of fire, spike fields, grease, plague clouds and black holes summoned by your partner simply ignored your Dispel.
+
 ## [v1.0.37] - 2026-08-10
 
 ### Changed

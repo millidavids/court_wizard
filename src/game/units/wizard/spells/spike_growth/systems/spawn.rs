@@ -19,7 +19,7 @@ pub(crate) fn spawn_spike_growth_zone(
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
     talent_params: &SpikeGrowthTalentParams,
     scorched_mult: f32,
-) {
+) -> Entity {
     let duration = constants::ZONE_DURATION * empowerment * scorched_mult;
     let damage = constants::DAMAGE_PER_TICK * empowerment * talent_params.damage_mult;
     let slow_mod = constants::SLOW_MODIFIER * empowerment;
@@ -59,19 +59,21 @@ pub(crate) fn spawn_spike_growth_zone(
     );
     zone.spike_storm_material = spike_storm_material;
 
-    commands.spawn((
-        Transform::from_translation(Vec3::new(
-            position.x,
-            constants::CIRCLE_Y_POSITION,
-            position.z,
-        )),
-        zone,
-        UniqueHitTracker::default(),
-        NetworkedSpellEffect {
-            kind: SpellEffectKind::SpikeGrowthZone,
-        },
-        OnGameplayScreen,
-    ));
+    commands
+        .spawn((
+            Transform::from_translation(Vec3::new(
+                position.x,
+                constants::CIRCLE_Y_POSITION,
+                position.z,
+            )),
+            zone,
+            UniqueHitTracker::default(),
+            NetworkedSpellEffect {
+                kind: SpellEffectKind::SpikeGrowthZone,
+            },
+            OnGameplayScreen,
+        ))
+        .id()
 }
 
 /// Nature's Minefield: spawns 3 smaller zones in a triangle pattern.

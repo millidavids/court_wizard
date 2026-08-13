@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use super::super::auto::crystal_aoe_burst;
 use super::super::components::*;
 use super::super::constants::*;
+use super::helpers::destroy_crystal;
 use crate::game::units::components::{Corpse, Health, Team, TemporaryHitPoints};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::disintegrate::components::{
@@ -48,6 +49,44 @@ pub(crate) fn update_crystal_visuals(
                 0.7 * sphere_radius,
             );
         }
+    }
+}
+
+/// Recolors a crystal's emissive to match what it is currently infused with, so
+/// the player can read a crystal's state off the battlefield rather than
+/// remembering what they last threw at it.
+pub(crate) fn update_crystal_tint(
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut crystals: Query<(
+        &ArcaneCrystal,
+        &mut MeshMaterial3d<StandardMaterial>,
+        &mut CrystalTint,
+    )>,
+) {
+    for (crystal, mut material, mut tint) in &mut crystals {
+        if tint.shown == crystal.infusion {
+            continue;
+        }
+        let emissive = crystal
+            .infusion
+            .map_or(CRYSTAL_DEFAULT_EMISSIVE, |infusion| infusion.color());
+
+        if tint.owns_material {
+            let Some(existing) = materials.get_mut(&material.0) else {
+                continue;
+            };
+            existing.emissive = emissive;
+        } else {
+            // First tint: clone off the shared handle before touching it.
+            let Some(base) = materials.get(&material.0) else {
+                continue;
+            };
+            let mut owned = base.clone();
+            owned.emissive = emissive;
+            material.0 = materials.add(owned);
+            tint.owns_material = true;
+        }
+        tint.shown = crystal.infusion;
     }
 }
 
@@ -98,28 +137,7 @@ pub(crate) fn cleanup_expired_crystals(
                 );
             }
 
-            // Despawn active persistent beams
-            for (beam_entities, _) in &crystal.active_beams {
-                for beam_entity in beam_entities {
-                    commands.entity(*beam_entity).try_despawn();
-                }
-            }
-
-            // Despawn auto-disintegrate beam if present
-            if let Some((beam_entities, _)) = &crystal.auto_disintegrate_beam {
-                for beam_entity in beam_entities {
-                    commands.entity(*beam_entity).try_despawn();
-                }
-            }
-
-            commands.entity(crystal_entity).try_despawn();
-
-            // Despawn associated range indicator
-            for (indicator_entity, indicator) in &indicators {
-                if indicator.crystal_entity == crystal_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-            }
+            destroy_crystal(&mut commands, crystal_entity, crystal, &indicators);
         }
     }
 
@@ -131,47 +149,20 @@ pub(crate) fn cleanup_expired_crystals(
     }
 }
 
-// ===== Black Hole Interaction =====
-
-/// Pulls crystals toward black holes and despawns them if they enter the sphere.
-pub(crate) fn crystal_black_hole_interaction(
+/// Despawns infusion-spawned entities whose crystal is gone.
+///
+/// Backstop for destruction routes with no crystal-specific code to hook —
+/// principally Dispel, which removes the crystal through the shared
+/// `NetworkedSpellEffect` path. Without this, a dispelled Grease crystal would
+/// leave its slick patches on the field for the rest of the level.
+pub(crate) fn cleanup_orphaned_infusion_spawns(
     mut commands: Commands,
-    time: Res<Time>,
-    black_holes: Query<&crate::game::units::wizard::spells::black_hole::components::BlackHole>,
-    mut crystals: Query<(Entity, &mut ArcaneCrystal, &mut Transform)>,
-    indicators: Query<(Entity, &CrystalRangeIndicator)>,
+    owned: Query<(Entity, &CrystalOwned)>,
+    crystals: Query<(), With<ArcaneCrystal>>,
 ) {
-    use crate::game::units::wizard::spells::black_hole::constants::GRAVITY_RANGE;
-
-    let delta = time.delta_secs();
-
-    for (crystal_entity, mut crystal, mut transform) in &mut crystals {
-        for black_hole in &black_holes {
-            let to_bh = black_hole.position - crystal.position;
-            let distance = to_bh.length();
-
-            // Check if crystal is inside the black hole sphere
-            if black_hole.contains_point(crystal.position) {
-                commands.entity(crystal_entity).try_despawn();
-                for (indicator_entity, indicator) in &indicators {
-                    if indicator.crystal_entity == crystal_entity {
-                        commands.entity(indicator_entity).try_despawn();
-                    }
-                }
-                break;
-            }
-
-            // Apply gravitational pull
-            if distance > 0.01 && distance <= GRAVITY_RANGE {
-                let gravity_strength = black_hole.gravitational_strength();
-                let distance_factor = 1.0 / (distance * distance);
-                let pull_strength = (gravity_strength * distance_factor).min(2500.0);
-                let direction = to_bh.normalize();
-
-                let displacement = direction * pull_strength * delta * 0.01; // Damped movement
-                crystal.position += displacement;
-                transform.translation = crystal.position;
-            }
+    for (entity, owner) in &owned {
+        if crystals.get(owner.crystal).is_err() {
+            commands.entity(entity).try_despawn();
         }
     }
 }

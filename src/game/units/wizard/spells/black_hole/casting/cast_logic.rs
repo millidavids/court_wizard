@@ -11,6 +11,7 @@ use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::SpellSfxAssets;
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -147,6 +148,13 @@ pub(crate) fn handle_black_hole_casting(
         cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
 
         if let Some(pos) = cast_result.cursor_pos {
+            announce_area_cast(
+                &mut commands,
+                Spell::BlackHole,
+                pos,
+                GRAVITY_RANGE,
+                primed_spell.empowerment,
+            );
             if t3 == Some(1) {
                 // Twin Stars: spawn 2 black holes offset from the target position
                 let offset = Vec3::new(TWIN_STARS_OFFSET / 2.0, 0.0, 0.0);

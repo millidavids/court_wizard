@@ -13,6 +13,7 @@ use crate::game::units::wizard::spells::haste::components::{
     ChainHasteSource, FleetFeet, HasteSlowZone, HasteTalentParams, MomentumPending,
 };
 use crate::game::units::wizard::spells::haste::constants;
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -188,6 +189,13 @@ pub fn handle_haste_casting(
                             indicator.position,
                             radius,
                             2.5,
+                        );
+                        announce_area_cast(
+                            &mut commands,
+                            Spell::Haste,
+                            indicator.position,
+                            radius,
+                            primed_spell.empowerment,
                         );
                         let buffed_count = apply_haste_buff(
                             &mut commands,

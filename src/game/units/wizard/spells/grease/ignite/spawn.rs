@@ -19,7 +19,7 @@ pub(crate) fn spawn_grease_zone(
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
     talent_params: GreaseTalentParams,
     scorched_mult: f32,
-) {
+) -> Entity {
     let duration = constants::ZONE_DURATION * empowerment * scorched_mult;
     let slow_mod = constants::SLOW_MODIFIER * talent_params.slow_mult;
     let slow_dur = constants::SLOW_DURATION * empowerment;
@@ -41,32 +41,34 @@ pub(crate) fn spawn_grease_zone(
     base_mat.alpha_mode = bevy::render::alpha::AlphaMode::Mask(0.01);
     let instance_material = materials.add(base_mat);
 
-    commands.spawn((
-        Mesh3d(assets.unit_circle.clone()),
-        MeshMaterial3d(instance_material),
-        Transform::from_translation(Vec3::new(
-            position.x,
-            constants::CIRCLE_Y_POSITION,
-            position.z,
+    commands
+        .spawn((
+            Mesh3d(assets.unit_circle.clone()),
+            MeshMaterial3d(instance_material),
+            Transform::from_translation(Vec3::new(
+                position.x,
+                constants::CIRCLE_Y_POSITION,
+                position.z,
+            ))
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(0.01)),
+            GreaseZone::new(
+                Vec3::new(position.x, 0.0, position.z),
+                radius,
+                slow_mod,
+                slow_dur,
+                constants::TICK_INTERVAL,
+                duration,
+                constants::IGNITE_DAMAGE,
+                constants::IGNITE_BURN_DAMAGE,
+                constants::IGNITE_BURN_TICK,
+                empowerment,
+                talent_params,
+            ),
+            NetworkedSpellEffect {
+                kind: SpellEffectKind::GreaseZone,
+            },
+            OnGameplayScreen,
         ))
-        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-        .with_scale(Vec3::splat(0.01)),
-        GreaseZone::new(
-            Vec3::new(position.x, 0.0, position.z),
-            radius,
-            slow_mod,
-            slow_dur,
-            constants::TICK_INTERVAL,
-            duration,
-            constants::IGNITE_DAMAGE,
-            constants::IGNITE_BURN_DAMAGE,
-            constants::IGNITE_BURN_TICK,
-            empowerment,
-            talent_params,
-        ),
-        NetworkedSpellEffect {
-            kind: SpellEffectKind::GreaseZone,
-        },
-        OnGameplayScreen,
-    ));
+        .id()
 }

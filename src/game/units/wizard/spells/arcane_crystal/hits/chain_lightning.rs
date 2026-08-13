@@ -1,7 +1,7 @@
 //! Hit detection for chain lightning spells absorbed by crystals.
 
 use super::super::setup::{
-    find_random_targets_in_range, increment_resonance, scaled_count, spell_echo_multiplier,
+    AbsorptionBookkeeping, absorb_into_crystal, find_random_targets_in_range,
 };
 use bevy::prelude::*;
 
@@ -12,7 +12,6 @@ use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage_with_team,
 };
 use crate::game::units::king::components::SpellShield;
-use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::chain_lightning::systems as chain_lightning_systems;
 use crate::game::units::wizard::spells::utils::local_player_team;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -77,13 +76,20 @@ pub(crate) fn detect_chain_lightning_hits(
                 continue;
             }
 
-            crystal.mark_absorption();
-            crystal.remembered_spell = Some(RememberedSpell::ChainLightning);
-            crystal.auto_cast_timer = 0.0;
-
             let rng = &mut game_rng.0;
-            let echo_mult = spell_echo_multiplier(rng, crystal.spell_echo);
-            let count = scaled_count(LIGHTNING_ARC_COUNT, crystal.count_mult) * echo_mult;
+            let Some(absorption) = absorb_into_crystal(
+                &mut commands,
+                &mut crystal,
+                &mut resonance,
+                &mut progress,
+                rng,
+                CrystalInfusion::ChainLightning,
+                LIGHTNING_ARC_COUNT,
+                AbsorptionBookkeeping::DISCRETE,
+            ) else {
+                continue;
+            };
+            let count = absorption.count;
 
             // Emit arcs to random targets
             let enemies =
@@ -119,12 +125,6 @@ pub(crate) fn detect_chain_lightning_hits(
                     crystal.empowerment,
                 );
             }
-
-            // Track progress
-            progress.increment(Spell::ArcaneCrystal, count as u32);
-
-            // Resonance cascade
-            increment_resonance(&mut resonance);
 
             break; // Only process once per crystal per frame
         }

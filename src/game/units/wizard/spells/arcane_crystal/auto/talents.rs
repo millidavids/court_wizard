@@ -73,8 +73,12 @@ pub(crate) fn resonance_cascade_burst(
 
 /// Shared AoE burst: damages all enemies in radius and spawns a visual ring.
 /// Returns the number of enemies hit.
+///
+/// Generic over the target query's filter because callers need different ones —
+/// the black-hole path additionally excludes crystals so its `&Transform` access
+/// stays disjoint from the `&mut Transform` it holds on the crystal itself.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn crystal_aoe_burst(
+pub(crate) fn crystal_aoe_burst<F: bevy::ecs::query::QueryFilter>(
     commands: &mut Commands,
     visual_assets: &SpellVisualAssets,
     position: Vec3,
@@ -83,14 +87,7 @@ pub(crate) fn crystal_aoe_burst(
     radius: f32,
     visual_height: f32,
     visual_lifetime: f32,
-    targets: &Query<
-        (Entity, &Transform),
-        (
-            With<Health>,
-            Without<Corpse>,
-            Without<crate::game::pathfinding::StagingAttacker>,
-        ),
-    >,
+    targets: &Query<(Entity, &Transform), F>,
     health_query: &mut Query<(
         &mut Health,
         Option<&mut TemporaryHitPoints>,

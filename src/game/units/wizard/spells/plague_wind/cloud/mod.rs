@@ -12,7 +12,6 @@ pub use damage::{
 pub use drift::{cleanup_plague_wind_cloud, move_plague_wind_cloud};
 pub use particles::emit_plague_cloud_particles;
 pub use spawn::spawn_pandemic_clouds;
-// spawn_plague_cloud was pub(super) in the original (visible only to plague_wind).
-// It lives in spawn.rs as pub(super) there (visible to cloud/mod.rs), and we
-// re-export it here with pub(super) so plague_wind can still call it.
-pub(super) use spawn::spawn_plague_cloud;
+// Widened from pub(super) for the Arcane Crystal's Plague Wind infusion, which
+// emits the same drifting clouds radially from the crystal.
+pub(crate) use spawn::spawn_plague_cloud;

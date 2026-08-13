@@ -14,6 +14,7 @@ use crate::game::pathfinding::ObstacleChanged;
 use crate::game::units::components::Corpse;
 use crate::game::units::components::Team;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -229,6 +230,13 @@ pub fn handle_entangle_casting(
                                 cast_pos,
                                 &game_config,
                                 &sfx,
+                            );
+                            announce_area_cast(
+                                &mut commands,
+                                Spell::Entangle,
+                                cast_pos,
+                                effective_radius,
+                                primed_spell.empowerment,
                             );
                             let hit_count = apply_entangle(
                                 &mut game_rng.0,

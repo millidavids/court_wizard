@@ -2,8 +2,7 @@
 
 use super::super::auto::spawn_crystal_mini_missile;
 use super::super::setup::{
-    crystal_target_teams, find_random_enemies_in_range, increment_resonance, scaled_count,
-    spell_echo_multiplier,
+    AbsorptionBookkeeping, absorb_into_crystal, crystal_target_teams, find_random_enemies_in_range,
 };
 use bevy::prelude::*;
 use rand::Rng;
@@ -11,7 +10,6 @@ use rand::Rng;
 use super::super::components::*;
 use super::super::constants::*;
 use crate::game::units::components::{Corpse, Team};
-use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::magic_missile::components::MagicMissile;
 use crate::game::units::wizard::spells::magic_missile_constants;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -51,15 +49,23 @@ pub(crate) fn detect_magic_missile_hits(
             let distance = missile_transform.translation.distance(crystal.position);
 
             if distance <= crystal.collision_radius {
+                let rng = &mut game_rng.0;
+                let Some(absorption) = absorb_into_crystal(
+                    &mut commands,
+                    &mut crystal,
+                    &mut resonance,
+                    &mut progress,
+                    rng,
+                    CrystalInfusion::MagicMissile,
+                    MINI_MISSILE_COUNT,
+                    AbsorptionBookkeeping::DISCRETE,
+                ) else {
+                    continue;
+                };
+                let count = absorption.count;
+
                 // Absorb the missile
                 commands.entity(missile_entity).try_despawn();
-                crystal.mark_absorption();
-                crystal.remembered_spell = Some(RememberedSpell::MagicMissile);
-                crystal.auto_cast_timer = 0.0;
-
-                let rng = &mut game_rng.0;
-                let echo_mult = spell_echo_multiplier(rng, crystal.spell_echo);
-                let count = scaled_count(MINI_MISSILE_COUNT, crystal.count_mult) * echo_mult;
 
                 // Emit mini missiles at random enemy targets — peer-aware.
                 let targets = find_random_enemies_in_range(
@@ -94,12 +100,6 @@ pub(crate) fn detect_magic_missile_hits(
                         target_teams,
                     );
                 }
-
-                // Track progress
-                progress.increment(Spell::ArcaneCrystal, count as u32);
-
-                // Resonance cascade
-                increment_resonance(&mut resonance);
 
                 break;
             }

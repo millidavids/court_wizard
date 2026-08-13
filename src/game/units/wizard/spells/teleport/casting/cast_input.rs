@@ -19,6 +19,7 @@ use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_to_spell_range,
@@ -316,6 +317,13 @@ pub fn handle_teleport_casting(
         // Play sound at source position (where units teleport from)
         if let Some((source_x, source_z, _, _, _)) = cast_result.teleport_params {
             let source_pos = Vec3::new(source_x, 0.0, source_z);
+            announce_area_cast(
+                &mut commands,
+                Spell::Teleport,
+                source_pos,
+                CIRCLE_RADIUS,
+                primed_spell.empowerment,
+            );
             audio::play_sfx(
                 &mut commands,
                 &sfx.teleport_cast,

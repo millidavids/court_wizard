@@ -7,6 +7,7 @@ pub(crate) mod auto;
 pub(crate) mod components;
 pub(crate) mod constants;
 pub(crate) mod hits;
+pub(crate) mod infusions;
 mod plugin;
 pub(crate) mod setup;
 pub(crate) mod systems;

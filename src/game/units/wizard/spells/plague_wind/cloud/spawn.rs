@@ -20,7 +20,7 @@ pub(crate) fn spawn_plague_cloud(
     speed: f32,
     direction: Vec3,
     talent_params: PlagueWindTalentParams,
-) {
+) -> Entity {
     // Notify pathfinding
     let origin_2d = Vec2::new(pos.x, pos.z);
     let buffered = radius + OBSTACLE_BUFFER;
@@ -31,24 +31,26 @@ pub(crate) fn spawn_plague_cloud(
         rebuild: false,
     });
 
-    commands.spawn((
-        Transform::from_translation(Vec3::new(pos.x, 0.0, pos.z)),
-        PlagueWindCloud::new(
-            pos,
-            radius,
-            damage,
-            constants::TICK_INTERVAL,
-            duration,
-            speed,
-            direction,
-            talent_params,
-        ),
-        UniqueHitTracker::default(),
-        NetworkedSpellEffect {
-            kind: SpellEffectKind::PlagueWindCloud,
-        },
-        OnGameplayScreen,
-    ));
+    commands
+        .spawn((
+            Transform::from_translation(Vec3::new(pos.x, 0.0, pos.z)),
+            PlagueWindCloud::new(
+                pos,
+                radius,
+                damage,
+                constants::TICK_INTERVAL,
+                duration,
+                speed,
+                direction,
+                talent_params,
+            ),
+            UniqueHitTracker::default(),
+            NetworkedSpellEffect {
+                kind: SpellEffectKind::PlagueWindCloud,
+            },
+            OnGameplayScreen,
+        ))
+        .id()
 }
 
 /// Pandemic: when an enemy dies inside a cloud, spawn a smaller child cloud at their position.

@@ -18,6 +18,7 @@ use crate::game::units::components::{
     TemporaryHitPoints,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -195,6 +196,13 @@ pub fn handle_healing_plume_casting(
             && let Some(indicator_entity) = caster.indicator_entity
         {
             if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                announce_area_cast(
+                    &mut commands,
+                    Spell::HealingPlume,
+                    indicator.position,
+                    radius,
+                    primed_spell.empowerment,
+                );
                 let zone_entity = spawn_healing_plume_zone(
                     &mut commands,
                     &visual_assets,

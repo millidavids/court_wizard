@@ -75,6 +75,70 @@ pub(crate) fn increment_resonance(resonance: &mut Option<Mut<ResonanceCascade>>)
     }
 }
 
+// ===== Infusion Spawn Ownership =====
+
+/// Registers an entity spawned by a crystal's infusion.
+///
+/// Tracked on the crystal for immediate teardown when it is re-infused, and
+/// tagged with [`CrystalOwned`] so [`cleanup_orphaned_infusion_spawns`] catches it
+/// if the crystal dies by any other route.
+///
+/// [`cleanup_orphaned_infusion_spawns`]: super::cleanup_orphaned_infusion_spawns
+pub(crate) fn register_infusion_spawn(
+    commands: &mut Commands,
+    crystal: &mut ArcaneCrystal,
+    crystal_entity: Entity,
+    spawned: Entity,
+) {
+    crystal.track_infusion_spawn(spawned);
+    commands.entity(spawned).insert(CrystalOwned {
+        crystal: crystal_entity,
+    });
+}
+
+/// Removes a crystal and everything that belongs to it: its beams, its infusion's
+/// spawns, the crystal itself, and its range indicator.
+///
+/// Every destruction path with crystal-specific code goes through here — expiry,
+/// black-hole consumption, Dispel's shatter, and Crystal Network eviction — so
+/// "what dying costs a crystal" lives in one place. Callers that also want a
+/// parting explosion fire it before calling.
+pub(crate) fn destroy_crystal(
+    commands: &mut Commands,
+    crystal_entity: Entity,
+    crystal: &ArcaneCrystal,
+    indicators: &Query<(Entity, &CrystalRangeIndicator)>,
+) {
+    despawn_crystal_owned_entities(commands, crystal);
+    commands.entity(crystal_entity).try_despawn();
+    for (indicator_entity, indicator) in indicators {
+        if indicator.crystal_entity == crystal_entity {
+            commands.entity(indicator_entity).try_despawn();
+        }
+    }
+}
+
+/// Despawns every entity a crystal owns: persistent beams, the auto-disintegrate
+/// beam, and anything its infusion spawned — but not the crystal itself.
+///
+/// Prefer [`destroy_crystal`]; this is separate only for the eviction path, which
+/// has no indicator query in scope.
+pub(crate) fn despawn_crystal_owned_entities(commands: &mut Commands, crystal: &ArcaneCrystal) {
+    for (beam_entities, _) in &crystal.active_beams {
+        for beam_entity in beam_entities {
+            commands.entity(*beam_entity).try_despawn();
+        }
+    }
+    if let Some((beam_entities, _)) = &crystal.auto_disintegrate_beam {
+        for beam_entity in beam_entities {
+            commands.entity(*beam_entity).try_despawn();
+        }
+    }
+    for entity in &crystal.infusion_spawns {
+        commands.entity(*entity).try_despawn();
+    }
+}
+
 // ===== Frame Reset =====
 
 /// Clears per-frame absorption flags on all crystals.

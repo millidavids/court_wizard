@@ -1,14 +1,13 @@
 //! Hit detection for meteor spells absorbed by crystals.
 
 use super::super::setup::{
-    find_random_targets_in_range, increment_resonance, scaled_count, spell_echo_multiplier,
+    AbsorptionBookkeeping, absorb_into_crystal, find_random_targets_in_range,
 };
 use bevy::prelude::*;
 
 use super::super::components::*;
 use super::super::constants::*;
 use crate::game::units::components::{Corpse, Health};
-use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::meteor_fall::casting::MeteorProjectileTalentFlags;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorProjectile;
 use crate::game::units::wizard::spells::meteor_fall::systems as meteor_fall_systems;
@@ -55,15 +54,24 @@ pub(crate) fn detect_meteor_hits(
                 && meteor_transform.translation.y <= crystal.position.y + CRYSTAL_HEIGHT
                 && meteor_transform.translation.y >= 0.0
             {
+                let rng = &mut game_rng.0;
+                let Some(absorption) = absorb_into_crystal(
+                    &mut commands,
+                    &mut crystal,
+                    &mut resonance,
+                    &mut progress,
+                    rng,
+                    CrystalInfusion::Meteor,
+                    MINI_METEOR_COUNT,
+                    AbsorptionBookkeeping::DISCRETE,
+                ) else {
+                    continue;
+                };
+
                 // Absorb the meteor
                 commands.entity(meteor_entity).try_despawn();
-                crystal.mark_absorption();
-                crystal.remembered_spell = Some(RememberedSpell::Meteor);
-                crystal.auto_cast_timer = 0.0;
 
-                let rng = &mut game_rng.0;
-                let echo_mult = spell_echo_multiplier(rng, crystal.spell_echo);
-                let count = scaled_count(2, crystal.count_mult) * echo_mult;
+                let count = absorption.count;
                 let damage_scale = DAMAGE_SCALE * crystal.damage_mult;
 
                 // Emit mini meteors at random targets
@@ -97,12 +105,6 @@ pub(crate) fn detect_meteor_hits(
                         lifetime: None,
                     });
                 }
-
-                // Track progress
-                progress.increment(Spell::ArcaneCrystal, count as u32);
-
-                // Resonance cascade
-                increment_resonance(&mut resonance);
 
                 break;
             }

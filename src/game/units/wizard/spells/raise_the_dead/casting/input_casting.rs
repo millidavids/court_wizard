@@ -10,6 +10,7 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, PermanentCorpse};
 use crate::game::units::undead::resources::UndeadAssets;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -194,6 +195,15 @@ pub fn handle_raise_the_dead_casting(
             vfx::systems::SpellSchool::Dark,
             time.elapsed_secs(),
         );
+        if let Some(pos) = input.cursor_pos {
+            announce_area_cast(
+                &mut commands,
+                Spell::RaiseTheDead,
+                pos,
+                indicator_radius,
+                primed_spell.empowerment,
+            );
+        }
     }
 }
 

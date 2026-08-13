@@ -1,4 +1,8 @@
 mod aura;
+
+// Widened for the Arcane Crystal's Battle Hymn infusion, which projects the same
+// buff from the crystal instead of from a one-off cast.
+pub(crate) use aura::apply_battle_hymn_buff;
 mod casting;
 mod effects;
 mod song_motes;

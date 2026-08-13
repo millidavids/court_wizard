@@ -9,6 +9,7 @@ use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -210,6 +211,13 @@ pub fn handle_battle_hymn_casting(
                     indicator.position,
                     radius,
                     2.5,
+                );
+                announce_area_cast(
+                    &mut commands,
+                    Spell::BattleHymn,
+                    indicator.position,
+                    radius,
+                    primed_spell.empowerment,
                 );
                 apply_battle_hymn_buff(
                     &mut commands,

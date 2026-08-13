@@ -11,6 +11,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::ObstacleChanged;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::{
     LocalSpellOrigin, SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist,
     build_wizard_input, clamp_cursor_to_spell_range_with_origin, cleanup_spell_caster,
@@ -201,6 +202,13 @@ pub fn handle_spike_growth_casting(
                                 &sfx,
                             );
 
+                            announce_area_cast(
+                                &mut commands,
+                                Spell::SpikeGrowth,
+                                indicator.position,
+                                effective_radius,
+                                primed_spell.empowerment,
+                            );
                             if talent_params.minefield {
                                 spawn_minefield_zones(
                                     &mut commands,

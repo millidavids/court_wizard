@@ -2,8 +2,8 @@
 
 use super::super::auto::spawn_crystal_disintegrate_beam;
 use super::super::setup::{
-    crystal_beam_geometry, find_random_targets_in_range, increment_resonance, scaled_count,
-    spell_echo_multiplier,
+    AbsorptionBookkeeping, absorb_into_crystal, crystal_beam_geometry,
+    find_random_targets_in_range, scaled_count,
 };
 use bevy::prelude::*;
 use rand::Rng;
@@ -11,7 +11,6 @@ use rand::Rng;
 use super::super::components::*;
 use super::super::constants::*;
 use crate::game::units::components::{Corpse, Health};
-use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
 use crate::game::units::wizard::spells::disintegrate::systems as disintegrate_systems;
 use crate::game::units::wizard::spells::disintegrate_constants;
@@ -67,12 +66,20 @@ pub(crate) fn detect_beam_hits(
 
         if hit_by_disintegrate {
             crystal.hit_by_disintegrate = true;
-            crystal.mark_absorption();
-            crystal.remembered_spell = Some(RememberedSpell::Disintegrate);
-            crystal.auto_cast_timer = 0.0;
-            // Intentionally does NOT call increment_resonance() or progress.increment() here:
-            // disintegrate hits run every frame while the beam is channeled, so tracking
-            // them per-frame would over-count. Progress is tracked via the beam's own systems.
+            // CHANNELED bookkeeping: disintegrate re-asserts itself every frame while
+            // the beam is held, so this path credits no progress, ticks no resonance,
+            // and — critically — draws no randomness, which would otherwise shift the
+            // seeded RNG stream once per frame. Progress comes from the beam's own systems.
+            absorb_into_crystal(
+                &mut commands,
+                &mut crystal,
+                &mut resonance,
+                &mut progress,
+                &mut game_rng.0,
+                CrystalInfusion::Disintegrate,
+                BEAM_COUNT,
+                AbsorptionBookkeeping::CHANNELED,
+            );
 
             // Clean up beam groups whose entities were despawned externally
             crystal.active_beams.retain(|(beam_entities, _)| {
@@ -217,14 +224,24 @@ pub(crate) fn detect_beam_hits(
             }
 
             if fod_beam.contains_point(crystal.position, fod_beam.beam_width_fired()) {
+                // Mark before absorbing — see the note in `hits/fireball.rs`.
                 crystal.fod_beams_processed.insert(fod_entity);
-                crystal.mark_absorption();
-                crystal.remembered_spell = Some(RememberedSpell::FingerOfDeath);
-                crystal.auto_cast_timer = 0.0;
 
                 let rng = &mut game_rng.0;
-                let echo_mult = spell_echo_multiplier(rng, crystal.spell_echo);
-                let fod_beam_count = scaled_count(BEAM_COUNT, crystal.count_mult) * echo_mult;
+                let Some(absorption) = absorb_into_crystal(
+                    &mut commands,
+                    &mut crystal,
+                    &mut resonance,
+                    &mut progress,
+                    rng,
+                    CrystalInfusion::FingerOfDeath,
+                    BEAM_COUNT,
+                    AbsorptionBookkeeping::DISCRETE,
+                ) else {
+                    continue;
+                };
+
+                let fod_beam_count = absorption.count;
                 let enemies = find_random_targets_in_range(
                     rng,
                     crystal.position,
@@ -269,12 +286,6 @@ pub(crate) fn detect_beam_hits(
                         });
                     }
                 }
-
-                // Track progress
-                progress.increment(Spell::ArcaneCrystal, fod_beam_count as u32);
-
-                // Resonance cascade
-                increment_resonance(&mut resonance);
             }
         }
     }

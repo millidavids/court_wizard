@@ -9,7 +9,7 @@ use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use bevy::prelude::*;
 
 /// Converts an ingredient drop entity to the flying-to-wizard state.
-pub(super) fn convert_drop_to_flying(
+pub(crate) fn convert_drop_to_flying(
     commands: &mut Commands,
     drop_entity: Entity,
     ingredient: crate::game::cauldron::brews::Ingredient,

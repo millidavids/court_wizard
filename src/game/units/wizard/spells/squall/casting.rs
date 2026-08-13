@@ -12,6 +12,7 @@ use crate::game::units::components::{FrostAccumulation, SlowMovementModifier};
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     RETICLE_Y, SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -283,6 +284,13 @@ fn squall_casting_logic(
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                            announce_area_cast(
+                                commands,
+                                Spell::Squall,
+                                indicator.position,
+                                storm_radius,
+                                primed_spell.empowerment,
+                            );
                             let mut storm_entity = commands.spawn((
                                 SquallStorm::new(
                                     indicator.position,

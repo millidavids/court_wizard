@@ -11,6 +11,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{BanishedModifier, Corpse, Health, Team, WasBanished};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -212,6 +213,14 @@ fn banishment_casting_logic(
                 if let Some(cursor_pos) = input.cursor_pos
                     && mana.consume(mana_cost)
                 {
+                    // Aimed at a crystal, the banishment charges it.
+                    announce_area_cast(
+                        commands,
+                        Spell::Banishment,
+                        cursor_pos,
+                        constants::MASS_BANISHMENT_RADIUS,
+                        primed_spell.empowerment,
+                    );
                     let banished = if params.mass_banishment {
                         cast_mass_banishment(
                             commands,

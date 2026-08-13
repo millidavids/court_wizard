@@ -1,11 +1,13 @@
 //! Hit detection for spells absorbed by crystals.
 
+mod area_cast;
 mod beam;
 mod chain_lightning;
 mod fireball;
 mod magic_missile;
 mod meteor;
 
+pub(super) use area_cast::detect_area_cast_hits;
 pub(super) use beam::detect_beam_hits;
 pub(super) use chain_lightning::detect_chain_lightning_hits;
 pub(super) use fireball::detect_fireball_hits;

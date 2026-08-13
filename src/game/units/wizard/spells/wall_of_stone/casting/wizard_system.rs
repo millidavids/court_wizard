@@ -12,6 +12,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::ObstacleChanged;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_to_spell_range,
@@ -89,6 +90,40 @@ pub fn handle_wall_of_stone_casting(
         &mut obstacle_events,
         &talent_params,
     );
+
+    // A wall raised across a crystal anchors and charges it. One message per
+    // segment, sized from that segment's own bounds, so Quick Foundations'
+    // second wall is not missed and a long wall does not reach crystals it
+    // never touched.
+    if cast_result.completed {
+        for bounds in &cast_result.obstacle_bounds {
+            let [min_x, min_z, max_x, max_z] = *bounds;
+            let (span_x, span_z) = (max_x - min_x, max_z - min_z);
+            // Walk the segment's long axis in steps sized to its short axis,
+            // announcing a circle at each. A single circle round the whole AABB
+            // would have the wall's *length* as its radius, anchoring crystals
+            // half a wall away that the stone never came near.
+            let reach = span_x.min(span_z).max(1.0) * 0.5;
+            let span = span_x.max(span_z);
+            let steps = ((span / reach.max(1.0)).ceil() as usize).clamp(1, 16);
+            let along_x = span_x >= span_z;
+            for step in 0..=steps {
+                let t = step as f32 / steps as f32;
+                let point = if along_x {
+                    Vec3::new(min_x + span_x * t, 0.0, (min_z + max_z) * 0.5)
+                } else {
+                    Vec3::new((min_x + max_x) * 0.5, 0.0, min_z + span_z * t)
+                };
+                announce_area_cast(
+                    &mut commands,
+                    Spell::WallOfStone,
+                    point,
+                    reach,
+                    primed_spell.empowerment,
+                );
+            }
+        }
+    }
 
     // Send each placed wall segment over the network so the other client updates
     // pathfinding for ALL of them (Quick Foundations places two).

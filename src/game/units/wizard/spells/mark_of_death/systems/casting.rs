@@ -13,6 +13,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, MarkedForDeathModifier, Team};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -263,6 +264,16 @@ fn mark_of_death_casting_logic(
                         {
                             progress.increment(Spell::MarkOfDeath, marked_count);
                         }
+
+                        // A mark aimed at a crystal charges it as well — the
+                        // search radius is the same window used to find a unit.
+                        announce_area_cast(
+                            commands,
+                            Spell::MarkOfDeath,
+                            cursor_pos,
+                            constants::TARGET_SEARCH_RADIUS,
+                            primed_spell.empowerment,
+                        );
                     }
                     completed = true;
                 }

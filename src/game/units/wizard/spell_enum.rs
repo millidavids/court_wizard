@@ -333,16 +333,16 @@ impl Spell {
                 "Drag to raise an impassable dirt wall that blocks all movement and projectiles for the rest of the level."
             }
             Spell::BlackHole => {
-                "Creates a gravitational sphere that pulls units inward in a spiral. Lasts 10 seconds, growing in size and strength over time."
+                "Creates a gravitational sphere that pulls units inward in a spiral. Lasts 20 seconds, growing in size and strength over time."
             }
             Spell::Squall => {
                 "Summons a storm that rains ice down on a targeted area, dealing frost damage and slowing enemies. Concentration spell — reserves mana while active."
             }
             Spell::WallOfFire => {
-                "Drag a line of fire that burns all units walking through it. Lasts 36 seconds."
+                "Drag a line of fire that burns all units walking through it. Lasts 20 seconds."
             }
             Spell::Entangle => {
-                "Roots all units in radius, preventing movement but not attacks. Lasts 5 seconds."
+                "Roots all units in radius, preventing movement but not attacks. Lasts 15 seconds."
             }
             Spell::Haste => "Grants all units in radius increased movement speed for 10 seconds.",
             Spell::SpikeGrowth => {

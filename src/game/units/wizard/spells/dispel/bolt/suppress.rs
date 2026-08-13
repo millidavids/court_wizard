@@ -29,6 +29,10 @@ pub(crate) fn is_dispellable(kind: SpellEffectKind) -> bool {
             | SpellEffectKind::SquallStorm
             | SpellEffectKind::ScorchedEarthFire
             | SpellEffectKind::NapalmTrail
+            // The crystal is removed by dispel, but through its own shatter
+            // path so it detonates instead of quietly vanishing. Deleting it
+            // here would beat the shatter to it.
+            | SpellEffectKind::ArcaneCrystal
     )
 }
 

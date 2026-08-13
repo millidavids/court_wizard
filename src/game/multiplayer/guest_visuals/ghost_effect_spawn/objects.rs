@@ -50,8 +50,8 @@ pub(crate) fn spawn_arcane_crystal(
     assets: &SpellVisualAssets,
 ) -> Option<Entity> {
     use crate::game::units::wizard::spells::arcane_crystal::components::{
-        ArcaneCrystal, AutoCrystalTimer, CrystalNetwork, CrystalRangeIndicator, PrismaticExplosion,
-        ResonanceCascade,
+        ArcaneCrystal, AutoCrystalTimer, CrystalNetwork, CrystalRangeIndicator, CrystalTint,
+        PrismaticExplosion, ResonanceCascade,
     };
     let extra = effect.extra;
     let flags = effect.flags;
@@ -76,6 +76,9 @@ pub(crate) fn spawn_arcane_crystal(
             range * 0.15,
             empowerment,
         ),
+        // Lets the ghost recolor as the host's crystal changes infusion; the
+        // value itself is refreshed per frame in `spell_sync/ghost_spawn.rs`.
+        CrystalTint::default(),
         OnMultiplayerGameScreen,
     ));
     // Re-insert any talent marker components present on the original

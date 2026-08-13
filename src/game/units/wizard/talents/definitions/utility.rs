@@ -530,7 +530,7 @@ pub(super) fn arcane_crystal_talents() -> [[TalentDefinition; 3]; 3] {
             },
             TalentDefinition {
                 name: "Prismatic Explosion",
-                description: "Crystal explodes when it expires, dealing massive damage of every damage type in a large radius.",
+                description: "Crystal explodes when it expires or is destroyed, dealing massive force damage in a large radius.",
                 locked_text: "The crystal goes out in a blaze of... every element. It's beautiful AND lethal.",
                 implemented: true,
             },

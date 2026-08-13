@@ -13,6 +13,7 @@ use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -288,6 +289,14 @@ fn plague_wind_casting_logic(
                     let damage = constants::DAMAGE_PER_TICK * scale * talent_params.damage_mult;
                     let duration = constants::CLOUD_DURATION * scale * talent_params.duration_mult;
                     let speed = constants::CLOUD_SPEED * talent_params.speed_mult;
+
+                    announce_area_cast(
+                        commands,
+                        Spell::PlagueWind,
+                        pos,
+                        radius,
+                        primed_spell.empowerment,
+                    );
 
                     audio::play_sfx_synced(
                         commands,

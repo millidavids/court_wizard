@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
+use crate::game::units::wizard::spells::arcane_crystal::infusions::CrystalInfusion;
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::entangle::components::EntangleGroundEffect;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
@@ -254,7 +255,20 @@ pub fn collect_spell_effect_snapshots(
                     if has_network {
                         flags |= 1 << 3;
                     }
-                    ([ac.range, ac.duration, ac.empowerment, 0.0], flags)
+                    // extra[3] carries what the crystal is infused with, so the
+                    // guest's ghost can tint to match. Updated every frame by the
+                    // ArcaneCrystal arm in `ghost_spawn`, since a crystal is always
+                    // placed before it absorbs anything and would otherwise be
+                    // stuck showing the uninfused colour it had at spawn.
+                    (
+                        [
+                            ac.range,
+                            ac.duration,
+                            ac.empowerment,
+                            CrystalInfusion::as_sync_id(ac.infusion),
+                        ],
+                        flags,
+                    )
                 } else {
                     continue;
                 }

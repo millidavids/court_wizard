@@ -15,6 +15,7 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::lightning_bolt::{
     LightningBoltConfig, spawn_lightning_bolt,
 };
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -283,6 +284,13 @@ fn lightning_rod_casting_logic(
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(MANA_COST) {
                     let spawn_pos = input.cursor_pos.unwrap_or(wizard_pos);
+                    announce_area_cast(
+                        commands,
+                        Spell::LightningRod,
+                        spawn_pos,
+                        0.0,
+                        primed_spell.empowerment,
+                    );
                     let talent_params = compute_talent_params(active_talents);
                     let duration =
                         TOWER_DURATION * primed_spell.empowerment * talent_params.duration_mult;

@@ -3,45 +3,7 @@
 use bevy::prelude::*;
 use std::collections::HashSet;
 
-/// The type of spell the crystal has most recently absorbed.
-/// Used for auto-casting on a timer.
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub(crate) enum RememberedSpell {
-    Fireball,
-    Disintegrate,
-    FingerOfDeath,
-    Meteor,
-    MagicMissile,
-    ChainLightning,
-}
-
-impl RememberedSpell {
-    /// Returns the representative damage value for interval calculation.
-    fn damage_value(self) -> f32 {
-        match self {
-            Self::MagicMissile => 5.0,
-            Self::ChainLightning => 20.0,
-            Self::Meteor => 25.0,
-            Self::Fireball => 50.0,
-            Self::FingerOfDeath => 1000.0,
-            Self::Disintegrate => 0.0, // special case — constant beam
-        }
-    }
-
-    /// Returns the auto-cast interval for this spell type.
-    /// Disintegrate returns 0.0 (special case: constant beam, no interval).
-    pub fn auto_cast_interval(self) -> f32 {
-        if self == Self::Disintegrate {
-            return 0.0;
-        }
-        let raw = super::constants::AUTO_CAST_BASE_INTERVAL
-            * (self.damage_value() / super::constants::AUTO_CAST_REFERENCE_DAMAGE);
-        raw.clamp(
-            super::constants::AUTO_CAST_MIN_INTERVAL,
-            super::constants::AUTO_CAST_MAX_INTERVAL,
-        )
-    }
-}
+pub(crate) use super::infusions::CrystalInfusion;
 
 /// Main crystal entity placed on the battlefield.
 ///
@@ -72,10 +34,22 @@ pub(crate) struct ArcaneCrystal {
     pub active_beams: Vec<(Vec<Entity>, Entity)>,
     /// Whether the crystal was hit by disintegrate last frame.
     pub hit_by_disintegrate: bool,
-    /// The last spell type that hit the crystal (for auto-casting).
-    pub remembered_spell: Option<RememberedSpell>,
-    /// Timer for auto-casting the remembered spell.
+    /// What the crystal currently projects. Set by the last spell to hit it.
+    pub infusion: Option<CrystalInfusion>,
+    /// Entities the current infusion has spawned (zones, patches, clouds).
+    ///
+    /// Owned by the crystal so re-infusing, expiry, dispel, and black-hole
+    /// consumption can all tear them down. Beams are tracked separately in
+    /// `active_beams` / `auto_disintegrate_beam` because they need per-frame
+    /// re-aiming, not just cleanup.
+    pub infusion_spawns: Vec<Entity>,
+    /// Timer for the current infusion's periodic activation.
     pub auto_cast_timer: f32,
+    /// Set when a fresh absorption lands; consumed by the infusion's first
+    /// activation, which fires immediately and at burst strength. This is what
+    /// makes the "targeted effect" and the "ongoing effect" one code path per
+    /// infusion instead of two.
+    pub infusion_burst_pending: bool,
     /// Active auto-cast disintegrate beam group + target pair (beam_entities, target_entity).
     /// Only used when remembered_spell is Disintegrate.
     pub auto_disintegrate_beam: Option<(Vec<Entity>, Entity)>,
@@ -114,8 +88,10 @@ impl ArcaneCrystal {
             explosions_processed: HashSet::new(),
             active_beams: Vec::new(),
             hit_by_disintegrate: false,
-            remembered_spell: None,
+            infusion: None,
+            infusion_spawns: Vec::new(),
             auto_cast_timer: 0.0,
+            infusion_burst_pending: false,
             auto_disintegrate_beam: None,
             just_absorbed: false,
             damage_mult: 1.0,
@@ -136,6 +112,46 @@ impl ArcaneCrystal {
         self.trigger_pulse();
         self.just_absorbed = true;
     }
+
+    /// Despawns everything the current infusion spawned and forgets it.
+    ///
+    /// Called on re-infusion and on every crystal-destruction path. Zones spawned
+    /// through another spell's helper carry no crystal linkage of their own, so
+    /// without this they outlive the crystal that made them.
+    pub fn clear_infusion_spawns(&mut self, commands: &mut Commands) {
+        for entity in self.infusion_spawns.drain(..) {
+            commands.entity(entity).try_despawn();
+        }
+    }
+
+    /// Registers an entity spawned by the current infusion for later teardown.
+    pub fn track_infusion_spawn(&mut self, entity: Entity) {
+        self.infusion_spawns.push(entity);
+    }
+}
+
+/// Tracks which infusion a crystal's material currently shows.
+///
+/// The crystal body starts on the shared `arcane_crystal` material handle, which
+/// every crystal *and* the multiplayer ghost point at. Tinting one in place would
+/// tint them all and persist into the next level, so the first tint clones the
+/// material for this entity and `owns_material` records that it is now safe to
+/// mutate in place.
+#[derive(Component, Default)]
+pub(crate) struct CrystalTint {
+    pub shown: Option<CrystalInfusion>,
+    pub owns_material: bool,
+}
+
+/// Links an infusion-spawned entity back to the crystal that made it.
+///
+/// The crystal also tracks these in `infusion_spawns` for immediate teardown when
+/// it is re-infused. This tag covers the other direction: the crystal dying by a
+/// route with no crystal-specific code to hook — most importantly Dispel, which
+/// despawns it through the generic `NetworkedSpellEffect` path.
+#[derive(Component)]
+pub(crate) struct CrystalOwned {
+    pub crystal: Entity,
 }
 
 /// Marker for the range indicator circle entity linked to a crystal.

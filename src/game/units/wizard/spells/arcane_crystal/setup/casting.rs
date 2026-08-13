@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::super::components::*;
 use super::super::constants::*;
-use super::helpers::compute_talent_params;
+use super::helpers::{compute_talent_params, despawn_crystal_owned_entities};
 use super::spawn::spawn_crystal;
 use crate::config::GameConfig;
 use crate::game::crt_effect::CorrectedCursorPosition;
@@ -146,15 +146,17 @@ pub(crate) fn handle_arcane_crystal_casting(
             }
         } else if !talent_params.crystal_network {
             // Default: despawn existing crystals (non-permanent)
-            for (crystal_entity, _) in &existing_crystals {
+            for (crystal_entity, crystal) in &existing_crystals {
+                despawn_crystal_owned_entities(&mut commands, crystal);
                 commands.entity(crystal_entity).try_despawn();
             }
         } else {
             // Crystal Network: allow up to 3 crystals; despawn an arbitrary one if at limit
             let count = existing_crystals.iter().count();
             if count >= CRYSTAL_NETWORK_MAX_CRYSTALS
-                && let Some((oldest, _)) = existing_crystals.iter().next()
+                && let Some((oldest, oldest_crystal)) = existing_crystals.iter().next()
             {
+                despawn_crystal_owned_entities(&mut commands, oldest_crystal);
                 commands.entity(oldest).try_despawn();
             }
         }

@@ -113,6 +113,7 @@ fn spawn_crystal_entity<'a>(
             1.5 * sphere_radius,
             0.7 * sphere_radius,
         )),
+        CrystalTint::default(),
         NetworkedSpellEffect {
             kind: SpellEffectKind::ArcaneCrystal,
         },

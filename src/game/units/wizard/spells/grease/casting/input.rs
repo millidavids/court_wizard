@@ -12,6 +12,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::ObstacleChanged;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::messages::announce_area_cast;
 use crate::game::units::wizard::spells::utils::LocalSpellOrigin;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
@@ -199,6 +200,13 @@ fn grease_casting_logic(
                                 indicator.position,
                                 game_config,
                                 sfx,
+                            );
+                            announce_area_cast(
+                                commands,
+                                Spell::Grease,
+                                indicator.position,
+                                radius,
+                                primed_spell.empowerment,
                             );
                             spawn_grease_zone(
                                 commands,
