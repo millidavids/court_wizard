@@ -19,6 +19,8 @@ pub fn button_action(
     mut channel_change: MessageWriter<ChannelChangeMessage>,
     session: Option<Res<crate::networking::session::MultiplayerSession>>,
     coop_pause: Option<Res<crate::game::multiplayer::coop_pause::CoopPauseState>>,
+    // Exit tells an attached co-op guest the run is over before tearing down.
+    mut connection: ResMut<crate::networking::resources::NetworkConnection>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -47,6 +49,7 @@ pub fn button_action(
                         &mut active_save,
                         &mut channel_change,
                         &mut next_app_state,
+                        &mut connection,
                     );
                 }
             }

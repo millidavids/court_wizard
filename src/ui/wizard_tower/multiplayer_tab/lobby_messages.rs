@@ -33,16 +33,28 @@ fn mp_safe_wizard(wt: WizardType) -> WizardType {
 ///
 /// `PlayerInfo` is *sent* once by `sync_lobby_with_connection` at the moment the
 /// lobby reaches `Handshake` — not here — so it is never re-sent per frame.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn process_lobby_messages(
     mut connection: ResMut<NetworkConnection>,
     mut lobby: ResMut<MultiplayerLobby>,
     mut commands: Commands,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut tab: Option<ResMut<WizardTowerTab>>,
+    // Only used to tear the session down on a version mismatch — see below.
+    mut host_selection: ResMut<CoopHostSelection>,
+    transport: Option<Res<crate::networking::transport::TransportHandle>>,
+    steam_client: Option<Res<bevy_steamworks::Client>>,
+    mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
+    mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     if connection.incoming_messages.is_empty() {
         return;
     }
+
+    // Set by either version-mismatch branch. The teardown happens after the drain
+    // loop so both branches share one call site.
+    let mut version_mismatch: Option<String> = None;
 
     {
         let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
@@ -56,12 +68,10 @@ pub(crate) fn process_lobby_messages(
                         warn!(
                             "[MP Lobby] Version mismatch via HandshakeVersion: local v{local_version}, peer v{version}"
                         );
-                        lobby.phase = LobbyPhase::Failed {
-                            reason: format!(
-                                "Multiplayer version mismatch: you are on v{local_version}, opponent is on v{version}. Both players must update to the same game version."
-                            ),
-                        };
-                        return;
+                        version_mismatch = Some(format!(
+                            "Multiplayer version mismatch: you are on v{local_version}, opponent is on v{version}. Both players must update to the same game version."
+                        ));
+                        break;
                     }
                     lobby.peer_protocol_version = Some(version);
                     info!("[MP Lobby] Received HandshakeVersion (v{version}) — match");
@@ -79,12 +89,10 @@ pub(crate) fn process_lobby_messages(
                         warn!(
                             "[MP Lobby] PlayerInfo arrived before HandshakeVersion — peer is on an incompatible older version"
                         );
-                        lobby.phase = LobbyPhase::Failed {
-                            reason: format!(
-                                "Multiplayer version mismatch: opponent is on an older version that doesn't support the v{local_version} handshake. Both players must update to the same game version."
-                            ),
-                        };
-                        return;
+                        version_mismatch = Some(format!(
+                            "Multiplayer version mismatch: opponent is on an older version that doesn't support the v{local_version} handshake. Both players must update to the same game version."
+                        ));
+                        break;
                     }
                     info!(
                         "[MP Lobby] Received PlayerInfo ({} wizard types, peer protocol v{:?})",
@@ -212,6 +220,28 @@ pub(crate) fn process_lobby_messages(
         if !unhandled.is_empty() {
             connection.incoming_messages.extend(unhandled);
         }
+    }
+
+    // A version mismatch used to set `LobbyPhase::Failed` and return, leaving the
+    // connection `Connected`, the socket live and the Steam lobby joined behind a
+    // terminal panel that `budget_for(PhaseKind::Failed, _)` never times out. The
+    // player's only escape was Try Again / Back; anything else carried the whole dead
+    // session forward. Tear it down properly, then paint the reason — the reset clears
+    // `lobby.phase`, so the order matters.
+    if let Some(reason) = version_mismatch {
+        crate::game::multiplayer::session_reset::reset_multiplayer_to_baseline(
+            "multiplayer version mismatch",
+            &mut commands,
+            &mut connection,
+            &mut lobby,
+            &mut host_selection,
+            transport.as_deref(),
+            steam_client.as_deref(),
+            steam_lobby.as_deref_mut(),
+            steam_socket.as_deref_mut(),
+            session.is_some(),
+        );
+        lobby.phase = LobbyPhase::Failed { reason };
     }
 }
 

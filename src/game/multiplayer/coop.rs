@@ -196,6 +196,33 @@ pub(in crate::game) fn send_coop_level_over(
         });
 }
 
+/// Tell an attached co-op guest that the host's run is over, so it returns to the
+/// tower on purpose rather than by noticing the socket died.
+///
+/// `NetworkMessage::CoopRunEnded` has been handled by the guest since it was
+/// introduced (`receive_coop_lifecycle` below) but had no sender anywhere in the
+/// codebase — the guest only ever found out when the transport dropped underneath it.
+///
+/// Best-effort by nature: the message has to survive one frame in
+/// `outgoing_messages` before a transport pump picks it up, and the quit paths that
+/// call this go on to reset the connection. Both pumps are ordered to run before that
+/// reset (`transport_bridge_system` in `PreUpdate`; the Steam pump is explicitly
+/// `.after(ButtonActionSet)` so it ships what the click produced in the same frame),
+/// so it lands in practice. If it ever loses the race, the guest still recovers
+/// through its own disconnect detector — it just sees "The host disconnected."
+/// instead of a clean return.
+pub(crate) fn notify_guest_run_ended(
+    connection: &mut crate::networking::resources::NetworkConnection,
+    victory: bool,
+) {
+    if !connection.has_connected_guest() {
+        return;
+    }
+    connection
+        .outgoing_messages
+        .push(crate::networking::protocol::NetworkMessage::CoopRunEnded { victory });
+}
+
 /// Co-op host: detect a guest disconnect during the match. The host keeps
 /// playing solo — we just clear `CoopGuestConnected`, which lifts the +30%
 /// attacker buff next frame. The guest's wizard proxy is left in place (inert)
@@ -356,5 +383,10 @@ pub(in crate::game) fn cleanup_coop_host(
     commands.remove_resource::<super::spell_sync::LatestSpellSnapshot>();
     commands.remove_resource::<super::score_stats::LocalWizardStats>();
     commands.remove_resource::<CoopGuestConnected>();
+    // Clear the queue as well as the flag. The versus path does both
+    // (`spell_sync::mark_pending_events_mp_inactive`); dropping only the flag here
+    // left any event emitted after the last drain of level N queued, and it then
+    // shipped in level N+1's very first snapshot.
     pending_events.mp_active = false;
+    pending_events.events.clear();
 }

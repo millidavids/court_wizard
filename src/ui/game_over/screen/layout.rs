@@ -32,7 +32,16 @@ pub(crate) fn setup_game_over_screen(
     game_mode: Option<Res<GameMode>>,
     roguelite_run: Option<Res<RogueliteRunState>>,
     game_seed: Option<Res<crate::game::seeded_rng::resources::GameSeed>>,
+    connection: Res<crate::networking::resources::NetworkConnection>,
 ) {
+    // A co-op host with a guest still attached must leave via the Wizard Tower: its
+    // Continue button is the only flow that calls `start_coop_host`, and so the only
+    // one that sends the guest a `StartGame`. "Next Level" and "Time Rewind" go
+    // straight to `AppState::Loading` with no such handshake, so a host clicking the
+    // obvious button played the whole next level while the guest sat in the tower
+    // wondering what happened. Hide them rather than teaching them a second copy of
+    // the tower's co-op bookkeeping. Same gate as `enter_wizard_tower`.
+    let coop_guest_attached = connection.has_connected_guest();
     let is_time_travel = time_travel.is_some();
     let is_roguelite = matches!(game_mode.as_deref(), Some(&GameMode::Roguelite));
     let is_roguelite_run_end =
@@ -149,12 +158,14 @@ pub(crate) fn setup_game_over_screen(
                 } else if is_roguelite {
                     // Roguelite mid-run victory — jump straight to the next
                     // level, or detour to the tower to spend insight.
-                    spawn_button(
-                        buttons,
-                        "Next Level",
-                        GameOverButtonAction::NextLevel,
-                        &BUTTON_STYLE,
-                    );
+                    if !coop_guest_attached {
+                        spawn_button(
+                            buttons,
+                            "Next Level",
+                            GameOverButtonAction::NextLevel,
+                            &BUTTON_STYLE,
+                        );
+                    }
                     spawn_button(
                         buttons,
                         "Wizard Tower",
@@ -164,7 +175,7 @@ pub(crate) fn setup_game_over_screen(
                 } else if is_time_travel {
                     // Time travel: victory shows only "Wizard Tower"
                     // Defeat shows retry + wizard tower
-                    if game_outcome.is_defeat() {
+                    if game_outcome.is_defeat() && !coop_guest_attached {
                         spawn_button(
                             buttons,
                             &format!("Time Rewind (Level {})", current_level.0),
@@ -183,12 +194,14 @@ pub(crate) fn setup_game_over_screen(
                     // Normal Endless flow
                     if game_outcome.is_defeat() {
                         // Retry the same level, or head back to the tower.
-                        spawn_button(
-                            buttons,
-                            &format!("Time Rewind (Level {})", current_level.0),
-                            GameOverButtonAction::PlayAgain,
-                            &BUTTON_STYLE,
-                        );
+                        if !coop_guest_attached {
+                            spawn_button(
+                                buttons,
+                                &format!("Time Rewind (Level {})", current_level.0),
+                                GameOverButtonAction::PlayAgain,
+                                &BUTTON_STYLE,
+                            );
+                        }
                         spawn_button(
                             buttons,
                             "Wizard Tower",
@@ -198,12 +211,14 @@ pub(crate) fn setup_game_over_screen(
                     } else {
                         // Victory — jump straight to the next level, or detour
                         // to the tower to spend insight.
-                        spawn_button(
-                            buttons,
-                            "Next Level",
-                            GameOverButtonAction::NextLevel,
-                            &BUTTON_STYLE,
-                        );
+                        if !coop_guest_attached {
+                            spawn_button(
+                                buttons,
+                                "Next Level",
+                                GameOverButtonAction::NextLevel,
+                                &BUTTON_STYLE,
+                            );
+                        }
                         spawn_button(
                             buttons,
                             "Wizard Tower",

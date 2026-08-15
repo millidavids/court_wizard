@@ -50,6 +50,15 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
         OnExit(AppState::MultiplayerGame),
         excremage_theming::clear_excremage_ghost_materials,
     );
+    // The co-op HOST never enters `AppState::MultiplayerGame` — it plays in
+    // `AppState::InGame` — but `theme_remote_excremage_ghosts` runs under
+    // `both_peers`, which includes it. Without this mirror the browned-material
+    // clones it creates were never freed, so the cache grew for the whole process:
+    // every level, every reconnect, until the game was restarted.
+    app.add_systems(
+        OnExit(AppState::InGame),
+        excremage_theming::clear_excremage_ghost_materials,
+    );
 
     // Outgoing one-shot cast VFX events. Casting handlers push to this
     // via `vfx::systems::emit_cast_event` (or the `_synced` wrappers);

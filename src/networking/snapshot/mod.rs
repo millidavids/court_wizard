@@ -16,7 +16,9 @@ pub use cast_event::{
     SpellSchoolWire, SpellSoundId,
 };
 pub use crdt::{CrdtSnapshot, CrdtUnitUpdate};
-pub use game::{ArrowSnapshot, BeamSnapshot, GameSnapshot, MagicMissileSnapshot};
+pub use game::{
+    ArrowSnapshot, BEAM_FLAG_FROM_CRYSTAL, BeamSnapshot, GameSnapshot, MagicMissileSnapshot,
+};
 pub use protocol::{
     SpellVisualSnapshot, UNRELIABLE_CRDT_SNAPSHOT, UNRELIABLE_GAME_SNAPSHOT,
     UNRELIABLE_SPELL_SNAPSHOT,

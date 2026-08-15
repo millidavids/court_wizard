@@ -239,10 +239,12 @@ pub(crate) fn cleanup_mp_game(
 /// Tears down the active multiplayer session and returns to the main menu.
 ///
 /// Shared by the score-screen, pause-menu, and disconnected-overlay disconnect
-/// paths plus the score-screen Escape handler. `transport` is `Option`: the
-/// disconnected-overlay path passes `None` (the peer is already gone, so there's
-/// nothing to signal); every other path passes the live handle so the peer is
-/// told to disconnect.
+/// paths plus the score-screen Escape handler. `transport` is `Option` only because
+/// the handle may be absent in a build without the transport plugin — every caller
+/// now passes the live handle. The disconnected-overlay path used to pass `None` on
+/// the grounds that "the peer is already gone", which conflated the remote peer being
+/// gone with the local tokio flow being idle: on the host, `handle_host` had looped
+/// back to `ep.accept()` with the endpoint still bound.
 ///
 /// This is just the canonical baseline reset plus the navigation. Note the reset
 /// also clears `PendingRematch`: disconnecting cancels any rematch, and clearing

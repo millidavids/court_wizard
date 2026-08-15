@@ -70,7 +70,13 @@ pub fn send_spell_visual_snapshot(
     mut spell_data: ResMut<SpellSnapshotData>,
     mut pending_cast_events: ResMut<PendingCastEvents>,
     missiles: Query<&Transform, With<MagicMissile>>,
-    beams: Query<&DisintegrateBeam>,
+    // `Has<CrystalSpawn>` rather than a `Without` filter: the peer still needs to SEE
+    // a crystal's beams, it just must not dress them up as wizard casts. Filtering
+    // them out here would have traded a wrong visual for a missing one.
+    beams: Query<(
+        &DisintegrateBeam,
+        Has<crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn>,
+    )>,
 ) {
     let snapshot = SpellVisualSnapshot {
         spell_effects: std::mem::take(&mut spell_data.spell_effects),
@@ -86,7 +92,7 @@ pub fn send_spell_visual_snapshot(
             .collect(),
         beams: beams
             .iter()
-            .map(|beam| BeamSnapshot {
+            .map(|(beam, from_crystal)| BeamSnapshot {
                 ox: beam.origin.x,
                 oy: beam.origin.y,
                 oz: beam.origin.z,
@@ -95,6 +101,11 @@ pub fn send_spell_visual_snapshot(
                 dz: beam.direction.z,
                 length: beam.current_length(),
                 width: beam.beam_width(),
+                flags: if from_crystal {
+                    crate::networking::snapshot::BEAM_FLAG_FROM_CRYSTAL
+                } else {
+                    0
+                },
             })
             .collect(),
         // Drain one-shot cast events accumulated by casting handlers this

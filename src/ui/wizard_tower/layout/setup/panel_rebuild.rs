@@ -172,8 +172,7 @@ fn compute_guest_pending(
     lobby: &super::super::super::multiplayer_tab::MultiplayerLobby,
 ) -> Option<bool> {
     use super::super::super::multiplayer_tab::state::LobbyPhase;
-    use crate::networking::resources::{ConnectionState, PeerRole};
-    if connection.state != ConnectionState::Connected || connection.role != Some(PeerRole::Host) {
+    if !connection.has_connected_guest() {
         return None;
     }
     match &lobby.phase {

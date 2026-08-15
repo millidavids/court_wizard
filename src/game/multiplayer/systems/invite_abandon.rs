@@ -53,6 +53,7 @@ pub(crate) fn abandon_run_for_steam_invite(
                 &mut active_save,
                 &mut channel_change,
                 &mut next_app_state,
+                &mut connection,
             );
         }
         // Multiplayer: end the current session cleanly (leaves the old lobby +

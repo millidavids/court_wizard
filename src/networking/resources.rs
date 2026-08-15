@@ -87,6 +87,18 @@ pub struct NetworkConnection {
 }
 
 impl NetworkConnection {
+    /// True when we are the host and a peer is currently linked to us.
+    ///
+    /// The single source of truth for "is someone playing alongside me?". The score
+    /// screen uses it to hide the routes that would strand that peer, the wizard
+    /// tower uses it to decide the landing tab and the start-button label. They must
+    /// agree — when they didn't, the score screen offered "Next Level", which jumps
+    /// straight to `AppState::Loading` without the `start_coop_host` handshake that
+    /// pulls the guest in, and the guest sat in the tower for the whole level.
+    pub fn has_connected_guest(&self) -> bool {
+        self.state == ConnectionState::Connected && self.role == Some(PeerRole::Host)
+    }
+
     /// Reset all connection state to defaults.
     ///
     /// Call this when disconnecting or cancelling to ensure no stale state remains.

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::Receiver;
 use iroh::{Endpoint, endpoint::presets};
 use tokio::sync::Notify;
 
@@ -13,7 +13,7 @@ use super::endpoint::{ALPN, build_transport_config, close_endpoint};
 use super::helpers::{send_error_and_fail, send_event, wait_for_disconnect};
 use super::io::run_connection_io;
 use super::ticket::decode_endpoint_addr;
-use crate::networking::transport::runtime::{TransportCommand, TransportEvent};
+use crate::networking::transport::runtime::{EventSink, TransportCommand, TransportEvent};
 
 /// Ceiling on a single dial attempt. Generous enough for relay selection and NAT
 /// traversal on a slow link, but bounded so a host that has stopped listening
@@ -24,22 +24,22 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn handle_guest(
     ticket_code: &str,
-    command_rx: &mut tokio::sync::mpsc::UnboundedReceiver<TransportCommand>,
-    event_tx: &Sender<TransportEvent>,
+    command_rx: &mut tokio::sync::mpsc::UnboundedReceiver<(u64, TransportCommand)>,
+    events: &EventSink,
     reliable_rx: &Receiver<Vec<u8>>,
     unreliable_rx: &Receiver<Vec<u8>>,
     reliable_notify: &Arc<Notify>,
     unreliable_notify: &Arc<Notify>,
 ) {
     send_event(
-        event_tx,
+        events,
         TransportEvent::StateChanged(ConnectionState::Connecting),
     );
 
     let endpoint_addr = match decode_endpoint_addr(ticket_code.trim()) {
         Ok(addr) => addr,
         Err(e) => {
-            send_error_and_fail(event_tx, format!("Invalid connection code: {e}"));
+            send_error_and_fail(events, format!("Invalid connection code: {e}"));
             return;
         }
     };
@@ -51,7 +51,7 @@ pub(super) async fn handle_guest(
     {
         Ok(ep) => ep,
         Err(e) => {
-            send_error_and_fail(event_tx, format!("Failed to create endpoint: {e}"));
+            send_error_and_fail(events, format!("Failed to create endpoint: {e}"));
             return;
         }
     };
@@ -72,24 +72,24 @@ pub(super) async fn handle_guest(
         result = ep.connect(endpoint_addr, ALPN) => match result {
             Ok(conn) => conn,
             Err(e) => {
-                send_error_and_fail(event_tx, format!("Failed to connect to host: {e}"));
+                send_error_and_fail(events, format!("Failed to connect to host: {e}"));
                 close_endpoint(&ep).await;
                 return;
             }
         },
-        _ = wait_for_disconnect(command_rx, event_tx) => {
+        _ = wait_for_disconnect(command_rx, events) => {
             // Cancelled locally. Report Disconnected (not Failed) — the player did
             // this on purpose and shouldn't be shown an error panel.
             close_endpoint(&ep).await;
             send_event(
-                event_tx,
+                events,
                 TransportEvent::StateChanged(ConnectionState::Disconnected),
             );
             return;
         }
         _ = tokio::time::sleep(CONNECT_TIMEOUT) => {
             send_error_and_fail(
-                event_tx,
+                events,
                 "Couldn't reach the host — they may have stopped hosting.".to_string(),
             );
             close_endpoint(&ep).await;
@@ -98,7 +98,7 @@ pub(super) async fn handle_guest(
     };
 
     send_event(
-        event_tx,
+        events,
         TransportEvent::StateChanged(ConnectionState::Connected),
     );
 
@@ -110,7 +110,7 @@ pub(super) async fn handle_guest(
         &ep,
         false,
         command_rx,
-        event_tx,
+        events,
         reliable_rx,
         unreliable_rx,
         reliable_notify,

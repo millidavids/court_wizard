@@ -4,13 +4,14 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU16;
 
 use bevy::log::warn;
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::Receiver;
 use iroh::Endpoint;
 use iroh::endpoint::Connection;
 use tokio::sync::Notify;
+use tokio_util::sync::CancellationToken;
 
 use crate::networking::resources::ConnectionState;
-use crate::networking::transport::runtime::{TransportCommand, TransportEvent};
+use crate::networking::transport::runtime::{EventSink, TransportCommand, TransportEvent};
 
 use super::helpers::{send_error_and_fail, send_event, wait_for_disconnect};
 use super::reliable::{recv_reliable_loop, send_reliable_loop};
@@ -36,8 +37,8 @@ pub(super) async fn run_connection_io(
     conn: Connection,
     _ep: &Endpoint,
     is_host: bool,
-    command_rx: &mut tokio::sync::mpsc::UnboundedReceiver<TransportCommand>,
-    event_tx: &Sender<TransportEvent>,
+    command_rx: &mut tokio::sync::mpsc::UnboundedReceiver<(u64, TransportCommand)>,
+    events: &EventSink,
     reliable_rx: &Receiver<Vec<u8>>,
     unreliable_rx: &Receiver<Vec<u8>>,
     reliable_notify: &Arc<Notify>,
@@ -71,7 +72,7 @@ pub(super) async fn run_connection_io(
         match conn.open_bi().await {
             Ok(streams) => streams,
             Err(e) => {
-                send_error_and_fail(event_tx, format!("Failed to open stream: {e}"));
+                send_error_and_fail(events, format!("Failed to open stream: {e}"));
                 return ConnectionExitReason::Lost;
             }
         }
@@ -79,13 +80,24 @@ pub(super) async fn run_connection_io(
         match conn.accept_bi().await {
             Ok(streams) => streams,
             Err(e) => {
-                send_error_and_fail(event_tx, format!("Failed to accept stream: {e}"));
+                send_error_and_fail(events, format!("Failed to accept stream: {e}"));
                 return ConnectionExitReason::Lost;
             }
         }
     };
 
-    let shutdown = Arc::new(Notify::new());
+    // Per-session cancellation. This MUST NOT be a `Notify`: `notify_waiters()`
+    // stores no permit, and tokio discards a pending `Notification::All` when the
+    // `Notified` future is dropped. Both send loops sit in a two-branch `select!`
+    // (shutdown vs. data), and `select!` polls its branches in random order — so a
+    // loop woken by the data branch on the same poll that shutdown fired would drop
+    // the shutdown notification and park forever on the next iteration. It then
+    // outlived the session still holding a clone of the process-lifetime MPMC
+    // `reliable_rx`/`unreliable_rx`, and the NEXT session's `notify_one()` handed it
+    // that session's bytes — which is how a reconnect lost its `HandshakeVersion` +
+    // `PlayerInfo` (hard hang) or a share of its snapshots (worsening stutter).
+    // `CancellationToken` is level-triggered and sticky, so it cannot be missed.
+    let shutdown = CancellationToken::new();
     let sequence_counter = Arc::new(AtomicU16::new(0));
 
     // Spawn I/O tasks.
@@ -97,7 +109,7 @@ pub(super) async fn run_connection_io(
     ));
     let recv_reliable_handle = tokio::spawn(recv_reliable_loop(
         recv_stream,
-        event_tx.clone(),
+        events.clone(),
         shutdown.clone(),
     ));
     let send_unreliable_handle = tokio::spawn(send_unreliable_loop(
@@ -109,34 +121,50 @@ pub(super) async fn run_connection_io(
     ));
     let recv_unreliable_handle = tokio::spawn(recv_unreliable_loop(
         conn.clone(),
-        event_tx.clone(),
+        events.clone(),
         shutdown.clone(),
     ));
 
     // Wait for disconnect command or connection close.
     let reason = tokio::select! {
-        _ = wait_for_disconnect(command_rx, event_tx) => {
+        _ = wait_for_disconnect(command_rx, events) => {
             conn.close(0u8.into(), b"disconnect");
             ConnectionExitReason::Disconnect
         }
         _ = conn.closed() => {
-            send_event(event_tx, TransportEvent::Error("Connection lost".into()));
+            send_event(events, TransportEvent::Error("Connection lost".into()));
             ConnectionExitReason::Lost
         }
     };
 
-    shutdown.notify_waiters();
+    shutdown.cancel();
 
+    // Give the loops a bounded window to finish in place, then ABORT unconditionally.
+    //
+    // Awaiting by `&mut handle` (`JoinHandle` is `Unpin`) keeps the handles alive past
+    // the timeout so we can still abort them. The previous version moved them into the
+    // async block, so a timeout DROPPED them — and dropping a `JoinHandle` detaches the
+    // task rather than aborting it, which is what let a stuck loop survive into the next
+    // session. Aborting an already-finished task is a no-op, so this costs nothing on the
+    // happy path and is deterministic on every other one.
+    let mut handles = [
+        send_reliable_handle,
+        recv_reliable_handle,
+        send_unreliable_handle,
+        recv_unreliable_handle,
+    ];
     let _ = tokio::time::timeout(std::time::Duration::from_secs(2), async {
-        let _ = send_reliable_handle.await;
-        let _ = recv_reliable_handle.await;
-        let _ = send_unreliable_handle.await;
-        let _ = recv_unreliable_handle.await;
+        for handle in &mut handles {
+            let _ = handle.await;
+        }
     })
     .await;
+    for handle in &handles {
+        handle.abort();
+    }
 
     send_event(
-        event_tx,
+        events,
         TransportEvent::StateChanged(ConnectionState::Disconnected),
     );
 

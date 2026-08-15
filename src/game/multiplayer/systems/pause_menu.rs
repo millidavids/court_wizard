@@ -76,7 +76,19 @@ pub(crate) fn mp_escape_key_handler(
 // ── Escape Menu (Paused Overlay) ────────────────────────────────────
 
 /// Spawns the MP escape menu overlay.
-pub(crate) fn setup_mp_pause_menu(mut commands: Commands) {
+///
+/// Forfeit is versus-only. There is nothing to forfeit in co-op — both players are on
+/// the same side — and the button was worse than useless there: the guest's
+/// `NetworkMessage::Forfeit` could never be received, because `receive_mp_forfeit` is
+/// gated on `MultiplayerGameState` existing and the co-op host plays in
+/// `AppState::InGame`, where that sub-state does not exist. Nothing drained the
+/// message either, so it sat in the host's `incoming_messages` forever. A co-op guest
+/// who wants out uses Disconnect, which is right below it.
+pub(crate) fn setup_mp_pause_menu(
+    mut commands: Commands,
+    session: Option<Res<MultiplayerSession>>,
+) {
+    let show_forfeit = !session.is_some_and(|s| s.is_coop());
     commands
         .spawn((
             Node {
@@ -117,12 +129,14 @@ pub(crate) fn setup_mp_pause_menu(mut commands: Commands) {
                 MpPauseButtonAction::Settings,
                 &PAUSE_BUTTON_STYLE,
             );
-            spawn_button(
-                parent,
-                "Forfeit",
-                MpPauseButtonAction::Forfeit,
-                &PAUSE_BUTTON_STYLE,
-            );
+            if show_forfeit {
+                spawn_button(
+                    parent,
+                    "Forfeit",
+                    MpPauseButtonAction::Forfeit,
+                    &PAUSE_BUTTON_STYLE,
+                );
+            }
             spawn_button(
                 parent,
                 "Disconnect",

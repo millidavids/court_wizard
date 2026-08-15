@@ -69,7 +69,12 @@ use crate::game::units::wizard::components::Spell;
 ///   (bincode positional — breaking) and adds the `BERSERKER_RAGE` /
 ///   `BATTLE_HYMN` / `TEMP_HP` / `HASTE` / `HEALING` bits so lingering buff
 ///   indicators render on guest ghosts regardless of who cast the buff.
-pub const PROTOCOL_VERSION: u32 = 13;
+/// - 14: adds `flags: u8` to `BeamSnapshot` (bincode positional — breaking) with
+///   `BEAM_FLAG_FROM_CRYSTAL`, so the receiving peer can tell an Arcane Crystal's
+///   beams from a wizard's and skip the wizard-only glow cone and origin flare.
+///   Without it the flare — an opaque sphere scaled to `FLARE_RADIUS` and centred on
+///   the beam origin — was drawn on top of the crystal that emitted it.
+pub const PROTOCOL_VERSION: u32 = 14;
 
 /// Messages sent over the reliable iroh/QUIC channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -129,6 +129,24 @@ impl Default for InsightBonuses {
     }
 }
 
+impl InsightBonuses {
+    /// Load bonus levels from save data and compute multipliers.
+    pub(crate) fn from_save() -> Self {
+        let bonuses = get_all_insight_bonuses();
+        let bonus = InsightBonusStat::bonus_per_level();
+        let max = InsightBonusStat::max_level();
+
+        let level = |id: &str| -> f32 { bonuses.get(id).copied().unwrap_or(0).min(max) as f32 };
+
+        Self {
+            spell_damage_mult: 1.0 + bonus * level(InsightBonusStat::SpellDamage.id()),
+            spell_range_mult: 1.0 + bonus * level(InsightBonusStat::SpellRange.id()),
+            cast_speed_mult: 1.0 + bonus * level(InsightBonusStat::CastSpeed.id()),
+            mana_cost_mult: 1.0 - bonus * level(InsightBonusStat::ManaCost.id()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -152,23 +170,5 @@ mod tests {
         assert_eq!(InsightBonusStat::remaining_capacity(0), 2500);
         assert_eq!(InsightBonusStat::remaining_capacity(2400), 100);
         assert_eq!(InsightBonusStat::remaining_capacity(u32::MAX), 0);
-    }
-}
-
-impl InsightBonuses {
-    /// Load bonus levels from save data and compute multipliers.
-    pub(crate) fn from_save() -> Self {
-        let bonuses = get_all_insight_bonuses();
-        let bonus = InsightBonusStat::bonus_per_level();
-        let max = InsightBonusStat::max_level();
-
-        let level = |id: &str| -> f32 { bonuses.get(id).copied().unwrap_or(0).min(max) as f32 };
-
-        Self {
-            spell_damage_mult: 1.0 + bonus * level(InsightBonusStat::SpellDamage.id()),
-            spell_range_mult: 1.0 + bonus * level(InsightBonusStat::SpellRange.id()),
-            cast_speed_mult: 1.0 + bonus * level(InsightBonusStat::CastSpeed.id()),
-            mana_cost_mult: 1.0 - bonus * level(InsightBonusStat::ManaCost.id()),
-        }
     }
 }

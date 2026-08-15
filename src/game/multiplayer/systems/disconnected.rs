@@ -99,14 +99,20 @@ pub(crate) fn handle_mp_disconnected_buttons(
     mut lobby: ResMut<crate::ui::wizard_tower::MultiplayerLobby>,
     mut host_selection: ResMut<crate::ui::wizard_tower::CoopHostSelection>,
     session: Option<Res<MultiplayerSession>>,
+    transport: Option<Res<TransportHandle>>,
 ) {
     for event in button_clicked.read() {
         if button_query.get(event.button).is_ok() {
-            // `None` transport: the overlay only appears when the peer is already
-            // gone, so there's nothing to signal — just tear down locally.
+            // Pass the live transport. This used to pass `None` on the reasoning that
+            // "the peer is already gone, so there's nothing to signal" — but that is not
+            // the same as "the local tokio flow is idle". On the host side
+            // `run_connection_io` returned `Lost`, so `handle_host` looped back to
+            // `ep.accept()` with the endpoint still bound and the ticket still live.
+            // Only the later `OnEnter(MainMenu)` catch-all released it, an undeclared
+            // dependency. `Disconnect` with nothing in flight is a documented no-op.
             do_mp_disconnect(
                 &mut connection,
-                None,
+                transport.as_deref(),
                 steam_client.as_deref(),
                 steam_lobby.as_deref_mut(),
                 steam_socket.as_deref_mut(),
@@ -163,31 +169,41 @@ pub(crate) fn detect_mp_disconnect(
         return;
     }
 
-    if session.is_coop() {
+    // Either way the link is gone, so tear all the way down here rather than leaving
+    // it to whatever the player clicks next.
+    //
+    // The versus branch used to do NOTHING but set the overlay state, deferring every
+    // scrap of teardown to the "Return to Menu" button — so a player who alt-tabbed
+    // away, quit, or accepted a Steam invite from that overlay left a live Steam lobby
+    // and a bound iroh endpoint behind. Resetting here also removes
+    // `MultiplayerSession`, which stops every `is_multiplayer_*`-gated system on the
+    // spot; that is the intent on a dead link, and the overlay is unaffected (its
+    // entities are despawned by `cleanup_mp_game`, and its button handler is gated on
+    // `in_mp_disconnected` alone). This system can't re-fire either — it returns early
+    // when the session is missing.
+    let was_coop = session.is_coop();
+    reset_multiplayer_to_baseline(
+        if was_coop {
+            "co-op host disconnected"
+        } else {
+            "versus peer disconnected"
+        },
+        &mut commands,
+        &mut connection,
+        &mut lobby,
+        &mut host_selection,
+        transport.as_deref(),
+        steam_client.as_deref(),
+        steam_lobby.as_deref_mut(),
+        steam_socket.as_deref_mut(),
+        true,
+    );
+
+    if was_coop {
         // Co-op guest: the host keeps playing solo, so there's no "match over"
         // dead-end for the guest — return to the wizard tower's Multiplayer tab
-        // where a fresh invite can be accepted.
-        //
-        // This used to drop only the session + `CoopGuestLevel`, which left the
-        // guest sitting in the host's Steam lobby with a dead `SteamP2pSocket`, a
-        // stale `mode = Steam` / `role = Guest`, and a `LobbyPhase` from the old
-        // match. All three block the next connection, so tear all the way down —
-        // the link is already gone (that is why we're in this branch), so there is
-        // nothing live to preserve.
-        reset_multiplayer_to_baseline(
-            "co-op host disconnected",
-            &mut commands,
-            &mut connection,
-            &mut lobby,
-            &mut host_selection,
-            transport.as_deref(),
-            steam_client.as_deref(),
-            steam_lobby.as_deref_mut(),
-            steam_socket.as_deref_mut(),
-            true,
-        );
-        // The co-op guest returns silently to the tower, so flag the reason with a
-        // toast — otherwise it's not obvious the host dropped the game.
+        // where a fresh invite can be accepted. It returns silently, so flag the
+        // reason with a toast; otherwise it's not obvious the host dropped the game.
         notifications.push(crate::ui::notification::NotificationEntry::Toast {
             message: "The host disconnected.",
         });

@@ -17,7 +17,26 @@ use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConne
 
 use super::constants::{LOBBY_KEY_PROTOCOL_VERSION, RICH_PRESENCE_CONNECT_KEY};
 use super::lobby_state::{SteamLobbyBridge, SteamLobbyState, format_steam_error};
-use super::sockets::{SteamP2pSocket, start_connecting};
+use super::sockets::{SteamP2pSocket, start_connecting, tear_down_socket};
+
+/// Abandon one specific lobby, identified by id rather than by whatever
+/// `SteamLobbyState` currently holds.
+///
+/// The join-result drain is a loop, so state-derived teardown is unsafe here: the
+/// first iteration would set `Idle` and every later one would find no id to leave.
+fn leave_specific_lobby(
+    client: &Client,
+    lobby_id: LobbyId,
+    lobby_state: &mut SteamLobbyState,
+    socket: Option<&mut SteamP2pSocket>,
+) {
+    client.matchmaking().leave_lobby(lobby_id);
+    client.friends().clear_rich_presence();
+    if let Some(socket) = socket {
+        tear_down_socket(socket);
+    }
+    *lobby_state = SteamLobbyState::Idle;
+}
 
 /// Startup system: construct the bridge (channels + persistent
 /// LobbyChatUpdate callback handle) and insert it as a resource.
@@ -153,8 +172,16 @@ pub(super) fn process_join_lobby_result(
                         remote_version.as_deref().unwrap_or("?")
                     );
                     warn!("[Steam MP] {reason}");
-                    client.matchmaking().leave_lobby(lobby_id);
-                    *lobby_state = SteamLobbyState::Idle;
+                    // Leave THIS result's lobby by id, then do the cleanup this path
+                    // used to skip: rich presence (otherwise we keep advertising
+                    // `+connect_lobby <id>` for a lobby we just left, and a friend
+                    // clicking Join is handed a dead one) and the P2P socket.
+                    //
+                    // Deliberately not routed through `shutdown_steam_session`: that
+                    // derives the id from `*lobby_state` and then sets it to `Idle`, but
+                    // this is a drain loop — a second mismatched result would find
+                    // `Idle`, match the "no id" arm, and leave its lobby joined forever.
+                    leave_specific_lobby(client, lobby_id, lobby_state, socket.as_deref_mut());
                     connection.error = Some(reason);
                     connection.state = ConnectionState::Failed;
                     continue;
@@ -168,8 +195,9 @@ pub(super) fn process_join_lobby_result(
                 // absent `socket.connection` every frame, forever.
                 let Some(socket) = socket.as_deref_mut() else {
                     warn!("[Steam MP] Joined lobby but no P2P socket resource — cannot dial host");
-                    client.matchmaking().leave_lobby(lobby_id);
-                    *lobby_state = SteamLobbyState::Idle;
+                    // No socket to tear down here by definition, but rich presence
+                    // still has to be cleared. Same id-not-state rule as above.
+                    leave_specific_lobby(client, lobby_id, lobby_state, None);
                     connection.error = Some(
                         "Steam networking is unavailable. Try restarting the game.".to_string(),
                     );

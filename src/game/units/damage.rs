@@ -145,8 +145,12 @@ mod tests {
                 "DamageType::{:?} roundtrip failed",
                 v
             );
-            // Exhaustiveness: every variant must produce a distinct byte.
-            let _ensure_match_is_exhaustive = match v {
+            // Exhaustiveness guard: adding a variant to `DamageType` without
+            // listing it here is a compile error, which is the reminder to update
+            // `all` above (and therefore `to_u8` / `from_u8`). Written as a bare
+            // `match` statement rather than a `let` binding — binding a unit value
+            // to a name reads as a value the test uses, and clippy flags it.
+            match v {
                 DamageType::Force
                 | DamageType::Fire
                 | DamageType::Electric
@@ -154,8 +158,8 @@ mod tests {
                 | DamageType::Necrotic
                 | DamageType::Nature
                 | DamageType::Poison
-                | DamageType::Poop => (),
-            };
+                | DamageType::Poop => {}
+            }
         }
     }
 }

@@ -5,16 +5,24 @@ use super::super::resources::CurrentLevel;
 use super::super::units::king::components::KingSpawned;
 
 /// Abandon the in-progress single-player run and return to the main menu:
-/// trigger the CRT channel-change wipe, discard any dormant roguelite run, drop
-/// the active save slot, and request the `MainMenu` transition. Going through
-/// `MainMenu` ensures `cleanup_game_mode` (on `OnEnter(MainMenu)`) fully tears the
-/// run down. Shared by the pause-menu "Exit" button and the Steam-invite mid-run
-/// abandon so the teardown lives in one place.
+/// tell an attached co-op guest the run is over, trigger the CRT channel-change wipe,
+/// discard any dormant roguelite run, drop the active save slot, and request the
+/// `MainMenu` transition. Going through `MainMenu` ensures `cleanup_game_mode` (on
+/// `OnEnter(MainMenu)`) fully tears the run down. Shared by the pause-menu "Exit"
+/// button and the Steam-invite mid-run abandon so the teardown lives in one place.
+///
+/// The co-op notify belongs here rather than at the call sites: the co-op HOST plays
+/// in `AppState::InGame` and so leaves through the single-player quit buttons
+/// exclusively, which makes this helper the one place every mid-run exit passes
+/// through. A `None` connection (or a solo run) makes it a no-op.
 pub fn abandon_run_to_main_menu(
     active_save: &mut crate::config::ActiveSave,
     channel_change: &mut MessageWriter<crate::game::crt_effect::ChannelChangeMessage>,
     next_app_state: &mut NextState<crate::state::AppState>,
+    connection: &mut crate::networking::resources::NetworkConnection,
 ) {
+    // Abandoning is never a victory for the guest's records.
+    crate::game::multiplayer::coop::notify_guest_run_ended(connection, false);
     channel_change.write(crate::game::crt_effect::ChannelChangeMessage);
     crate::config::save_data::clear_current_roguelite_run(active_save);
     active_save.0 = None;

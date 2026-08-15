@@ -2,10 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v1.0.38] - 2026-08-13
+## [v1.0.38] - 2026-08-15
 
 ### Description
-The Arcane Crystal now takes on the character of almost any spell you feed it — grease, ice storms, war hymns, lightning rods — instead of only echoing damage.
+The Arcane Crystal now takes on the character of almost any spell you feed it — grease, ice storms, war hymns, lightning rods — instead of only echoing damage. Reconnecting in multiplayer is also far steadier.
 
 ### Added
 - **The Arcane Crystal now answers to most of your spellbook** — it used to only react to six, all of them damage. Feed it a slick of grease, a healing plume, a war hymn, a swarm of vines, an ice storm, a lightning rod, and it takes on that spell's character instead: laying oil around itself, mending everyone nearby, rooting whatever wanders too close. The crystal has stopped being a damage multiplier and started being whatever you decide it should be that fight.
@@ -19,6 +19,9 @@ The Arcane Crystal now takes on the character of almost any spell you feed it �
 
 ### Changed
 - **A crystal swallowed by a black hole goes out with a bang** — it used to simply blink out of existence.
+- **The score screen no longer offers routes that would abandon your co-op partner** — with a friend still connected, "Next Level" and "Time Rewind" skipped the handshake that brings them along, so they sat in the tower while you played on alone. Head through the Wizard Tower instead; its Continue button starts the next level for both of you.
+- **Forfeit is gone from the co-op pause menu** — there is nothing to forfeit when you are both on the same side, and the button did nothing at all. Use Disconnect.
+- **Leaving a co-op run now tells your partner** — they return to the Wizard Tower straight away instead of waiting for the connection to go quiet.
 
 ### Fixed
 - **Black holes no longer eat crystals that were meant to last** — a permanent crystal caught in one would vanish and stay gone, including from later levels.
@@ -26,6 +29,15 @@ The Arcane Crystal now takes on the character of almost any spell you feed it �
 - **Dispel now works both ways in co-op** — whichever of you cast a lingering spell, the other could not clear it away. Walls of fire, spike fields, grease, plague clouds and black holes summoned by your partner simply ignored your Dispel.
 - **Reconnecting after a dropped connection no longer wedges the second player** — if a connection stalled and then completed a moment too late, the joining player could end up in a state where they never finished introducing themselves. Their partner sat on "Exchanging player info" forever, and every retry failed the same way until the joining player restarted the game entirely.
 - **Starting a fresh join while still connected no longer leaves the old session hanging around** — joining a new game with a code while already linked to a co-op partner kept you listed in their lobby with a live connection you had walked away from.
+- **Reconnecting no longer degrades the game a little more each time** — leftovers from a closed session could quietly intercept part of the next one. The first casualty was usually the introduction the two of you exchange on connecting, leaving both players stuck on "Exchanging player info"; after that it was the steady stream of battlefield updates, so your partner's army stuttered and froze a bit worse with every reconnect until someone restarted the game. Sessions now shut down completely before the next one starts.
+- **A closing connection can no longer disturb the one replacing it** — the tail end of a session you had already left could arrive a moment too late and land on your new one, showing "Connection lost" on a perfectly good connection, or replacing your fresh connection code with the dead one from the session before. Your friend would then type in a code that could never work.
+- **Cancelling while hosting now takes effect immediately** — backing out during the few seconds it takes to set up an online game was ignored until that setup finished, and a connection code was published for a game you had already left.
+- **Host Game now clears the previous session first** — like Join Game already did. Hosting again right after disconnecting could fail because the old connection was still closing. Double-clicking the button no longer causes a failure either.
+- **An interrupted rematch no longer breaks multiplayer for the rest of the session** — if a rematch fell through at the wrong moment, every trip back to the main menu afterwards quietly skipped its multiplayer cleanup, and nothing worked properly again until you restarted the game.
+- **A version mismatch now closes the connection it refused** — the "you're on different versions" screen used to leave the connection and the Steam lobby wide open behind it, which then interfered with your next attempt.
+- **Your opponent disconnecting now cleans up straight away** — the disconnect screen used to leave everything running until you clicked the button on it, so quitting or accepting an invite from that screen left an open connection and a live Steam lobby behind.
+- **Long co-op sessions stay smooth** — playing alongside an Excremage partner slowly accumulated unused graphics data for as long as the game stayed open.
+- **The Arcane Crystal keeps its shape on your partner's screen** — a crystal charged with Disintegrate showed up on the other player's screen as a featureless glowing ball, because the flare that belongs at the tip of a wizard's beam was being drawn on the crystal itself. Since a Disintegrate charge lasts the crystal's whole life, it never went away.
 
 ## [v1.0.37] - 2026-08-10
 

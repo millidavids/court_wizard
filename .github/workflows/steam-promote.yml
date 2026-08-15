@@ -247,12 +247,36 @@ jobs:
         env:
           FULL_TITLE: ${{ steps.changelog.outputs.full_title }}
           BODY: ${{ steps.changelog.outputs.body }}
+          VERSION: ${{ steps.target.outputs.version }}
+          GAME_SITE: https://courtwizard.blackhearthgames.com
+          STUDIO_SITE: https://blackhearthgames.com
         run: |
           set -euo pipefail
+          # **The embed names the game.** It used to title itself `v1.0.38 -
+          # <date>` and nothing else, which reads fine in a channel dedicated to
+          # one game and is anonymous anywhere else — a webhook can be pointed at
+          # a shared studio channel, and a version number alone does not say
+          # whose.
+          #
+          # `url` is what makes the title clickable; Discord has no way to link
+          # part of a title, so the whole `Court Wizard v1.0.38 - <date>` points
+          # at the GitHub release for that tag. Built from `github.server_url`
+          # and `github.repository` rather than hardcoded, so a fork or a rename
+          # does not silently 404.
+          release_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/v$VERSION"
+          links="[Steam](https://store.steampowered.com/app/$APP_ID/) · [Website]($GAME_SITE) · [Studio]($STUDIO_SITE)"
           payload=$(jq -n \
-            --arg title "$FULL_TITLE" \
+            --arg title "Court Wizard $FULL_TITLE" \
+            --arg url "$release_url" \
             --arg desc "$BODY" \
-            '{embeds: [{title: $title, description: $desc, color: 16744448}]}')
+            --arg links "$links" \
+            '{embeds: [{
+               title: $title,
+               url: $url,
+               description: $desc,
+               color: 16744448,
+               fields: [{name: "Links", value: $links}]
+             }]}')
           curl -sS --fail-with-body -H "Content-Type: application/json" \
             -d "$payload" "$DISCORD_WEBHOOK_URL"
 

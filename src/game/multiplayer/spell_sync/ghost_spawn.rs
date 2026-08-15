@@ -393,6 +393,16 @@ pub fn apply_remote_spell_snapshot(
         // Tagged `GhostBeam` so the per-frame beam clear above despawns them
         // too. The ground eclipse is skipped — it needs the local wizard's
         // spell-range geometry, which the ghost has no access to.
+        //
+        // Crystal-emitted beams get the core ONLY, matching SP `spawn_beam_core`
+        // (`disintegrate/beam/spawn.rs`). They used to get the wizard treatment too,
+        // which parked a `FLARE_RADIUS`-scaled opaque sphere on the crystal's exact
+        // position — swallowing it whole on the opposing player's screen, and
+        // permanently so, since Disintegrate keeps a beam alive for the crystal's
+        // entire life.
+        if beam.flags & crate::networking::snapshot::BEAM_FLAG_FROM_CRYSTAL != 0 {
+            continue;
+        }
         use crate::game::units::wizard::spells::disintegrate::constants as disint;
         let glow_width = beam.width * disint::GLOW_WIDTH_MULTIPLIER * 0.7;
         commands.spawn((

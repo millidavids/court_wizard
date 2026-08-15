@@ -71,8 +71,14 @@ pub(crate) fn reset_multiplayer_to_baseline(
     // 1. Signal the iroh runtime. A `Disconnect` with nothing in flight is a
     //    documented no-op (`transport/connection/runtime_loop.rs`), so this is
     //    safe to send unconditionally rather than guessing whether iroh was live.
+    //
+    //    `send_command` also opens a new session generation, which is what makes the
+    //    dying flow's remaining events stale — the bridge drops anything stamped with
+    //    an older one. Draining afterwards clears what is already queued so it can't
+    //    pile up, and keeps this reset honest if the fence is ever bypassed.
     if let Some(transport) = transport {
         transport.send_command(TransportCommand::Disconnect);
+        transport.drain_events();
     }
 
     // 2. Steam: leave the lobby, clear rich presence, drop the P2P socket.
@@ -128,12 +134,23 @@ pub(crate) fn reset_multiplayer_to_baseline(
 /// button then hit its non-Idle guard and silently did nothing — unrecoverable
 /// without restarting the game.
 ///
-/// Registered with `run_if(not(resource_exists::<PendingRematch>))`: the rematch
-/// flow deliberately routes `MultiplayerGame → MainMenu → MetaGame` carrying a live
-/// connection and session, and must be exempt. Bevy runs `OnEnter(AppState::_)`
-/// strictly before `OnEnter(MenuState::Landing)` (sub-state enter schedules are
-/// registered `.after` the parent's), so this lands before
-/// `route_pending_rematch_from_menu` either way.
+/// The rematch flow deliberately routes `MultiplayerGame → MainMenu → MetaGame`
+/// carrying a live connection and session, and must be exempt — but only while that
+/// rematch can still happen.
+///
+/// This used to be a blunt `run_if(not(resource_exists::<PendingRematch>))`. The
+/// problem is that `PendingRematch` is consumed in exactly one place
+/// (`handle_pending_rematch_on_enter`, `OnEnter(MetaGameState::WizardTower)`), so a
+/// rematch interrupted anywhere in the `MainMenu → MetaGame` window — the peer drops,
+/// an invite lands, the player backs out — leaves it set forever. From then on EVERY
+/// arrival at the main menu silently skipped multiplayer teardown, and only restarting
+/// the game recovered. A run condition can't fix that, because the whole failure is
+/// `PendingRematch` outliving the connection it depends on; the check has to see the
+/// connection. So: exempt a *viable* rematch, and clear a dead one.
+///
+/// Bevy runs `OnEnter(AppState::_)` strictly before `OnEnter(MenuState::Landing)`
+/// (sub-state enter schedules are registered `.after` the parent's), so this lands
+/// before `route_pending_rematch_from_menu` either way.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn reset_multiplayer_on_main_menu(
     mut commands: Commands,
@@ -145,7 +162,23 @@ pub(crate) fn reset_multiplayer_on_main_menu(
     mut steam_lobby: Option<ResMut<SteamLobbyState>>,
     mut steam_socket: Option<ResMut<SteamP2pSocket>>,
     session: Option<Res<MultiplayerSession>>,
+    pending_rematch: Option<Res<PendingRematch>>,
 ) {
+    if pending_rematch.is_some() {
+        let viable = connection.state == crate::networking::resources::ConnectionState::Connected
+            && session.is_some();
+        if viable {
+            return;
+        }
+        warn!(
+            "[MP] Dropping a PendingRematch that can no longer happen (state={:?} session={}) \
+             and resetting — leaving it set would disarm this catch-all for the rest of the session",
+            connection.state,
+            session.is_some(),
+        );
+        commands.remove_resource::<PendingRematch>();
+    }
+
     reset_multiplayer_to_baseline(
         "main menu entered",
         &mut commands,
@@ -157,6 +190,44 @@ pub(crate) fn reset_multiplayer_on_main_menu(
         steam_lobby.as_deref_mut(),
         steam_socket.as_deref_mut(),
         session.is_some(),
+    );
+}
+
+/// `OnEnter(AppState::MetaGame)`: log — but do NOT reset — a multiplayer state that
+/// looks left over.
+///
+/// Deliberately diagnostic only. An automatic reset here would be wrong: the co-op
+/// host whose guest dropped mid-level finishes the level solo and returns to the
+/// tower with `state == Disconnected` while `handle_host` is still parked on
+/// `ep.accept()`, keeping the endpoint bound *on purpose* so that guest can rejoin
+/// at the next level boundary (`transport/connection/io.rs`, `host.rs`). Sending
+/// `Disconnect` here would close it and break the rejoin. The tower's own exit
+/// (`reset_lobby_on_exit`) and the Host/Join/Invite buttons already self-heal what
+/// they need to; this exists so that if a stuck-connection report ever traces back
+/// to this route, the log says so.
+pub(crate) fn warn_on_stale_multiplayer_at_meta_game(
+    connection: Res<NetworkConnection>,
+    session: Option<Res<MultiplayerSession>>,
+    steam_lobby: Option<Res<SteamLobbyState>>,
+) {
+    use crate::networking::resources::ConnectionState;
+
+    if session.is_some() {
+        return;
+    }
+    let link_dead = matches!(
+        connection.state,
+        ConnectionState::Disconnected | ConnectionState::Failed
+    );
+    let steam_lobby_live = steam_lobby.is_some_and(|s| !matches!(*s, SteamLobbyState::Idle));
+    if !link_dead || (connection.role.is_none() && !steam_lobby_live) {
+        return;
+    }
+
+    warn!(
+        "[MP] Entered MetaGame with leftover multiplayer state and no session: \
+         state={:?} role={:?} mode={:?} steam_lobby_live={steam_lobby_live}",
+        connection.state, connection.role, connection.mode,
     );
 }
 

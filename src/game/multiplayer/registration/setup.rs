@@ -73,12 +73,22 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
     // Landing on the main menu means nothing multiplayer is live, but several
     // routes get here with no multiplayer teardown at all (notably every
     // single-player quit button, which is what the co-op host uses since it plays
-    // in `AppState::InGame`). Exempt the rematch flow, which intentionally passes
-    // through MainMenu carrying a live session.
+    // in `AppState::InGame`).
+    //
+    // Registered UNCONDITIONALLY. The rematch exemption lives inside the system,
+    // which is the only place that can tell a rematch still in flight from a
+    // `PendingRematch` stranded by an interrupted one — see the doc comment there.
     app.add_systems(
         OnEnter(AppState::MainMenu),
-        crate::game::multiplayer::session_reset::reset_multiplayer_on_main_menu.run_if(not(
-            resource_exists::<crate::game::multiplayer::components::PendingRematch>,
-        )),
+        crate::game::multiplayer::session_reset::reset_multiplayer_on_main_menu,
+    );
+
+    // ── MetaGame arrival diagnostic ──────────────────────────────
+    // MetaGame is the one route into a menu with no catch-all reset, and it must
+    // stay that way — the co-op host returns here with a deliberately live iroh
+    // endpoint so its guest can rejoin. Log leftovers instead of resetting them.
+    app.add_systems(
+        OnEnter(AppState::MetaGame),
+        crate::game::multiplayer::session_reset::warn_on_stale_multiplayer_at_meta_game,
     );
 }

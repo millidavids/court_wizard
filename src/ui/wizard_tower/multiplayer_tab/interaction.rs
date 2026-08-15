@@ -63,6 +63,30 @@ pub(crate) fn handle_mp_tab_actions(
 
         match action.clone() {
             MpTabAction::HostGame => {
+                // Debounce. `CreateHost` is serial on the transport runtime, so a
+                // double-click queues a second one that `wait_for_disconnect` now
+                // converts into a Failed panel — the button would punish the very
+                // impatience it invites.
+                if matches!(lobby.phase, LobbyPhase::Hosting) {
+                    continue;
+                }
+                // Tear down anything still live first, exactly as `JoinGame` does.
+                // Without this we fire `CreateHost` into a runtime that may still be
+                // winding the previous session down (a co-op host whose guest dropped
+                // arrives here with `mode = Steam`, a dead socket and a live Steam
+                // lobby), and the command gets eaten by `wait_for_disconnect`.
+                reset_multiplayer_to_baseline(
+                    "starting a new host",
+                    &mut commands,
+                    &mut connection,
+                    &mut lobby,
+                    &mut host_selection,
+                    transport.as_deref(),
+                    steam_client.as_deref(),
+                    steam_lobby.as_deref_mut(),
+                    steam_socket.as_deref_mut(),
+                    session_present,
+                );
                 lobby.status_message = None;
                 send(TransportCommand::CreateHost {
                     use_relay: lobby.use_relay,

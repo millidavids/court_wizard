@@ -4,14 +4,15 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU16, Ordering};
 
 use bevy::log::warn;
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::Receiver;
 use iroh::endpoint::Connection;
 use tokio::sync::Notify;
+use tokio_util::sync::CancellationToken;
 
 use super::endpoint::DEFAULT_MAX_DATAGRAM;
 use super::helpers::send_event;
 use crate::networking::transport::codec::{self, DatagramReassembler};
-use crate::networking::transport::runtime::TransportEvent;
+use crate::networking::transport::runtime::{EventSink, TransportEvent};
 
 /// Send unreliable data from the Bevy channel as QUIC datagrams.
 /// Woken by `data_notify` when the bridge pushes data.
@@ -20,7 +21,7 @@ pub(super) async fn send_unreliable_loop(
     unreliable_rx: Receiver<Vec<u8>>,
     sequence: Arc<AtomicU16>,
     data_notify: Arc<Notify>,
-    shutdown: Arc<Notify>,
+    shutdown: CancellationToken,
 ) {
     // Rate-limit send-error logging — if datagrams are failing every frame
     // we want to know but not flood the log.
@@ -29,6 +30,15 @@ pub(super) async fn send_unreliable_loop(
         .unwrap_or_else(std::time::Instant::now);
 
     loop {
+        // Sticky-cancel re-check before draining, so a cancelled loop can't swallow
+        // a batch that belongs to the next session. Deliberately NOT an exit on
+        // `send_datagram` failure: `SendDatagramError::TooLarge` is a transient MTU
+        // condition, and bailing on it would permanently blank the peer's view of the
+        // battlefield for the rest of the match.
+        if shutdown.is_cancelled() {
+            break;
+        }
+
         // Drain all pending data first.
         while let Ok(data) = unreliable_rx.try_recv() {
             let max_size = conn.max_datagram_size().unwrap_or(DEFAULT_MAX_DATAGRAM);
@@ -46,7 +56,7 @@ pub(super) async fn send_unreliable_loop(
 
         // Wait for new data or shutdown.
         tokio::select! {
-            _ = shutdown.notified() => break,
+            _ = shutdown.cancelled() => break,
             _ = data_notify.notified() => {}
         }
     }
@@ -55,19 +65,19 @@ pub(super) async fn send_unreliable_loop(
 /// Receive QUIC datagrams and reassemble fragments, forwarding complete payloads to Bevy.
 pub(super) async fn recv_unreliable_loop(
     conn: Connection,
-    event_tx: Sender<TransportEvent>,
-    shutdown: Arc<Notify>,
+    events: EventSink,
+    shutdown: CancellationToken,
 ) {
     let mut reassembler = DatagramReassembler::new();
 
     loop {
         tokio::select! {
-            _ = shutdown.notified() => break,
+            _ = shutdown.cancelled() => break,
             result = conn.read_datagram() => {
                 match result {
                     Ok(data) => {
                         if let Some(payload) = reassembler.feed(data) {
-                            send_event(&event_tx, TransportEvent::UnreliableData(payload));
+                            send_event(&events, TransportEvent::UnreliableData(payload));
                         }
                     }
                     Err(e) => {

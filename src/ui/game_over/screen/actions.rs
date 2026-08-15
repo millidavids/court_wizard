@@ -8,7 +8,7 @@ use crate::game::resources::{GameOutcome, KillStats};
 use crate::game::time_travel::TimeTravelState;
 use crate::state::AppState;
 
-use crate::networking::resources::{ConnectionState, NetworkConnection, PeerRole};
+use crate::networking::resources::NetworkConnection;
 use crate::ui::wizard_tower::WizardTowerTab;
 
 use super::super::components::*;
@@ -30,10 +30,10 @@ fn enter_wizard_tower(
     connection: &NetworkConnection,
     game_mode: Option<&GameMode>,
 ) {
-    // Same gate as the tower's `compute_guest_pending`, so the landing tab and
-    // the co-op Continue button it carries can't disagree.
-    let coop_guest_attached =
-        connection.state == ConnectionState::Connected && connection.role == Some(PeerRole::Host);
+    // Same gate as the tower's `compute_guest_pending` and the score screen's button
+    // list, so the landing tab, the co-op Continue button it carries, and the buttons
+    // that got us here can't disagree.
+    let coop_guest_attached = connection.has_connected_guest();
     let tab = if !coop_guest_attached {
         WizardTowerTab::Study
     } else if is_roguelite_mode(game_mode) {
@@ -44,6 +44,8 @@ fn enter_wizard_tower(
     commands.insert_resource(tab);
     next_app_state.set(AppState::MetaGame);
 }
+
+use crate::game::multiplayer::coop::notify_guest_run_ended;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn handle_button_actions(
@@ -65,7 +67,7 @@ pub(crate) fn handle_button_actions(
         Option<Res<crate::game::seeded_rng::resources::GameSeed>>,
     ),
     game_mode: Option<Res<GameMode>>,
-    connection: Res<NetworkConnection>,
+    mut connection: ResMut<NetworkConnection>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
@@ -147,6 +149,7 @@ pub(crate) fn handle_button_actions(
                     );
                 }
                 GameOverButtonAction::ReturnToMenu => {
+                    notify_guest_run_ended(&mut connection, !game_outcome.is_defeat());
                     kill_stats.reset();
                     // Abandon roguelite run if exiting to menu from score screen
                     if is_roguelite_mode(game_mode.as_deref()) {
@@ -156,6 +159,7 @@ pub(crate) fn handle_button_actions(
                     next_app_state.set(AppState::MainMenu);
                 }
                 GameOverButtonAction::EndRun => {
+                    notify_guest_run_ended(&mut connection, !game_outcome.is_defeat());
                     // Save roguelite run to history
                     if let Some(ref run) = roguelite_run {
                         let roguelite_run_data = crate::config::save_data::RogueliteRun {

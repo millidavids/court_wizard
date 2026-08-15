@@ -62,7 +62,18 @@ impl Plugin for SteamMultiplayerPlugin {
                     route_pending_steam_join.run_if(resource_exists::<PendingSteamJoin>),
                     drive_steam_listen_socket.run_if(steam_listen_socket_open),
                     poll_steam_guest_connection_state.run_if(steam_guest_dialling),
-                    steam_transport_bridge_system.run_if(steam_transport_active),
+                    // Ordered after the UI's button handlers so a message a click
+                    // queues this frame is pumped out THIS frame. Without it the two
+                    // conflict on `ResMut<NetworkConnection>` with no constraint, and
+                    // when the pump won the toss a quit button's parting
+                    // `CoopRunEnded` sat in `outgoing_messages` until the next frame —
+                    // where `OnEnter(MainMenu)` runs in `StateTransition`, *before*
+                    // `Update`, and `connection.reset()` cleared it unsent. The iroh
+                    // bridge has no such problem: it lives in `PreUpdate`, which is
+                    // also ahead of the reset.
+                    steam_transport_bridge_system
+                        .run_if(steam_transport_active)
+                        .after(crate::ui::plugin::ButtonActionSet),
                     // Only re-read the Steam persona name when the lobby state
                     // changes — not every frame across the FFI boundary.
                     sync_coop_peer_name.run_if(resource_changed::<SteamLobbyState>),

@@ -82,6 +82,12 @@ steamworks = "=0.12.2"
 steamworks-sys = "=0.12.2"
 iroh = "0.98"
 tokio = { version = "1", features = ["rt", "sync", "time"] }
+# `CancellationToken` only. Already in the tree via iroh, and `tokio_util::sync`
+# is not feature-gated, so this adds no compile units. We need it because
+# `Notify::notify_waiters()` stores no permit: a task that is woken by its OTHER
+# select branch on the same poll drops the shutdown notification on the floor and
+# then parks forever. `CancellationToken` is level-triggered and sticky.
+tokio-util = { version = "0.7", default-features = false }
 crossbeam-channel = "0.5"
 bytes = "1"
 arboard = "3"

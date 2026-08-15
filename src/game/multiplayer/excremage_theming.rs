@@ -83,6 +83,14 @@ pub(crate) fn theme_remote_excremage_ghosts(
 }
 
 /// Clears the browned-material cache on MP exit so the cloned handles are freed.
+///
+/// Registered on `OnExit(MultiplayerGame)` *and* `OnExit(InGame)` — the co-op host
+/// fills this cache from `AppState::InGame` and never sees the former. The
+/// already-empty check keeps the single-player exit from touching `ResMut` and
+/// marking the resource changed for no reason.
 pub(crate) fn clear_excremage_ghost_materials(mut cache: ResMut<ExcremageGhostMaterials>) {
+    if cache.0.is_empty() {
+        return;
+    }
     cache.0.clear();
 }
