@@ -121,7 +121,7 @@ pub(super) fn spawn_endless_detail_for_wizard(
         parent.spawn((
             Text::new(&label),
             TextFont {
-                font_size: STAT_SECTION_FONT_SIZE,
+                font_size: FontSize::Px(STAT_SECTION_FONT_SIZE),
                 ..default()
             },
             TextColor(color),

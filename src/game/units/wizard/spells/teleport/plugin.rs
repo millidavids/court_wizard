@@ -38,11 +38,11 @@ impl Plugin for TeleportPlugin {
                     .run_if(mouse_held_or_wizard_casting),
                 systems::update_circle_animations.run_if(
                     any_exist::<TeleportDestinationCircle>()
-                        .or(any_exist::<TeleportSourceCircle>()),
+                        .or_else(any_exist::<TeleportSourceCircle>()),
                 ),
                 systems::cleanup_teleport_on_spell_switch.run_if(
                     any_exist::<TeleportDestinationCircle>()
-                        .or(any_exist::<TeleportSourceCircle>()),
+                        .or_else(any_exist::<TeleportSourceCircle>()),
                 ),
             )
                 .run_if(is_spell_effects_active),

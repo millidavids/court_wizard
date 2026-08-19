@@ -48,7 +48,7 @@ pub(crate) fn spawn_philosophers_stone_selector(
                 Text::new("Removes dilution (once per battle)"),
                 TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
                 TextColor(stone_style.text_color),
-                TextLayout::new_with_justify(Justify::Center),
+                TextLayout::justify(Justify::Center),
                 Node {
                     max_width: Val::Px(BUTTON_WIDTH),
                     ..default()

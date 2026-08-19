@@ -189,7 +189,7 @@ pub fn animate_entangle_vines(
         let life_fraction = (vine.time_remaining / vine.duration).clamp(0.0, 1.0);
         if life_fraction < 0.25 {
             let fade = life_fraction / 0.25; // 1.0 → 0.0
-            if let Some(material) = materials.get_mut(material_handle) {
+            if let Some(mut material) = materials.get_mut(material_handle) {
                 material.base_color = Color::srgba(0.05, 0.3, 0.05, 0.75 * fade);
             }
         }

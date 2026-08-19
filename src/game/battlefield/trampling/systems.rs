@@ -130,7 +130,7 @@ pub fn sync_trampling_texture(
     let Ok(mesh_material) = overlay_query.single() else {
         return;
     };
-    let Some(material) = materials.get_mut(&mesh_material.0) else {
+    let Some(mut material) = materials.get_mut(&mesh_material.0) else {
         return;
     };
 

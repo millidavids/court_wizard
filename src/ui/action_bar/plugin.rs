@@ -102,8 +102,9 @@ impl Plugin for ActionBarPlugin {
         // after spawn.
         .add_systems(
             Update,
-            radial::animate_action_bar_layout
-                .run_if(in_state(InGameState::Running).or(in_state(MultiplayerGameState::Running))),
+            radial::animate_action_bar_layout.run_if(
+                in_state(InGameState::Running).or_else(in_state(MultiplayerGameState::Running)),
+            ),
         )
         .add_systems(
             Update,
@@ -133,8 +134,8 @@ impl Plugin for ActionBarPlugin {
             )
                 .run_if(
                     is_local_wizard_active
-                        .or(in_state(InGameState::SpellBook))
-                        .or(in_state(MultiplayerGameState::SpellBook)),
+                        .or_else(in_state(InGameState::SpellBook))
+                        .or_else(in_state(MultiplayerGameState::SpellBook)),
                 ),
         );
 
@@ -154,7 +155,9 @@ impl Plugin for ActionBarPlugin {
             Update,
             crate::game::debug_ui::sync_marker_visibility::<super::components::DebugManaButton>
                 .after(radial::animate_action_bar_layout)
-                .run_if(in_state(InGameState::Running).or(in_state(MultiplayerGameState::Running))),
+                .run_if(
+                    in_state(InGameState::Running).or_else(in_state(MultiplayerGameState::Running)),
+                ),
         );
     }
 }

@@ -159,7 +159,7 @@ pub fn update_ray_fear_visuals(
         transform.translation = beam.origin + Vec3::NEG_Y * visual_len / 2.0;
         transform.scale = Vec3::new(cone_scale, visual_len, cone_scale);
 
-        if let Some(mat) = materials.get_mut(&mat_handle.0) {
+        if let Some(mut mat) = materials.get_mut(&mat_handle.0) {
             let cycle = (t * 3.0).sin() * 0.5 + 0.5;
             mat.emissive = LinearRgba::new(1.5 + cycle * 1.0, 0.0, 2.5 + cycle * 1.5, 1.0);
             mat.base_color = Color::srgba(0.6, 0.0, 0.8, 0.5);

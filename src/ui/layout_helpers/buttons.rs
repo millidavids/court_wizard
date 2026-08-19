@@ -39,7 +39,7 @@ fn spawn_shadowed_text(
                 Text::new(text),
                 TextFont::from_font_size(font_size),
                 TextColor(TEXT_SHADOW_COLOR),
-                TextLayout::new_with_justify(Justify::Center),
+                TextLayout::justify(Justify::Center),
                 Node {
                     position_type: PositionType::Absolute,
                     left: Val::Px(offset),
@@ -52,7 +52,7 @@ fn spawn_shadowed_text(
                 Text::new(text),
                 TextFont::from_font_size(font_size),
                 TextColor(text_color),
-                TextLayout::new_with_justify(Justify::Center),
+                TextLayout::justify(Justify::Center),
             ));
         });
 }
@@ -155,7 +155,7 @@ pub fn spawn_button(
                             Text::new(text),
                             TextFont::from_font_size(style.font_size),
                             TextColor(style.text_color),
-                            TextLayout::new_with_justify(Justify::Center),
+                            TextLayout::justify(Justify::Center),
                         ));
                     }
                 });

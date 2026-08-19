@@ -31,7 +31,7 @@ impl Plugin for TutorialPlugin {
                 .run_if(in_state(MetaGameState::WizardTower))
                 .run_if(
                     resource_exists::<crate::ui::wizard_tower::WizardTowerTab>
-                        .and(resource_changed::<crate::ui::wizard_tower::WizardTowerTab>),
+                        .and_then(resource_changed::<crate::ui::wizard_tower::WizardTowerTab>),
                 ),
         )
         .add_systems(
@@ -40,7 +40,7 @@ impl Plugin for TutorialPlugin {
                 .run_if(in_state(MetaGameState::WizardTower))
                 .run_if(
                     resource_exists::<crate::ui::wizard_tower::RightPanelView>
-                        .and(resource_changed::<crate::ui::wizard_tower::RightPanelView>),
+                        .and_then(resource_changed::<crate::ui::wizard_tower::RightPanelView>),
                 ),
         )
         .add_systems(
@@ -49,7 +49,7 @@ impl Plugin for TutorialPlugin {
                 .run_if(in_state(MetaGameState::WizardTower))
                 .run_if(
                     resource_exists::<crate::ui::wizard_tower::SelectedStudySpell>
-                        .and(resource_changed::<crate::ui::wizard_tower::SelectedStudySpell>),
+                        .and_then(resource_changed::<crate::ui::wizard_tower::SelectedStudySpell>),
                 ),
         )
         .add_systems(OnEnter(InGameState::Running), trigger_in_game_tutorial)

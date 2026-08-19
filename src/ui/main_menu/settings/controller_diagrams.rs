@@ -342,8 +342,8 @@ fn spawn_binding_row(
                         cell.spawn((
                             Text::new(ch.to_string()),
                             TextFont {
-                                font: glyph_font.clone(),
-                                font_size: GLYPH_SIZE,
+                                font: glyph_font.clone().into(),
+                                font_size: FontSize::Px(GLYPH_SIZE),
                                 ..default()
                             },
                             TextColor(TEXT_COLOR),

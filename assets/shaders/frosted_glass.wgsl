@@ -1,4 +1,4 @@
-#import bevy_ui::ui_vertex_output UiVertexOutput
+#import bevy_ui::ui_vertex_output::UiVertexOutput
 
 struct FrostedGlassData {
     tint_color: vec4<f32>,

@@ -23,7 +23,7 @@ impl Plugin for GamepadGlyphsPlugin {
             .add_systems(
                 Update,
                 resolve_glyph_style.run_if(
-                    resource_changed::<GameConfig>.or(resource_changed::<ActiveInputDevice>),
+                    resource_changed::<GameConfig>.or_else(resource_changed::<ActiveInputDevice>),
                 ),
             )
             // One generic system drives every archetype's button prompts; runs

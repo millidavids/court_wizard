@@ -5,10 +5,11 @@
 
 use bevy::asset::{AssetMetaCheck, AssetPlugin};
 use bevy::camera::{ClearColorConfig, Viewport};
+use bevy::ecs::system::NonSendMarker;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, Window, WindowPlugin, WindowResolution};
-use bevy::winit::WinitWindows;
+use bevy::winit::WINIT_WINDOWS;
 
 mod config;
 mod crash_handler;
@@ -144,7 +145,7 @@ fn main() {
     // player's game. Debug keeps Bevy's default `panic` so real logic bugs
     // still surface during development; release downgrades to a logged warning.
     #[cfg(not(debug_assertions))]
-    app.insert_resource(bevy::ecs::error::DefaultErrorHandler(
+    app.insert_resource(bevy::ecs::error::FallbackErrorHandler(
         bevy::ecs::error::warn,
     ));
 
@@ -308,11 +309,13 @@ fn setup(
 ///
 /// Uses the `image` crate to decode the PNG and `winit` to apply it.
 /// If it fails for any reason, the game continues with the default icon.
-fn set_window_icon(windows: Option<NonSend<WinitWindows>>) {
-    let Some(windows) = windows else {
-        warn!("WinitWindows not available, skipping window icon");
-        return;
-    };
+///
+/// `WinitWindows` is not a resource — it lives in a thread-local, because most
+/// winit window calls (`set_window_icon` among them) must happen on the main
+/// thread. `NonSendMarker` is what pins this system there; without it the
+/// thread-local would read as empty on a worker thread and the icon would
+/// silently never be applied.
+fn set_window_icon(_non_send_marker: NonSendMarker) {
     let icon_bytes = include_bytes!("../assets/images/logos/logo.png");
     let Ok(image) = image::load_from_memory(icon_bytes) else {
         warn!("Failed to decode window icon image");
@@ -324,9 +327,11 @@ fn set_window_icon(windows: Option<NonSend<WinitWindows>>) {
         warn!("Failed to create window icon");
         return;
     };
-    for window in windows.windows.values() {
-        window.set_window_icon(Some(icon.clone()));
-    }
+    WINIT_WINDOWS.with_borrow(|winit_windows| {
+        for window in winit_windows.windows.values() {
+            window.set_window_icon(Some(icon.clone()));
+        }
+    });
 }
 
 /// Applies global brightness setting via overlay opacity.

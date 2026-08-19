@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.39] - 2026-08-18
+
+### Description
+A big under-the-hood update: Court Wizard now runs on a newer version of its engine, and should look and play exactly as before. The visible changes: a proper window icon, and multiplayer now needs both players on the same version.
+
+### Changed
+- **The game has moved to a newer version of its engine** — a large rebuild of the foundations the game sits on, including how the screen effects and all the text are drawn. It should be invisible: everything is meant to look and play exactly as it did. If something does look off — the CRT curve, the scanlines, menu text, spell effects — that is worth reporting, because it wasn't intended.
+- **Multiplayer now needs both players on this version** — someone still on the previous build will be turned away with a version-mismatch message instead of joining a match that might not stay in step. Update together and you're fine.
+
+### Fixed
+- **The game's window now shows the Court Wizard icon** — it had quietly been falling back to a blank default one in the taskbar and window bar.
+
 ## [v1.0.38] - 2026-08-15
 
 ### Description

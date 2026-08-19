@@ -38,7 +38,7 @@ pub(crate) fn spawn_grease_zone(
         .unwrap_or_default();
     // Use Mask so the grease renders in the opaque phase (before transparent unit sprites).
     // This writes to the depth buffer at Y=2, ensuring all units above it render on top.
-    base_mat.alpha_mode = bevy::render::alpha::AlphaMode::Mask(0.01);
+    base_mat.alpha_mode = bevy::material::AlphaMode::Mask(0.01);
     let instance_material = materials.add(base_mat);
 
     commands

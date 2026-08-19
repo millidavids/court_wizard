@@ -79,7 +79,7 @@ pub(super) fn spawn_spell_list(
                     Text::new(category.display_name()),
                     TextFont::from_font_size(CATEGORY_FONT_SIZE),
                     TextColor(crate::ui::constants::spell_category_color(*category)),
-                    TextLayout::new_with_justify(Justify::Center),
+                    TextLayout::justify(Justify::Center),
                     Node {
                         width: Val::Percent(100.0),
                         margin: UiRect::bottom(Val::Px(4.0)),

@@ -2,10 +2,10 @@
 
 use std::collections::HashMap;
 
+use bevy::material::AlphaMode;
 use bevy::math::primitives::ConicalFrustum;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 use bevy::prelude::*;
-use bevy::render::alpha::AlphaMode;
 
 use crate::config::{GameConfig, WizardType};
 use crate::game::units::constants::EXCREMAGE_BROWN;
@@ -1229,7 +1229,7 @@ pub fn refresh_spell_visuals_for_wizard(
         let Some((orig_color, orig_emissive)) = originals.entries.get(&handle.id()) else {
             continue;
         };
-        let Some(mat) = materials.get_mut(handle) else {
+        let Some(mut mat) = materials.get_mut(handle) else {
             continue;
         };
 
@@ -1243,7 +1243,9 @@ pub fn refresh_spell_visuals_for_wizard(
     }
 
     // Handle fire explosion sphere material (Excremage override)
-    if let Some(mat) = fire_explosion_sphere_materials.get_mut(&assets.fireball_explosion_sphere) {
+    if let Some(mut mat) =
+        fire_explosion_sphere_materials.get_mut(&assets.fireball_explosion_sphere)
+    {
         if is_excremage {
             let brown = EXCREMAGE_BROWN.to_linear();
             mat.inner_color =

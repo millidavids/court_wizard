@@ -139,10 +139,7 @@ pub(crate) fn apply_button_glyph(
         if **text != *arrow {
             **text = arrow.to_string();
         }
-        if text_font.font != Handle::<Font>::default() || text_font.font_size != glyph_px {
-            text_font.font = Handle::<Font>::default();
-            text_font.font_size = glyph_px;
-        }
+        set_font(&mut text_font, default_font_source(), glyph_px);
         set_display(&mut image_node, Display::None);
         set_display(&mut text_node, Display::Flex);
         return;
@@ -171,19 +168,28 @@ pub(crate) fn apply_button_glyph(
         if **text != *glyph {
             **text = glyph.to_string();
         }
-        let want = fonts.font_for(ctx.style);
-        if text_font.font != want || text_font.font_size != glyph_px {
-            text_font.font = want;
-            text_font.font_size = glyph_px;
-        }
+        set_font(&mut text_font, fonts.font_for(ctx.style).into(), glyph_px);
     } else {
         if **text != *keyboard_label {
             **text = keyboard_label.to_string();
         }
-        if text_font.font != Handle::<Font>::default() || text_font.font_size != keyboard_px {
-            text_font.font = Handle::<Font>::default();
-            text_font.font_size = keyboard_px;
-        }
+        set_font(&mut text_font, default_font_source(), keyboard_px);
+    }
+}
+
+/// The game's default font — PressStart2P, swapped in at `AssetId::default()`
+/// by `ui::components::set_default_font`.
+fn default_font_source() -> FontSource {
+    FontSource::Handle(Handle::default())
+}
+
+/// Writes font + size only when they differ, so `TextFont` isn't marked changed
+/// (and the text re-laid out) on every frame a prompt is on screen.
+fn set_font(text_font: &mut Mut<TextFont>, font: FontSource, size_px: f32) {
+    let size = FontSize::Px(size_px);
+    if text_font.font != font || text_font.font_size != size {
+        text_font.font = font;
+        text_font.font_size = size;
     }
 }
 

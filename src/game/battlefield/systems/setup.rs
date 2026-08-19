@@ -45,7 +45,7 @@ pub fn setup_battlefield(
     commands.spawn((
         PointLight {
             intensity: 2_000_000.0,
-            shadows_enabled: false,
+            shadow_maps_enabled: false,
             ..default()
         },
         origin_transform * Transform::from_xyz(0.0, 1000.0, 0.0),

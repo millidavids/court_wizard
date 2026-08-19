@@ -129,7 +129,7 @@ pub fn update_deaths_ledger_bursts(
         let scale = burst.max_radius * progress;
         transform.scale = Vec3::splat(scale.max(0.1));
 
-        if let Some(mat) = materials.get_mut(material_handle) {
+        if let Some(mut mat) = materials.get_mut(material_handle) {
             let alpha = 1.0 - progress;
             mat.base_color = mat.base_color.with_alpha(alpha * 0.5);
         }

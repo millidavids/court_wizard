@@ -264,7 +264,7 @@ pub fn update_final_stand_vfx(
         transform.scale = Vec3::splat(current_radius.max(0.1));
 
         let opacity = explosion_fade_opacity(progress);
-        if let Some(mat) = sphere_materials.get_mut(material_handle) {
+        if let Some(mut mat) = sphere_materials.get_mut(material_handle) {
             mat.opacity = opacity;
         }
     }

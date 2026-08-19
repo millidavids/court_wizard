@@ -180,7 +180,7 @@ pub(super) fn animate_action_bar_layout(
     // redundant with the icon. Collapsing both also prevents their intrinsic
     // size from overflowing the shrunken button.
     for (mut font, mut node) in &mut name_texts {
-        font.font_size = SPELL_NAME_FONT_SIZE * scale;
+        font.font_size = FontSize::Px(SPELL_NAME_FONT_SIZE * scale);
         node.display = if text_hidden {
             Display::None
         } else {
@@ -188,7 +188,7 @@ pub(super) fn animate_action_bar_layout(
         };
     }
     for (mut font, mut node) in &mut hotkey_texts {
-        font.font_size = HOTKEY_FONT_SIZE * scale;
+        font.font_size = FontSize::Px(HOTKEY_FONT_SIZE * scale);
         node.display = if text_hidden {
             Display::None
         } else {

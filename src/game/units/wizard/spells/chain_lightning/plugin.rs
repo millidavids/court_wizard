@@ -25,7 +25,8 @@ impl Plugin for ChainLightningPlugin {
                 )
                     .chain()
                     .run_if(
-                        any_exist::<ChainLightningBolt>().or(any_exist::<ChainLightningGroup>()),
+                        any_exist::<ChainLightningBolt>()
+                            .or_else(any_exist::<ChainLightningGroup>()),
                     ),
             )
                 .run_if(is_spell_effects_active),

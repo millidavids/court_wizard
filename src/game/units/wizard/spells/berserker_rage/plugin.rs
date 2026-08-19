@@ -39,12 +39,12 @@ impl Plugin for BerserkerRagePlugin {
                     systems::cleanup_berserker_rage_talents
                         .run_if(
                             any_exist::<Bloodlust>()
-                                .or(any_exist::<Frenzy>())
-                                .or(any_exist::<FrenzyActive>())
-                                .or(any_exist::<UndyingFury>())
-                                .or(any_exist::<UndyingFuryActive>())
-                                .or(any_exist::<ContagiousRage>())
-                                .or(any_exist::<FinalStand>()),
+                                .or_else(any_exist::<Frenzy>())
+                                .or_else(any_exist::<FrenzyActive>())
+                                .or_else(any_exist::<UndyingFury>())
+                                .or_else(any_exist::<UndyingFuryActive>())
+                                .or_else(any_exist::<ContagiousRage>())
+                                .or_else(any_exist::<FinalStand>()),
                         )
                         .run_if(is_gameplay_running),
                 ),

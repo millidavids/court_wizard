@@ -60,7 +60,7 @@ pub fn update_meteor_explosions(
             transform.scale = Vec3::splat(explosion.radius * growth_t);
         }
 
-        if let Some(mat) = sphere_materials.get_mut(mat_handle) {
+        if let Some(mut mat) = sphere_materials.get_mut(mat_handle) {
             mat.opacity = explosion_fade_opacity(progress);
         }
 

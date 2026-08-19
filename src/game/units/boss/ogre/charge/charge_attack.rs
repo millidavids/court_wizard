@@ -268,8 +268,8 @@ pub fn ogre_charge_system(
                 }
 
                 // Emissive glow: ramps up with progress, pulses ominously on top
-                if let Some(mat) = materials.get_mut(&indicators.fill_material) {
-                    animate_telegraph_material(mat, *elapsed, progress, 0.6);
+                if let Some(mut mat) = materials.get_mut(&indicators.fill_material) {
+                    animate_telegraph_material(&mut mat, *elapsed, progress, 0.6);
                 }
 
                 if *elapsed >= OGRE_CHARGE_TELEGRAPH_DURATION {

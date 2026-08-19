@@ -178,7 +178,7 @@ pub(crate) fn update_harvest_flash(
         // Fade alpha over the flash duration
         let alpha =
             (flash.time_remaining / constants::HARVEST_FLASH_DURATION).clamp(0.0, 1.0) * 0.7;
-        if let Some(mat) = materials.get_mut(material_handle) {
+        if let Some(mut mat) = materials.get_mut(material_handle) {
             mat.base_color = constants::HARVEST_FLASH_COLOR.with_alpha(alpha);
         }
     }
@@ -254,7 +254,7 @@ pub(crate) fn update_psychic_shockwave(
         shockwave.prev_radius = current_radius;
 
         // Fade alpha as the ring expands
-        if let Some(mat) = materials.get_mut(material_handle) {
+        if let Some(mut mat) = materials.get_mut(material_handle) {
             let alpha = (1.0 - progress) * 0.6;
             mat.base_color = constants::SHOCKWAVE_COLOR.with_alpha(alpha);
         }

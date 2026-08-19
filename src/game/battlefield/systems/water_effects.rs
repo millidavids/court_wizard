@@ -88,7 +88,7 @@ pub fn update_water_ripples(
             1.0 - (t - 0.1) / 0.9
         } * WATER_RIPPLE_ALPHA;
 
-        if let Some(mat) = materials.get_mut(&mesh_material.0) {
+        if let Some(mut mat) = materials.get_mut(&mesh_material.0) {
             mat.base_color = Color::srgba(0.9, 0.95, 1.0, alpha);
         }
     }

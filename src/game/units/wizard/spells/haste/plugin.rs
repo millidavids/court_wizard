@@ -30,7 +30,7 @@ impl Plugin for HastePlugin {
                 .run_if(is_gameplay_running)
                 .run_if(
                     any_with_component::<ChainHasteSource>
-                        .or(any_with_component::<MomentumPending>),
+                        .or_else(any_with_component::<MomentumPending>),
                 ),
         );
 
@@ -57,7 +57,8 @@ impl Plugin for HastePlugin {
             Update,
             (
                 systems::emit_haste_speed_line_vfx.run_if(
-                    any_with_component::<HasteModifier>.or(any_with_component::<RemoteHasteEffect>),
+                    any_with_component::<HasteModifier>
+                        .or_else(any_with_component::<RemoteHasteEffect>),
                 ),
                 systems::update_haste_speed_lines
                     .run_if(any_with_component::<systems::HasteSpeedLine>),

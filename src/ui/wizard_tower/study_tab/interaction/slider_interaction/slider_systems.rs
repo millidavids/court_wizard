@@ -353,7 +353,7 @@ pub(crate) fn update_graph_node_label_scale(
     mut labels: Query<(&mut TextFont, &GraphNodeLabel)>,
 ) {
     for (mut font, label) in &mut labels {
-        font.font_size = (label.base_size * view.scale).max(1.0);
+        font.font_size = FontSize::Px((label.base_size * view.scale).max(1.0));
     }
 }
 
@@ -373,7 +373,7 @@ pub(crate) fn update_insight_bonus_rings(
         let alloc = allocation.get_bonus(&rings.stat) as f32;
         // Fractional levels: e.g. 750 insight / 500 per level = 1.5 rings
         let pending_fractional = alloc / cost_per;
-        if let Some(mat) = ring_materials.get_mut(mat_handle) {
+        if let Some(mut mat) = ring_materials.get_mut(mat_handle) {
             mat.data.pending = pending_fractional;
         }
     }

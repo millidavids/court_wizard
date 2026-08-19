@@ -66,10 +66,10 @@ pub fn update_enrage_state(
             // If OriginalMaterial is present (spell effect active), update that
             // so the correct enrage tint restores when the effect ends.
             if let Some(orig) = original_material {
-                if let Some(orig_mat) = materials.get_mut(&orig.0) {
+                if let Some(mut orig_mat) = materials.get_mut(&orig.0) {
                     orig_mat.base_color = phase_tint;
                 }
-            } else if let Some(mat) = materials.get_mut(&mesh_material.0) {
+            } else if let Some(mut mat) = materials.get_mut(&mesh_material.0) {
                 mat.base_color = phase_tint;
             }
         }

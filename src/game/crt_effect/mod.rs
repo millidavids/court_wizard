@@ -1,4 +1,5 @@
 mod components;
+mod config_sync;
 mod constants;
 mod distortion;
 mod messages;

@@ -188,7 +188,8 @@ impl Plugin for UnitsPlugin {
                     // `RemoteFireEffect` rather than the real `FireDoT`.
                     // Run the VFX emitter when either marker is present.
                     systems::emit_burning_unit_vfx.run_if(
-                        any_with_component::<FireDoT>.or(any_with_component::<RemoteFireEffect>),
+                        any_with_component::<FireDoT>
+                            .or_else(any_with_component::<RemoteFireEffect>),
                     ),
                     // Temp-HP shield feet ring — real component on this peer's
                     // units, snapshot-mirrored marker on guest ghosts. The
@@ -198,8 +199,8 @@ impl Plugin for UnitsPlugin {
                         .chain()
                         .run_if(
                             any_with_component::<TemporaryHitPoints>
-                                .or(any_with_component::<RemoteTempHpEffect>)
-                                .or(any_with_component::<systems::TempHpRingIndicator>),
+                                .or_else(any_with_component::<RemoteTempHpEffect>)
+                                .or_else(any_with_component::<systems::TempHpRingIndicator>),
                         ),
                 )
                     .run_if(is_spell_effects_active),

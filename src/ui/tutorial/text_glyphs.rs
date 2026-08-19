@@ -150,7 +150,7 @@ pub(super) fn spawn_segmented_text(
         Text::default(),
         TextFont::from_font_size(base_font_size),
         TextColor(base_color),
-        TextLayout::new_with_justify(Justify::Center),
+        TextLayout::justify(Justify::Center),
         Node {
             max_width: Val::Px(max_width),
             ..default()
@@ -203,8 +203,8 @@ pub(super) fn spawn_text_spans(
                     parent.spawn((
                         TextSpan::new(ch.to_string()),
                         TextFont {
-                            font: fonts.font_for(style),
-                            font_size: glyph_font_size,
+                            font: fonts.font_for(style).into(),
+                            font_size: FontSize::Px(glyph_font_size),
                             ..default()
                         },
                         TextColor(base_color),

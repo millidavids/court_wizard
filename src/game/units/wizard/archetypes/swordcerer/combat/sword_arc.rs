@@ -137,7 +137,7 @@ pub(crate) fn update_sword_arcs(
         let fade_t = (arc.time_alive / arc.duration).clamp(0.0, 1.0);
         let alpha = (1.0 - fade_t).powi(2);
         let new_color = Color::srgba(1.0, 1.0, 1.0, alpha);
-        if let Some(mat) = materials.get_mut(&mat_handle.0)
+        if let Some(mut mat) = materials.get_mut(&mat_handle.0)
             && mat.base_color != new_color
         {
             mat.base_color = new_color;

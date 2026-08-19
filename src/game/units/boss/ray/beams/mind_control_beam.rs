@@ -235,7 +235,7 @@ pub fn update_ray_mind_control_visuals(
         transform.translation = beam.origin + beam.direction * visual_len / 2.0;
         transform.scale = Vec3::new(beam_width, visual_len, beam_width);
 
-        if let Some(mat) = materials.get_mut(&mat_handle.0) {
+        if let Some(mut mat) = materials.get_mut(&mat_handle.0) {
             let intensity = growth * growth;
             mat.emissive = LinearRgba::new(2.0 * intensity, 0.5 * intensity, 1.2 * intensity, 1.0);
             mat.base_color = Color::srgba(1.0, 0.3, 0.6, 0.3 + 0.4 * intensity);

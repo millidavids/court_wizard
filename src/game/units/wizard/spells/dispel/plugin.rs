@@ -54,7 +54,7 @@ impl Plugin for DispelPlugin {
                     .run_if(is_spell_effects_active)
                     .run_if(
                         crate::networking::session::is_multiplayer_guest
-                            .or(crate::networking::session::is_multiplayer_host),
+                            .or_else(crate::networking::session::is_multiplayer_host),
                     ),
                 // Both peers: visual-tick the GHOST DispelImpact entities so the
                 // expanding sphere animates for whoever did not cast it (the
@@ -65,7 +65,7 @@ impl Plugin for DispelPlugin {
                     .run_if(is_spell_effects_active)
                     .run_if(
                         crate::networking::session::is_multiplayer_guest
-                            .or(crate::networking::session::is_multiplayer_host),
+                            .or_else(crate::networking::session::is_multiplayer_host),
                     ),
             ),
         );

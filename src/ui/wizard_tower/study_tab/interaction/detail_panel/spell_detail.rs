@@ -424,7 +424,7 @@ pub(crate) fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spe
                                         } else {
                                             LOCKED_TEXT_COLOR
                                         }),
-                                        TextLayout::new_with_justify(Justify::Center),
+                                        TextLayout::justify(Justify::Center),
                                     ));
                                 });
                             }

@@ -154,6 +154,7 @@ pub(crate) fn update_rune_display(
             (format!("{}", *sequence), RUNE_SEQUENCE_FONT_SIZE)
         };
 
+        let want_size = FontSize::Px(want_size);
         **text = new_text.clone();
         if font.font_size != want_size {
             font.font_size = want_size;

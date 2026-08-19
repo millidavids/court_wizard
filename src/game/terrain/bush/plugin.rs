@@ -36,12 +36,12 @@ impl Plugin for BushPlugin {
                     // peer's casts via `spell_sync.rs`).
                     ignite_bushes_from_fire
                         .run_if(
-                            any_with_component::<Bush>.and(
+                            any_with_component::<Bush>.and_then(
                                 any_with_component::<FireballExplosion>
-                                    .or(any_with_component::<MeteorExplosion>)
-                                    .or(any_with_component::<DisintegrateBeam>)
-                                    .or(any_with_component::<WallOfFireEffect>)
-                                    .or(any_with_component::<MeteorGroundFire>),
+                                    .or_else(any_with_component::<MeteorExplosion>)
+                                    .or_else(any_with_component::<DisintegrateBeam>)
+                                    .or_else(any_with_component::<WallOfFireEffect>)
+                                    .or_else(any_with_component::<MeteorGroundFire>),
                             ),
                         )
                         .run_if(is_spell_effects_active),

@@ -53,7 +53,7 @@ pub(crate) fn spawn_stat_section_header(parent: &mut ChildSpawnerCommands, title
     parent.spawn((
         Text::new(title),
         TextFont {
-            font_size: STAT_SECTION_FONT_SIZE,
+            font_size: FontSize::Px(STAT_SECTION_FONT_SIZE),
             ..default()
         },
         TextColor(STAT_SECTION_COLOR),
@@ -183,7 +183,7 @@ pub(crate) fn spawn_level_history_rows(
                         justify_content: JustifyContent::FlexEnd,
                         ..default()
                     },
-                    TextLayout::new_with_justify(Justify::Right),
+                    TextLayout::justify(Justify::Right),
                 ));
             });
     }

@@ -309,7 +309,7 @@ fn spawn_locked_card(parent: &mut ChildSpawnerCommands, wizard_type: WizardType)
                 Text::new(wizard_type.locked_description()),
                 TextFont::from_font_size(CARD_DESC_FONT_SIZE),
                 TextColor(LOCKED_TEXT_COLOR),
-                TextLayout::new_with_justify(Justify::Center),
+                TextLayout::justify(Justify::Center),
             ));
         });
 }

@@ -250,7 +250,7 @@ fn spawn_heading(parent: &mut ChildSpawnerCommands, level: u8, text: &str) {
                 Text::new(text),
                 TextFont::from_font_size(font_size),
                 TextColor(color),
-                TextLayout::new_with_linebreak(bevy::text::LineBreak::WordBoundary),
+                TextLayout::linebreak(bevy::text::LineBreak::WordBoundary),
             ));
         });
 }
@@ -319,7 +319,7 @@ fn spawn_rich_text(
             Text::new(root_text),
             TextFont::from_font_size(font_size),
             TextColor(root_color),
-            TextLayout::new_with_linebreak(bevy::text::LineBreak::WordBoundary),
+            TextLayout::linebreak(bevy::text::LineBreak::WordBoundary),
         ))
         .with_children(|text_entity| {
             for span in child_spans {

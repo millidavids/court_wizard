@@ -132,7 +132,7 @@ pub fn update_ground_overlay(
     let Ok(mat_handle) = overlay.single() else {
         return;
     };
-    let Some(material) = materials.get_mut(&mat_handle.0) else {
+    let Some(mut material) = materials.get_mut(&mat_handle.0) else {
         return;
     };
 

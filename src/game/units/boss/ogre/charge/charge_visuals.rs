@@ -66,7 +66,7 @@ pub fn update_ogre_charge_visuals(
                     visuals.elapsed += delta;
                     let progress = (*elapsed / OGRE_CHARGE_TELEGRAPH_DURATION).min(1.0);
 
-                    if let Some(mat) = materials.get_mut(&material_handle.0) {
+                    if let Some(mut mat) = materials.get_mut(&material_handle.0) {
                         // First frame: swap texture to attacking sheet
                         if !visuals.texture_swapped {
                             mat.base_color_texture = Some(ogre_assets.attacking_texture.clone());
@@ -120,7 +120,7 @@ pub fn update_ogre_charge_visuals(
 
             OgreChargeState::Charging { direction, .. } => {
                 if let Some(mut visuals) = charge_visuals
-                    && let Some(mat) = materials.get_mut(&material_handle.0)
+                    && let Some(mut mat) = materials.get_mut(&material_handle.0)
                 {
                     // Restore base position on first charging frame
                     // (remove vibration offset before charge movement begins)
@@ -143,7 +143,7 @@ pub fn update_ogre_charge_visuals(
 
             OgreChargeState::Recovery { .. } => {
                 if charge_visuals.is_some()
-                    && let Some(mat) = materials.get_mut(&material_handle.0)
+                    && let Some(mut mat) = materials.get_mut(&material_handle.0)
                 {
                     let row = OGRE_ATTACKING_DIRECTION_ROWS[*facing as usize];
                     mat.uv_transform = ogre_frame_uv_transform(2, row);
@@ -154,7 +154,7 @@ pub fn update_ogre_charge_visuals(
                 // Cleanup: restore walking texture and remove visuals
                 if let Some(visuals) = charge_visuals {
                     if visuals.texture_swapped
-                        && let Some(mat) = materials.get_mut(&material_handle.0)
+                        && let Some(mut mat) = materials.get_mut(&material_handle.0)
                     {
                         mat.base_color_texture = Some(ogre_assets.walking_texture.clone());
                         mat.base_color = enrage_phase_tint(enrage_state.phase);

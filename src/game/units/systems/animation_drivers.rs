@@ -41,7 +41,7 @@ pub fn update_walking_animation(
             if anim.current_frame != 0 {
                 anim.current_frame = 0;
                 anim.elapsed = 0.0;
-                if let Some(mat) = materials.get_mut(material_handle) {
+                if let Some(mut mat) = materials.get_mut(material_handle) {
                     mat.uv_transform = anim.uv_transform(*facing);
                 }
             }
@@ -50,7 +50,7 @@ pub fn update_walking_animation(
 
         // Advance animation
         if anim.tick(delta)
-            && let Some(mat) = materials.get_mut(material_handle)
+            && let Some(mut mat) = materials.get_mut(material_handle)
         {
             mat.uv_transform = anim.uv_transform(*facing);
         }
@@ -68,7 +68,7 @@ pub fn update_pulsing_animation(
 
     for (mut anim, material_handle) in &mut anim_query {
         if anim.tick(delta)
-            && let Some(mat) = materials.get_mut(material_handle)
+            && let Some(mut mat) = materials.get_mut(material_handle)
         {
             mat.uv_transform = anim.uv_transform();
         }
@@ -99,7 +99,7 @@ pub fn update_combat_animation(
     let delta = time.delta_secs();
 
     for (entity, mut anim, material_handle, facing, walking_anim) in &mut anim_query {
-        let Some(mat) = materials.get_mut(material_handle) else {
+        let Some(mut mat) = materials.get_mut(material_handle) else {
             continue;
         };
 
@@ -148,7 +148,7 @@ pub fn update_dying_animation(
     let delta = time.delta_secs();
 
     for (entity, mut anim, material_handle) in &mut anim_query {
-        let Some(mat) = materials.get_mut(material_handle) else {
+        let Some(mut mat) = materials.get_mut(material_handle) else {
             continue;
         };
 
@@ -184,7 +184,7 @@ pub fn update_rising_animation(
     let delta = time.delta_secs();
 
     for (entity, mut anim, material_handle) in &mut anim_query {
-        let Some(mat) = materials.get_mut(material_handle) else {
+        let Some(mut mat) = materials.get_mut(material_handle) else {
             continue;
         };
 
@@ -227,7 +227,7 @@ pub fn finalize_dying_to_corpse(
 ) {
     for (entity, anim, transform, team, material_handle) in &query {
         // Apply corpse tint and switch to Blend for semi-transparent rendering
-        if let Some(mat) = materials.get_mut(material_handle) {
+        if let Some(mut mat) = materials.get_mut(material_handle) {
             use crate::game::constants::{
                 ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR,
             };

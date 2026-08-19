@@ -11,7 +11,7 @@ use crate::networking::session::is_multiplayer_host;
 use crate::state::AppState;
 
 pub(in crate::game::multiplayer) fn register(app: &mut App) {
-    let both_peers = in_mp_running.or(is_gameplay_running.and(is_multiplayer_host));
+    let both_peers = in_mp_running.or_else(is_gameplay_running.and_then(is_multiplayer_host));
 
     // ── Bidirectional Spell Visual Sync ──────────────────────────
     // Both host and guest collect local spell visuals and send them,

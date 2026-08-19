@@ -200,7 +200,7 @@ pub(crate) fn build_endless_left_panel(
             parent.spawn((
                 Text::new(&label),
                 TextFont {
-                    font_size: STAT_SECTION_FONT_SIZE,
+                    font_size: FontSize::Px(STAT_SECTION_FONT_SIZE),
                     ..default()
                 },
                 TextColor(color),
@@ -298,7 +298,7 @@ fn spawn_stat_value_row(
                     justify_content: JustifyContent::FlexEnd,
                     ..default()
                 },
-                TextLayout::new_with_justify(Justify::Right),
+                TextLayout::justify(Justify::Right),
             ));
         });
 }

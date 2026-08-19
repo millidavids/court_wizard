@@ -226,7 +226,7 @@ pub(super) fn animate_fortified_horde_glow(
     let glow = intensity * 4.0;
 
     for mat_handle in &shielded {
-        if let Some(mat) = materials.get_mut(mat_handle) {
+        if let Some(mut mat) = materials.get_mut(mat_handle) {
             mat.emissive = bevy::color::LinearRgba::new(glow, glow * 0.8, 0.0, 1.0);
         }
     }
@@ -242,7 +242,7 @@ pub(super) fn cleanup_fortified_horde_glow(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (entity, mat_handle) in &shielded {
-        if let Some(mat) = materials.get_mut(mat_handle) {
+        if let Some(mut mat) = materials.get_mut(mat_handle) {
             mat.emissive = bevy::color::LinearRgba::new(0.0, 0.0, 0.0, 1.0);
         }
         commands.entity(entity).remove::<FortifiedHordeShield>();

@@ -52,7 +52,7 @@ impl Plugin for HealingPlumePlugin {
                     .run_if(any_with_component::<RecentlyHealedVfx>),
                 emit_heal_regen_vfx.run_if(
                     any_with_component::<RecentlyHealedVfx>
-                        .or(any_with_component::<RemoteHealingEffect>),
+                        .or_else(any_with_component::<RemoteHealingEffect>),
                 ),
             )
                 .run_if(is_spell_effects_active),

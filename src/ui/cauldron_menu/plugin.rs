@@ -52,7 +52,7 @@ impl Plugin for CauldronMenuPlugin {
                 )
                     .run_if(
                         in_state(InGameState::CauldronMenu)
-                            .or(in_state(MultiplayerGameState::CauldronMenu)),
+                            .or_else(in_state(MultiplayerGameState::CauldronMenu)),
                     ),
             );
     }

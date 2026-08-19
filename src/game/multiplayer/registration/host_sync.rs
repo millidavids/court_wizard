@@ -22,8 +22,8 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
     // Match-LIFECYCLE host systems (`check_mp_king_death`, `receive_mp_forfeit`)
     // stay `in_mp_running`-gated — they push `MultiplayerGameState`, which the
     // co-op host (in InGame) doesn't have. Co-op lifecycle is the SP path.
-    let both_peers = in_mp_running.or(is_gameplay_running.and(is_multiplayer_host));
-    let host_net = is_gameplay_running.and(is_multiplayer_host);
+    let both_peers = in_mp_running.or_else(is_gameplay_running.and_then(is_multiplayer_host));
+    let host_net = is_gameplay_running.and_then(is_multiplayer_host);
     app.add_systems(
         Update,
         crdt_sync::attach_crdt_health.run_if(both_peers.clone()),
@@ -65,7 +65,7 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
     // Replaces SP's check_win_lose_conditions during a versus match. The
     // co-op host uses SP's `check_win_lose_conditions` natively (it's in
     // InGame), so this stays `in_mp_running`-gated and must NOT be widened.
-    let mp_host = in_mp_running.and(is_multiplayer_host);
+    let mp_host = in_mp_running.and_then(is_multiplayer_host);
 
     app.add_systems(
         Update,

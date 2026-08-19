@@ -32,7 +32,7 @@ pub fn update_wall_damage_tint(
             material_handle.0 = materials.add(cloned);
         }
 
-        let Some(material) = materials.get_mut(&material_handle.0) else {
+        let Some(mut material) = materials.get_mut(&material_handle.0) else {
             continue;
         };
 

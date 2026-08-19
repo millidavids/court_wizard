@@ -66,17 +66,22 @@ impl Plugin for WizardTowerPlugin {
                     super::layout::handle_back_button.in_set(ButtonActionSet),
                     super::layout::escape_to_main_menu,
                     super::layout::rebuild_panels_on_tab_change.run_if(
-                        resource_exists::<WizardTowerTab>.and(
+                        resource_exists::<WizardTowerTab>.and_then(
                             resource_changed::<WizardTowerTab>
-                                .or(resource_changed::<RightPanelView>)
-                                .or(resource_removed::<
-                                    crate::game::game_mode::components::RogueliteRunState,
-                                >)
+                                .or_else(resource_changed::<RightPanelView>)
+                                .or_else(
+                                    resource_removed::<
+                                        crate::game::game_mode::components::RogueliteRunState,
+                                    >,
+                                )
                                 // Re-render the host's mode-tab so its start button
                                 // flips "Guest Not Ready" ↔ enabled when the guest
                                 // readies (mutates `MultiplayerLobby`) — only on the
                                 // game-mode tabs to avoid churn elsewhere.
-                                .or(resource_changed::<MultiplayerLobby>.and(game_mode_tab_active)),
+                                .or_else(
+                                    resource_changed::<MultiplayerLobby>
+                                        .and_then(game_mode_tab_active),
+                                ),
                         ),
                     ),
                     // Tab switches are handled by `rebuild_panels_on_tab_change`;
@@ -87,19 +92,23 @@ impl Plugin for WizardTowerPlugin {
                         .after(super::layout::rebuild_panels_on_tab_change)
                         .run_if(
                             resource_exists::<WizardTowerTab>
-                                .and(multiplayer_tab_active)
-                                .and(
+                                .and_then(multiplayer_tab_active)
+                                .and_then(
                                     // CoopHostSelection ORed INSIDE this group so the
                                     // outer `multiplayer_tab_active` guard (which requires
                                     // RightPanelView::TabContent) still prevents clobbering
                                     // an open wizard-card grid when the host's mode arrives.
                                     resource_changed::<MultiplayerLobby>
-                                        .or(resource_changed::<
-                                            crate::networking::resources::NetworkConnection,
-                                        >)
-                                        .or(resource_changed::<
-                                            super::multiplayer_tab::CoopHostSelection,
-                                        >),
+                                        .or_else(
+                                            resource_changed::<
+                                                crate::networking::resources::NetworkConnection,
+                                            >,
+                                        )
+                                        .or_else(
+                                            resource_changed::<
+                                                super::multiplayer_tab::CoopHostSelection,
+                                            >,
+                                        ),
                                 ),
                         ),
                     super::layout::update_tab_active_state
@@ -121,8 +130,10 @@ impl Plugin for WizardTowerPlugin {
                     .run_if(in_state(MetaGameState::WizardTower))
                     .run_if(
                         resource_exists::<RightPanelView>
-                            .and(|view: Res<RightPanelView>| *view == RightPanelView::WizardSelect)
-                            .and(resource_exists::<super::wizard_cards::SelectedWizard>),
+                            .and_then(|view: Res<RightPanelView>| {
+                                *view == RightPanelView::WizardSelect
+                            })
+                            .and_then(resource_exists::<super::wizard_cards::SelectedWizard>),
                     ),
             )
             // ----- Study tab systems -----
@@ -185,24 +196,28 @@ impl Plugin for WizardTowerPlugin {
                     // `resource_changed` requires the resource to exist, so
                     // combine with `resource_exists`.
                     super::study_tab::update_graph_node_positions.run_if(
-                        resource_exists::<GraphViewState>.and(resource_changed::<GraphViewState>),
+                        resource_exists::<GraphViewState>
+                            .and_then(resource_changed::<GraphViewState>),
                     ),
                     super::study_tab::update_graph_edge_positions.run_if(
-                        resource_exists::<GraphViewState>.and(resource_changed::<GraphViewState>),
+                        resource_exists::<GraphViewState>
+                            .and_then(resource_changed::<GraphViewState>),
                     ),
                     super::study_tab::update_insight_node_positions.run_if(
-                        resource_exists::<GraphViewState>.and(resource_changed::<GraphViewState>),
+                        resource_exists::<GraphViewState>
+                            .and_then(resource_changed::<GraphViewState>),
                     ),
                     super::study_tab::update_insight_edge_positions.run_if(
-                        resource_exists::<GraphViewState>.and(resource_changed::<GraphViewState>),
+                        resource_exists::<GraphViewState>
+                            .and_then(resource_changed::<GraphViewState>),
                     ),
                     super::study_tab::update_graph_node_borders.run_if(
                         resource_exists::<SelectedStudySpell>
-                            .and(resource_changed::<SelectedStudySpell>),
+                            .and_then(resource_changed::<SelectedStudySpell>),
                     ),
                     super::study_tab::update_insight_node_borders.run_if(
                         resource_exists::<SelectedInsightBonus>
-                            .and(resource_changed::<SelectedInsightBonus>),
+                            .and_then(resource_changed::<SelectedInsightBonus>),
                     ),
                     super::study_tab::handle_detail_slider_interaction,
                     super::study_tab::handle_insight_bonus_slider_interaction,
@@ -223,7 +238,8 @@ impl Plugin for WizardTowerPlugin {
                     super::study_tab::update_insight_bonus_allocation_text,
                     super::study_tab::update_insight_bonus_rings,
                     super::study_tab::update_graph_node_label_scale.run_if(
-                        resource_exists::<GraphViewState>.and(resource_changed::<GraphViewState>),
+                        resource_exists::<GraphViewState>
+                            .and_then(resource_changed::<GraphViewState>),
                     ),
                     super::study_tab::update_pending_insight_display,
                     super::study_tab::update_talent_hover_description,

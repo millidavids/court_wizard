@@ -44,7 +44,7 @@ pub(super) fn update_dark_mage_facing(
 
         if *facing != new_facing {
             *facing = new_facing;
-            if let Some(mat) = materials.get_mut(material_handle) {
+            if let Some(mut mat) = materials.get_mut(material_handle) {
                 mat.uv_transform = anim.uv_transform(new_facing);
             }
         }
@@ -66,7 +66,7 @@ pub(super) fn update_dark_mage_animation(
     let delta = time.delta_secs();
     for (mut anim, material_handle, facing) in &mut anim_query {
         if anim.tick(delta)
-            && let Some(mat) = materials.get_mut(material_handle)
+            && let Some(mut mat) = materials.get_mut(material_handle)
         {
             mat.uv_transform = anim.uv_transform(*facing);
         }

@@ -86,7 +86,8 @@ impl Plugin for MultiplayerTabPlugin {
                     .run_if(in_state(MetaGameState::WizardTower))
                     .run_if(mp_tab_selected)
                     .run_if(
-                        resource_exists::<SelectedWizard>.and(resource_changed::<SelectedWizard>),
+                        resource_exists::<SelectedWizard>
+                            .and_then(resource_changed::<SelectedWizard>),
                     ),
             );
     }

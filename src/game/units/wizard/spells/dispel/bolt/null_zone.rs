@@ -41,7 +41,7 @@ pub fn update_null_zones(
         // Fade alpha as zone expires
         let life_frac = zone.time_remaining / constants::NULL_ZONE_DURATION;
         let alpha = constants::NULL_ZONE_COLOR.alpha() * life_frac;
-        if let Some(material) = materials.get_mut(material_handle) {
+        if let Some(mut material) = materials.get_mut(material_handle) {
             material.base_color = constants::NULL_ZONE_COLOR.with_alpha(alpha);
         }
 

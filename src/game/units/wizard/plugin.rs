@@ -68,7 +68,7 @@ impl Plugin for WizardPlugin {
                 // first. `is_local_wizard_active` already covers the
                 // multiplayer SpellBook state.
                 systems::handle_prime_spell_messages.run_if(
-                    is_local_wizard_active.or(in_state(crate::state::InGameState::SpellBook)),
+                    is_local_wizard_active.or_else(in_state(crate::state::InGameState::SpellBook)),
                 ),
             )
             .add_systems(

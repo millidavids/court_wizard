@@ -1,6 +1,6 @@
 [package]
 name = "court_wizard"
-version = "1.0.38"
+version = "1.0.39"
 edition = "2024"
 default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"
@@ -13,7 +13,7 @@ default = []
 benchmarking = ["bevy/sysinfo_plugin"]
 
 [dependencies]
-bevy = { version = "0.18.1", default-features = false, features = [
+bevy = { version = "0.19.1", default-features = false, features = [
     # Core rendering and 2D
     "bevy_render",
     "bevy_core_pipeline",
@@ -35,18 +35,27 @@ bevy = { version = "0.18.1", default-features = false, features = [
     "sprite_picking",
 
     # Window and input
+    #
+    # `bevy_input_focus` is deliberately absent. Enabling it puts
+    # `InputFocusPlugin` + `InputDispatchPlugin` into `DefaultPlugins` and wires
+    # click-to-focus into `ui_picking`, none of which this game uses — it has its
+    # own focus system in `src/ui/focus/`, and bevy's would run off the
+    # *uncorrected* cursor while `correct_ui_interaction_for_barrel` corrects
+    # everything else for CRT barrel distortion.
     "bevy_window",
     "bevy_winit",
-    "bevy_input_focus",
     "bevy_gilrs",       # Gamepad/controller support via gilrs
 
     # Audio
     "bevy_audio",
     "vorbis",
 
-    # Assets and scenes
+    # Assets
+    #
+    # No scene feature: the game never spawns a scene. In 0.19 `bevy_scene` is
+    # the new BSN crate and `bevy_world_serialization` is the old one; we need
+    # neither.
     "bevy_asset",
-    "bevy_scene",
     "bevy_state",
 
     # Image formats
@@ -73,13 +82,13 @@ thiserror = "2.0"
 rand = "0.9"
 tracing = { version = "0.1", features = ["max_level_debug", "release_max_level_warn"] }
 dirs = "6.0"
-bevy-steamworks = "0.16"
-# Direct handles to the exact versions bevy-steamworks 0.16 already resolves, so
+bevy-steamworks = "0.17"
+# Direct handles to the exact versions bevy-steamworks 0.17 already resolves, so
 # we can name `steamworks::InputType` and call the Steam Input haptics FFI
 # (`steamworks-sys`) the safe `Input` wrapper doesn't expose. Exact-pinned so the
 # FFI surface can't drift.
-steamworks = "=0.12.2"
-steamworks-sys = "=0.12.2"
+steamworks = "=0.13.1"
+steamworks-sys = "=0.13.0"
 iroh = "0.98"
 tokio = { version = "1", features = ["rt", "sync", "time"] }
 # `CancellationToken` only. Already in the tree via iroh, and `tokio_util::sync`
@@ -97,7 +106,7 @@ winit = { version = "0.30", default-features = false }
 webbrowser = "1.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-bevy = { version = "0.18.1", default-features = false, features = ["x11", "wayland"] }
+bevy = { version = "0.19.1", default-features = false, features = ["x11", "wayland"] }
 
 [profile.dev]
 opt-level = 1

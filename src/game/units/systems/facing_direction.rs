@@ -116,7 +116,7 @@ pub fn update_facing_direction(
 
         if *facing != new_facing {
             *facing = new_facing;
-            if let Some(mat) = materials.get_mut(material_handle) {
+            if let Some(mut mat) = materials.get_mut(material_handle) {
                 mat.uv_transform = anim.uv_transform(new_facing);
             }
             if let Some(d) = dwell.as_mut() {

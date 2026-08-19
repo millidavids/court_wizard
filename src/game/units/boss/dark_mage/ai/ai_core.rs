@@ -152,8 +152,8 @@ pub fn dark_mage_ai(
                 let progress = (*elapsed / *duration).min(1.0);
 
                 // Animate indicator emissive glow
-                if let Some(mat) = materials.get_mut(&indicators.fill_material) {
-                    animate_telegraph_material(mat, *elapsed, progress, 0.8);
+                if let Some(mut mat) = materials.get_mut(&indicators.fill_material) {
+                    animate_telegraph_material(&mut mat, *elapsed, progress, 0.8);
                 }
 
                 if *elapsed >= *duration {

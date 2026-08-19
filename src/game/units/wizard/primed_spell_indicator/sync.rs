@@ -52,7 +52,7 @@ pub(super) fn sync_primed_spell_icon(
 
     // The corona shares the icon's texture — its alpha is what shapes the glow.
     for handle in std::iter::once(material_handle).chain(corona_query.iter()) {
-        if let Some(material) = materials.get_mut(handle) {
+        if let Some(mut material) = materials.get_mut(handle) {
             material.base_color_texture = desired.clone();
         }
     }

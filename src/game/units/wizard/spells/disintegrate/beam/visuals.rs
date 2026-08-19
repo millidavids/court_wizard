@@ -37,7 +37,7 @@ pub fn update_beam_visuals(
         transform.scale = Vec3::new(beam_width, visual_len, beam_width);
 
         // Color cycling: orange -> yellow -> white -> yellow -> orange
-        if let Some(mat) = materials.get_mut(material_handle) {
+        if let Some(mut mat) = materials.get_mut(material_handle) {
             let cycle = (t * constants::COLOR_CYCLE_SPEED).sin() * 0.5 + 0.5; // 0..1
             // Interpolate emissive: orange(3,1.5,0.2) -> white(5,4.5,4)
             let r = 3.0 + cycle * 2.0;

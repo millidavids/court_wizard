@@ -40,7 +40,7 @@ pub fn fade_grease_zone(
 
         // Fade the grease base mesh with iridescent oil-sheen emissive.
         // With Mask mode, alpha < 0.01 makes pixels disappear entirely.
-        if let Some(material) = materials.get_mut(material_handle) {
+        if let Some(mut material) = materials.get_mut(material_handle) {
             let (r, g, b, a) = constants::GREASE_COLOR;
             material.base_color = Color::srgba(r, g, b, a * fade);
 
@@ -125,7 +125,7 @@ pub fn update_grease_regeneration(
         let regen_progress =
             (regen.time_regenerating / constants::ENDLESS_OIL_REGEN_DURATION).min(1.0);
         if let Ok(mat_handle) = zone_materials.get(entity)
-            && let Some(material) = materials.get_mut(mat_handle)
+            && let Some(mut material) = materials.get_mut(mat_handle)
         {
             let (r, g, b, a) = constants::GREASE_COLOR;
             material.base_color = Color::srgba(r, g, b, a * regen_progress);

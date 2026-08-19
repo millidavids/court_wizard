@@ -13,12 +13,16 @@ use crate::game::units::wizard::components::Spell;
 ///
 /// After this runs, every `TextFont::default()` and `TextFont::from_font_size()`
 /// automatically uses PressStart2P without needing an explicit font handle.
+///
+/// Must stay in `Startup`. Bevy registers each `Font` asset with Parley the
+/// first time it sees that asset id, and never again — so replacing the asset at
+/// `AssetId::default()` only takes effect if it happens before the first
+/// `PostUpdate`. Move this into a state transition and every `TextFont` silently
+/// falls back to Bevy's embedded FiraMono.
 pub fn set_default_font(mut fonts: ResMut<Assets<Font>>) {
     let font_data = include_bytes!("../../assets/fonts/PressStart2P-Regular.ttf");
-    let font =
-        Font::try_from_bytes(font_data.to_vec()).expect("Failed to load PressStart2P-Regular.ttf");
     fonts
-        .insert(AssetId::default(), font)
+        .insert(AssetId::default(), Font::from_bytes(font_data.to_vec()))
         .expect("Failed to insert default font");
 }
 

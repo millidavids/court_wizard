@@ -130,7 +130,19 @@ if [ -n "$TARGET" ]; then
 else
     STEAM_SEARCH_DIR="./target"
 fi
-STEAM_BUILD_DIR=$(find "$STEAM_SEARCH_DIR" -path "*/build/steamworks-sys-*/out" -type d 2>/dev/null | head -1)
+# Cargo names these dirs by build-script hash, not by version, and it keeps the
+# old ones after a `steamworks-sys` bump — so a target dir can hold several
+# `out` dirs from different Steamworks SDKs at once. `find` order is
+# unspecified, so taking the first match can ship a redistributable from a
+# different SDK than the binary was linked against, which fails at runtime in
+# ways that look nothing like a version mismatch. Take the most recently
+# written one instead: that is always the build we just ran.
+STEAM_BUILD_DIR=""
+while IFS= read -r candidate; do
+    if [ -z "$STEAM_BUILD_DIR" ] || [ "$candidate" -nt "$STEAM_BUILD_DIR" ]; then
+        STEAM_BUILD_DIR="$candidate"
+    fi
+done < <(find "$STEAM_SEARCH_DIR" -path "*/build/steamworks-sys-*/out" -type d 2>/dev/null)
 # Resolve which Steam library to copy. For a no-arg host build TARGET is empty,
 # so fall back to the host OS so macOS hosts get the .dylib (not the Linux .so).
 STEAM_PLATFORM="$TARGET"

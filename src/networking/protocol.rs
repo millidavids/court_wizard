@@ -74,7 +74,12 @@ use crate::game::units::wizard::components::Spell;
 ///   beams from a wizard's and skip the wizard-only glow cone and origin flare.
 ///   Without it the flare — an opaque sphere scaled to `FLARE_RADIUS` and centred on
 ///   the beam origin — was drawn on top of the crystal that emitted it.
-pub const PROTOCOL_VERSION: u32 = 14;
+/// - 15: no wire-format change. Bevy 0.18 → 0.19 (glam 0.30 → 0.32, new
+///   renderer). Both peers generate terrain locally from a shared seed, so a
+///   binary built against the old engine and one built against the new must not
+///   share a session on the chance that float math differs. Bumped so they
+///   refuse each other through the existing version-mismatch path instead.
+pub const PROTOCOL_VERSION: u32 = 15;
 
 /// Messages sent over the reliable iroh/QUIC channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]

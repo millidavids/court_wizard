@@ -65,7 +65,7 @@ pub fn set_hag_attack_pose_frame(
     facing: FacingDirection,
     frame_idx: usize,
 ) {
-    if let Some(mat) = materials.get_mut(material_handle) {
+    if let Some(mut mat) = materials.get_mut(material_handle) {
         let row = HAG_DIRECTION_ROWS[facing as usize] as f32;
         let offset = Vec2::new(frame_idx as f32 * HAG_FRAME_UV.x, row * HAG_FRAME_UV.y);
         mat.base_color_texture = Some(hag_assets.attacking_texture.clone());
@@ -81,7 +81,7 @@ pub fn restore_hag_walking_pose(
     hag_assets: &HagAssets,
     facing: FacingDirection,
 ) {
-    if let Some(mat) = materials.get_mut(material_handle) {
+    if let Some(mut mat) = materials.get_mut(material_handle) {
         let row = HAG_DIRECTION_ROWS[facing as usize] as f32;
         let offset = Vec2::new(0.0, row * HAG_FRAME_UV.y);
         mat.base_color_texture = Some(hag_assets.walking_texture.clone());

@@ -1,9 +1,15 @@
+use bevy::ecs::component::Mutable;
 use bevy::prelude::*;
 
 use crate::config::save_data::AchievementId;
 
 /// Trait implemented by all per-achievement resources.
-pub(crate) trait AchievementResource: Resource {
+///
+/// The `Mutability = Mutable` bound is what lets generic helpers take
+/// `ResMut<T>`: since Bevy 0.19 resources are components and may be immutable,
+/// so `ResMut` carries that bound. Every achievement resource is a mutable
+/// locked/unlocked flag.
+pub(crate) trait AchievementResource: Resource<Mutability = Mutable> {
     fn is_locked(&self) -> bool;
     fn unlock(&mut self);
     fn achievement_id() -> AchievementId;

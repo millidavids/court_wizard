@@ -68,7 +68,7 @@ impl Plugin for SpellBookPlugin {
                 )
                     .run_if(
                         in_state(InGameState::SpellBook)
-                            .or(in_state(MultiplayerGameState::SpellBook)),
+                            .or_else(in_state(MultiplayerGameState::SpellBook)),
                     ),
             )
             .add_systems(
@@ -76,7 +76,7 @@ impl Plugin for SpellBookPlugin {
                 systems::clear_just_entered_flag
                     .run_if(
                         in_state(InGameState::SpellBook)
-                            .or(in_state(MultiplayerGameState::SpellBook)),
+                            .or_else(in_state(MultiplayerGameState::SpellBook)),
                     )
                     .run_if(resource_exists::<systems::JustEnteredSpellBook>),
             );

@@ -68,8 +68,8 @@ impl Plugin for InputPlugin {
                 Update,
                 systems::detect_keyboard_input.run_if(
                     is_local_wizard_active
-                        .or(in_state(InGameState::SpellBook))
-                        .or(in_state(MultiplayerGameState::SpellBook)),
+                        .or_else(in_state(InGameState::SpellBook))
+                        .or_else(in_state(MultiplayerGameState::SpellBook)),
                 ),
             )
             // Rune input (Q/W/E/R + spacebar activate) - RuneCaster only
@@ -78,8 +78,8 @@ impl Plugin for InputPlugin {
                 systems::detect_rune_input
                     .run_if(
                         is_local_wizard_active
-                            .or(in_state(InGameState::SpellBook))
-                            .or(in_state(MultiplayerGameState::SpellBook)),
+                            .or_else(in_state(InGameState::SpellBook))
+                            .or_else(in_state(MultiplayerGameState::SpellBook)),
                     )
                     .run_if(run_conditions::is_rune_caster),
             )

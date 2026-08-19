@@ -13,7 +13,7 @@ use crate::networking::session::{is_multiplayer_guest, is_multiplayer_host};
 
 pub(in crate::game::multiplayer) fn register(app: &mut App) {
     let mp_running = in_mp_running;
-    let host_net = is_gameplay_running.and(is_multiplayer_host);
+    let host_net = is_gameplay_running.and_then(is_multiplayer_host);
 
     // ── Guest: Unit Snapshot Rendering + CRDT Send ─────────────────
     // `apply_state_snapshot` writes ghost `Velocity` straight from the
@@ -38,7 +38,7 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
             // only other StandardMaterial writer and is named explicitly.
             .after(spell_sync::apply_remote_cast_events)
             .after(excremage_theming::theme_remote_excremage_ghosts)
-            .run_if(mp_running.and(is_multiplayer_guest)),
+            .run_if(mp_running.and_then(is_multiplayer_guest)),
     );
 
     // ── Host: Receive Guest CRDT Updates ──────────────────────────
@@ -82,7 +82,7 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
         Update,
         guest_systems::forward_spell_hits_to_host
             .before(crdt_sync::sync_health_to_crdt)
-            .run_if(mp_running.and(is_multiplayer_guest)),
+            .run_if(mp_running.and_then(is_multiplayer_guest)),
     );
 
     // ── Guest: Forward Status Effects to Host ─────────────────────
@@ -91,7 +91,8 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
     // hold on host-authoritative units. See `forward_status_effects_to_host`.
     app.add_systems(
         Update,
-        guest_systems::forward_status_effects_to_host.run_if(mp_running.and(is_multiplayer_guest)),
+        guest_systems::forward_status_effects_to_host
+            .run_if(mp_running.and_then(is_multiplayer_guest)),
     );
 
     // Pair each forwarded marker with a cleanup that removes the marker
@@ -123,7 +124,7 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
             // immediately after forwarding instead of tagging it, so no
             // `StatusEffectForwarded<Knockback>` marker is ever created.
         )
-            .run_if(mp_running.and(is_multiplayer_guest)),
+            .run_if(mp_running.and_then(is_multiplayer_guest)),
     );
 
     // ── Host: Receive Generic Status Effects ─────────────────────
@@ -145,7 +146,7 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
     // guest had summoned.
     app.add_systems(
         Update,
-        host_systems::receive_dispel_messages.run_if(mp_running.or(host_net.clone())),
+        host_systems::receive_dispel_messages.run_if(mp_running.or_else(host_net.clone())),
     );
 
     // ── Guest: Game Over Message ──────────────────────────────────
@@ -155,6 +156,6 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
             // Run after the tally accumulator so the guest's own final spell
             // stats are folded in before it builds MatchStats / sends its report.
             .after(score_stats::accumulate_wizard_spell_stats)
-            .run_if(mp_running.and(is_multiplayer_guest)),
+            .run_if(mp_running.and_then(is_multiplayer_guest)),
     );
 }

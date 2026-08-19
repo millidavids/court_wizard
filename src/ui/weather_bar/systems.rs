@@ -79,7 +79,7 @@ pub(crate) fn spawn_weather_bar(mut commands: Commands, bindings: Res<InputBindi
                                 Text::new("Clear Skies"),
                                 TextFont::from_font_size(STATUS_FONT_SIZE),
                                 TextColor(STATUS_TEXT_COLOR),
-                                TextLayout::new_with_justify(Justify::Center),
+                                TextLayout::justify(Justify::Center),
                                 WeatherStatusText,
                             ));
                         });

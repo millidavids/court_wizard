@@ -206,7 +206,7 @@ pub(super) fn spawn_unlock_popup(commands: &mut Commands, toggle: ToggleModifier
                         Text::new(message),
                         TextFont::from_font_size(POPUP_FONT_SIZE),
                         TextColor(LABEL_COLOR),
-                        TextLayout::new_with_justify(Justify::Center),
+                        TextLayout::justify(Justify::Center),
                     ));
 
                     popup

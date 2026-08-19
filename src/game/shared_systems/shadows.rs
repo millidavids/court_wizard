@@ -1,7 +1,7 @@
+use bevy::material::AlphaMode;
 use bevy::mesh::MeshVertexBufferLayoutRef;
 use bevy::pbr::{MaterialPipeline, MaterialPipelineKey};
 use bevy::prelude::*;
-use bevy::render::alpha::AlphaMode;
 use bevy::render::render_resource::{
     AsBindGroup, CompareFunction, RenderPipelineDescriptor, SpecializedMeshPipelineError,
 };
@@ -42,8 +42,8 @@ impl Material for ShadowMaterial {
         // Use strict Greater (not GreaterEqual) so shadows at the same depth
         // don't stack — only the first one drawn passes.
         if let Some(depth_stencil) = descriptor.depth_stencil.as_mut() {
-            depth_stencil.depth_write_enabled = true;
-            depth_stencil.depth_compare = CompareFunction::Greater;
+            depth_stencil.depth_write_enabled = Some(true);
+            depth_stencil.depth_compare = Some(CompareFunction::Greater);
         }
         Ok(())
     }

@@ -36,7 +36,7 @@ impl Plugin for ArcaneCrystalPlugin {
                 systems::update_crystal_tint.run_if(any_with_component::<CrystalTint>),
                 systems::cleanup_expired_crystals.run_if(
                     any_with_component::<ArcaneCrystal>
-                        .or(any_with_component::<CrystalRangeIndicator>),
+                        .or_else(any_with_component::<CrystalRangeIndicator>),
                 ),
                 systems::despawn_out_of_range_crystal_spawns
                     .run_if(any_with_component::<CrystalSpawn>),

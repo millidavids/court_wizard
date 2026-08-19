@@ -36,7 +36,7 @@ pub fn update_brew_bubble(
         // same curve as the other spell bursts. (The aura shader caps visible
         // alpha well below 1.0, so a linear fade from spawn would be pinned
         // at the cap for most of the animation and then cut off abruptly.)
-        if let Some(material) = materials.get_mut(material_handle) {
+        if let Some(mut material) = materials.get_mut(material_handle) {
             material.opacity = explosion_fade_opacity(progress);
         }
     }
@@ -57,7 +57,7 @@ pub fn update_cauldron_animation(
 
     if let Ok((mut animation, material_handle)) = cauldron_query.single_mut()
         && animation.tick(time.delta_secs())
-        && let Some(material) = materials.get_mut(material_handle)
+        && let Some(mut material) = materials.get_mut(material_handle)
     {
         let (offset_x, offset_y) = animation.uv_offset();
 
@@ -103,7 +103,7 @@ pub fn start_brewing_effects(
                     transform.scale = Vec3::ONE;
 
                     // Reset color to white
-                    if let Some(material) = materials.get_mut(material_handle) {
+                    if let Some(mut material) = materials.get_mut(material_handle) {
                         material.base_color = Color::WHITE;
                     }
 
@@ -150,7 +150,7 @@ pub fn update_brewing_effects(
             + pulse_progress * constants::BREWING_COLOR_ALPHA_RANGE;
 
         // Blend between white (base sprite) and recipe color using mix
-        if let Some(material) = materials.get_mut(material_handle) {
+        if let Some(mut material) = materials.get_mut(material_handle) {
             // Convert recipe color to linear space
             let recipe_linear = effects.recipe_color.to_linear();
 

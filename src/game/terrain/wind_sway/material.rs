@@ -1,5 +1,5 @@
+use bevy::material::AlphaMode;
 use bevy::prelude::*;
-use bevy::render::alpha::AlphaMode;
 use bevy::render::render_resource::AsBindGroup;
 use bevy::shader::ShaderRef;
 

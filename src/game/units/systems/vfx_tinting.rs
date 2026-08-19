@@ -308,7 +308,7 @@ pub fn update_persistent_effect_visuals(
                 result_linear = result_linear.mix(&gray, 0.85);
             }
 
-            if let Some(cloned_material) = materials.get_mut(material_handle) {
+            if let Some(mut cloned_material) = materials.get_mut(material_handle) {
                 cloned_material.base_color = Color::from(result_linear);
             }
         } else if let Some(original) = original_mat {

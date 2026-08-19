@@ -38,10 +38,10 @@ impl Plugin for DisintegratePlugin {
                     .chain()
                     .run_if(
                         any_exist::<DisintegrateBeam>()
-                            .or(any_exist::<BeamGlow>())
-                            .or(any_exist::<BeamOriginFlare>())
-                            .or(any_exist::<BeamEclipse>())
-                            .or(any_exist::<ChannelingSfx>()),
+                            .or_else(any_exist::<BeamGlow>())
+                            .or_else(any_exist::<BeamOriginFlare>())
+                            .or_else(any_exist::<BeamEclipse>())
+                            .or_else(any_exist::<ChannelingSfx>()),
                     )
                     .run_if(is_spell_effects_active),
                 systems::update_impact_particles

@@ -101,7 +101,7 @@ pub(super) fn build_joining(commands: &mut Commands, entity: Entity, lobby: &Mul
                         Text::new(display_text),
                         TextFont::from_font_size(CODE_FONT_SIZE),
                         TextColor(text_color),
-                        TextLayout::new_with_linebreak(LineBreak::AnyCharacter),
+                        TextLayout::linebreak(LineBreak::AnyCharacter),
                         Node {
                             max_width: Val::Percent(100.0),
                             ..default()

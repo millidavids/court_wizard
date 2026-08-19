@@ -177,7 +177,7 @@ impl Plugin for GamePlugin {
             .add_systems(
                 Update,
                 wave_systems::tick_wave_timer
-                    .run_if(is_gameplay_running.and(in_state(AppState::InGame))),
+                    .run_if(is_gameplay_running.and_then(in_state(AppState::InGame))),
             )
             .add_systems(
                 Update,
@@ -267,7 +267,7 @@ impl Plugin for GamePlugin {
             .add_systems(
                 Update,
                 movement_systems::enforce_playable_area
-                    .run_if(is_gameplay_running.and(in_state(AppState::InGame)))
+                    .run_if(is_gameplay_running.and_then(in_state(AppState::InGame)))
                     .run_if(is_not_mp_setup_phase)
                     .after(PostCombatSet)
                     .after(super::units::ApplyTransformsSet)
@@ -314,8 +314,9 @@ impl Plugin for GamePlugin {
             // Runs during any active game state, not just gameplay simulation.
             .add_systems(
                 Update,
-                systems::update_billboards
-                    .run_if(in_state(AppState::InGame).or(in_state(AppState::MultiplayerGame))),
+                systems::update_billboards.run_if(
+                    in_state(AppState::InGame).or_else(in_state(AppState::MultiplayerGame)),
+                ),
             )
             // SP-only win/lose check — runs after combat chain, gated to gameplay states
             // only. Must NOT run during InGameState::ScoreScreen: bevy_state 0.18's

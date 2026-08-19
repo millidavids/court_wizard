@@ -292,7 +292,7 @@ pub fn fade_explosion_spheres(
             continue;
         }
         let opacity = explosion_fade_opacity(explosion.time_alive / explosion.duration);
-        if let Some(mat) = sphere_materials.get_mut(material_handle) {
+        if let Some(mut mat) = sphere_materials.get_mut(material_handle) {
             mat.opacity = opacity;
         }
     }

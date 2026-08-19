@@ -24,7 +24,7 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
     // the instant they disconnect). Co-op host only.
     app.add_systems(
         Update,
-        coop::apply_coop_difficulty_buff.run_if(is_gameplay_running.and(coop::is_coop_host)),
+        coop::apply_coop_difficulty_buff.run_if(is_gameplay_running.and_then(coop::is_coop_host)),
     );
     // Graceful disconnect: if the guest drops, the host keeps playing solo
     // and the +30% buff lifts (reconnect is a follow-up). Gated on
@@ -34,7 +34,7 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
     // paused forever, since the auto-resume lives in this system.
     app.add_systems(
         Update,
-        coop::detect_coop_guest_disconnect.run_if(is_gameplay_active.and(coop::is_coop_host)),
+        coop::detect_coop_guest_disconnect.run_if(is_gameplay_active.and_then(coop::is_coop_host)),
     );
     // Co-op level-end coordination: the host announces each level's result at
     // its score screen; the in-place guest waits for the next level (or the
@@ -47,8 +47,8 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
         Update,
         coop::receive_coop_lifecycle.run_if(
             in_state(AppState::MultiplayerGame)
-                .and(is_coop_session)
-                .and(is_multiplayer_guest),
+                .and_then(is_coop_session)
+                .and_then(is_multiplayer_guest),
         ),
     );
 
@@ -75,8 +75,8 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
         Update,
         coop_pause::coop_pause_receive_host.run_if(
             in_state(AppState::InGame)
-                .and(coop_pause::coop_sync_pause_enabled)
-                .and(is_multiplayer_host),
+                .and_then(coop_pause::coop_sync_pause_enabled)
+                .and_then(is_multiplayer_host),
         ),
     );
     // Guest applies incoming pause state to MultiplayerGameState.
@@ -84,8 +84,8 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
         Update,
         coop_pause::coop_pause_receive_guest.run_if(
             in_state(AppState::MultiplayerGame)
-                .and(coop_pause::coop_sync_pause_enabled)
-                .and(is_multiplayer_guest),
+                .and_then(coop_pause::coop_sync_pause_enabled)
+                .and_then(is_multiplayer_guest),
         ),
     );
     // Initiator re-broadcasts the authoritative state (self-healing).

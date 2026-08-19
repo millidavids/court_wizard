@@ -61,7 +61,8 @@ impl Plugin for MindControlPlugin {
             systems::update_traitors_mark_aura
                 .run_if(is_gameplay_running)
                 .run_if(
-                    any_with_component::<TraitorsMarkAura>.or(any_with_component::<Demoralized>),
+                    any_with_component::<TraitorsMarkAura>
+                        .or_else(any_with_component::<Demoralized>),
                 ),
         )
         .add_systems(

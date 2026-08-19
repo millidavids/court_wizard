@@ -84,7 +84,7 @@ pub(crate) fn update_action_bar_slots(
             let spell = effective_slot(&config, slot_text.slot as usize, mp_session.as_deref());
             let spell_name = spell.map(|s| s.name()).unwrap_or("");
             **text = spell_name.to_string();
-            text_font.font_size = calculate_action_bar_font_size(spell_name);
+            text_font.font_size = FontSize::Px(calculate_action_bar_font_size(spell_name));
 
             let has_icon = spell.is_some_and(|s| icon_assets.get(&s).is_some());
             // Use Display::None (not Visibility::Hidden) for hidden text —

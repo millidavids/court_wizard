@@ -263,7 +263,7 @@ pub fn update_burning_patch_visuals(
     patches: Query<(&BurningPatch, &MeshMaterial3d<StandardMaterial>)>,
 ) {
     for (patch, mat_handle) in patches.iter() {
-        if let Some(material) = materials.get_mut(&mat_handle.0) {
+        if let Some(mut material) = materials.get_mut(&mat_handle.0) {
             let alpha = (patch.lifetime / BURNING_PATCH_LIFETIME).clamp(0.0, 1.0) * 0.4;
             material.base_color = Color::srgba(1.0, 0.4, 0.1, alpha);
         }
@@ -319,7 +319,7 @@ pub fn clear_weather_visuals(
         *bg = BackgroundColor(Color::BLACK.with_alpha(0.0));
     }
     if let Ok(mat_handle) = ground_overlay.single()
-        && let Some(material) = materials.get_mut(&mat_handle.0)
+        && let Some(mut material) = materials.get_mut(&mat_handle.0)
     {
         material.base_color = Color::WHITE.with_alpha(0.0);
     }

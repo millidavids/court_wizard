@@ -267,7 +267,7 @@ fn spawn_mp_forfeit_confirm(commands: &mut Commands) {
                 Text::new("Forfeit the match?\nYour opponent wins."),
                 TextFont::from_font_size(32.0),
                 TextColor(TEXT_PRIMARY),
-                TextLayout::new_with_justify(Justify::Center),
+                TextLayout::justify(Justify::Center),
                 Node {
                     margin: UiRect::bottom(Val::Px(20.0)),
                     ..default()

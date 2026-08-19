@@ -31,7 +31,7 @@ pub fn update_ray_disintegrate_visuals(
         transform.translation = beam.origin + beam.direction * visual_len / 2.0;
         transform.scale = Vec3::new(beam_width, visual_len, beam_width);
 
-        if let Some(mat) = materials.get_mut(&mat_handle.0) {
+        if let Some(mut mat) = materials.get_mut(&mat_handle.0) {
             let cycle = (t * 4.0).sin() * 0.5 + 0.5;
             mat.emissive =
                 LinearRgba::new(3.0 + cycle * 2.0, 1.5 + cycle * 3.0, 0.2 + cycle * 3.8, 1.0);

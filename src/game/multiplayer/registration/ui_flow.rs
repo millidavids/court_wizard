@@ -22,8 +22,9 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
     // ── Escape Key (Running → Paused toggle) ──────────────────────
     app.add_systems(
         Update,
-        mp_escape_key_handler
-            .run_if(in_state(AppState::MultiplayerGame).and(in_mp_running.or(in_mp_paused))),
+        mp_escape_key_handler.run_if(
+            in_state(AppState::MultiplayerGame).and_then(in_mp_running.or_else(in_mp_paused)),
+        ),
     );
 
     // ── Escape Menu (Paused overlay) ──────────────────────────────
@@ -46,7 +47,7 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
     app.add_systems(
         Update,
         host_systems::receive_mp_forfeit
-            .run_if((in_mp_running.or(in_mp_paused)).and(is_multiplayer_host)),
+            .run_if((in_mp_running.or_else(in_mp_paused)).and_then(is_multiplayer_host)),
     );
 
     // ── Disconnected Overlay ──────────────────────────────────────
@@ -92,7 +93,7 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
             // the host's enemy column fills in from the guest's report).
             update_mp_stat_values.run_if(
                 resource_exists::<score_stats::MatchStats>
-                    .and(resource_changed::<score_stats::MatchStats>),
+                    .and_then(resource_changed::<score_stats::MatchStats>),
             ),
         )
             .run_if(in_mp_score_screen),
@@ -121,7 +122,7 @@ pub(in crate::game::multiplayer) fn register(app: &mut App) {
         Update,
         abandon_run_for_steam_invite.run_if(
             resource_exists::<crate::steam::multiplayer::PendingSteamJoin>
-                .and(in_state(AppState::InGame).or(in_state(AppState::MultiplayerGame))),
+                .and_then(in_state(AppState::InGame).or_else(in_state(AppState::MultiplayerGame))),
         ),
     );
 }

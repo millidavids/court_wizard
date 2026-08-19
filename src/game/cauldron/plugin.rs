@@ -39,8 +39,8 @@ impl Plugin for CauldronPlugin {
                 )
                     .run_if(
                         in_state(AppState::InGame)
-                            .or(in_state(MultiplayerGameState::CauldronMenu))
-                            .or(in_state(MultiplayerGameState::Running)),
+                            .or_else(in_state(MultiplayerGameState::CauldronMenu))
+                            .or_else(in_state(MultiplayerGameState::Running)),
                     ),
             )
             // LOCAL brew loop — brew timer, completion, the local wizard's mana
@@ -85,7 +85,7 @@ impl Plugin for CauldronPlugin {
                     // must apply the guest's replicated Meadowsweet to the guest's
                     // Attacker army even when the host isn't brewing.
                     systems::apply_cauldron_speed_modifiers
-                        .run_if(has_active_buffs.or(is_remote_alchemist)),
+                        .run_if(has_active_buffs.or_else(is_remote_alchemist)),
                     systems::shield_defenders.run_if(has_active_buffs),
                     // NOT gated on `has_active_buffs`: it writes the dedicated
                     // `Effectiveness.cauldron_spell_bonus` field every frame so it

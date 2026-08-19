@@ -31,10 +31,12 @@ impl Plugin for MainMenuManualPlugin {
                     >
                         .in_set(ButtonActionSet),
                     systems::handle_tab_click.in_set(ButtonActionSet),
-                    systems::rebuild_content_on_tab_change
-                        .run_if(resource_exists::<ManualTab>.and(resource_changed::<ManualTab>)),
-                    systems::update_tab_active_state
-                        .run_if(resource_exists::<ManualTab>.and(resource_changed::<ManualTab>)),
+                    systems::rebuild_content_on_tab_change.run_if(
+                        resource_exists::<ManualTab>.and_then(resource_changed::<ManualTab>),
+                    ),
+                    systems::update_tab_active_state.run_if(
+                        resource_exists::<ManualTab>.and_then(resource_changed::<ManualTab>),
+                    ),
                     handle_scroll::<ScrollableManualContainer>,
                     escape_to_landing,
                 )
@@ -65,10 +67,12 @@ impl Plugin for PauseMenuManualPlugin {
                     >
                         .in_set(ButtonActionSet),
                     systems::handle_tab_click.in_set(ButtonActionSet),
-                    systems::rebuild_content_on_tab_change
-                        .run_if(resource_exists::<ManualTab>.and(resource_changed::<ManualTab>)),
-                    systems::update_tab_active_state
-                        .run_if(resource_exists::<ManualTab>.and(resource_changed::<ManualTab>)),
+                    systems::rebuild_content_on_tab_change.run_if(
+                        resource_exists::<ManualTab>.and_then(resource_changed::<ManualTab>),
+                    ),
+                    systems::update_tab_active_state.run_if(
+                        resource_exists::<ManualTab>.and_then(resource_changed::<ManualTab>),
+                    ),
                     handle_scroll::<ScrollableManualContainer>,
                     escape_to_pause_main,
                 )

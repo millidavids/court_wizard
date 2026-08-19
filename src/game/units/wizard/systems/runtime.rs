@@ -23,7 +23,7 @@ pub fn update_wizard_animation(
 
     for (mut animation, material_handle) in &mut wizard_query {
         if animation.tick(time.delta_secs())
-            && let Some(material) = materials.get_mut(material_handle)
+            && let Some(mut material) = materials.get_mut(material_handle)
         {
             let (offset_x, offset_y) = animation.uv_offset();
             material.uv_transform = Affine2::from_scale_angle_translation(

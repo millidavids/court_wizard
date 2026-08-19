@@ -76,8 +76,8 @@ pub(super) fn spawn_rune_text_node(
     parent.spawn((
         Text::new(label),
         TextFont {
-            font: font.clone(),
-            font_size: RUNE_TEXT_SIZE,
+            font: font.clone().into(),
+            font_size: FontSize::Px(RUNE_TEXT_SIZE),
             ..default()
         },
         TextColor(color.with_alpha(RUNE_TEXT_ALPHA)),

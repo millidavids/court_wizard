@@ -74,10 +74,21 @@ impl Plugin for ConfigPlugin {
         //
         // `PreExitCleanupSet` sits between the two so other modules (Steam lobby
         // teardown) can get a word in before the process is killed.
+        //
+        // The `.after(ExitSystems)` is load-bearing and easy to lose. Since Bevy
+        // 0.19 the systems that WRITE `AppExit` on window close also live in
+        // `Last`, so without an explicit ordering `save_on_exit` races them: on
+        // the frame it loses, its `MessageReader<AppExit>` is empty, it returns
+        // early, and the app terminates with the player's progress unsaved —
+        // silently, and only via the window-close path, since the in-game Quit
+        // button writes `AppExit` back in `Update`.
         app.configure_sets(Last, PreExitCleanupSet.after(save_on_exit));
         app.add_systems(
             Last,
-            (save_on_exit, force_exit_after_save.after(PreExitCleanupSet)),
+            (
+                save_on_exit.after(bevy::window::ExitSystems),
+                force_exit_after_save.after(PreExitCleanupSet),
+            ),
         );
     }
 

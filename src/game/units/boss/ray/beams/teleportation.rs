@@ -194,7 +194,7 @@ pub fn update_ray_teleport_bubbles(
         let radius = TELEPORT_BUBBLE_EXPAND_SPEED * bubble.time_alive;
         transform.scale = Vec3::splat(radius);
 
-        if let Some(mat) = materials.get_mut(&mat_handle.0) {
+        if let Some(mut mat) = materials.get_mut(&mat_handle.0) {
             let fade = 1.0 - (bubble.time_alive / TELEPORT_BUBBLE_DURATION);
             mat.base_color = Color::srgba(0.2, 0.5, 1.0, 0.2 * fade);
         }

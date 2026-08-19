@@ -65,7 +65,7 @@ pub(super) fn spawn_ingredient_list(
                         Text::new(category.display_name()),
                         TextFont::from_font_size(CATEGORY_FONT_SIZE),
                         TextColor(CATEGORY_COLOR),
-                        TextLayout::new_with_justify(Justify::Center),
+                        TextLayout::justify(Justify::Center),
                         Node {
                             width: Val::Percent(100.0),
                             margin: UiRect::bottom(Val::Px(4.0)),
@@ -132,7 +132,7 @@ fn spawn_ingredient_card(
                 Text::new(ingredient.functional_description()),
                 TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
                 TextColor(text_color),
-                TextLayout::new_with_justify(Justify::Center),
+                TextLayout::justify(Justify::Center),
                 Node {
                     max_width: Val::Px(BUTTON_WIDTH),
                     ..default()

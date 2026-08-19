@@ -26,7 +26,7 @@ impl Plugin for BattleHymnPlugin {
                 // snapshot-mirrored marker on guest ghosts.
                 systems::emit_battle_hymn_song_motes.run_if(
                     any_with_component::<BattleHymnModifier>
-                        .or(any_with_component::<RemoteBattleHymnEffect>),
+                        .or_else(any_with_component::<RemoteBattleHymnEffect>),
                 ),
             )
                 .run_if(is_spell_effects_active),

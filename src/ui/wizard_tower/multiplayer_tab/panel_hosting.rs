@@ -70,7 +70,7 @@ pub(super) fn build_hosting(
                             Text::new(code.clone()),
                             TextFont::from_font_size(CODE_FONT_SIZE),
                             TextColor(TEXT_PRIMARY),
-                            TextLayout::new_with_linebreak(LineBreak::AnyCharacter),
+                            TextLayout::linebreak(LineBreak::AnyCharacter),
                             Node {
                                 max_width: Val::Percent(100.0),
                                 ..default()

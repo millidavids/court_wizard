@@ -72,7 +72,7 @@ pub(crate) fn update_crystal_tint(
             .map_or(CRYSTAL_DEFAULT_EMISSIVE, |infusion| infusion.color());
 
         if tint.owns_material {
-            let Some(existing) = materials.get_mut(&material.0) else {
+            let Some(mut existing) = materials.get_mut(&material.0) else {
                 continue;
             };
             existing.emissive = emissive;

@@ -15,9 +15,9 @@ impl Plugin for AimLinePlugin {
         // also strict on `InGameState::Running`).
         app.add_systems(
             Update,
-            (spawn_aim_line, update_aim_line)
-                .chain()
-                .run_if(in_state(InGameState::Running).or(in_state(MultiplayerGameState::Running))),
+            (spawn_aim_line, update_aim_line).chain().run_if(
+                in_state(InGameState::Running).or_else(in_state(MultiplayerGameState::Running)),
+            ),
         );
     }
 }

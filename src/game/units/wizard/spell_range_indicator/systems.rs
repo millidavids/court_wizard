@@ -76,7 +76,7 @@ pub fn pulse_spell_range_indicator(
     let alpha = alpha * 0.2 + 0.1; // Scale to 0.1 - 0.3 range (10% - 30%)
 
     for material_handle in circle_query.iter() {
-        if let Some(material) = materials.get_mut(material_handle) {
+        if let Some(mut material) = materials.get_mut(material_handle) {
             let mut color = RANGE_DOT_COLOR;
             color.set_alpha(alpha);
             material.base_color = color;

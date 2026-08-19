@@ -155,7 +155,7 @@ pub fn update_temp_hp_rings(
 ) {
     let pulse = ring_pulse_scale(time.elapsed_secs());
 
-    if let Some(material) = materials.get_mut(&visual_assets.temp_hp_ring) {
+    if let Some(mut material) = materials.get_mut(&visual_assets.temp_hp_ring) {
         material.base_color = material
             .base_color
             .with_alpha(ring_pulse_alpha(time.elapsed_secs()));

@@ -31,7 +31,7 @@ pub fn update_necrotic_explosion_bursts(
         let radius = burst.max_radius * progress;
         transform.scale = Vec3::splat(radius);
 
-        if let Some(material) = materials.get_mut(&material_handle.0) {
+        if let Some(mut material) = materials.get_mut(&material_handle.0) {
             let color = constants::NECROTIC_EXPLOSION_COLOR.to_srgba();
             let alpha = 0.6 * (1.0 - progress);
             material.base_color = Color::srgba(color.red, color.green, color.blue, alpha);
@@ -88,7 +88,7 @@ pub fn update_finger_of_death_beam_visuals(
         );
 
         // Color cycling and fade
-        if let Some(mat) = materials.get_mut(&material_handle.0) {
+        if let Some(mut mat) = materials.get_mut(&material_handle.0) {
             if beam.has_fired {
                 let fade = (1.0 - beam.time_since_fired / constants::POST_FIRE_DURATION).max(0.0);
 
@@ -177,7 +177,7 @@ pub fn update_necrotic_veins(
         transform.scale = Vec3::splat(scale);
 
         // Animate material: purple → dark purple → black, alpha fading out
-        if let Some(material) = materials.get_mut(&material_handle.0) {
+        if let Some(mut material) = materials.get_mut(&material_handle.0) {
             let r = 0.6 * (1.0 - progress);
             let g = 0.0;
             let b = 0.8 * (1.0 - progress * 0.5);
@@ -318,7 +318,7 @@ pub fn update_necrotic_pulse(
         transform.scale = Vec3::splat(radius);
 
         // Fade alpha from 0.5 to 0
-        if let Some(material) = materials.get_mut(&material_handle.0) {
+        if let Some(mut material) = materials.get_mut(&material_handle.0) {
             let alpha = 0.5 * (1.0 - progress);
             material.base_color = Color::srgba(0.4, 0.0, 0.6, alpha);
         }

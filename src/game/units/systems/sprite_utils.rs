@@ -31,7 +31,7 @@ pub fn create_corpse_sprite_materials(
         let handle =
             create_sprite_material(materials, texture.clone(), tint, anim.frame_uv, uv_offset);
         // Corpses use semi-transparent alpha, so override to Blend
-        if let Some(mat) = materials.get_mut(&handle) {
+        if let Some(mut mat) = materials.get_mut(&handle) {
             mat.alpha_mode = AlphaMode::Blend;
         }
         handle

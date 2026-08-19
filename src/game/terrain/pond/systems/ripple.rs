@@ -206,7 +206,7 @@ pub fn update_frozen_pond_tint(
             commands.entity(entity).insert(ClonedPondMaterial);
         }
 
-        let Some(mat) = materials.get_mut(&material_handle.0) else {
+        let Some(mut mat) = materials.get_mut(&material_handle.0) else {
             continue;
         };
         let t = frozen.freeze_level.clamp(0.0, 1.0);

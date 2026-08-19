@@ -62,7 +62,7 @@ pub(crate) fn update_lich_facing(
 
         if *facing != new_facing {
             *facing = new_facing;
-            if let Some(mat) = materials.get_mut(material_handle) {
+            if let Some(mut mat) = materials.get_mut(material_handle) {
                 mat.uv_transform = anim.uv_transform(new_facing);
             }
         }

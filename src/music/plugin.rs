@@ -20,7 +20,7 @@ impl Plugin for MusicPlugin {
                 (
                     systems::check_music_transition.run_if(
                         resource_changed::<State<crate::state::AppState>>
-                            .or(resource_added::<super::resources::MusicAssets>),
+                            .or_else(resource_added::<super::resources::MusicAssets>),
                     ),
                     systems::process_music_fade.run_if(any_with_component::<MusicFade>),
                     systems::sync_music_volume

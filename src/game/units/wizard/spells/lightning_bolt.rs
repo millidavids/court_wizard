@@ -141,7 +141,7 @@ pub(crate) fn update_lightning_bolts(
             }
             bolt.afterimage_remaining -= dt;
             // Retinal-afterimage fade: brightness drops fast, alpha lingers.
-            if let Some(mat) = materials.get_mut(&bolt.material) {
+            if let Some(mut mat) = materials.get_mut(&bolt.material) {
                 let t =
                     (bolt.afterimage_remaining / bolt.config.afterimage_duration).clamp(0.0, 1.0);
                 let base = bolt.base_color.to_srgba();

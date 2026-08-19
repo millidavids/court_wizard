@@ -40,7 +40,7 @@ pub(crate) fn animate_meteor_explosions(
 
         // Fade out over the last portion of lifetime
         if let Some(handle) = material_handle
-            && let Some(mat) = sphere_materials.get_mut(handle)
+            && let Some(mut mat) = sphere_materials.get_mut(handle)
         {
             mat.opacity = explosion_fade_opacity(explosion.time_alive / EXPLOSION_LIFETIME);
         }

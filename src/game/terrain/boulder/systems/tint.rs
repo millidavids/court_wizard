@@ -36,7 +36,7 @@ pub fn update_rock_damage_tint(
             commands.entity(entity).insert(ClonedMaterial);
         }
 
-        let Some(mat) = materials.get_mut(&material_handle.0) else {
+        let Some(mut mat) = materials.get_mut(&material_handle.0) else {
             continue;
         };
 

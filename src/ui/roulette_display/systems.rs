@@ -90,7 +90,7 @@ pub(crate) fn spawn_roulette_display(mut commands: Commands, asset_server: Res<A
                                 Text::new("Press Space"),
                                 TextFont::from_font_size(PROMPT_FONT_SIZE),
                                 TextColor(PROMPT_COLOR),
-                                TextLayout::new_with_justify(Justify::Center),
+                                TextLayout::justify(Justify::Center),
                                 RoulettePromptText,
                             ));
                             overlay.spawn((

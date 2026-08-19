@@ -68,7 +68,7 @@ impl Plugin for InGamePlugin {
             // handler steps aside there; it still runs in SP and in co-op+Urgent.
             .add_systems(
                 Update,
-                systems::keyboard_input.run_if(is_gameplay_running.and(not(
+                systems::keyboard_input.run_if(is_gameplay_running.and_then(not(
                     crate::game::multiplayer::coop_pause::coop_sync_pause_enabled,
                 ))),
             )
@@ -95,7 +95,7 @@ impl Plugin for InGamePlugin {
                     systems::update_wave_display,
                     systems::update_wave_incoming_flash,
                 )
-                    .run_if(is_gameplay_running.and(in_state(AppState::InGame))),
+                    .run_if(is_gameplay_running.and_then(in_state(AppState::InGame))),
             )
             // Cast/overlay bars: use is_spell_effects_active so they update during
             // urgent mode menus (SP) and for both host+guest (MP).
@@ -155,7 +155,8 @@ impl Plugin for InGamePlugin {
                     systems::show_buff_tooltip,
                 )
                     .run_if(
-                        in_state(InGameState::Running).or(in_state(MultiplayerGameState::Running)),
+                        in_state(InGameState::Running)
+                            .or_else(in_state(MultiplayerGameState::Running)),
                     ),
             );
     }

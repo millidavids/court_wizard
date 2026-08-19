@@ -186,7 +186,7 @@ pub(crate) fn spawn_grease_zone(
     let radius = extra[0];
     let duration = extra[1];
     let mut base_mat = materials.get(&assets.grease_zone)?.clone();
-    base_mat.alpha_mode = bevy::render::alpha::AlphaMode::Mask(0.01);
+    base_mat.alpha_mode = bevy::material::AlphaMode::Mask(0.01);
     let material = materials.add(base_mat);
     Some(
         commands

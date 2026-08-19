@@ -47,7 +47,7 @@ impl Plugin for PauseMainPlugin {
         .add_systems(
             Update,
             escape_to_running
-                .run_if(in_state(PauseMenuState::Main).and(coop_local_is_pause_controller)),
+                .run_if(in_state(PauseMenuState::Main).and_then(coop_local_is_pause_controller)),
         );
     }
 }
