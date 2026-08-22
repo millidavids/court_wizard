@@ -53,6 +53,13 @@ jobs:
         id: get_version
         run: |
           VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          # This grep once returned "Unreleased" and the tag step below dutifully
+          # created `vUnreleased`, which then sorted after every real version and
+          # sat on the remote for months. Fail loudly instead of tagging garbage.
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Cargo.toml version parsed as '$VERSION', which is not X.Y.Z. Refusing to tag."
+            exit 1
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check if tag exists

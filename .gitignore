@@ -40,3 +40,9 @@ ssfn*
 # Byte-cache from the release scripts in scripts/
 __pycache__/
 *.pyc
+
+# scripts/steam_refresh_token.mjs needs steam-session installed here, because
+# Node resolves its imports by walking up from the script's own directory.
+# Nothing in the game builds from npm; this exists only for that one-off tool.
+/node_modules/
+/package-lock.json

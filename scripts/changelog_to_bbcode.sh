@@ -1,22 +1,39 @@
 #!/usr/bin/env bash
-# Render the newest docs/CHANGELOG.md section as Steam BBCode, ready to paste
-# into a Steamworks event (Steamworks → app → Hub Admin → create event, type
-# "Small Update / Patch Notes").
+# Render a docs/CHANGELOG.md section as Steam BBCode.
 #
-# Steamworks has no supported Web API for creating events or announcements, so
-# this generates the body rather than posting it. release.yml writes the output
-# to the run's job summary and uploads it as an artifact.
+# Steamworks has no supported Web API for creating events, so this renders the
+# text and two callers use it:
+#   * release.yml writes the full output to the run's job summary and uploads it
+#     as an artifact, for pasting by hand if the automatic post ever fails;
+#   * steam-promote.yml feeds --headline/--description/--body to
+#     scripts/steam_post_announcement.sh, which posts the event itself.
 #
-# Usage: scripts/changelog_to_bbcode.sh [path/to/CHANGELOG.md]
+# Usage: scripts/changelog_to_bbcode.sh [options] [path/to/CHANGELOG.md]
 #
-# Input (the topmost `## [...]` block):
-#     ## [v1.0.35] - 2026-08-05
+#   --version <v>   Render the `## [v<v>]` block instead of the topmost one.
+#                   Accepts `1.0.38` or `v1.0.38`.
+#   --headline      Print only the announcement title: `v1.0.38 - 2026-08-15`.
+#   --description   Print only the prose under `### Description`, as one line.
+#                   Prints nothing (exit 0) when the section is absent.
+#   --body          Print the BBCode body: no `[h2]` title line (it is the
+#                   headline), and the `### Description` prose promoted to an
+#                   unheaded lead paragraph. Steam's subtitle field caps at 120
+#                   characters and the prose runs past that, so the body is
+#                   where it has to live; "Description" is not a heading a
+#                   player should ever see.
+#
+# With no mode flag the output is the whole section including the `[h2]` title
+# and the Description block. That form is load-bearing — release.yml calls this
+# with no arguments — so do not change it.
+#
+# Input (a `## [...]` block):
+#     ## [v1.0.38] - 2026-08-15
 #
 #     ### Fixed
 #     - **Lead-in** — plain-language prose.
 #
 # Output:
-#     [h2]v1.0.35 — 2026-08-05[/h2]
+#     [h2]v1.0.38 — 2026-08-15[/h2]
 #     [h3]Fixed[/h3]
 #     [list]
 #     [*][b]Lead-in[/b] — plain-language prose.
@@ -24,35 +41,125 @@
 
 set -euo pipefail
 
-CHANGELOG="${1:-docs/CHANGELOG.md}"
+MODE=full
+VERSION=""
+CHANGELOG=""
+
+usage() {
+    sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --headline)    MODE=headline ;;
+        --description) MODE=description ;;
+        --body)        MODE=body ;;
+        --version)
+            shift
+            [ $# -gt 0 ] || { echo "error: --version needs a value" >&2; exit 1; }
+            VERSION="$1"
+            ;;
+        --version=*)   VERSION="${1#--version=}" ;;
+        -h|--help)     usage; exit 0 ;;
+        -*)            echo "error: unknown option: $1" >&2; exit 1 ;;
+        *)             CHANGELOG="$1" ;;
+    esac
+    shift
+done
+
+CHANGELOG="${CHANGELOG:-docs/CHANGELOG.md}"
 
 if [ ! -f "$CHANGELOG" ]; then
     echo "error: changelog not found: $CHANGELOG" >&2
     exit 1
 fi
 
-# Everything from the first `## [` heading up to (not including) the next one.
-# Matches the extraction release.yml already uses for the GitHub Release body
-# and the Discord embed, so all three stay in step.
-section=$(awk '
-    /^## \[/ { if (seen) exit; seen = 1 }
-    seen     { print }
-' "$CHANGELOG")
+if [ -n "$VERSION" ]; then
+    # Literal prefix matching, not regex: a version contains dots, and escaping
+    # "## [v1.0.38]" into an awk regex is a reliable way to silently match
+    # nothing. Same reasoning, and same shape, as steam-promote.yml's own
+    # changelog extraction and post_to_bluesky.py's version_block().
+    #
+    # Selecting by version matters for a workflow_dispatch that names an older
+    # release: main's changelog has already moved on, and the top block there
+    # would ship the wrong notes.
+    section=$(awk -v hdr="## [v${VERSION#v}]" '
+        index($0, hdr) == 1 { inblock = 1; print; next }
+        inblock && index($0, "## [") == 1 { exit }
+        inblock { print }
+    ' "$CHANGELOG")
+else
+    # Everything from the first `## [` heading up to (not including) the next.
+    section=$(awk '
+        /^## \[/ { if (seen) exit; seen = 1 }
+        seen     { print }
+    ' "$CHANGELOG")
+fi
 
 if [ -z "$section" ]; then
-    echo "error: no '## [' section found in $CHANGELOG" >&2
+    if [ -n "$VERSION" ]; then
+        echo "error: no '## [v${VERSION#v}]' section found in $CHANGELOG" >&2
+    else
+        echo "error: no '## [' section found in $CHANGELOG" >&2
+    fi
     exit 1
 fi
 
-printf '%s\n' "$section" | awk '
+if [ "$MODE" = "headline" ]; then
+    # `## [v1.0.38] - 2026-08-15` -> `v1.0.38 - 2026-08-15`.
+    # A plain hyphen, not the em dash the [h2] line uses: this has to match the
+    # titles of the announcements already on the hub.
+    heading=${section%%$'\n'*}
+    heading=${heading#'## ['}
+    if [[ "$heading" == *"] - "* ]]; then
+        printf '%s - %s\n' "${heading%%] - *}" "${heading#*] - }"
+    else
+        printf '%s\n' "${heading%%]*}"
+    fi
+    exit 0
+fi
+
+if [ "$MODE" = "description" ]; then
+    # Joined to one line: it becomes the event subtitle, which is single-line.
+    #
+    # Deliberately no fallback when the section is absent — post_to_bluesky.py
+    # falls back to the first bullet because a 300-grapheme post needs *some*
+    # body, whereas an event with no subtitle is perfectly fine. Empty output
+    # and exit 0 is the "there isn't one" signal.
+    printf '%s\n' "$section" | awk '
+        /^### / {
+            inside = (tolower($0) == "### description")
+            next
+        }
+        inside && NF {
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+            line = line (line == "" ? "" : " ") $0
+        }
+        END { if (line != "") print line }
+    '
+    exit 0
+fi
+
+# emit_title: print the `[h2]` line. desc_heading: print `[h3]Description[/h3]`
+# above its prose. Body mode drops both — the title becomes the announcement
+# headline, and the prose leads the body unheaded.
+emit_title=1
+desc_heading=1
+if [ "$MODE" = "body" ]; then
+    emit_title=0
+    desc_heading=0
+fi
+
+rendered=$(printf '%s\n' "$section" | awk -v emit_title="$emit_title" -v desc_heading="$desc_heading" '
     # Close any open [list] before starting a new block.
     function close_list() {
         if (in_list) { print "[/list]"; in_list = 0 }
     }
 
-    # `## [v1.0.35] - 2026-08-05` -> `[h2]v1.0.35 — 2026-08-05[/h2]`
-    # Also tolerates a heading with no date (e.g. an unlocked `## [pending]`).
+    # `## [v1.0.38] - 2026-08-15` -> `[h2]v1.0.38 — 2026-08-15[/h2]`
+    # Also tolerates a heading with no date.
     /^## \[/ {
+        if (!emit_title) { next }
         line = $0
         sub(/^## \[/, "", line)
         if (match(line, /\] - /)) {
@@ -66,10 +173,13 @@ printf '%s\n' "$section" | awk '
         next
     }
 
-    # `### Fixed` -> `[h3]Fixed[/h3]`
+    # `### Fixed` -> `[h3]Fixed[/h3]`. In body mode the Description heading is
+    # swallowed while its prose falls through to the plain-text rule below, so
+    # the section becomes an unheaded lead paragraph rather than disappearing.
     /^### / {
         close_list()
         heading = substr($0, 5)
+        if (!desc_heading && tolower(heading) == "description") { next }
         printf "[h3]%s[/h3]\n", heading
         next
     }
@@ -109,4 +219,14 @@ printf '%s\n' "$section" | awk '
     { close_list(); print }
 
     END { close_list() }
-'
+')
+
+if [ "$MODE" = "body" ]; then
+    # Dropping the title and the Description block leaves blank lines at the
+    # top; strip leading and trailing blanks so the event body starts on
+    # content. Not applied to the default output, which must stay byte-for-byte
+    # what release.yml already publishes.
+    printf '%s\n' "$rendered" | sed '/./,$!d' | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}'
+else
+    printf '%s\n' "$rendered"
+fi

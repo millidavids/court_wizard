@@ -8,12 +8,23 @@ name: Steam Promote
 #
 #   not requested yet   -> ask Steam to set the build live on `public`
 #   requested, not live -> wait quietly (the approver has not tapped yet)
-#   live, not announced -> post to Discord, exactly once
+#   live, not announced -> announce, exactly once per channel
 #   announced           -> nothing to do
 #
-# Two marker tags hold that state, so it survives across runs and cannot repeat:
-#   promoted/v<version>   Steam accepted the request (phone prompt sent)
-#   announced/v<version>  the build is live on default and Discord was told
+# Three marker tags hold that state, so it survives across runs and cannot
+# repeat:
+#   promoted/v<version>        Steam accepted the request (phone prompt sent)
+#   announced/v<version>       live on default, and Discord + Bluesky were told
+#   steam-announced/v<version> the patch-notes event is up on the Steam hub
+#
+# Steam gets its own marker rather than riding on `announced/` because it is the
+# one channel built on an undocumented endpoint, so it is the one that will
+# eventually break. Sharing a marker would force a bad trade: either Steam can
+# never retry (the tag is written the moment Discord succeeds), or a Steam
+# failure holds the tag back and Discord re-announces on the next pass. Separate
+# markers let Steam retry every 6 hours while Discord and Bluesky each stay
+# exactly-once, and a permanently broken Steam path degrades to pasting the
+# BBCode that release.yml still publishes as an artifact.
 #
 # Being live is read from GetAppBetas (.response.betas.public.BuildID), which is
 # the only place Steam reports branch assignment — GetAppBuilds does not carry
@@ -57,6 +68,7 @@ jobs:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       BLUESKY_USERNAME: ${{ secrets.BLUESKY_USERNAME }}
       BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+      STEAM_WEB_REFRESH_TOKEN: ${{ secrets.STEAM_WEB_REFRESH_TOKEN }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
@@ -87,10 +99,20 @@ jobs:
             exit 0
           fi
 
+          # Each announcement channel carries its own marker, and the run only
+          # bails when every one of them is set. Bailing on `announced/` alone
+          # would make a failed Steam post unretryable, since that tag is
+          # written as soon as Discord succeeds.
           announced=false
           if git rev-parse "announced/v$version" >/dev/null 2>&1; then announced=true; fi
-          if [ "$announced" = "true" ]; then
-            echo "v$version is live and already announced — nothing to do."
+          echo "already_announced=$announced" >> "$GITHUB_OUTPUT"
+
+          steam_announced=false
+          if git rev-parse "steam-announced/v$version" >/dev/null 2>&1; then steam_announced=true; fi
+          echo "already_steam_announced=$steam_announced" >> "$GITHUB_OUTPUT"
+
+          if [ "$announced" = "true" ] && [ "$steam_announced" = "true" ]; then
+            echo "v$version is live and announced everywhere — nothing to do."
             echo "proceed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -243,7 +265,7 @@ jobs:
 
       - name: Post to Discord
         id: announce
-        if: steps.live.outputs.is_live == 'true' && env.DISCORD_WEBHOOK_URL != ''
+        if: steps.live.outputs.is_live == 'true' && steps.target.outputs.already_announced == 'false' && env.DISCORD_WEBHOOK_URL != ''
         env:
           FULL_TITLE: ${{ steps.changelog.outputs.full_title }}
           BODY: ${{ steps.changelog.outputs.body }}
@@ -290,6 +312,7 @@ jobs:
       - name: Post to Bluesky
         if: >-
           steps.live.outputs.is_live == 'true'
+          && steps.target.outputs.already_announced == 'false'
           && env.BLUESKY_USERNAME != ''
           && env.BLUESKY_APP_PASSWORD != ''
         continue-on-error: true
@@ -299,8 +322,56 @@ jobs:
           set -euo pipefail
           python3 scripts/post_to_bluesky.py --version "$VERSION" --app-id "$APP_ID"
 
+      # Steam is the only channel with no supported API behind it, so it is
+      # fenced off from the other two: its own marker, and continue-on-error so
+      # that a Valve-side change can never hold back the `announced/` tag and
+      # make Discord repeat itself. Gated on the secret being present, the same
+      # way Discord and Bluesky are, so an unconfigured repo stays silent rather
+      # than warning every six hours forever.
+      - name: Post the Steam patch-notes event
+        id: steam
+        if: >-
+          steps.live.outputs.is_live == 'true'
+          && steps.target.outputs.already_steam_announced == 'false'
+          && env.STEAM_WEB_REFRESH_TOKEN != ''
+        continue-on-error: true
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+          STEAM_PUBLISH_STEAMID: ${{ secrets.STEAM_PUBLISH_STEAMID }}
+        run: |
+          set -euo pipefail
+          python3 scripts/steam_post_announcement.py --version "$VERSION" --app-id "$APP_ID"
+
+      # A yellow step is easy to miss on a schedule nobody watches, and "live but
+      # never announced on Steam" is exactly the state that goes unnoticed for
+      # releases at a time. Say so loudly, with the manual fallback attached.
+      - name: Report a failed Steam post
+        if: steps.steam.outcome == 'failure'
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+        run: |
+          echo "::warning title=Steam event not posted::v$VERSION is live but the patch-notes event did not post. This run will retry in ~6h. To post it by hand now, take the BBCode from the release run's steam-announcement artifact, or run scripts/changelog_to_bbcode.sh --version $VERSION locally."
+
+      - name: Mark the Steam event as posted
+        # `outcome`, not `conclusion`: continue-on-error rewrites conclusion to
+        # `success`, so gating on it would tag a failed post as done and never
+        # retry it.
+        if: steps.steam.outcome == 'success'
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+          EVENT_GID: ${{ steps.steam.outputs.event-gid }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git rev-parse "steam-announced/v$VERSION" >/dev/null 2>&1; then
+            git tag -a "steam-announced/v$VERSION" \
+              -m "Steam patch-notes event ${EVENT_GID:-?} posted for v$VERSION"
+            git push origin "steam-announced/v$VERSION"
+          fi
+
       - name: Mark version as announced
-        if: steps.live.outputs.is_live == 'true'
+        if: steps.live.outputs.is_live == 'true' && steps.target.outputs.already_announced == 'false'
         env:
           VERSION: ${{ steps.target.outputs.version }}
           BUILD_ID: ${{ steps.build.outputs.build-id }}
@@ -320,5 +391,5 @@ jobs:
           {
             echo "### v$VERSION is live"
             echo ""
-            echo "Build \`$BUILD_ID\` is live on the **default** branch and Discord has been notified."
+            echo "Build \`$BUILD_ID\` is live on the **default** branch. Discord and Bluesky have been notified."
           } >> "$GITHUB_STEP_SUMMARY"
