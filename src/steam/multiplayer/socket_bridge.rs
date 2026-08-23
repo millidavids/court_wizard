@@ -44,7 +44,7 @@ pub(super) fn steam_transport_bridge_system(
 
     // --- Send outgoing reliable -------------------------------------------
     if !connection.outgoing_messages.is_empty() {
-        let outgoing_msgs: Vec<NetworkMessage> = connection.outgoing_messages.drain(..).collect();
+        let outgoing_msgs: Vec<NetworkMessage> = std::mem::take(&mut connection.outgoing_messages);
         for msg in outgoing_msgs {
             match bincode::serialize(&msg) {
                 Ok(payload) => {
@@ -66,7 +66,7 @@ pub(super) fn steam_transport_bridge_system(
 
     // --- Send outgoing unreliable -----------------------------------------
     if !connection.outgoing_unreliable.is_empty() {
-        let outgoing_unrel: Vec<Vec<u8>> = connection.outgoing_unreliable.drain(..).collect();
+        let outgoing_unrel: Vec<Vec<u8>> = std::mem::take(&mut connection.outgoing_unreliable);
         for payload in outgoing_unrel {
             let mut framed = Vec::with_capacity(payload.len() + 1);
             framed.push(TAG_UNRELIABLE);

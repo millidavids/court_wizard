@@ -9,7 +9,7 @@ use crate::networking::snapshot::{GameSnapshot, UNRELIABLE_GAME_SNAPSHOT};
 /// Returning `None` means no game snapshot arrived this frame; the caller
 /// should return early.
 pub(super) fn filter_latest_game_snapshot(connection: &mut NetworkConnection) -> Option<Vec<u8>> {
-    let raw_data: Vec<Vec<u8>> = connection.incoming_unreliable.drain(..).collect();
+    let raw_data: Vec<Vec<u8>> = std::mem::take(&mut connection.incoming_unreliable);
     let mut other_data: Vec<Vec<u8>> = Vec::new();
     let mut latest_game_data: Option<Vec<u8>> = None;
 

@@ -133,7 +133,7 @@ pub fn receive_spell_visual_snapshot(
     mut latest: ResMut<LatestSpellSnapshot>,
 ) {
     // Separate spell snapshots from other unreliable data
-    let all_data: Vec<Vec<u8>> = connection.incoming_unreliable.drain(..).collect();
+    let all_data: Vec<Vec<u8>> = std::mem::take(&mut connection.incoming_unreliable);
     let mut other_data = Vec::new();
     let mut latest_spell_data: Option<&[u8]> = None;
 

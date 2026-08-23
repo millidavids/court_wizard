@@ -289,7 +289,7 @@ pub(crate) fn coop_pause_receive_host(
     if connection.incoming_messages.is_empty() {
         return;
     }
-    let msgs: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let msgs: Vec<NetworkMessage> = std::mem::take(&mut connection.incoming_messages);
     let mut unhandled = Vec::new();
     for m in msgs {
         if let NetworkMessage::CoopPauseSync {
@@ -323,7 +323,7 @@ pub(crate) fn coop_pause_receive_guest(
     if connection.incoming_messages.is_empty() {
         return;
     }
-    let msgs: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let msgs: Vec<NetworkMessage> = std::mem::take(&mut connection.incoming_messages);
     let mut unhandled = Vec::new();
     for m in msgs {
         if let NetworkMessage::CoopPauseSync {

@@ -57,7 +57,7 @@ pub(crate) fn process_lobby_messages(
     let mut version_mismatch: Option<String> = None;
 
     {
-        let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+        let messages: Vec<NetworkMessage> = std::mem::take(&mut connection.incoming_messages);
         let mut unhandled = Vec::new();
 
         for msg in messages {

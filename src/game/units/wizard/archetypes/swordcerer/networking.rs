@@ -53,7 +53,7 @@ pub(crate) fn receive_swordcerer_spawn(
     // second avatar (the just-spawned entity isn't visible to `existing` yet —
     // commands are deferred).
     let mut already_deployed = existing.iter().any(|t| *t == Team::Attackers);
-    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let messages: Vec<NetworkMessage> = std::mem::take(&mut connection.incoming_messages);
     let mut unhandled = Vec::new();
     for msg in messages {
         match msg {
@@ -249,7 +249,7 @@ pub(crate) fn apply_guest_avatar_input(
     let mut swing = false;
     let mut got_input = false;
     if !connection.incoming_messages.is_empty() {
-        let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+        let messages: Vec<NetworkMessage> = std::mem::take(&mut connection.incoming_messages);
         let mut unhandled = Vec::new();
         for msg in messages {
             match msg {
@@ -387,7 +387,7 @@ pub(crate) fn receive_swordcerer_death(
     if connection.incoming_messages.is_empty() {
         return;
     }
-    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let messages: Vec<NetworkMessage> = std::mem::take(&mut connection.incoming_messages);
     let mut unhandled = Vec::new();
     for msg in messages {
         match msg {

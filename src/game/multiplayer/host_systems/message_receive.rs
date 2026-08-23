@@ -22,7 +22,7 @@ pub fn receive_mp_forfeit(
     if connection.incoming_messages.is_empty() {
         return;
     }
-    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let messages: Vec<NetworkMessage> = std::mem::take(&mut connection.incoming_messages);
     let mut unhandled = Vec::new();
     let mut forfeited = false;
     for msg in messages {
@@ -76,7 +76,7 @@ pub fn receive_teleport_message(
         return;
     }
 
-    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let messages: Vec<NetworkMessage> = std::mem::take(&mut connection.incoming_messages);
     let mut unhandled = Vec::new();
 
     for msg in messages {
@@ -124,7 +124,7 @@ pub fn receive_spell_hit_messages(
         return;
     }
 
-    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let messages: Vec<NetworkMessage> = std::mem::take(&mut connection.incoming_messages);
     let mut unhandled = Vec::new();
 
     for msg in messages {
@@ -197,7 +197,7 @@ pub fn receive_raise_corpse_messages(
         return;
     };
 
-    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let messages: Vec<NetworkMessage> = std::mem::take(&mut connection.incoming_messages);
     let mut unhandled = Vec::new();
 
     for msg in messages {

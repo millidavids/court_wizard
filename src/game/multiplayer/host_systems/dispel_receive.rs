@@ -36,7 +36,7 @@ pub fn receive_dispel_messages(
     if connection.incoming_messages.is_empty() {
         return;
     }
-    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let messages: Vec<NetworkMessage> = std::mem::take(&mut connection.incoming_messages);
     let mut unhandled = Vec::new();
 
     for msg in messages {

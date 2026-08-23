@@ -30,7 +30,7 @@ pub fn receive_crdt_snapshot(
         Has<RemoteElectricEffect>,
     )>,
 ) {
-    let raw_data: Vec<Vec<u8>> = connection.incoming_unreliable.drain(..).collect();
+    let raw_data: Vec<Vec<u8>> = std::mem::take(&mut connection.incoming_unreliable);
     let mut other_data = Vec::new();
     let mut latest_crdt_data: Option<&[u8]> = None;
 

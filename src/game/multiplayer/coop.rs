@@ -275,7 +275,7 @@ pub(in crate::game) fn receive_coop_lifecycle(
     use crate::networking::protocol::NetworkMessage;
     let mut return_to_tower = false;
     let mut level_result: Option<CoopLevelResult> = None;
-    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let messages: Vec<NetworkMessage> = std::mem::take(&mut connection.incoming_messages);
     let mut unhandled = Vec::new();
     for m in messages {
         match m {

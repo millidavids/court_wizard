@@ -37,16 +37,15 @@ pub(crate) fn keyed_hash(data: &[u8]) -> u128 {
     let mut v2: u64 = KEY_A ^ 0xFF51_AFD7_ED55_8CCD;
     let mut v3: u64 = KEY_B ^ 0xC4CE_B9FE_1A85_EC53;
 
-    // Process 8 bytes at a time
-    let chunks = data.chunks_exact(8);
-    let remainder = chunks.remainder();
+    // Process 8 bytes at a time. `as_chunks` splits identically to
+    // `chunks_exact(8)`, so the hash value is unchanged — which matters,
+    // because this guards save-file integrity. It also types each chunk as
+    // `&[u8; 8]`, which removes the `try_into().expect()` that existed only to
+    // re-prove a length the iterator already guaranteed.
+    let (chunks, remainder) = data.as_chunks::<8>();
 
     for chunk in chunks {
-        let m = u64::from_le_bytes(
-            chunk
-                .try_into()
-                .expect("chunks_exact(8) guarantees 8-byte slices"),
-        );
+        let m = u64::from_le_bytes(*chunk);
         v3 ^= m;
         for _ in 0..2 {
             v0 = v0.wrapping_add(v1);

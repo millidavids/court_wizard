@@ -60,9 +60,7 @@ impl TramplingGrid {
 
     /// Resets all values to zero (full exit to menu).
     pub fn reset(&mut self) {
-        for v in &mut self.values {
-            *v = 0.0;
-        }
+        self.values.fill(0.0);
         self.dirty = true;
     }
 
@@ -93,7 +91,7 @@ impl TramplingGrid {
             return;
         };
         let mut wrote_any = false;
-        for chunk in packed.chunks_exact(5) {
+        for chunk in packed.as_chunks::<5>().0 {
             let idx = u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]) as usize;
             let intensity = chunk[4];
             if idx < self.values.len() {

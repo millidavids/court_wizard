@@ -1,0 +1,31 @@
+# Pin the toolchain so a new stable release cannot turn fresh clippy lints into
+# a red release build.
+#
+# Rust 1.98.0 did exactly that on 2026-08-22: three new lints fired across 26
+# pre-existing call sites and failed a release that had been green four days
+# earlier, on a commit that changed no Rust at all. CI runs `clippy -D warnings`,
+# so every stable bump is a potential release-blocker landing at random.
+#
+# rustup honours this file locally too, so `cargo clippy` on a dev machine and
+# the CI gate agree by construction rather than by luck.
+#
+# Bumping is now a deliberate act: raise `channel`, run `cargo clippy -- -D
+# warnings`, fix whatever the new release complains about, and commit the two
+# together.
+#
+# `components` and `targets` are declared here rather than left to the CI
+# action. rustup treats "1.98.0" and "stable" as different toolchains even when
+# they resolve to the same version, so a toolchain selected by this file does
+# not inherit the components or targets the workflow installed for `stable`.
+# Every target the release builds for is listed: Windows and Linux are
+# cross-compiled from the Linux runner, and macOS ships as a universal binary.
+
+[toolchain]
+channel = "1.98.0"
+components = ["clippy", "rustfmt"]
+targets = [
+    "x86_64-pc-windows-gnu",
+    "x86_64-unknown-linux-gnu",
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+]
