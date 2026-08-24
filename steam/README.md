@@ -9,7 +9,8 @@ Builds reach Steamworks (App ID `4550880`) from **GitHub Actions**, gated on the
    (play-test staging)
 /game-release main       → push to main → release.yml       → tag + GitHub Release
                                         → steam-promote.yml → Steam `default` (pending phone approval)
-                                                            → Discord + Bluesky + Steam patch notes
+                                                            → Discord + Bluesky, and the Steam
+                                                              event fields for you to paste
 ```
 
 **`dev-release.yml`** (any push to `dev` touching `docs/CHANGELOG.md`) runs the test/clippy/fmt gate, builds Windows + Linux + the signed universal macOS `.app`, and uploads **all three depots in one steamcmd invocation** — deliberately, so a release is a single Steam build id.
@@ -21,19 +22,16 @@ Builds reach Steamworks (App ID `4550880`) from **GitHub Actions**, gated on the
 ```
 not requested yet   -> ask Steam to set the build live on `public`
 requested, not live -> wait quietly (you have not tapped yet)
-live, not announced -> announce, exactly once per channel
+live, not announced -> post Discord + Bluesky, render the Steam event fields
 announced           -> nothing to do
 ```
 
-Three annotated git tags hold that state on the remote, so it survives across runs and cannot repeat:
+Two annotated git tags hold that state on the remote, so it survives across runs and cannot repeat:
 
 | Tag | Meaning |
 |---|---|
 | `promoted/v<version>` | Steam accepted the promotion request; the phone prompt went out |
-| `announced/v<version>` | live on `default`, and Discord + Bluesky were told |
-| `steam-announced/v<version>` | the patch-notes event is up on the Steam hub |
-
-Steam has its own marker because it is the one channel built on an undocumented endpoint, so it is the one that will eventually break. Sharing a marker would force a bad trade: either Steam could never retry (the tag is written the moment Discord succeeds), or a Steam failure would hold the tag back and Discord would re-announce every six hours. Separate markers let Steam retry until it works while the other two stay exactly-once.
+| `announced/v<version>` | live on `default`, and the release was announced |
 
 "Is it live" is read from `ISteamApps/GetAppBetas` → `.response.betas.public.BuildID`, the only endpoint that reports branch assignment. Announcing on the promotion *request* would be wrong: HTTP 201 means "confirmation sent", not "players have it".
 
@@ -52,40 +50,47 @@ CI stamps `r<github_run_id>` into the Steam build description, and promotion mat
 
 ## Announcing the release
 
-Once the build is live on `default`, `steam-promote.yml` tells three places. Each renders from the **same** changelog block, so they cannot drift:
+Once the build is live on `default`, `steam-promote.yml` handles three channels. All three render from the **same** changelog block, so they cannot drift:
 
-| Channel | Content | Limit |
-|---|---|---|
-| Discord | the version's whole changelog block, as markdown | trimmed to 4000 chars |
-| Bluesky | the `### Description` prose only | 300 graphemes, hard-fails over |
-| Steam hub | the whole block as BBCode, prose leading | no observed cap; 6,977 chars posted fine |
+| Channel | Content | Limit | Posted by |
+|---|---|---|---|
+| Discord | the version's whole changelog block, as markdown | trimmed to 4000 chars | CI |
+| Bluesky | the `### Description` prose only | 300 graphemes, hard-fails over | CI |
+| Steam hub | the whole block as BBCode, prose leading | no observed cap; 7,000 chars posted fine | **you, by hand** |
 
-`scripts/changelog_to_bbcode.sh` owns the BBCode. With no arguments it prints the whole top section — that form is what `release.yml` publishes as the `steam-announcement` artifact, and is the paste-by-hand fallback, so **do not change it**. The flags are for the automatic post:
+`scripts/changelog_to_bbcode.sh` owns the BBCode. With no arguments it prints the whole top section — that form is what `release.yml` publishes as the `steam-announcement` artifact, so **do not change it**. The flags render the individual event fields:
 
 ```bash
-scripts/changelog_to_bbcode.sh --version 1.0.38 --headline     # v1.0.38 - 2026-08-15
-scripts/changelog_to_bbcode.sh --version 1.0.38 --description  # the ### Description prose
-scripts/changelog_to_bbcode.sh --version 1.0.38 --body         # BBCode, prose leading, no [h2]
+scripts/changelog_to_bbcode.sh --version 1.0.39 --headline     # v1.0.39 - 2026-08-18
+scripts/changelog_to_bbcode.sh --version 1.0.39 --summary      # prose, trimmed to 180 chars
+scripts/changelog_to_bbcode.sh --version 1.0.39 --body         # BBCode, prose leading, no [h2]
 ```
 
 Selecting by `--version` rather than taking the top block matters for a `workflow_dispatch` naming an older release: `main`'s changelog has already moved on, and the top block would ship the wrong notes.
 
-### There is no supported API for Steam events
+### Posting the event
 
-Checked, and worth not re-checking: Valve's patch-notes docs describe the Hub Admin UI and a prompt shown after a SteamPipe upload — both need a browser. `ISteamNews` is read-only. `app_build.vdf` has no patch-notes key. The one documented automation around events points *outward* (Steam emits an RSS feed of your events; nothing ingests one).
+When a release goes live, the `steam-promote.yml` run summary carries the fields, each in its own copy block, in form order. Then:
 
-So `scripts/steam_post_announcement.py` drives the same undocumented endpoint the event editor itself calls, with a logged-in web session. **Expect this to break** when Valve changes the editor. It is deliberately fenced: `continue-on-error`, its own marker tag, and the BBCode artifact still published for pasting by hand.
+1. Steamworks → Court Wizard → Hub Admin → **Post Event/Announcement**
+2. **A Game Update** → **Small Update / Patch Notes**
+3. Paste **Event title** and **Summary**. Leave **Subtitle** empty.
+4. **Untick "Use visual editor"** before pasting the description, or the BBCode posts as literal text.
+5. Save, then Publish. Publishing without artwork raises a warnings dialog; skipping it falls back to the game capsule, which is what every Court Wizard announcement already does.
 
-### The captured contract
+Steam moderates new posts, so expect an hour or more before one shows in the Steam library — and *any edit re-queues it*.
 
-Captured from the live editor on 2026-08-22. All four operations are one endpoint:
+### Why this is not automated
+
+Valve has no supported API for creating events. The patch-notes docs describe the Hub Admin UI and a prompt after a SteamPipe upload — both need a browser. `ISteamNews` is read-only. `app_build.vdf` has no patch-notes key. The one documented automation points *outward*: Steam emits an RSS feed of your events; nothing ingests one.
+
+Driving the editor's own undocumented endpoint was attempted in August 2026 and abandoned. The findings below are kept so the attempt is not repeated blind — every one of them is verified against the live site.
+
+**The request contract**, captured from the editor. All four operations are one endpoint:
 
 ```
 POST https://steamcommunity.com/gid/103582791475642999/ajaxcreateupdatedeletepartnerevents/
-Cookie: sessionid=<hex>; steamLoginSecure=<steamid64>%7C%7C<access_token>
 ```
-
-`103582791475642999` is the hub's clan id (`curl -sSL https://steamcommunity.com/games/<appid> | grep -o '/gid/[0-9]*'`). `sessionid` is a plain double-submit CSRF value — the same random hex in the cookie and the form body. **Never follow redirects**: a redirect turns the POST into a GET and silently drops the body.
 
 | Operation | Flag | Fields |
 |---|---|---|
@@ -94,35 +99,21 @@ Cookie: sessionid=<hex>; steamLoginSecure=<steamid64>%7C%7C<access_token>
 | Publish | `bPublish=1` | 8 — `gid`, `announcement_gid`, visibility. **No content.** |
 | Delete | `bDelete=1` | 2 — `gid` |
 
-**Publishing is a separate request that carries no content.** Create saves a hidden, unpublished event; publish flips it live. Replaying only the create leaves a draft no feed will ever show — which the idempotency check could never see, so every run would make another one.
+`103582791475642999` is the hub's clan id (`curl -sSL https://steamcommunity.com/games/<appid> | grep -o '/gid/[0-9]*'`). `event_type` is `12` for Small Update / Patch Notes; `13` is Regular Update, `14` is Major Update. `rtime32_visibility_end`, `build_id` and `build_branch` are sent as the literal string `undefined`. Publishing is a second request carrying no content, so replaying only the create leaves an invisible draft.
 
-`event_type` is `12` (Small Update / Patch Notes); `13` is Regular Update, `14` is Major Update. `rtime32_visibility_end`, `build_id` and `build_branch` are sent as the literal string `undefined`. `jsondata` is a side blob whose localisation arrays are 32 slots wide, index 0 English; only `localized_subtitle` and `localized_summary` matter here.
+**Field limits**, measured off the editor: title 80, subtitle 120, summary 180. A changelog `### Description` runs ~200 characters, so it does not fit the subtitle — hence subtitle empty, prose leading the body, sentence-bounded prefix in the summary. Leaving the summary blank makes Steam auto-generate one starting with a raw `[h3]Added[/h3]`.
 
-Editor field limits: title 80, subtitle 120, summary 180. A changelog `### Description` runs ~200 characters, so it does **not** fit the subtitle — the subtitle is left empty, the prose opens the body, and a sentence-bounded prefix goes in the summary (which is what shows in event lists; leaving it blank makes Steam auto-generate one starting with a raw `[h3]Added[/h3]`).
+**The session is the part that defeated it.** A stored refresh token can be turned into a valid community session — `steam-session`'s `getWebCookies()` does the finalise-login transfer, but only for `WebBrowser` platform tokens; a `MobileApp` token shortcuts to `steamid||access_token`, whose `['web','mobile']` audience the endpoint refuses. Getting to `['web:community']` is necessary and still not sufficient.
 
-Two side-effects worth knowing: publishing without artwork raises a warnings dialog and falls back to the game capsule, which is what every Court Wizard announcement already does; and **Steam moderates new posts**, so there can be a 1+ hour delay before one appears in the Steam library — and *any edit re-queues it*.
+**The trap to know about:** every failure — wrong audience, wrong CSRF token, an account lock — returns the same
 
-### The Steam session secret
-
-`STEAM_WEB_REFRESH_TOKEN` is the most dangerous secret in this repo: a months-long web session for an account with publisher rights, on a public repository. Mint it with:
-
-```bash
-npm install --no-save steam-session qrcode-terminal
-node scripts/steam_refresh_token.mjs      # scan the QR with the Steam Mobile app
+```json
+{"success":2,"msg":"Access denied, not logged in with sufficient permissions."}
 ```
 
-It **must** be a `MobileApp`-platform token. `GenerateAccessTokenForApp` refuses `WebBrowser` tokens and has refused `SteamClient` ones since 2025-04-30 — and it reports that refusal as **HTTP 200** with an empty body and the real result in the `x-eresult` header (`15` = AccessDenied). A status-code check detects nothing and would go on to build `steamLoginSecure=<steamid>||`, a valid but entirely anonymous cookie that posts nothing. `steam_post_announcement.py` asserts on the header, on a non-empty token, and on JWT shape before using it.
+That message is about *permissions*, not authentication, and reading it as "my request is malformed" costs hours. Before debugging a request, check the obvious things: load `https://steamcommunity.com/app/<appid>/admin/` with the session and confirm it renders the hub admin panel, and open `partner.steamgames.com` in a browser to check the account has no support lock. An account lock produces exactly this error from an otherwise perfect request.
 
-Note also that Steam refresh tokens are IP-bound and GitHub runners get a fresh IP every run, so intermittent `AccessDenied` is expected. The 6-hourly cadence keeps that to a handful of attempts a day, and the `steam-announced/` marker stops them entirely once one succeeds.
-
-To disable just this channel, delete the secret — the step is gated on it, so the workflow goes quiet rather than failing every six hours.
-
-### Testing it without posting
-
-```bash
-python3 scripts/steam_post_announcement.py --version 1.0.38 --dry-run   # render + idempotency, no network writes
-python3 scripts/steam_post_announcement.py --version 1.0.39 --draft     # create, do not publish; delete it in Steamworks
-```
+Note also that `https://steamcommunity.com/games/<appid>/partnerevents/` redirects to the public news page even for a fully privileged browser, so it is useless as a permissions probe. `/app/<appid>/admin/` is the one that works.
 
 ## Depot layout
 

@@ -41,8 +41,8 @@ ssfn*
 __pycache__/
 *.pyc
 
-# scripts/steam_refresh_token.mjs needs steam-session installed here, because
-# Node resolves its imports by walking up from the script's own directory.
-# Nothing in the game builds from npm; this exists only for that one-off tool.
+# Nothing in this repo builds from npm. These are a safety net for the public
+# repo: a stray `npm install` while poking at something should not be
+# committable.
 /node_modules/
 /package-lock.json

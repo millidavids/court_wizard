@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Render a docs/CHANGELOG.md section as Steam BBCode.
 #
-# Steamworks has no supported Web API for creating events, so this renders the
-# text and two callers use it:
+# Steamworks has no supported Web API for creating events, so the event is
+# posted by hand and this renders the text to paste. Two callers use it:
 #   * release.yml writes the full output to the run's job summary and uploads it
-#     as an artifact, for pasting by hand if the automatic post ever fails;
-#   * steam-promote.yml feeds --headline/--description/--body to
-#     scripts/steam_post_announcement.sh, which posts the event itself.
+#     as an artifact;
+#   * steam-promote.yml feeds --headline/--summary/--body to the run summary
+#     once the build is live, one block per field of the event form.
 #
 # Usage: scripts/changelog_to_bbcode.sh [options] [path/to/CHANGELOG.md]
 #
@@ -15,6 +15,8 @@
 #   --headline      Print only the announcement title: `v1.0.38 - 2026-08-15`.
 #   --description   Print only the prose under `### Description`, as one line.
 #                   Prints nothing (exit 0) when the section is absent.
+#   --summary       Same prose, trimmed to Steam's 180-character Summary field,
+#                   preferring to end on a sentence boundary.
 #   --body          Print the BBCode body: no `[h2]` title line (it is the
 #                   headline), and the `### Description` prose promoted to an
 #                   unheaded lead paragraph. Steam's subtitle field caps at 120
@@ -53,6 +55,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --headline)    MODE=headline ;;
         --description) MODE=description ;;
+        --summary)     MODE=summary ;;
         --body)        MODE=body ;;
         --version)
             shift
@@ -119,14 +122,18 @@ if [ "$MODE" = "headline" ]; then
     exit 0
 fi
 
-if [ "$MODE" = "description" ]; then
-    # Joined to one line: it becomes the event subtitle, which is single-line.
+if [ "$MODE" = "description" ] || [ "$MODE" = "summary" ]; then
+    # Joined to one line: both fields it feeds are single-line.
     #
     # Deliberately no fallback when the section is absent — post_to_bluesky.py
     # falls back to the first bullet because a 300-grapheme post needs *some*
-    # body, whereas an event with no subtitle is perfectly fine. Empty output
+    # body, whereas an event with no summary is perfectly fine. Empty output
     # and exit 0 is the "there isn't one" signal.
-    printf '%s\n' "$section" | awk '
+    #
+    # `--summary` additionally trims to Steam's 180-character cap. A blind cut
+    # lands mid-clause, so pack whole sentences and only fall back to a
+    # word-boundary cut when even the first sentence overruns.
+    printf '%s\n' "$section" | awk -v limit="${SUMMARY_LIMIT:-180}" -v trim="$([ "$MODE" = summary ] && echo 1 || echo 0)" '
         /^### / {
             inside = (tolower($0) == "### description")
             next
@@ -135,7 +142,28 @@ if [ "$MODE" = "description" ]; then
             gsub(/^[[:space:]]+|[[:space:]]+$/, "")
             line = line (line == "" ? "" : " ") $0
         }
-        END { if (line != "") print line }
+        END {
+            if (line == "") exit
+            if (!trim || length(line) <= limit) { print line; exit }
+            rest = line
+            while (match(rest, /[^.!?]*[.!?]+[[:space:]]*/)) {
+                sentence = substr(rest, RSTART, RLENGTH)
+                candidate = out sentence
+                probe = candidate
+                sub(/[[:space:]]+$/, "", probe)
+                if (length(probe) > limit) break
+                out = candidate
+                rest = substr(rest, RSTART + RLENGTH)
+                if (rest == "") break
+            }
+            sub(/[[:space:]]+$/, "", out)
+            if (out == "") {
+                out = substr(line, 1, limit - 1)
+                sub(/[[:space:]][^[:space:]]*$/, "", out)
+                out = out "…"
+            }
+            print out
+        }
     '
     exit 0
 fi

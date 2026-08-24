@@ -41,7 +41,7 @@ If tag `vV` is missing but the top block's heading does not match `vV` — a lef
 
 **`release.yml` runs on push to `main` and builds nothing.** It finds the `dev-release.yml` run for that exact commit and reuses *its* artifacts for the tag and GitHub Release. This works because promotion fast-forwards `main` onto the built dev commit, so the SHAs match.
 
-**`steam-promote.yml` runs every six hours and owns everything after that** — requesting the Steam promotion, waiting for the phone tap, and then announcing to Discord, Bluesky and the Steam hub. It is scheduled rather than triggered because every step of it waits on a human at an unpredictable hour. Three git tags (`promoted/`, `announced/`, `steam-announced/`) hold the state, so nothing repeats.
+**`steam-promote.yml` runs every six hours and owns everything after that** — requesting the Steam promotion, waiting for the phone tap, then posting to Discord and Bluesky and rendering the Steam hub event's fields for the user to paste. It is scheduled rather than triggered because every step of it waits on a human at an unpredictable hour. Two git tags (`promoted/`, `announced/`) hold the state, so nothing repeats.
 
 Three consequences worth stating plainly:
 
@@ -268,11 +268,11 @@ Tell the user:
 - the version now on `main`, and that promotion changed no files;
 - that **one** run is in flight — `release.yml` — plus the dev build it is reusing if that is still running. Give the URL (`gh run list --limit 5`, otherwise the Actions tab);
 - **that promotion finishes only after they approve the prompt in their Steam Mobile app.** Setting a build live on the default branch of a released app always requires that confirmation — CI picks the right build id and requests it, nothing more. Do not describe the release as live, shipped, or out;
-- **that all three announcements post themselves once they approve** — Discord, Bluesky, and the Steam hub patch-notes event. `steam-promote.yml` runs every six hours, notices the build has gone live on `default`, and posts. So the announcements land on the next scheduled pass after the phone tap, not immediately, and not at all until then;
-- that the paste-by-hand BBCode is still on the `release.yml` run's summary page (and as the `steam-announcement` artifact) if the Steam post ever fails — Steamworks → Court Wizard → Hub Admin → create event → *Small Update / Patch Notes*;
+- **that Discord and Bluesky post themselves once they approve.** `steam-promote.yml` runs every six hours, notices the build has gone live on `default`, and posts. So they land on the next scheduled pass after the phone tap, not immediately, and not at all until then;
+- **that the Steam hub event is theirs to post, and the fields are waiting on that run's summary** — title, summary and BBCode body, one block per form field. Steam has no supported events API, so this step stays manual by design; `steam/README.md` records why. Steamworks → Court Wizard → Hub Admin → Post Event/Announcement → *A Game Update* → *Small Update / Patch Notes*, and untick "Use visual editor" before pasting the body;
 - whether the website sync produced a commit.
 
-If an announcement hasn't appeared some hours after the approval, check *Actions → Steam Promote*. A yellow "Post the Steam patch-notes event" step means the Steam post failed and will retry on the next pass; Discord and Bluesky are unaffected, and each channel has its own marker tag so none of them can double-post.
+If Discord or Bluesky hasn't appeared some hours after the approval, check *Actions → Steam Promote* — the `announced/v<version>` tag makes them exactly-once, so a missing post means the run has not fired yet or failed.
 
 If `release.yml` fails at the promotion step, the retry is *Actions → Release → Run workflow* with **`force: true`** — the tag already exists by then, so a plain re-run would skip everything.
 
