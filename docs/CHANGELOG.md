@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.40] - 2026-08-31
+
+### Description
+The talent that makes your dirt walls permanent has moved to the front of its tree, so you can reshape the battlefield early instead of grinding for it. Walls and crystals carried between levels now keep the talents you built them with.
+
+### Changed
+- **Permanent walls come much earlier** — Terraformer, the talent that makes your dirt walls stick around between levels, has moved from the last row of the Wall of Dirt talents to the first, and Quick Foundations has moved the other way. Your first and third rows of Wall of Dirt talents have been reset so you can choose again from the new layout; the progress you earned toward unlocking them is untouched.
+
+### Fixed
+- **Walls carried between levels keep their talents** — a permanent wall arriving from a previous level came back as a plain wall, quietly losing its reinforcement, its frost aura, its regeneration and its spikes. It now brings all of that with it.
+- **Crystals carried between levels keep their talents too** — permanent crystal turrets were dropping their talent bonuses the moment they moved to a new level.
+- **The main menu has its sky back** — on larger screens most of the background was missing, leaving a flat grey field behind the menu buttons.
+- **Quarry Master now says what it actually does** — its description made it sound like the wall lasted longer, when what it really does is let you draw a longer wall.
+
 ## [v1.0.39] - 2026-08-18
 
 ### Description

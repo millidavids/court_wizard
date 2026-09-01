@@ -70,11 +70,11 @@ pub(super) fn disintegrate_talents() -> [[TalentDefinition; 3]; 3] {
 
 pub(super) fn wall_of_stone_talents() -> [[TalentDefinition; 3]; 3] {
     [
-        // Tier 1: Numeric modifiers
+        // Tier 1: Core modifiers
         [
             TalentDefinition {
                 name: "Quarry Master",
-                description: "Walls cost 30% less mana and can be 25% longer.",
+                description: "Walls cost 30% less mana and can span 25% more ground.",
                 locked_text: "Bulk stone discount. The quarry union would be furious.",
                 implemented: true,
             },
@@ -85,9 +85,9 @@ pub(super) fn wall_of_stone_talents() -> [[TalentDefinition; 3]; 3] {
                 implemented: true,
             },
             TalentDefinition {
-                name: "Quick Foundations",
-                description: "Place 2 walls per cast at 60% mana cost each. Second wall starts where the first ends.",
-                locked_text: "Two walls, one drag. Efficiency!",
+                name: "Terraformer",
+                description: "Walls become permanent and persist between levels.",
+                locked_text: "Why build temporary when you can reshape the earth itself?",
                 implemented: true,
             },
         ],
@@ -121,9 +121,9 @@ pub(super) fn wall_of_stone_talents() -> [[TalentDefinition; 3]; 3] {
                 implemented: true,
             },
             TalentDefinition {
-                name: "Terraformer",
-                description: "Walls become permanent and persist between levels.",
-                locked_text: "Why build temporary when you can reshape the earth itself?",
+                name: "Quick Foundations",
+                description: "Place 2 walls per cast at 60% mana cost each. Second wall starts where the first ends.",
+                locked_text: "Two walls, one drag. Efficiency!",
                 implemented: true,
             },
             TalentDefinition {

@@ -77,6 +77,13 @@ pub(crate) struct PlayerMetaProgress {
     /// where -1 = no selection, 0-2 = choice index.
     #[serde(default)]
     pub(crate) spell_talent_selections: HashMap<String, Vec<i8>>,
+    /// Ids of one-time save migrations already applied to this save.
+    ///
+    /// Talent selections are stored positionally, so re-tiering a talent
+    /// silently repoints an existing pick at whatever now occupies that slot.
+    /// A migration clears the affected tiers once and records its id here.
+    #[serde(default)]
+    pub(crate) applied_migrations: Vec<String>,
     /// Tutorial IDs that have been completed.
     #[serde(default)]
     pub(crate) completed_tutorials: Vec<String>,

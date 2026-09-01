@@ -2,6 +2,7 @@ mod migration;
 mod save_cache;
 mod save_key_compat;
 mod save_structs;
+mod talent_migrations;
 mod wizard_crud;
 
 // Flatten the entire public surface so every path that was crate::config::save_data::X

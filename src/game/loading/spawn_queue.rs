@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use crate::config::save_data::{
     SavedBoulder, SavedBush, SavedCrystal, SavedFlora, SavedPond, SavedTree, SavedWall,
 };
+use crate::game::units::wizard::spells::wall_of_stone::systems::PermanentWallTalents;
 
 /// A task that spawns a single entity.
 /// Each plugin can enqueue tasks for the entities it needs to spawn.
@@ -76,6 +77,7 @@ pub enum SpawnTask {
     },
     PermanentWall {
         wall: SavedWall,
+        talents: PermanentWallTalents,
     },
     PermanentCrystal {
         crystal: SavedCrystal,

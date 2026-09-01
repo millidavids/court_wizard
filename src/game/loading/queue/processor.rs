@@ -524,11 +524,12 @@ pub fn process_spawn_queue(
                     }
                 }
             }
-            SpawnTask::PermanentWall { wall } => {
+            SpawnTask::PermanentWall { wall, talents } => {
                 crate::game::units::wizard::spells::wall_of_stone::systems::spawn_permanent_wall(
                     &mut commands,
                     spell_visual_assets,
                     &wall,
+                    talents,
                 );
             }
             SpawnTask::PermanentCrystal {

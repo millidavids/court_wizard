@@ -17,11 +17,13 @@ pub(crate) fn compute_talent_params(
     let t2 = talents.get_selection(Spell::WallOfStone, 1);
     let t3 = talents.get_selection(Spell::WallOfStone, 2);
 
-    // Tier 1: Numeric modifiers
+    // Tier 1: Core modifiers.
+    // Every mana arm multiplies rather than assigns, so tiers compose in one
+    // direction regardless of which tier a mana talent lives in.
     match t1 {
         Some(0) => {
             // Quarry Master
-            params.mana_mult = QUARRY_MASTER_MANA_MULT;
+            params.mana_mult *= QUARRY_MASTER_MANA_MULT;
             params.max_length_mult = QUARRY_MASTER_LENGTH_MULT;
         }
         Some(1) => {
@@ -30,9 +32,8 @@ pub(crate) fn compute_talent_params(
             params.width_mult = REINFORCED_STONE_WIDTH_MULT;
         }
         Some(2) => {
-            // Quick Foundations
-            params.quick_foundations = true;
-            params.mana_mult = QUICK_FOUNDATIONS_MANA_MULT;
+            // Terraformer
+            params.terraformer = true;
         }
         _ => {}
     }
@@ -49,7 +50,9 @@ pub(crate) fn compute_talent_params(
     match t3 {
         Some(0) => params.collapsing_wall = true,
         Some(1) => {
-            params.terraformer = true;
+            // Quick Foundations
+            params.quick_foundations = true;
+            params.mana_mult *= QUICK_FOUNDATIONS_MANA_MULT;
         }
         Some(2) => {
             params.maze_architect = true;

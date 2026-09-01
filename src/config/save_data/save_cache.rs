@@ -29,7 +29,7 @@ static SAVE_DIRTY: AtomicBool = AtomicBool::new(false);
 
 /// Creates a new empty unified save file.
 pub(crate) fn new_unified_save() -> UnifiedSaveFile {
-    UnifiedSaveFile {
+    let mut save = UnifiedSaveFile {
         metadata: SaveMetadata {
             version: 2,
             last_active_wizard_id: None,
@@ -37,7 +37,12 @@ pub(crate) fn new_unified_save() -> UnifiedSaveFile {
         },
         player: Default::default(),
         wizards: Vec::new(),
-    }
+    };
+    // A save created by this build already uses the current talent layout, so
+    // it must be born migrated — otherwise picks made under the new rules get
+    // cleared the first time the migrations run.
+    super::talent_migrations::mark_new_save_migrated(&mut save);
+    save
 }
 
 /// Load the unified save file, using the in-memory cache when available.
@@ -136,6 +141,10 @@ fn load_from_disk() -> Option<UnifiedSaveFile> {
                     *t = "Swordcerer".to_string();
                 }
             }
+            // Migrate: clear talent picks whose tier contents were re-shuffled.
+            // In-memory only — the next ordinary save write persists the cleared
+            // picks and the marker together.
+            super::talent_migrations::apply_talent_migrations(&mut data);
             Some(data)
         }
         Err(e) => {

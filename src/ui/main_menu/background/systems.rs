@@ -22,8 +22,13 @@ fn spawn_layer(commands: &mut Commands, image: &Handle<Image>, config: &LayerCon
     let flex_row = commands
         .spawn(Node {
             position_type: PositionType::Absolute,
-            left: Val::Px(0.0),
+            left: Val::Percent(0.0),
             top: Val::Px(0.0),
+            // A definite width, not `Auto`: the strips below are sized in
+            // percent, and a percentage child cannot resolve against a
+            // shrink-to-fit parent. The strips deliberately overflow this row
+            // and are clipped by the container.
+            width: Val::Percent(100.0),
             height: Val::Percent(100.0),
             flex_direction: FlexDirection::Row,
             ..default()
@@ -33,8 +38,10 @@ fn spawn_layer(commands: &mut Commands, image: &Handle<Image>, config: &LayerCon
                 row.spawn((
                     ImageNode::new(image.clone()),
                     Node {
-                        width: Val::Px(config.width),
+                        width: Val::Percent(config.width_percent),
                         height: Val::Percent(100.0),
+                        // Without this the strips shrink to fit the row.
+                        flex_shrink: 0.0,
                         ..default()
                     },
                 ));
@@ -55,7 +62,7 @@ fn spawn_layer(commands: &mut Commands, image: &Handle<Image>, config: &LayerCon
             OnMenuBackground,
             ParallaxLayer {
                 speed: config.speed,
-                image_width: config.width,
+                width_percent: config.width_percent,
                 offset: 0.0,
                 flex_row,
             },
@@ -70,11 +77,11 @@ pub(super) fn scroll_parallax(
 ) {
     for mut layer in &mut layer_query {
         layer.offset += layer.speed * time.delta_secs();
-        if layer.offset >= layer.image_width {
-            layer.offset -= layer.image_width;
+        if layer.offset >= layer.width_percent {
+            layer.offset -= layer.width_percent;
         }
 
-        let new_left = Val::Px(-layer.offset);
+        let new_left = Val::Percent(-layer.offset);
         if let Ok(mut node) = node_query.get_mut(layer.flex_row)
             && node.left != new_left
         {

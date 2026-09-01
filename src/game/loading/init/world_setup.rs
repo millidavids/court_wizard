@@ -15,7 +15,6 @@ pub fn init_loading_progress(
     mut kill_stats: ResMut<KillStats>,
     mut config: ResMut<GameConfig>,
     time_travel: Option<Res<TimeTravelState>>,
-    active_talents: Option<Res<crate::game::units::wizard::talents::resources::ActiveTalents>>,
     game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
     roguelite_modifiers: Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
     active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
@@ -88,18 +87,35 @@ pub fn init_loading_progress(
     // 3. Pathfinding Grid (needed for unit movement)
     queue.tasks.push_back(SpawnTask::PathfindingGrid);
 
+    // Talent selections for anything carried in from a previous victory.
+    // Read from the save rather than the `ActiveTalents` resource: this system
+    // runs on OnEnter(AppState::Loading), and `ActiveTalents` is only inserted
+    // on OnEnter(InGameState::Running) — i.e. after loading — so injecting it
+    // here would always be `None` and silently strip every carried entity of
+    // its talents.
+    let carried_talents = (!config.saved_walls.is_empty() || !config.saved_crystals.is_empty())
+        .then(crate::game::units::wizard::talents::resources::ActiveTalents::from_save);
+
     // 3b. Permanent walls from previous victories (after pathfinding grid)
-    for saved_wall in &config.saved_walls {
-        queue.tasks.push_back(SpawnTask::PermanentWall {
-            wall: saved_wall.clone(),
-        });
+    if !config.saved_walls.is_empty() {
+        use crate::game::units::wizard::spells::wall_of_stone::systems as wall_systems;
+
+        let wall_talents = wall_systems::PermanentWallTalents::from_params(
+            &wall_systems::compute_talent_params(carried_talents.as_ref()),
+        );
+        for saved_wall in &config.saved_walls {
+            queue.tasks.push_back(SpawnTask::PermanentWall {
+                wall: saved_wall.clone(),
+                talents: wall_talents,
+            });
+        }
     }
 
     // 3c. Permanent crystals from previous victories (after pathfinding grid)
     if !config.saved_crystals.is_empty() {
         let crystal_talent_params =
             crate::game::units::wizard::spells::arcane_crystal::systems::compute_talent_params(
-                active_talents.as_deref(),
+                carried_talents.as_ref(),
             );
         for saved_crystal in &config.saved_crystals {
             queue.tasks.push_back(SpawnTask::PermanentCrystal {
