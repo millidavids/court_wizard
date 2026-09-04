@@ -2,7 +2,6 @@ use bevy::prelude::*;
 
 use crate::config::save_data::load_unified_save;
 use crate::game::insight_bonuses::InsightBonusStat;
-use crate::game::units::DamageType;
 use crate::game::units::wizard::components::Spell;
 use crate::ui::systems::scale_font_by_text_width;
 
@@ -59,20 +58,6 @@ pub(crate) fn is_prereq_met(spell: Spell) -> bool {
 /// Returns true if this spell is fully researched (unlocked).
 pub(crate) fn is_spell_unlocked(spell: Spell) -> bool {
     is_spell_unlocked_in(spell, &load_unlocked_spells())
-}
-
-/// Returns the color associated with a damage type for UI display.
-pub(crate) fn element_color(damage_type: DamageType) -> Color {
-    match damage_type {
-        DamageType::Fire => FIRE_COLOR,
-        DamageType::Nature => NATURE_COLOR,
-        DamageType::Electric => ELECTRIC_COLOR,
-        DamageType::Necrotic => NECROTIC_COLOR,
-        DamageType::Force => FORCE_COLOR,
-        DamageType::Frost => FROST_COLOR,
-        DamageType::Poison => POISON_COLOR,
-        DamageType::Poop => POOP_COLOR,
-    }
 }
 
 /// Converts a graph-space position to screen-space given the current view state.

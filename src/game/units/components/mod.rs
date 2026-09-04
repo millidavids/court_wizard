@@ -28,7 +28,7 @@ pub use team::Team;
 // --- health ---
 pub use health::sync_setup_immunity_flag;
 pub use health::{
-    Health, Invulnerable, PendingDamageEffect, ResidualFireDamaged, SpellDamaged,
+    Health, Invulnerable, PendingDamageEffect, PendingSpellHit, ResidualFireDamaged, SpellDamaged,
     TemporaryHitPoints, apply_damage_to_unit, apply_spell_damage, apply_spell_damage_with_team,
 };
 pub(crate) use health::{is_setup_immune, set_setup_immunity};

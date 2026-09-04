@@ -14,7 +14,7 @@ pub(crate) use graph_nav::{
     handle_graph_pan, handle_graph_zoom, process_pending_graph_layout_refresh,
 };
 pub(crate) use helpers::{
-    calculate_talent_font_size, compute_slider_fracs, count_researched_spells, element_color,
+    calculate_talent_font_size, compute_slider_fracs, count_researched_spells,
     format_bonus_alloc_text, is_prereq_met, is_spell_unlocked,
 };
 pub(crate) use positions::{

@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.41] - 2026-09-04
+
+### Description
+Every spell now tells you when it lands. Units struck by a spell flash in that spell's own colour and give off an impact sound, so a fireball thrown into a crowd reads at a glance instead of leaving you watching health bars.
+
+### Added
+- **Spells show you what they hit** — any spell that damages a unit now flashes it in that spell's own colour, with a matching impact sound. A beam sweeping a line, a meteor landing in a crowd, a bolt picking off one straggler: you can see and hear exactly who was caught. Bosses do the same to your defenders, so you can tell at a glance who is under fire.
+
+### Changed
+- **Reduce Flashes now covers combat hits** — with the setting turned on, hit flashes are dimmer, fire less often, and fewer of them appear at once, while still showing you which units are being struck.
+
+### Fixed
+- **Rapid attacks no longer strobe their target** — the Warglock's machine gun and the Swordcerer's sword arc flashed a struck unit on every single hit, which flickered badly during sustained fire. They now flash at the same steady rate as everything else.
+- **Long battles no longer pile up finished sound effects** in the background.
+
 ## [v1.0.40] - 2026-08-31
 
 ### Description

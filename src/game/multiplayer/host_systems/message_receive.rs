@@ -149,6 +149,11 @@ pub fn receive_spell_hit_messages(
                     continue;
                 };
                 if let Ok(mut ec) = commands.get_entity(local_entity) {
+                    // Mirror the guest's hit feedback on the host's copy — the
+                    // guest already flashed its own ghost locally.
+                    ec.try_insert(crate::game::units::components::PendingSpellHit(
+                        crate::game::units::damage::DamageType::from_u8(damage_type),
+                    ));
                     ec.insert(crate::game::units::components::PendingDamageEffect {
                         damage,
                         damage_type: crate::game::units::damage::DamageType::from_u8(damage_type),

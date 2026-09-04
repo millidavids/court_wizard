@@ -66,6 +66,9 @@ pub(crate) struct SpellSfxAssets {
     // Boulder impact (thrown rock landing)
     pub boulder_impact: Handle<AudioSource>,
     pub ray_eye_death: Handle<AudioSource>,
+    /// Short tick played when a spell connects with a unit. Throttled globally
+    /// by `HitSfxBudget` — see `units/hit_feedback/spell_hits.rs`.
+    pub spell_hit: Handle<AudioSource>,
 }
 
 /// Loads all spell sound effect assets at startup.
@@ -116,6 +119,7 @@ pub(super) fn load_spell_sfx_assets(mut commands: Commands, asset_server: Res<As
         shotgun_shot: asset_server.load("audio/sound_effects/shotgun_shot.ogg"),
         boulder_impact: asset_server.load("audio/sound_effects/boulder_impact.ogg"),
         ray_eye_death: asset_server.load("audio/sound_effects/ray_eye_death.ogg"),
+        spell_hit: asset_server.load("audio/sound_effects/spell_hit.ogg"),
     });
 }
 
@@ -184,6 +188,36 @@ pub(crate) fn play_impact_sfx_scaled(
     play_sfx_scaled(commands, effective, effect_pos, game_config, volume_scale);
 }
 
+/// Distance-attenuated playback volume for a sound at `effect_pos`.
+///
+/// Returns 0.0 when the sound would be inaudible, which callers use to skip
+/// playback entirely.
+pub(crate) fn sfx_volume_at(effect_pos: Vec3, game_config: &GameConfig, volume_scale: f32) -> f32 {
+    let distance = effect_pos.distance(audio_origin());
+    let linear = (1.0 - distance / MAX_SFX_DISTANCE).clamp(0.0, 1.0);
+    let attenuation = linear * linear * linear * linear * linear * linear; // steep falloff for distant sounds
+    game_config.effective_sfx_volume() * attenuation * volume_scale
+}
+
+/// Below this playback volume a sound is inaudible in practice.
+///
+/// Not `0.0`: the distance falloff is `(1 - d/10000)^6` but the battlefield is
+/// only 6000 across, so a strictly-positive test would call a hit at the far
+/// edge (volume ~0.0009) "audible" and never actually reject anything.
+const MIN_AUDIBLE_VOLUME: f32 = 0.002;
+
+/// Whether a sound at `effect_pos` would actually be heard.
+///
+/// Lets a throttled caller avoid spending its rate-limit window on a sound
+/// nobody can hear.
+pub(crate) fn sfx_would_be_audible(
+    effect_pos: Vec3,
+    game_config: &GameConfig,
+    volume_scale: f32,
+) -> bool {
+    sfx_volume_at(effect_pos, game_config, volume_scale) > MIN_AUDIBLE_VOLUME
+}
+
 /// Plays a one-shot sound effect with distance-based attenuation and an additional volume scale.
 pub(crate) fn play_sfx_scaled(
     commands: &mut Commands,
@@ -192,10 +226,7 @@ pub(crate) fn play_sfx_scaled(
     game_config: &GameConfig,
     volume_scale: f32,
 ) {
-    let distance = effect_pos.distance(audio_origin());
-    let linear = (1.0 - distance / MAX_SFX_DISTANCE).clamp(0.0, 1.0);
-    let attenuation = linear * linear * linear * linear * linear * linear; // steep falloff for distant sounds
-    let volume = game_config.effective_sfx_volume() * attenuation * volume_scale;
+    let volume = sfx_volume_at(effect_pos, game_config, volume_scale);
 
     if volume <= 0.0 {
         return;
@@ -203,7 +234,9 @@ pub(crate) fn play_sfx_scaled(
 
     commands.spawn((
         AudioPlayer::new(handle.clone()),
-        PlaybackSettings::ONCE.with_volume(Volume::Linear(volume)),
+        // DESPAWN, not ONCE: these are spawned at hit frequency, and
+        // `PlaybackMode::Once` leaves the entity alive until the run ends.
+        PlaybackSettings::DESPAWN.with_volume(Volume::Linear(volume)),
         OnGameplayScreen,
     ));
 }

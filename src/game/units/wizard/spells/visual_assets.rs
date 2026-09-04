@@ -18,6 +18,14 @@ use super::telekinesis::constants::{HARVEST_FLASH_COLOR, SHOCKWAVE_COLOR, SHOCKW
 use super::wall_of_stone::wall_material::WallOfStoneMaterial;
 use crate::game::battlefield::components::BattlefieldAssets;
 use crate::game::battlefield::constants::{GROUND_NOISE_BASE, TILE_COUNT, TILE_WORLD_SIZE};
+
+/// Blend alpha of the hit-flash overlay.
+const HIT_FLASH_ALPHA: f32 = 0.8;
+/// Linear-space multiplier for the normal hit flash. Above 1.0 so the overlay
+/// is HDR and crosses the bloom threshold.
+const HIT_FLASH_BOOST: f32 = 3.0;
+/// Multiplier used when `reduce_flashes` is on — SDR, so no bloom.
+const HIT_FLASH_BOOST_DIM: f32 = 0.6;
 use crate::game::constants::{STONE_COLOR_DARK, STONE_COLOR_LIGHT};
 
 /// Pre-allocated meshes and materials for all spell visuals.
@@ -124,8 +132,15 @@ pub struct SpellVisualAssets {
     pub magic_missile: Handle<StandardMaterial>,
     /// Light gray bullet tracer material (speed-line look).
     pub bullet_tracer: Handle<StandardMaterial>,
-    /// Bright white material for the generic hit flash overlay.
-    pub hit_flash_material: Handle<StandardMaterial>,
+    /// Per-element hit-flash overlay materials, indexed by `DamageType::to_u8()`.
+    /// HDR-bright so they bloom; paired with `hit_flash_materials_dim`.
+    ///
+    /// Deliberately NOT listed in `all_material_handles()` — that is the
+    /// Excremage recolor list, and the flash instead remaps its damage type to
+    /// `Poop` at insert time, matching `process_pending_damage_effects`.
+    pub hit_flash_materials: [Handle<StandardMaterial>; 8],
+    /// Same hues at SDR brightness (no bloom), used when `reduce_flashes` is on.
+    pub hit_flash_materials_dim: [Handle<StandardMaterial>; 8],
 
     // ── Arc/Beam materials ───────────────────────────────────────────────
     pub chain_lightning_arc: Handle<StandardMaterial>,
@@ -336,6 +351,36 @@ pub fn init_spell_visual_assets(
         ..default()
     };
 
+    // Per-element hit-flash overlays. Built before the resource literal so the
+    // `&mut materials` borrow inside the closure ends cleanly.
+    //
+    // Brightness rides on `base_color`, NOT `emissive`: these are `unlit`, and
+    // an unlit StandardMaterial short-circuits to `base_color` and never reads
+    // `emissive` (bevy_pbr `pbr.wgsl` — `STANDARD_MATERIAL_FLAGS_UNLIT_BIT`).
+    // Scaling happens in linear space and the result is handed back as
+    // `Color::LinearRgba`, so the hue matches `element_color()` exactly and
+    // values above 1.0 stay HDR for bloom.
+    let hit_flash_material_for = |materials: &mut Assets<StandardMaterial>,
+                                  dt: crate::game::units::DamageType,
+                                  boost: f32| {
+        let c = dt.element_color().to_linear();
+        materials.add(StandardMaterial {
+            base_color: Color::LinearRgba(LinearRgba::new(
+                c.red * boost,
+                c.green * boost,
+                c.blue * boost,
+                HIT_FLASH_ALPHA,
+            )),
+            alpha_mode: AlphaMode::Blend,
+            unlit: true,
+            ..default()
+        })
+    };
+    let hit_flash_materials = crate::game::units::DamageType::ALL
+        .map(|dt| hit_flash_material_for(&mut materials, dt, HIT_FLASH_BOOST));
+    let hit_flash_materials_dim = crate::game::units::DamageType::ALL
+        .map(|dt| hit_flash_material_for(&mut materials, dt, HIT_FLASH_BOOST_DIM));
+
     commands.insert_resource(SpellVisualAssets {
         // Base meshes
         unit_circle: meshes.add(Circle::new(1.0)),
@@ -516,13 +561,8 @@ pub fn init_spell_visual_assets(
             ..default()
         }),
         bullet_tracer: materials.add(unlit(Color::srgb(0.75, 0.75, 0.75))),
-        hit_flash_material: materials.add(StandardMaterial {
-            base_color: Color::srgba(1.0, 1.0, 1.0, 0.8),
-            emissive: LinearRgba::new(5.0, 5.0, 5.0, 1.0),
-            alpha_mode: AlphaMode::Blend,
-            unlit: true,
-            ..default()
-        }),
+        hit_flash_materials,
+        hit_flash_materials_dim,
 
         // Arc/Beam materials — `cull_mode: None` so the flat segment quads
         // are visible from both sides. In MP the two peers' cameras look at

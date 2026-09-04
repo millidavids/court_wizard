@@ -165,11 +165,10 @@ pub(crate) fn update_sword_arcs(
                         DamageType::Force,
                         false,
                     );
-                    commands.entity(target_entity).insert(
-                        crate::game::units::hit_flash::HitFlash {
-                            timer: SWORD_HIT_FLASH_DURATION,
-                        },
-                    );
+                    // No direct HitFlash insert — `apply_spell_damage` above
+                    // banks a `PendingSpellHit`, which respects the per-frame
+                    // flash cap. Inserting here would let one swing into a
+                    // packed line spawn an uncapped overlay per target.
                 }
             }
         }

@@ -49,7 +49,6 @@ pub const HITSCAN_CYLINDER_RADIUS: f32 = 25.0;
 // ===== Bullet Visuals =====
 pub const BULLET_RADIUS: f32 = 2.0;
 pub const BULLET_LENGTH: f32 = 15.0;
-pub const BULLET_HIT_FLASH_DURATION: f32 = 0.08;
 pub const ROCKET_RADIUS: f32 = 8.0;
 pub const FLAME_PARTICLE_START_SIZE: f32 = 10.0;
 pub const FLAME_PARTICLE_SIZE: f32 = 15.0;

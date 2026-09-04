@@ -49,17 +49,8 @@ pub(crate) const COMPLETED_COLOR: Color = Color::srgb(0.4, 0.9, 0.4);
 pub(crate) const AFFINITY_COLOR: Color = Color::srgb(1.0, 0.85, 0.3);
 pub(crate) const PENDING_COLOR: Color = Color::srgb(0.9, 0.7, 0.3);
 
-// ---------------------------------------------------------------------------
-// Element colors
-// ---------------------------------------------------------------------------
-pub(crate) const FIRE_COLOR: Color = Color::srgb(1.0, 0.4, 0.2);
-pub(crate) const NATURE_COLOR: Color = Color::srgb(0.3, 0.85, 0.3);
-pub(crate) const ELECTRIC_COLOR: Color = Color::srgb(0.5, 0.7, 1.0);
-pub(crate) const NECROTIC_COLOR: Color = Color::srgb(0.7, 0.3, 0.8);
-pub(crate) const FORCE_COLOR: Color = Color::srgb(0.7, 0.7, 0.9);
-pub(crate) const FROST_COLOR: Color = Color::srgb(0.6, 0.85, 0.95);
-pub(crate) const POISON_COLOR: Color = crate::game::units::constants::POISON_EFFECT_COLOR;
-pub(crate) const POOP_COLOR: Color = crate::game::units::constants::EXCREMAGE_BROWN;
+// Element colors live on `DamageType::element_color()` (src/game/units/damage.rs)
+// so the wizard tower panel and the in-world spell hit flash share one table.
 
 // Graph node colors
 pub(crate) const GRAPH_NODE_BG: Color = Color::srgb(0.12, 0.12, 0.15);

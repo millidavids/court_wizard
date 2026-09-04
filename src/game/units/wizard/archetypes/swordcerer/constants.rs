@@ -68,10 +68,6 @@ pub(super) const SWORD_ARC_MIN_SCALE: f32 = 0.001;
 /// 25% incoming melee damage, i.e. 75% reduction).
 pub(super) const AVATAR_MELEE_DAMAGE_MULTIPLIER: f32 = 0.25;
 
-/// Lifetime of the per-unit `HitFlash` flag set when the sword arc hits a
-/// target. Independent of the overlay's own fade duration.
-pub(super) const SWORD_HIT_FLASH_DURATION: f32 = 0.12;
-
 /// Hitbox radius for the swordcerer avatar.
 pub(crate) const AVATAR_HITBOX_RADIUS: f32 = 8.0 * UNIT_SCALE;
 

@@ -11,7 +11,8 @@ use crate::game::units::wizard::components::{LocalWizard, Mana};
 use crate::game::units::wizard::spells::utils::xz_distance;
 
 /// Handles Absolute Zero: continuously drains mana, applies stacking slow + damage to units in storm.
-/// Staging attackers (not yet activated at their rally point) are excluded.
+/// Staging attackers (not yet activated at their rally point) and corpses are excluded.
+#[allow(clippy::type_complexity)]
 pub(crate) fn update_absolute_zero(
     time: Res<Time>,
     // Host-only — guest's ghost SquallStorm would otherwise drain the
@@ -34,7 +35,14 @@ pub(crate) fn update_absolute_zero(
             Option<&mut SlowMovementModifier>,
             Option<&mut FrostAccumulation>,
         ),
-        Without<crate::game::pathfinding::StagingAttacker>,
+        (
+            Without<crate::game::pathfinding::StagingAttacker>,
+            // Corpses keep Health and Team, so without this every dead body in
+            // the storm would bank a `PendingSpellHit` each frame and flash for
+            // the whole channel. The sibling fog/squall queries already filter
+            // corpses; this one had been missing it.
+            Without<crate::game::units::components::Corpse>,
+        ),
     >,
     mut commands: Commands,
 ) {
@@ -73,6 +81,20 @@ pub(crate) fn update_absolute_zero(
             // movement debuff on the frozen enemy army before the fight begins).
             if distance <= storm.radius && !crate::game::units::components::is_setup_immune() {
                 health.take_damage(damage_this_frame);
+
+                // Flash only — deliberately NOT routed through
+                // `apply_spell_damage_with_team`. Doing so would newly let the
+                // enemy King's SpellShield block the storm outright, and (via
+                // `process_pending_damage_effects`) re-insert a 1.5s
+                // `RootedModifier` every frame on any unit carrying
+                // `ColdModifier`, permanently rooting everything under a
+                // Meteorologist blizzard. The per-unit 0.22s feedback cooldown
+                // throttles this per-frame insert.
+                commands.entity(entity).try_insert(
+                    crate::game::units::components::PendingSpellHit(
+                        crate::game::units::DamageType::Frost,
+                    ),
+                );
 
                 // Stack slow (Absolute Zero has its own stacking on top of frost
                 // accumulation). Framerate-independent: accrue per second via delta.

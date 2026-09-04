@@ -256,6 +256,11 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::super::super::units::components::HasteModifier>()
                 .remove::<super::super::super::units::components::FireDoT>()
                 .remove::<super::super::super::units::components::Shocked>()
+                // NOTE: `PendingSpellHit` is deliberately NOT stripped here.
+                // The killing blow's marker is inserted the same frame this
+                // runs, so removing it would mean the hit that kills a unit
+                // never flashes. `drive_spell_hit_feedback` consumes it on the
+                // corpse a frame later, which is exactly what we want.
                 .remove::<super::super::super::units::components::PendingDamageEffect>()
                 .remove::<super::super::super::units::components::OriginalMaterial>()
                 .remove::<super::super::super::units::components::RoughTerrainModifier>()

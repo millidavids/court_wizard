@@ -67,6 +67,7 @@ impl Plugin for UnitsPlugin {
                 KingPlugin,
             ))
             .add_plugins(TerrainPlugin)
+            .init_resource::<super::hit_feedback::HitSfxBudget>()
             .configure_sets(
                 Update,
                 (MovementCalculationSet, ApplyTransformsSet)
@@ -242,10 +243,23 @@ impl Plugin for UnitsPlugin {
             .add_systems(
                 Update,
                 (
-                    super::hit_flash::update_hit_flashes
-                        .run_if(any_with_component::<super::hit_flash::HitFlash>),
-                    super::hit_flash::update_hit_flash_vfx
-                        .run_if(any_with_component::<super::hit_flash::HitFlashVfx>),
+                    // Deliberately unordered. `drive_spell_hit_feedback` is the
+                    // sole remover of `PendingSpellHit`, so it observes every
+                    // marker exactly once whenever the deferred insert lands —
+                    // no ordering edge, and therefore no injected
+                    // `ApplyDeferred` barrier in Update.
+                    super::hit_feedback::drive_spell_hit_feedback
+                        .run_if(any_with_component::<super::components::PendingSpellHit>),
+                    // Unlike every other `update_timed_modifier` (which run
+                    // under `is_gameplay_running`), this one sits under
+                    // `is_spell_effects_active` so the multiplayer guest
+                    // flashes too.
+                    systems::update_timed_modifier::<super::hit_feedback::SpellHitCooldown>
+                        .run_if(any_with_component::<super::hit_feedback::SpellHitCooldown>),
+                    super::hit_feedback::update_hit_flashes
+                        .run_if(any_with_component::<super::hit_feedback::HitFlash>),
+                    super::hit_feedback::update_hit_flash_vfx
+                        .run_if(any_with_component::<super::hit_feedback::HitFlashVfx>),
                 )
                     .run_if(is_spell_effects_active),
             )

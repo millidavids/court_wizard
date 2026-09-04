@@ -114,6 +114,21 @@ pub struct SpellDamaged;
 #[derive(Component)]
 pub struct ResidualFireDamaged;
 
+/// One-frame marker requesting hit feedback (colored flash + throttled sound)
+/// for a unit that just took spell damage. Carries the damage type so the flash
+/// can be tinted with that element's color.
+///
+/// Deliberately separate from [`PendingDamageEffect`], which carries the same
+/// data but has three competing removers (`process_pending_damage_effects`,
+/// `forward_spell_hits_to_host`, and corpse cleanup). Because inserts and
+/// removes are both deferred through `Commands`, a reader ordered against those
+/// consumers would see markers only on some frames — an auto-inserted
+/// `ApplyDeferred` barrier flushes the spell systems' inserts past the reader
+/// and into the consumer. `drive_spell_hit_feedback` is the sole remover of
+/// this marker, so it observes every one exactly once with no ordering edges.
+#[derive(Component)]
+pub struct PendingSpellHit(pub DamageType);
+
 /// Marker component inserted by `apply_spell_damage` to defer persistent effect stacking.
 ///
 /// A central system (`process_pending_damage_effects`) reads these each frame and
@@ -270,12 +285,16 @@ fn apply_spell_damage_inner(
     }
     let modified_damage = damage * (1.0 + health.spell_vulnerability);
     apply_damage_to_unit(health, temp_hp, modified_damage);
-    commands.entity(entity).insert(SpellDamaged);
-    commands.entity(entity).insert(PendingDamageEffect {
-        damage_type,
-        damage: modified_damage,
-        source_team,
-    });
+    commands.entity(entity).insert((
+        SpellDamaged,
+        PendingDamageEffect {
+            damage_type,
+            damage: modified_damage,
+            source_team,
+        },
+        // Drives the colored hit flash + throttled hit sound.
+        PendingSpellHit(damage_type),
+    ));
     // One-frame marker for the multiplayer score screen's per-wizard spell-damage
     // tally. Only `apply_spell_damage` inserts this, so on each peer it captures
     // exactly the local wizard's output. `accumulate_wizard_spell_stats` sums and

@@ -41,6 +41,39 @@ pub enum DamageType {
 }
 
 impl DamageType {
+    /// Every variant, ordered so that `ALL[i].to_u8() == i`.
+    ///
+    /// Indexes the per-element hit-flash material arrays, so the ordering is
+    /// load-bearing — `damage_type_u8_roundtrip_is_exhaustive` asserts it.
+    pub const ALL: [DamageType; 8] = [
+        DamageType::Force,
+        DamageType::Fire,
+        DamageType::Electric,
+        DamageType::Frost,
+        DamageType::Necrotic,
+        DamageType::Nature,
+        DamageType::Poison,
+        DamageType::Poop,
+    ];
+
+    /// Canonical accent color for this element.
+    ///
+    /// Drives both the wizard tower's spell detail panel and the in-world spell
+    /// hit flash, so the color the player learns in the tower is the color they
+    /// see land on a unit.
+    pub const fn element_color(&self) -> Color {
+        match self {
+            DamageType::Force => Color::srgb(0.7, 0.7, 0.9),
+            DamageType::Fire => Color::srgb(1.0, 0.4, 0.2),
+            DamageType::Electric => Color::srgb(0.5, 0.7, 1.0),
+            DamageType::Frost => Color::srgb(0.6, 0.85, 0.95),
+            DamageType::Necrotic => Color::srgb(0.7, 0.3, 0.8),
+            DamageType::Nature => Color::srgb(0.3, 0.85, 0.3),
+            DamageType::Poison => crate::game::units::constants::POISON_EFFECT_COLOR,
+            DamageType::Poop => crate::game::units::constants::EXCREMAGE_BROWN,
+        }
+    }
+
     /// Returns a human-readable display name for this damage type.
     pub const fn display_name(&self) -> &'static str {
         match self {
@@ -124,16 +157,21 @@ mod tests {
     /// the network wire format would otherwise silently misroute.
     #[test]
     fn damage_type_u8_roundtrip_is_exhaustive() {
-        let all = [
-            DamageType::Force,
-            DamageType::Fire,
-            DamageType::Electric,
-            DamageType::Frost,
-            DamageType::Necrotic,
-            DamageType::Nature,
-            DamageType::Poison,
-            DamageType::Poop,
-        ];
+        // Deliberately `DamageType::ALL`, not a local copy: `ALL` indexes the
+        // hit-flash material arrays, so a variant added without extending it
+        // would index out of bounds at runtime rather than fail to compile.
+        let all = DamageType::ALL;
+
+        // `ALL` must stay ordered by `to_u8` — the material lookup is
+        // `materials[dt.to_u8() as usize]`.
+        for (i, v) in all.iter().enumerate() {
+            assert_eq!(
+                v.to_u8() as usize,
+                i,
+                "DamageType::ALL must be ordered by to_u8()"
+            );
+        }
+
         // If a new variant is added to the enum but missing from `all`,
         // this exhaustiveness check ensures the test will fail to compile
         // once `all` is updated — surfacing the need to also update

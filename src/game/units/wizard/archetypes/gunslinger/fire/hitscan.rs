@@ -62,11 +62,12 @@ pub fn check_hitscan_collisions(
                 DamageType::Force,
                 false,
             );
-            commands
-                .entity(hit_entity)
-                .insert(crate::game::units::hit_flash::HitFlash {
-                    timer: constants::BULLET_HIT_FLASH_DURATION,
-                });
+            // No direct HitFlash insert: `apply_spell_damage` above already
+            // banks a `PendingSpellHit`, and routing through it means bullet
+            // hits obey the same per-unit cooldown and per-frame flash cap as
+            // everything else. Inserting here instead would strobe the target
+            // at the machine gun's 0.08s fire interval and let a 30-pellet
+            // shotgun blast spawn 30 uncapped overlays in one frame.
         }
 
         // Always despawn the ray after processing

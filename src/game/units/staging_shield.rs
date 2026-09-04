@@ -81,6 +81,7 @@ pub(super) fn warn_on_staging_spell_effects(
                 Has<crate::game::units::components::BerserkerRageModifier>,
                 Has<crate::game::units::components::FogEvasionModifier>,
                 Has<crate::game::cauldron::components::CauldronSpeedModifier>,
+                Has<crate::game::units::components::PendingSpellHit>,
             ),
         ),
         (With<StagingAttacker>, Without<Corpse>),
@@ -89,7 +90,7 @@ pub(super) fn warn_on_staging_spell_effects(
     for (
         entity,
         (damaged, pending, fire, shocked, airborne, mind, sleep, rooted, poly, banish),
-        (shield, marked, haste, hymn, rage, evasion, brew_speed),
+        (shield, marked, haste, hymn, rage, evasion, brew_speed, pending_hit),
     ) in &stagers
     {
         let leaks = [
@@ -110,6 +111,7 @@ pub(super) fn warn_on_staging_spell_effects(
             (rage, "BerserkerRageModifier"),
             (evasion, "FogEvasionModifier"),
             (brew_speed, "CauldronSpeedModifier"),
+            (pending_hit, "PendingSpellHit"),
         ];
         for (present, name) in leaks {
             if present {

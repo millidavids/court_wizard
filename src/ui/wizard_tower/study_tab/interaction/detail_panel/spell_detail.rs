@@ -111,7 +111,7 @@ pub(crate) fn update_study_detail_panel(
                 TextColor(if has_affinity && !unlocked && !is_free {
                     AFFINITY_COLOR
                 } else {
-                    element_color(spell.damage_type())
+                    spell.damage_type().element_color()
                 }),
             ));
         }

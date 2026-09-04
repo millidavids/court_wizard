@@ -99,9 +99,10 @@ pub fn tick_blinding_mist_debuff(
 #[allow(clippy::type_complexity)]
 pub fn apply_choking_fog_damage(
     time: Res<Time>,
+    mut commands: Commands,
     mut zones: Query<(&FogCloudZone, &mut ChokingFogZone), Without<GhostSpellEffect>>,
     mut targets: Query<
-        (&Transform, &Team, &mut Health),
+        (Entity, &Transform, &Team, &mut Health),
         (
             Without<Corpse>,
             Without<GhostEntity>,
@@ -120,10 +121,17 @@ pub fn apply_choking_fog_damage(
         if choking.tick_accumulator >= choking.tick_interval {
             choking.tick_accumulator -= choking.tick_interval;
             let damage = choking.dps * choking.tick_interval;
-            for (transform, _team, mut health) in &mut targets {
+            for (entity, transform, _team, mut health) in &mut targets {
                 let dist = xz_distance(zone.origin, transform.translation);
                 if dist <= zone.radius {
                     health.current = (health.current - damage).max(0.0);
+                    // Flash only — see the note in Absolute Zero for why this
+                    // is not routed through `apply_spell_damage_with_team`.
+                    commands.entity(entity).try_insert(
+                        crate::game::units::components::PendingSpellHit(
+                            crate::game::units::DamageType::Frost,
+                        ),
+                    );
                 }
             }
         }
