@@ -10,6 +10,7 @@ pub(super) struct BackButton;
 
 /// Marker component for the scrollable content container.
 #[derive(Component)]
+#[require(Pickable = crate::ui::components::NON_BLOCKING)]
 pub(super) struct ScrollableCompendiumContainer;
 
 /// The active compendium tab.
@@ -98,6 +99,7 @@ impl Default for CompendiumState {
 
 /// Marker for the detail panel container.
 #[derive(Component)]
+#[require(Pickable = crate::ui::components::NON_BLOCKING)]
 pub(super) struct DetailPanel;
 
 /// Marker for the spell icon in the detail panel.

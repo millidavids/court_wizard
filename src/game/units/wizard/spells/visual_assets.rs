@@ -3,7 +3,6 @@
 use std::collections::HashMap;
 
 use bevy::material::AlphaMode;
-use bevy::math::primitives::ConicalFrustum;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 use bevy::prelude::*;
 
@@ -356,7 +355,7 @@ pub fn init_spell_visual_assets(
     //
     // Brightness rides on `base_color`, NOT `emissive`: these are `unlit`, and
     // an unlit StandardMaterial short-circuits to `base_color` and never reads
-    // `emissive` (bevy_pbr `pbr.wgsl` — `STANDARD_MATERIAL_FLAGS_UNLIT_BIT`).
+    // `emissive` (bevy_pbr `pbr.wesl` — `STANDARD_MATERIAL_FLAGS_UNLIT_BIT`).
     // Scaling happens in linear space and the result is handed back as
     // `Color::LinearRgba`, so the hue matches `element_color()` exactly and
     // values above 1.0 stay HDR for bloom.

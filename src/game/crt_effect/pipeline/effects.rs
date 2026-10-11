@@ -11,7 +11,7 @@ use super::fullscreen::FullscreenEffect;
 
 impl FullscreenEffect for LensingSettings {
     const LABEL: &'static str = "lensing";
-    const SHADER_PATH: &'static str = "shaders/gravitational_lensing.wgsl";
+    const SHADER_PATH: &'static str = "shaders/gravitational_lensing.wesl";
 
     fn is_active(&self) -> bool {
         self.lensing_count >= 0.5
@@ -20,7 +20,7 @@ impl FullscreenEffect for LensingSettings {
 
 impl FullscreenEffect for TeleportDistortionSettings {
     const LABEL: &'static str = "teleport_distortion";
-    const SHADER_PATH: &'static str = "shaders/teleport_distortion.wgsl";
+    const SHADER_PATH: &'static str = "shaders/teleport_distortion.wesl";
 
     fn is_active(&self) -> bool {
         self.count >= 0.5
@@ -29,7 +29,7 @@ impl FullscreenEffect for TeleportDistortionSettings {
 
 impl FullscreenEffect for HeatDistortionSettings {
     const LABEL: &'static str = "heat_distortion";
-    const SHADER_PATH: &'static str = "shaders/heat_distortion.wgsl";
+    const SHADER_PATH: &'static str = "shaders/heat_distortion.wesl";
 
     fn is_active(&self) -> bool {
         self.count >= 0.5
@@ -41,12 +41,12 @@ impl FullscreenEffect for HeatDistortionSettings {
 /// curvature switched off.
 impl FullscreenEffect for CrtEffectSettings {
     const LABEL: &'static str = "crt_effect";
-    const SHADER_PATH: &'static str = "shaders/crt_effect.wgsl";
+    const SHADER_PATH: &'static str = "shaders/crt_effect.wesl";
 }
 
 impl FullscreenEffect for HighContrastSettings {
     const LABEL: &'static str = "high_contrast";
-    const SHADER_PATH: &'static str = "shaders/high_contrast.wgsl";
+    const SHADER_PATH: &'static str = "shaders/high_contrast.wesl";
 
     fn is_active(&self) -> bool {
         self.enabled >= 0.5
@@ -55,7 +55,7 @@ impl FullscreenEffect for HighContrastSettings {
 
 impl FullscreenEffect for ColorblindCorrectionSettings {
     const LABEL: &'static str = "colorblind_correction";
-    const SHADER_PATH: &'static str = "shaders/colorblind_correction.wgsl";
+    const SHADER_PATH: &'static str = "shaders/colorblind_correction.wesl";
 
     fn is_active(&self) -> bool {
         self.enabled >= 0.5

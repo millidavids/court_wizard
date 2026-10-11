@@ -1,10 +1,10 @@
-#import bevy_pbr::forward_io::VertexOutput
+import bevy_pbr::render::forward_io::VertexOutput;
 
 struct FireParticleUniforms {
     time: f32,
 };
 
-@group(3) @binding(0)
+@group(constants::MATERIAL_BIND_GROUP) @binding(0)
 var<uniform> material: FireParticleUniforms;
 
 // --- Hash-based 2D noise (same as ground_noise.wgsl) ---

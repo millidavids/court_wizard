@@ -17,7 +17,7 @@ use crate::networking::entity_map::NetworkEntityId;
 /// each peer. The previous `health_pct` field is dropped because it was
 /// redundant with the CRDT-derived value.
 ///
-/// **Wire-format note:** bincode 1.x encodes fields positionally with no
+/// **Wire-format note:** postcard encodes fields positionally with no
 /// version tags, so adding/removing/reordering any field is a breaking
 /// change — mixed-version peers silently misread later fields as garbage
 /// rather than failing fast. MP currently requires same-version peers.

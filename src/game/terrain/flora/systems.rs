@@ -19,7 +19,7 @@ use crate::game::units::components::Corpse;
 /// Called once when a wizard's first battle has no saved flora.
 /// Uses seeded RNG when a seed is available for deterministic generation.
 pub(in crate::game) fn generate_flora_positions(config: &mut GameConfig) {
-    let mut rng: Box<dyn RngCore> = match config.seed {
+    let mut rng: Box<dyn Rng> = match config.seed {
         Some(seed) => Box::new(StdRng::seed_from_u64(derive_seed(
             seed,
             config.current_level,

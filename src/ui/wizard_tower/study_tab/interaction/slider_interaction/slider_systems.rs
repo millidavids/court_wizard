@@ -1,13 +1,11 @@
-use bevy::input::mouse::MouseButton;
 use bevy::prelude::*;
-use bevy::ui::RelativeCursorPosition;
 
 use crate::config::save_data::{
     get_all_insight_bonus_progress, get_insight, get_spell_research_progress,
 };
 use crate::game::insight_bonuses::InsightBonusStat;
-use crate::game::units::wizard::components::Spell;
 use crate::ui::main_menu::settings::components::SliderAdjusted;
+use crate::ui::systems::DragTrack;
 
 use super::super::super::super::components::*;
 use super::super::super::super::constants::*;
@@ -16,69 +14,16 @@ use super::super::super::panels::*;
 
 /// Handles click and drag on the detail panel allocation slider.
 pub(crate) fn handle_detail_slider_interaction(
-    buttons: Res<ButtonInput<MouseButton>>,
-    mut slider_handles: Query<(&Interaction, &mut StudyAllocationHandle)>,
-    slider_tracks: Query<(
-        &Interaction,
-        &RelativeCursorPosition,
-        &StudyAllocationSlider,
-    )>,
+    slider_tracks: Query<(Ref<DragTrack>, &StudyAllocationSlider)>,
     mut allocation: ResMut<InsightAllocation>,
     mut slider_adjusted: MessageWriter<SliderAdjusted>,
 ) {
-    if buttons.just_pressed(MouseButton::Left) {
-        for (interaction, cursor_pos, track) in &slider_tracks {
-            if !matches!(*interaction, Interaction::Pressed | Interaction::Hovered) {
-                continue;
-            }
-            if cursor_pos.normalized.is_none() {
-                continue;
-            }
-
-            for (_hi, mut handle) in &mut slider_handles {
-                if handle.spell == track.spell {
-                    handle.is_dragging = true;
-                }
-            }
-        }
-
-        for (interaction, mut handle) in &mut slider_handles {
-            if *interaction == Interaction::Pressed {
-                handle.is_dragging = true;
-            }
-        }
-    }
-
-    if !buttons.pressed(MouseButton::Left) {
-        for (_interaction, mut handle) in &mut slider_handles {
-            handle.is_dragging = false;
-        }
-        return;
-    }
-
-    let mut dragging_spell: Option<Spell> = None;
-    for (_interaction, handle) in &slider_handles {
-        if handle.is_dragging {
-            dragging_spell = Some(handle.spell);
-            break;
-        }
-    }
-
-    let Some(spell) = dragging_spell else {
-        return;
-    };
-
-    let insight_balance = get_insight();
-
-    for (_interaction, cursor_pos, track) in &slider_tracks {
-        if track.spell != spell {
-            continue;
-        }
-
-        let Some(pos) = cursor_pos.normalized else {
+    for (drag, track) in &slider_tracks {
+        // Cursor position maps to fraction of total cost bar
+        let Some(cursor_frac) = DragTrack::moved(&drag) else {
             continue;
         };
-
+        let spell = track.spell;
         let cost = spell.research_cost();
         let progress = get_spell_research_progress(spell);
         let remaining = cost.saturating_sub(progress);
@@ -87,8 +32,6 @@ pub(crate) fn handle_detail_slider_interaction(
             continue;
         }
 
-        // Cursor position maps to fraction of total cost bar
-        let cursor_frac = (pos.x + 0.5).clamp(0.0, 1.0);
         // Floor: committed progress fraction (can't go below this)
         let progress_frac = if cost > 0 {
             progress as f32 / cost as f32
@@ -102,7 +45,7 @@ pub(crate) fn handle_detail_slider_interaction(
         // Sum everything else allocated (spell slots AND bonus-stat slots), so a
         // drag can't exceed the true insight balance. Mirrors the +/- buttons.
         let others: u32 = allocation.total_allocated() - allocation.get(&spell);
-        let max_for_spell = insight_balance.saturating_sub(others).min(remaining);
+        let max_for_spell = get_insight().saturating_sub(others).min(remaining);
         let clamped = desired.min(max_for_spell);
 
         let old = allocation.get(&spell);
@@ -197,71 +140,24 @@ pub(crate) fn update_pending_insight_display(
 /// Handles click and drag on insight bonus allocation sliders.
 /// Mirrors `handle_detail_slider_interaction` for spell sliders.
 pub(crate) fn handle_insight_bonus_slider_interaction(
-    buttons: Res<ButtonInput<MouseButton>>,
-    mut slider_handles: Query<(&Interaction, &mut InsightBonusSliderHandle)>,
-    slider_tracks: Query<(&Interaction, &RelativeCursorPosition, &InsightBonusSlider)>,
+    slider_tracks: Query<(Ref<DragTrack>, &InsightBonusSlider)>,
     mut allocation: ResMut<InsightAllocation>,
     mut slider_adjusted: MessageWriter<SliderAdjusted>,
 ) {
-    if buttons.just_pressed(MouseButton::Left) {
-        for (interaction, cursor_pos, track) in &slider_tracks {
-            if !matches!(*interaction, Interaction::Pressed | Interaction::Hovered) {
-                continue;
-            }
-            if cursor_pos.normalized.is_none() {
-                continue;
-            }
-            for (_hi, mut handle) in &mut slider_handles {
-                if handle.stat == track.stat {
-                    handle.is_dragging = true;
-                }
-            }
-        }
-        for (interaction, mut handle) in &mut slider_handles {
-            if *interaction == Interaction::Pressed {
-                handle.is_dragging = true;
-            }
-        }
-    }
-
-    if !buttons.pressed(MouseButton::Left) {
-        for (_interaction, mut handle) in &mut slider_handles {
-            handle.is_dragging = false;
-        }
-        return;
-    }
-
-    let mut dragging_stat: Option<InsightBonusStat> = None;
-    for (_interaction, handle) in &slider_handles {
-        if handle.is_dragging {
-            dragging_stat = Some(handle.stat);
-            break;
-        }
-    }
-
-    let Some(stat) = dragging_stat else {
-        return;
-    };
-
-    let insight_balance = get_insight();
     let total_cost = InsightBonusStat::total_cost();
-    let committed = stat.current_progress();
-    let remaining = InsightBonusStat::remaining_capacity(committed);
 
-    if remaining == 0 {
-        return;
-    }
-
-    for (_interaction, cursor_pos, track) in &slider_tracks {
-        if track.stat != stat {
-            continue;
-        }
-
-        let Some(pos) = cursor_pos.normalized else {
+    for (drag, track) in &slider_tracks {
+        let Some(cursor_frac) = DragTrack::moved(&drag) else {
             continue;
         };
+        let stat = track.stat;
+        let committed = stat.current_progress();
+        let remaining = InsightBonusStat::remaining_capacity(committed);
 
-        let cursor_frac = (pos.x + 0.5).clamp(0.0, 1.0);
+        if remaining == 0 {
+            continue;
+        }
+
         let progress_frac = committed as f32 / total_cost as f32;
         let alloc_frac = (cursor_frac - progress_frac).max(0.0);
         let desired = (alloc_frac * total_cost as f32).round() as u32;
@@ -273,7 +169,7 @@ pub(crate) fn handle_insight_bonus_slider_interaction(
                 .filter(|(s, _)| **s != stat)
                 .map(|(_, v)| *v)
                 .sum::<u32>();
-        let max_for_stat = insight_balance.saturating_sub(others).min(remaining);
+        let max_for_stat = get_insight().saturating_sub(others).min(remaining);
         let clamped = desired.min(max_for_stat);
 
         let old = allocation.get_bonus(&stat);

@@ -3,13 +3,15 @@
 //! succeeded or died. The byte pump lives in `socket_bridge.rs`.
 
 use bevy::prelude::*;
-use bevy_steamworks::networking_sockets::{ListenSocket, NetConnection};
-use bevy_steamworks::networking_types::{
+use std::sync::Mutex;
+use steamworks::SteamId;
+use steamworks::networking_sockets::{ListenSocket, NetConnection};
+use steamworks::networking_types::{
     AppNetConnectionEnd, ListenSocketEvent, NetConnectionEnd, NetworkingConnectionState,
     NetworkingIdentity,
 };
-use bevy_steamworks::{Client, SteamId};
-use std::sync::Mutex;
+
+use crate::steam::Client;
 
 use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection, PeerRole};
 

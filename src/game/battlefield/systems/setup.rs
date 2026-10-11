@@ -1,6 +1,6 @@
 use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::prelude::*;
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 use crate::game::battlefield::components::{
     Battlefield, BattlefieldAssets, Castle, LavaPool, LeftWall, RightWall, WallFloor,

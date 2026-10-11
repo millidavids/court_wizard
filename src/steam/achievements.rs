@@ -1,7 +1,7 @@
 use bevy::prelude::*;
-use bevy_steamworks::Client;
 
 use crate::game::messages::AchievementUnlockedMessage;
+use crate::steam::Client;
 
 use super::constants::steam_api_name;
 

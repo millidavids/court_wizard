@@ -1,7 +1,7 @@
 //! Weather visuals: overlays and particle systems.
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::components::*;
 use super::constants::*;

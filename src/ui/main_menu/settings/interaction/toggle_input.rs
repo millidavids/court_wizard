@@ -4,6 +4,7 @@ use crate::config::GameConfig;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
+use crate::ui::components::UiButton;
 
 use super::super::builders::spawn_confirmation_popup;
 use super::super::components::{
@@ -172,11 +173,11 @@ pub fn update_selected_options(
             &mut ButtonColors,
             Option<&Children>,
         ),
-        With<Button>,
+        With<UiButton>,
     >,
     mut front_query: Query<
         (&mut BackgroundColor, &mut BorderColor),
-        (With<crate::ui::components::ButtonFront>, Without<Button>),
+        (With<crate::ui::components::ButtonFront>, Without<UiButton>),
     >,
 ) {
     if game_config.is_changed() {

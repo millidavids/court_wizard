@@ -33,7 +33,7 @@ pub fn update_explosions(
         Has<crate::game::multiplayer::components::GhostSpellEffect>,
     )>,
 ) {
-    use rand::Rng;
+    use rand::RngExt;
     let time_secs = time.elapsed_secs();
     let rng = &mut game_rng.0;
 

@@ -1,5 +1,7 @@
 use bevy::input::keyboard::KeyCode;
+use bevy::picking::hover::DirectlyHovered;
 use bevy::prelude::*;
+use bevy::ui::Pressed;
 
 use super::super::components::*;
 use crate::config::GameConfig;
@@ -7,6 +9,7 @@ use crate::game::input::action_state::{GamepadAction, GamepadActionState};
 use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::state::{InGameState, MultiplayerGameState};
+use crate::ui::components::UiButton;
 
 /// Blocks spell input when the mouse is interacting with a UI button so
 /// clicking a HUD button doesn't simultaneously fire a spell. With a
@@ -15,17 +18,17 @@ use crate::state::{InGameState, MultiplayerGameState};
 /// prevents those incidental hovers from silently killing RT casts.
 pub(crate) fn block_spell_input_on_button_interaction(
     active: Res<ActiveInputDevice>,
-    button_query: Query<&Interaction, With<Button>>,
+    button_query: Query<(&DirectlyHovered, Has<Pressed>), With<UiButton>>,
     mut block_spell_input: MessageWriter<BlockSpellInput>,
 ) {
     if active.is_gamepad() {
         return;
     }
-    for interaction in &button_query {
-        if matches!(*interaction, Interaction::Pressed | Interaction::Hovered) {
-            block_spell_input.write(BlockSpellInput);
-            return;
-        }
+    if button_query
+        .iter()
+        .any(|(hovered, pressed)| hovered.get() || pressed)
+    {
+        block_spell_input.write(BlockSpellInput);
     }
 }
 

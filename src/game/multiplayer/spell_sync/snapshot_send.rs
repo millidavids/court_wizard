@@ -116,7 +116,7 @@ pub fn send_spell_visual_snapshot(
         cast_events: std::mem::take(&mut pending_cast_events.events),
     };
 
-    if let Ok(data) = bincode::serialize(&snapshot) {
+    if let Ok(data) = crate::networking::wire::encode(&snapshot) {
         let mut prefixed = Vec::with_capacity(1 + data.len());
         prefixed.push(UNRELIABLE_SPELL_SNAPSHOT);
         prefixed.extend_from_slice(&data);
@@ -167,7 +167,7 @@ pub fn receive_spell_visual_snapshot(
     // `cast_events` list — leaving everything else (effects, projectiles,
     // arcs, missiles, beams) intact for per-frame re-rendering.
     if let Some(spell_bytes) = latest_spell_data {
-        match bincode::deserialize::<SpellVisualSnapshot>(spell_bytes) {
+        match crate::networking::wire::decode::<SpellVisualSnapshot>(spell_bytes) {
             Ok(snapshot) => {
                 latest.0 = Some(snapshot);
             }

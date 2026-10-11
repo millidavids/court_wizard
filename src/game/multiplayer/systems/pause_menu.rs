@@ -168,7 +168,7 @@ pub(crate) fn handle_mp_pause_buttons(
     mut next_app_state: ResMut<NextState<AppState>>,
     transport: Option<Res<crate::networking::transport::TransportHandle>>,
     mut commands: Commands,
-    steam_client: Option<Res<bevy_steamworks::Client>>,
+    steam_client: Option<Res<crate::steam::Client>>,
     mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
     mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
     mut lobby: ResMut<crate::ui::wizard_tower::MultiplayerLobby>,

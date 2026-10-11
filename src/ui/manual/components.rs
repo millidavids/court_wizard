@@ -12,6 +12,7 @@ pub(super) struct BackButton;
 
 /// Marker component for the scrollable content area.
 #[derive(Component)]
+#[require(Pickable = crate::ui::components::NON_BLOCKING)]
 pub(super) struct ScrollableManualContainer;
 
 /// Marker component for the content panel whose children are rebuilt on tab switch.

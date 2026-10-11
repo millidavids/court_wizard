@@ -5,7 +5,7 @@
 //! crystal so re-infusing or destroying it clears the field.
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 use super::super::constants::*;
 use super::driver::{InfusedCrystals, begin_infusion_tick};

@@ -2,14 +2,14 @@
 
 ## Project Overview
 
-Court Wizard is a real-time strategy game built with Rust and the Bevy game engine (v0.18.1). The game targets native desktop platforms (Windows, Linux, macOS).
+Court Wizard is a real-time strategy game built with Rust and the Bevy game engine (v0.20). The game targets native desktop platforms (Windows, Linux, macOS).
 
 ## Technology Stack
 
 - **Language**: Rust (edition 2024)
-- **Game Engine**: Bevy 0.18.1
+- **Game Engine**: Bevy 0.20
 - **Target Platforms**: Native (Windows, Linux, macOS)
-- **Key Dependencies**: serde, toml, thiserror, anyhow, rand, dirs
+- **Key Dependencies**: serde, toml, postcard (network wire format), thiserror, rand, dirs, iroh, steamworks
 
 ## Project Structure
 
@@ -166,6 +166,14 @@ Systems are grouped into sets with explicit ordering:
 - Defeat: King dies (immediate) OR all defenders dead
 - Persistent spell effects delay victory/defeat (except king death)
 
+### UI Input
+- Buttons spawn `UiButton` (`src/ui/components.rs`), never Bevy's `Button`/`Interaction` (deprecated). Clicks arrive as `MouseClicked` (forwarded from `Activate`); hover/press visuals read `PointerState` + `PointerVisualChanges` (`src/ui/button_systems/pointer_visual.rs`).
+- UI picking is opt-in (`require_markers`): anything that must be hovered, clicked, wheel-scrolled or block what's behind it needs `Pickable`. Sliders use `DragTrack`.
+- The mouse pointer is fed from the CRT barrel-corrected cursor (`crt_effect::drive_mouse_pointer`); world aiming reads `CorrectedCursorPosition`. Never read `window.cursor_position()`.
+
+### Shaders
+- Shaders are WESL (`assets/shaders/*.wesl`) with `import crate::module::item;` lines first. Material bindings use `@group(constants::MATERIAL_BIND_GROUP)`; UI materials use `@group(1)`.
+
 ## Build Instructions
 
 ### Iterative compile checks (USE THIS during work)
@@ -247,9 +255,9 @@ cargo fmt --check
 - Use `pub(super)` for module-internal constants.
 
 ### Messages
-- Use Bevy 0.17 **Messages** (`#[derive(Message)]`) for broadcast inter-system communication. Name message structs with a `Message` suffix (e.g., `StartBrewMessage`), never `Event`.
+- Use Bevy **Messages** (`#[derive(Message)]`) for broadcast inter-system communication. Name message structs with a `Message` suffix (e.g., `StartBrewMessage`), never `Event`.
 - A single `messages.rs` per module is fine when messages span features. If only one feature file owns a message, put the message in that file.
-- **Never use `events.rs`.** **Bevy Events** (`#[derive(Event)]`) are a separate, newer mechanism for reactive observer/trigger callbacks (entity-targeted via `world.trigger()` / `On<E>`). We don't currently use them; if we do, they go in a separate `events.rs` file and use the `Event` suffix.
+- **Never use `events.rs`.** **Bevy Events** (`#[derive(Event)]`) are a separate mechanism for reactive observer/trigger callbacks (entity-targeted via `world.trigger()` / `On<E>`). We only observe Bevy's own (picking `PointerPress`, widget `Activate`, …); if we define our own, they go in a separate `events.rs` file and use the `Event` suffix.
 
 ### Code Simplification
 - Always `/simplify` before updating the changelog and before releasing to optimize the codebase from a duplication standpoint.
@@ -259,6 +267,7 @@ cargo fmt --check
 - Add new fields with `#[serde(default)]` so older saves without them still deserialize.
 - Never rename or remove an existing field without a read-fallback path (keep the old field with `#[serde(default, skip_serializing_if = ...)]` and migrate its contents on load).
 - When the on-disk format needs to change shape meaningfully, introduce a new field name and support both on read, writing only the new one. Don't rely on wiping player saves.
+- Saves must stay readable by older (toml 0.8) builds after a rollback: keep stored integers within `i64` (generate seeds with `seeded_rng::random_seed()`). `src/config/save_data/save_format_compat.rs` pins this.
 
 ### Error Handling
 - Use `Result<T, E>` for fallible operations

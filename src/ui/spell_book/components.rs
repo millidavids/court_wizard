@@ -17,6 +17,7 @@ pub(super) struct OnSpellBookScreen;
 
 /// Marker for the vertically scrollable spell list container.
 #[derive(Component)]
+#[require(Pickable = crate::ui::components::NON_BLOCKING)]
 pub struct ScrollableSpellList;
 
 /// Tracks which spell is currently shown in the detail panel.

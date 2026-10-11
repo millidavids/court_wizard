@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use crate::config::GameConfig;
+use crate::ui::components::UiButton;
 
 use super::super::components::{ButtonColors, OptionButtonValue, SettingsButtonAction};
 use super::super::constants::{
@@ -132,7 +133,7 @@ pub(super) fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &Ga
                 spawn_dot_leader(row);
 
                 row.spawn((
-                    Button,
+                    UiButton,
                     Node {
                         width: Val::Px(OPTION_BUTTON_WIDTH),
                         height: Val::Px(OPTION_BUTTON_HEIGHT),
@@ -181,7 +182,7 @@ pub(super) fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &Ga
                 spawn_dot_leader(row);
 
                 row.spawn((
-                    Button,
+                    UiButton,
                     Node {
                         width: Val::Px(OPTION_BUTTON_WIDTH),
                         height: Val::Px(OPTION_BUTTON_HEIGHT),

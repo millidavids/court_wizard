@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.42] - 2026-10-11
+
+### Description
+Court Wizard now runs on the newest version of its engine, with everything under the hood brought up to date. Menu buttons now click when you let go, and multiplayer needs both players on this version.
+
+### Changed
+- **The game has moved to a newer version of its engine**, along with everything else it is built on. It should look and play exactly as before. If something looks off — the CRT curve, menu panels, spell effects — please report it, because it wasn't intended.
+- **Buttons click when you let go** — a menu button now only clicks if you press and release over it, so sliding off a button you've pressed cancels the click. Only the left mouse button presses menu buttons.
+- **Multiplayer join codes are shorter**, and both players need this version to play together. A code from a different version now tells you to update instead of failing with a confusing error.
+- **Scrolling near the curved screen edges** with the CRT effect on now scrolls the list you can see under the cursor.
+- **A save the game can't read is set aside** instead of being replaced, so your progress can still be recovered.
+
+### Fixed
+- **Co-op roguelite runs no longer stop your progress saving** — a co-op roguelite run could pick a map seed too large to store, after which the game quietly failed to save. Seeds now stay in the same range as single-player runs.
+
 ## [v1.0.41] - 2026-09-04
 
 ### Description

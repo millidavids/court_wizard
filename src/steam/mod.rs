@@ -1,4 +1,5 @@
 mod achievements;
+mod client;
 mod cloud_save;
 mod constants;
 mod init;
@@ -9,4 +10,5 @@ mod overlay_pause;
 mod plugin;
 mod stats;
 
+pub(crate) use client::{Client, SteamCallbackMessage};
 pub(crate) use plugin::SteamPlugin;

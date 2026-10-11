@@ -5,6 +5,7 @@ use crate::config::save_data::{
 };
 use crate::game::resources::BattleInsightData;
 use crate::game::units::wizard::components::Spell;
+use crate::ui::components::UiButton;
 use crate::ui::systems::spawn_button;
 
 use super::super::super::super::components::*;
@@ -394,7 +395,7 @@ pub(crate) fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spe
                                         border_radius: BorderRadius::all(Val::Px(4.0)),
                                         ..default()
                                     },
-                                    Button,
+                                    UiButton,
                                     BackgroundColor(bg_color),
                                     BorderColor::all(border_color),
                                     crate::ui::components::ButtonColors {

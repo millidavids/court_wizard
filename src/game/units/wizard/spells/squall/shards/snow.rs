@@ -1,7 +1,7 @@
 //! Snow particle spawning and animation.
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::components::{SnowParticle, SquallStorm};
 use super::super::constants::*;

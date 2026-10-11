@@ -2,7 +2,9 @@
 //! `PendingSteamJoin` resource the main-menu consumer drains.
 
 use bevy::prelude::*;
-use bevy_steamworks::{Client, LobbyId};
+use steamworks::LobbyId;
+
+use crate::steam::Client;
 
 use crate::networking::resources::{ConnectionState, NetworkConnection};
 use crate::state::AppState;

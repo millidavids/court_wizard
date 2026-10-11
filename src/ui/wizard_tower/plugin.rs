@@ -243,7 +243,6 @@ impl Plugin for WizardTowerPlugin {
                     ),
                     super::study_tab::update_pending_insight_display,
                     super::study_tab::update_talent_hover_description,
-                    super::study_tab::clear_talent_hover_description,
                 )
                     .run_if(in_state(MetaGameState::WizardTower))
                     .run_if(study_tab_active)

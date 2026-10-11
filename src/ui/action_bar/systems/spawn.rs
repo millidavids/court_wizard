@@ -8,7 +8,7 @@ use crate::config::{GameConfig, WizardType};
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::units::wizard::archetypes::gunslinger::GunType;
-use crate::ui::components::{ButtonColors, GunIconAssets, SpellIconAssets};
+use crate::ui::components::{ButtonColors, GunIconAssets, SpellIconAssets, UiButton};
 use crate::ui::systems::scale_font_by_text_width;
 
 #[cfg(debug_assertions)]
@@ -160,7 +160,7 @@ pub(crate) fn spawn_action_bar(
                     };
                     parent
                         .spawn((
-                            Button,
+                            UiButton,
                             Node {
                                 position_type: PositionType::Absolute,
                                 left: Val::Px(init_pos.x),
@@ -243,7 +243,7 @@ pub(crate) fn spawn_action_bar(
                         + (SLOT_BUTTON_STYLE.height - DEBUG_BUTTON_SIZE) / 2.0;
                     parent
                         .spawn((
-                            Button,
+                            UiButton,
                             Node {
                                 position_type: PositionType::Absolute,
                                 left: Val::Px(inf_left),

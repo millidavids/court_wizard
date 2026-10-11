@@ -1,4 +1,4 @@
-#import bevy_ui::ui_vertex_output::UiVertexOutput
+import bevy_ui_render::ui_vertex_output::UiVertexOutput;
 
 struct ParchmentData {
     base_color: vec4<f32>,
@@ -92,8 +92,10 @@ fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
     let vignette = 1.0 - smoothstep(0.3, 0.7, dist) * material.vignette_strength;
     col *= vignette;
 
-    // Clip to rounded corners.
-    let alpha = rounded_rect_alpha(uv, in.size, in.border_radius);
+    // Clip to rounded corners. Radii are per-axis since corners can be
+    // elliptical; every node using this material has circular corners.
+    let radii = min(in.border_radius_x, in.border_radius_y);
+    let alpha = rounded_rect_alpha(uv, in.size, radii);
 
     return vec4<f32>(col, base.a * alpha);
 }

@@ -1,5 +1,7 @@
 mod migration;
 mod save_cache;
+#[cfg(test)]
+mod save_format_compat;
 mod save_key_compat;
 mod save_structs;
 mod talent_migrations;

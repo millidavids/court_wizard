@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::super::components::{ButtonActive, ButtonColors, ButtonEdge, ButtonFront};
+use super::super::components::{ButtonActive, ButtonColors, ButtonEdge, ButtonFront, UiButton};
 use super::super::constants::BUTTON_REST_OUTLINE;
 
 /// Scales a font size down based on text width to fit within a constrained area.
@@ -31,7 +31,7 @@ pub(crate) fn opaque(color: Color) -> Color {
 pub fn sync_front_face_colors(
     changed_buttons: Query<
         (&ButtonColors, &Children),
-        (Changed<ButtonColors>, With<Button>, Without<ButtonActive>),
+        (Changed<ButtonColors>, With<UiButton>, Without<ButtonActive>),
     >,
     mut front_query: Query<
         (&mut BackgroundColor, &mut BorderColor),

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::components::Aerialist;
 use super::super::constants::{AERIALIST_FLY_HEIGHT, AERIALIST_MIN_SPEED, AERIALIST_TURN_RATE};

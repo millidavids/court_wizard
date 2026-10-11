@@ -31,7 +31,7 @@ pub struct WindSwayMaterial {
 
 impl Material for WindSwayMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/wind_sway.wgsl".into()
+        "shaders/wind_sway.wesl".into()
     }
 
     fn alpha_mode(&self) -> AlphaMode {

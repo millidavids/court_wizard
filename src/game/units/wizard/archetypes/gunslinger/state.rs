@@ -1,6 +1,7 @@
 //! Gun state management and aim helpers.
 
 use bevy::prelude::*;
+use rand::RngExt;
 
 use super::messages::{ReloadMessage, SelectGunMessage};
 use super::resources::{FlamethrowerSfx, GunState};

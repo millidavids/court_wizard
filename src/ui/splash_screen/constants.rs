@@ -4,7 +4,7 @@ use bevy::prelude::*;
 pub(super) const HOLD_DURATION: f32 = 4.0;
 
 /// Asset path for the CRT effect shader (waited on during Black substate).
-pub(super) const SHADER_ASSET_PATH: &str = "shaders/crt_effect.wgsl";
+pub(super) const SHADER_ASSET_PATH: &str = "shaders/crt_effect.wesl";
 
 /// Asset path for the studio logo image.
 pub(super) const STUDIO_IMAGE_PATH: &str = "images/logos/blackhearth_logo.png";

@@ -136,7 +136,7 @@ fn transport_bridge_system(
     let mut sent_reliable = false;
     let mut sent_unreliable = false;
     for msg in connection.outgoing_messages.drain(..) {
-        match bincode::serialize(&msg) {
+        match crate::networking::wire::encode(&msg) {
             Ok(data) => {
                 let _ = handle.reliable_tx.send(data);
                 sent_reliable = true;
@@ -187,7 +187,7 @@ fn transport_bridge_system(
                 connection.local_code = Some(code);
             }
             TransportEvent::ReliableMessage(data) => {
-                match bincode::deserialize::<NetworkMessage>(&data) {
+                match crate::networking::wire::decode::<NetworkMessage>(&data) {
                     Ok(msg) => {
                         connection.incoming_messages.push(msg);
                     }

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::ui::components::UiButton;
 use crate::ui::constants::efficiency_color;
 
 use super::super::components::*;
@@ -147,7 +148,7 @@ pub(super) fn spawn_roguelite_run_detail(
     };
     parent
         .spawn((
-            Button,
+            UiButton,
             Node {
                 padding: UiRect::new(Val::Px(12.0), Val::Px(12.0), Val::Px(6.0), Val::Px(6.0)),
                 border: UiRect::all(Val::Px(1.0)),
@@ -214,7 +215,7 @@ pub(super) fn spawn_roguelite_run_detail(
                         TextColor(TEXT_COLOR),
                     ));
                     row.spawn((
-                        Button,
+                        UiButton,
                         Node {
                             padding: UiRect::new(
                                 Val::Px(6.0),

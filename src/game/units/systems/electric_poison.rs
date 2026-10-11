@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::components::{
     Airborne, Corpse, Effectiveness, FALL_DAMAGE_SCALE, Health, PendingDamageEffect,

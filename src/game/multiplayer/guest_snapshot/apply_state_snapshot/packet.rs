@@ -36,7 +36,7 @@ pub(super) fn filter_latest_game_snapshot(connection: &mut NetworkConnection) ->
 /// Deserializes raw bytes into a [`GameSnapshot`], logging a warning and
 /// returning `None` on failure.
 pub(super) fn parse_game_snapshot(game_bytes: &[u8]) -> Option<GameSnapshot> {
-    match bincode::deserialize::<GameSnapshot>(game_bytes) {
+    match crate::networking::wire::decode::<GameSnapshot>(game_bytes) {
         Ok(snapshot) => Some(snapshot),
         Err(_) => {
             bevy::log::warn!(

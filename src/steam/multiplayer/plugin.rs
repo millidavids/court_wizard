@@ -3,7 +3,8 @@
 //! resource is guaranteed present when this plugin builds.
 
 use bevy::prelude::*;
-use bevy_steamworks::SteamworksEvent;
+
+use crate::steam::SteamCallbackMessage;
 
 use super::exit_cleanup::leave_steam_lobby_on_exit;
 use super::invite_accept::{
@@ -57,8 +58,9 @@ impl Plugin for SteamMultiplayerPlugin {
                     // Only poll the Steam callback bus when there's actually a
                     // callback waiting — these would otherwise drain an empty
                     // reader every frame in every state.
-                    process_game_lobby_join_requested.run_if(on_message::<SteamworksEvent>),
-                    process_game_rich_presence_join_requested.run_if(on_message::<SteamworksEvent>),
+                    process_game_lobby_join_requested.run_if(on_message::<SteamCallbackMessage>),
+                    process_game_rich_presence_join_requested
+                        .run_if(on_message::<SteamCallbackMessage>),
                     route_pending_steam_join.run_if(resource_exists::<PendingSteamJoin>),
                     drive_steam_listen_socket.run_if(steam_listen_socket_open),
                     poll_steam_guest_connection_state.run_if(steam_guest_dialling),

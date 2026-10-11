@@ -21,7 +21,7 @@ pub(super) struct RadialProgressData {
 
 impl UiMaterial for RadialProgressMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/radial_progress.wgsl".into()
+        "shaders/radial_progress.wesl".into()
     }
 }
 
@@ -48,7 +48,7 @@ pub(super) struct ConcentricRingsData {
 
 impl UiMaterial for ConcentricRingsMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/concentric_rings.wgsl".into()
+        "shaders/concentric_rings.wesl".into()
     }
 }
 
@@ -71,7 +71,7 @@ pub(super) struct ArcaneRuneData {
 
 impl UiMaterial for ArcaneRuneMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/arcane_rune.wgsl".into()
+        "shaders/arcane_rune.wesl".into()
     }
 }
 
@@ -92,6 +92,6 @@ pub(super) struct StarSkyData {
 
 impl UiMaterial for StarSkyMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/star_sky.wgsl".into()
+        "shaders/star_sky.wesl".into()
     }
 }

@@ -16,7 +16,7 @@ use crate::networking::snapshot::{
 /// Serializes unit state and sends it over the unreliable channel.
 ///
 /// Runs every frame (~60Hz). Queries all entities with a `NetworkEntityId` and
-/// builds a compact `GameSnapshot` serialized with `bincode`, prefixed with
+/// builds a compact `GameSnapshot` serialized with `postcard`, prefixed with
 /// a type byte so the guest can distinguish it from spell visual snapshots.
 #[allow(clippy::type_complexity)]
 pub fn send_state_snapshots(
@@ -148,7 +148,7 @@ pub fn send_state_snapshots(
         });
     }
 
-    if let Ok(data) = bincode::serialize(&snapshot) {
+    if let Ok(data) = crate::networking::wire::encode(&snapshot) {
         let mut prefixed = Vec::with_capacity(1 + data.len());
         prefixed.push(crate::networking::snapshot::UNRELIABLE_GAME_SNAPSHOT);
         prefixed.extend_from_slice(&data);

@@ -10,7 +10,9 @@
 //! internals encapsulated.
 
 use bevy::prelude::*;
-use bevy_steamworks::{Client, LobbyId};
+use steamworks::LobbyId;
+
+use crate::steam::Client;
 
 use crate::networking::protocol::PROTOCOL_VERSION;
 use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection};

@@ -15,6 +15,7 @@ use super::super::constants::{
 };
 use super::super::controller_diagrams::spawn_controller_diagram_section;
 use super::setup::{spawn_dot_leader, spawn_option_button, spawn_option_row, spawn_slider_control};
+use crate::ui::components::UiButton;
 use crate::ui::gamepad_glyphs::GamepadGlyphFonts;
 
 /// Spawns Graphics tab content: VSync, Display Mode, Resolution, Brightness.
@@ -339,7 +340,7 @@ pub(super) fn spawn_controller_tab(
                 ));
                 spawn_dot_leader(row);
                 row.spawn((
-                    Button,
+                    UiButton,
                     Node {
                         width: Val::Px(OPTION_BUTTON_WIDTH),
                         height: Val::Px(OPTION_BUTTON_HEIGHT),

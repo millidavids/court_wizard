@@ -127,7 +127,7 @@ pub struct SpellProjectileSnapshot {
     /// empowerment scale this from the caster's `PrimedSpell` /
     /// `Fireball::radius`, neither of which is otherwise networked).
     ///
-    /// **Wire-format note:** `bincode` is positional and field-tagless, so
+    /// **Wire-format note:** `postcard` is positional and field-tagless, so
     /// adding/removing/reordering any field of this struct is a breaking
     /// change. MP requires same-version peers; consider promoting the
     /// protocol to a versioned/tagged encoding if cross-version sessions

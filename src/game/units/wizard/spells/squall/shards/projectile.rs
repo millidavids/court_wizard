@@ -1,7 +1,7 @@
 //! Ice projectile spawning, physics, collision, and frozen-ground patch helper.
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::components::{FrozenGround, IceExplosion, IceProjectile, SquallStorm};
 use super::super::constants::*;

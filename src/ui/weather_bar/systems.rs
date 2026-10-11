@@ -16,6 +16,8 @@ use crate::game::units::wizard::archetypes::meteorologist::messages::WeatherChan
 use crate::game::units::wizard::archetypes::meteorologist::resources::{WeatherState, WeatherType};
 use crate::game::units::wizard::archetypes::meteorologist::systems::try_switch_weather;
 use crate::game::units::wizard::components::{LocalWizard, Mana};
+use crate::ui::button_systems::{PointerState, PointerVisual};
+use crate::ui::components::UiButton;
 use crate::ui::gamepad_glyphs::{ButtonPrompt, ButtonPromptImage, PromptKey};
 use crate::ui::systems::scale_font_by_text_width;
 
@@ -129,8 +131,7 @@ fn spawn_weather_button(
                 border: INACTIVE_BORDER,
             },
             WeatherButton { weather },
-            Button,
-            Interaction::default(),
+            UiButton,
         ))
         .with_children(|btn| {
             // Key/glyph hint (top): bound keyboard key, or the controller glyph —
@@ -225,7 +226,7 @@ pub(super) fn update_weather_buttons(
         &WeatherButton,
         &mut BorderColor,
         &mut BackgroundColor,
-        &Interaction,
+        PointerState,
     )>,
     mut fills: Query<(&WeatherIntensityFill, &mut Node)>,
     mut status_text: Query<&mut Text, With<WeatherStatusText>>,
@@ -235,7 +236,7 @@ pub(super) fn update_weather_buttons(
     let intensity = weather.local.intensity;
 
     // Update button borders and backgrounds
-    for (btn, mut border, mut bg, interaction) in buttons.iter_mut() {
+    for (btn, mut border, mut bg, state) in buttons.iter_mut() {
         if active == Some(btn.weather) {
             *border = BorderColor::all(ACTIVE_BORDER);
             let color = weather_color(&btn.weather);
@@ -245,7 +246,7 @@ pub(super) fn update_weather_buttons(
                 color.to_srgba().blue * 0.3,
                 0.6,
             ));
-        } else if *interaction == Interaction::Hovered {
+        } else if PointerVisual::of(state) == PointerVisual::Hover {
             *border = BorderColor::all(HOVERED_BORDER);
             *bg = BackgroundColor(Color::srgba(0.15, 0.15, 0.15, 0.7));
         } else {

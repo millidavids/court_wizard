@@ -1,7 +1,7 @@
 //! Magic missile movement, collision, and detonation.
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::super::components::Spell;
 use super::components::*;

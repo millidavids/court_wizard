@@ -1,7 +1,7 @@
 use bevy::prelude::*;
-use bevy_steamworks::Client;
 
 use crate::state::{AppState, InGameState};
+use crate::steam::Client;
 use crate::ui::accumulate_mode_level_stats;
 
 use super::resources::LeaderboardHandles;

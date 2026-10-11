@@ -7,6 +7,9 @@ use bevy::ui::ComputedNode;
 ///
 /// Walks up the entity hierarchy from the hovered entity to find a scrollable
 /// parent, then adjusts its `ScrollPosition` based on the mouse wheel delta.
+///
+/// Picking is opt-in, so `T` must `#[require(Pickable = NON_BLOCKING)]` or the
+/// wheel only works while hovering a button inside the container.
 pub fn handle_scroll<T: Component>(
     mut mouse_wheel_events: MessageReader<MouseWheel>,
     hover_map: Res<bevy::picking::hover::HoverMap>,

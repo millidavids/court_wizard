@@ -182,9 +182,11 @@ pub fn spawn_page_container<M: Component>(
             ..default()
         },
         BackgroundColor(OVERLAY_BG),
-        // Make the overlay block all interactions behind it.
-        Interaction::default(),
-        bevy::ui::FocusPolicy::Block,
+        // Block all pointer interaction behind the overlay.
+        Pickable {
+            should_block_lower: true,
+            is_hoverable: false,
+        },
         FrostedGlassOverlay,
         screen_marker,
     ));

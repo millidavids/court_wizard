@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::game::units::wizard::components::Wizard;
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::components::*;
 use super::super::constants::*;

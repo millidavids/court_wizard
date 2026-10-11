@@ -18,7 +18,7 @@ pub struct GameSnapshot {
     pub arrows: Vec<ArrowSnapshot>,
     /// Host's authoritative match-elapsed seconds (`KillStats.elapsed_time`), so
     /// the guest's HUD clock mirrors the host exactly instead of free-running on
-    /// its own local timer. Appended last (positional bincode; same-version MP).
+    /// its own local timer. Appended last (positional postcard; same-version MP).
     pub host_elapsed_secs: f32,
 }
 

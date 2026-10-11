@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::render::RenderApp;
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::ShaderType;
 
@@ -9,6 +10,7 @@ use crate::game::crt_effect::constants::*;
 /// Attach this to a camera entity to enable the CRT effect on that camera.
 /// All parameters are runtime-configurable by mutating this component.
 #[derive(Component, Clone, Copy, ExtractComponent, ShaderType)]
+#[extract_app(RenderApp)]
 pub struct CrtEffectSettings {
     /// Screen curvature strength (0.0–0.5).
     pub barrel_distortion: f32,
@@ -67,6 +69,7 @@ pub struct CrtEffectSettings {
 /// Supports up to 2 black holes (slots 0-1, with center darkening) plus
 /// 2 rift endpoints (slots 2-3, lensing only, no darkening).
 #[derive(Component, Clone, Copy, ExtractComponent, ShaderType)]
+#[extract_app(RenderApp)]
 pub struct LensingSettings {
     /// Total number of active lensing sources (0.0–4.0).
     pub lensing_count: f32,
@@ -165,6 +168,7 @@ impl Default for LensingSettings {
 /// Attach this to the same camera entity as `CrtEffectSettings` to enable
 /// heat shimmer around wall of fire effects. Supports up to 4 walls.
 #[derive(Component, Clone, Copy, ExtractComponent, ShaderType)]
+#[extract_app(RenderApp)]
 pub struct HeatDistortionSettings {
     /// Number of active walls (0.0–4.0).
     pub count: f32,
@@ -236,6 +240,7 @@ impl Default for HeatDistortionSettings {
 /// Attach this to the same camera entity as `CrtEffectSettings` to enable
 /// radial ripple effects at teleport source/destination points. Supports up to 4 points.
 #[derive(Component, Clone, Copy, ExtractComponent, ShaderType)]
+#[extract_app(RenderApp)]
 pub struct TeleportDistortionSettings {
     /// Number of active distortion points (0.0–4.0).
     pub count: f32,

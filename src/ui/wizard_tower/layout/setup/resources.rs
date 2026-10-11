@@ -80,10 +80,12 @@ pub(crate) enum RightPanelView {
 
 /// Marker for the left panel container.
 #[derive(Component)]
+#[require(Pickable = crate::ui::components::NON_BLOCKING)]
 pub(crate) struct WizardTowerLeftPanel;
 
 /// Marker for the right panel container.
 #[derive(Component)]
+#[require(Pickable = crate::ui::components::NON_BLOCKING)]
 pub(crate) struct WizardTowerRightPanel;
 
 /// Identifies which tab a button corresponds to.
@@ -139,6 +141,6 @@ pub(crate) fn update_mp_connected_indicator(
 pub(crate) struct MultiplayerPanelData<'w> {
     pub lobby: Res<'w, super::super::super::multiplayer_tab::MultiplayerLobby>,
     pub connection: Res<'w, crate::networking::resources::NetworkConnection>,
-    pub steam_client: Option<Res<'w, bevy_steamworks::Client>>,
+    pub steam_client: Option<Res<'w, crate::steam::Client>>,
     pub host_selection: Option<Res<'w, super::super::super::multiplayer_tab::CoopHostSelection>>,
 }

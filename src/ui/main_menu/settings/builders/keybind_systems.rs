@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use crate::game::input::messages::MouseClicked;
+use crate::ui::components::UiButton;
 
 use super::super::components::{
     ButtonColors, ConfirmationAction, ConfirmationPopup, KeyBindingButton, KeyBindingText,
@@ -263,7 +264,7 @@ pub(crate) fn spawn_confirmation_popup(
                         })
                         .with_children(|row| {
                             row.spawn((
-                                Button,
+                                UiButton,
                                 Node {
                                     width: Val::Px(OPTION_BUTTON_WIDTH),
                                     height: Val::Px(OPTION_BUTTON_HEIGHT),
@@ -291,7 +292,7 @@ pub(crate) fn spawn_confirmation_popup(
                             });
 
                             row.spawn((
-                                Button,
+                                UiButton,
                                 Node {
                                     width: Val::Px(OPTION_BUTTON_WIDTH),
                                     height: Val::Px(OPTION_BUTTON_HEIGHT),

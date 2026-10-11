@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use crate::config::GameConfig;
+use crate::ui::components::UiButton;
 use crate::ui::systems::spawn_title_with_shadow;
 
 use super::super::components::{
@@ -60,7 +61,7 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
                 });
                 header
                     .spawn((
-                        Button,
+                        UiButton,
                         Node {
                             width: Val::Px(150.0),
                             height: Val::Px(50.0),
@@ -108,7 +109,7 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
                     };
                     tab_bar
                         .spawn((
-                            Button,
+                            UiButton,
                             Node {
                                 height: Val::Px(TAB_HEIGHT),
                                 padding: UiRect::horizontal(Val::Px(TAB_PADDING_H)),
@@ -228,7 +229,7 @@ pub(super) fn spawn_option_button(
     };
 
     let mut entity = parent.spawn((
-        Button,
+        UiButton,
         Node {
             width: Val::Px(OPTION_BUTTON_WIDTH),
             height: Val::Px(OPTION_BUTTON_HEIGHT),
@@ -302,7 +303,6 @@ pub(super) fn spawn_slider_control(
             },
             slider_handle: SliderHandle {
                 value: slider_value,
-                is_dragging: false,
             },
         },
     );

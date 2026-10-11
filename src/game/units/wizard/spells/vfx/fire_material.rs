@@ -17,7 +17,7 @@ pub(crate) struct FireParticleMaterial {
 
 impl Material for FireParticleMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/fire_particle.wgsl".into()
+        "shaders/fire_particle.wesl".into()
     }
 
     fn alpha_mode(&self) -> AlphaMode {
@@ -38,7 +38,7 @@ pub(crate) struct SmokeParticleMaterial {
 
 impl Material for SmokeParticleMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/smoke_particle.wgsl".into()
+        "shaders/smoke_particle.wesl".into()
     }
 
     fn alpha_mode(&self) -> AlphaMode {

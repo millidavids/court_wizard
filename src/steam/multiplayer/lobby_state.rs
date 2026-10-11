@@ -3,8 +3,10 @@
 //! Bevy main thread.
 
 use bevy::prelude::*;
-use bevy_steamworks::{Client, LobbyChatUpdate, LobbyId, LobbyType, SResult, SteamError, SteamId};
 use crossbeam_channel::{Receiver, Sender, unbounded};
+use steamworks::{LobbyChatUpdate, LobbyId, LobbyType, SResult, SteamError, SteamId};
+
+use crate::steam::Client;
 
 /// Where we are in the Steam-side lifecycle. Independent of `NetworkConnection.state`
 /// — that one tracks the data-channel; this one tracks the lobby + signalling.
@@ -42,7 +44,7 @@ pub(crate) struct SteamLobbyBridge {
     pub(super) chat_update_rx: Receiver<LobbyChatUpdate>,
     // Holding this keeps the persistent `LobbyChatUpdate` subscription alive.
     // Dropping it unsubscribes immediately.
-    _chat_update_handle: bevy_steamworks::CallbackHandle,
+    _chat_update_handle: steamworks::CallbackHandle,
 }
 
 impl SteamLobbyBridge {
@@ -53,7 +55,7 @@ impl SteamLobbyBridge {
         let (join_lobby_tx, join_lobby_rx) = unbounded();
         let (chat_update_tx, chat_update_rx) = unbounded();
 
-        // bevy_steamworks::Client derefs to steamworks::Client.
+        // `crate::steam::Client` derefs to steamworks::Client.
         let chat_update_handle = client.register_callback(move |update: LobbyChatUpdate| {
             let _ = chat_update_tx.send(update);
         });

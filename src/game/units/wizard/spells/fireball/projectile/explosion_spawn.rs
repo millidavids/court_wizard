@@ -14,7 +14,7 @@ use bevy::prelude::*;
 /// Spawns a fireball explosion with talent effects at the given position.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_explosion_with_talents(
-    rng: &mut dyn rand::RngCore,
+    rng: &mut dyn rand::Rng,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     sphere_materials: &mut Assets<FireExplosionSphereMaterial>,
@@ -44,7 +44,7 @@ pub(crate) fn spawn_explosion_with_talents(
     let mat_handle = clone_sphere_material(sphere_materials, &assets.fireball_explosion_sphere);
 
     // Pre-generate all sub-explosion bubbles with distance-based sizes
-    use rand::Rng;
+    use rand::RngExt;
     let max_r = fireball.explosion_radius;
     let pending: Vec<PendingBubble> = (0..constants::EXPLOSION_BUBBLE_COUNT)
         .map(|_| {
@@ -129,13 +129,13 @@ pub(crate) fn spawn_explosion_with_talents(
 
 /// Spawns 3 mini-fireballs for the Cluster Bomb talent.
 fn spawn_cluster_bombs(
-    rng: &mut dyn rand::RngCore,
+    rng: &mut dyn rand::Rng,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     origin: Vec3,
     parent_fireball: &Fireball,
 ) {
-    use rand::Rng;
+    use rand::RngExt;
 
     for _ in 0..3 {
         let angle = rng.random_range(0.0..std::f32::consts::TAU);

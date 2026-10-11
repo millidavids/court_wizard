@@ -1,3 +1,4 @@
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::PathBuf;
 
 use super::error::ConfigResult;
@@ -156,6 +157,20 @@ pub(super) fn load_unified_save() -> ConfigResult<String> {
 
 pub(super) fn unified_save_exists() -> bool {
     file_exists(UNIFIED_SAVE_FILENAME)
+}
+
+/// Keeps a copy of a unified save this build can't read; the `.bak` rotation
+/// loses it two writes later. Named by content, so every distinct unreadable
+/// save is kept once however often it fails to load.
+pub(super) fn preserve_unreadable_unified_save(contents: &str) -> ConfigResult<()> {
+    let mut hasher = DefaultHasher::new();
+    contents.hash(&mut hasher);
+    let hash = hasher.finish();
+    let path = save_dir()?.join(format!("{UNIFIED_SAVE_FILENAME}.unreadable-{hash:016x}"));
+    if !path.exists() {
+        std::fs::write(path, contents)?;
+    }
+    Ok(())
 }
 
 /// Move the current unified save file aside as a "cleared" backup, replacing any

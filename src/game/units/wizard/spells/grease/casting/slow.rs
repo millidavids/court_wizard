@@ -7,7 +7,7 @@ use crate::game::units::components::{Corpse, Health, RootedModifier, SlowMovemen
 use crate::game::units::wizard::spells::utils::xz_distance;
 use crate::game::units::wizard::talents::resources::BattleTalentProgress;
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 /// Applies slow to units inside grease zones, ticks time_alive for non-ignited zones,
 /// and handles Slip and Fall / Oil Slick talent effects.

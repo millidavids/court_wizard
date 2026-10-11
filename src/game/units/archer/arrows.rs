@@ -1,7 +1,7 @@
 //! Archer arrows: spawn, move, collisions.
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 use super::components::*;
 use super::constants::*;

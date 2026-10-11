@@ -104,7 +104,6 @@ pub(crate) struct ModifierSliderFill {
 #[derive(Component)]
 pub(crate) struct ModifierSliderHandle {
     pub value: ModifierSliderValue,
-    pub is_dragging: bool,
 }
 
 /// Marker for the seed input text display.
@@ -185,8 +184,10 @@ pub(crate) enum ConfirmUnlockAction {
 
 /// Marker for the scrollable content area on the right panel.
 #[derive(Component)]
+#[require(Pickable = crate::ui::components::NON_BLOCKING)]
 pub(crate) struct RogueliteScrollableContent;
 
 /// Marker for the scrollable left panel.
 #[derive(Component)]
+#[require(Pickable = crate::ui::components::NON_BLOCKING)]
 pub(crate) struct RogueliteScrollableLeft;

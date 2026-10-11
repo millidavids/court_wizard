@@ -36,7 +36,7 @@ pub(super) enum TransportEvent {
     /// A local connection code is ready for the user to copy.
     LocalCode(String),
 
-    /// A reliable message was received from the remote peer (bincode-serialized `NetworkMessage`).
+    /// A reliable message was received from the remote peer (postcard-serialized `NetworkMessage`).
     ReliableMessage(Vec<u8>),
 
     /// Unreliable data received from the remote peer (raw binary snapshot).
@@ -104,7 +104,7 @@ pub(crate) struct TransportHandle {
     /// belong to a session the Bevy world has already torn down.
     pub(super) session_gen: AtomicU64,
 
-    /// Send reliable messages to the remote peer (bincode-serialized `NetworkMessage`).
+    /// Send reliable messages to the remote peer (postcard-serialized `NetworkMessage`).
     pub(super) reliable_tx: crossbeam_channel::Sender<Vec<u8>>,
 
     /// Send unreliable data to the remote peer (raw binary snapshots).

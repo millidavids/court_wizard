@@ -115,7 +115,7 @@ pub(crate) fn check_random_magic_surge(
     mut events: MessageWriter<AchievementUnlockedMessage>,
     mut wizard_unlocked: MessageWriter<WizardTypeUnlockedMessage>,
 ) {
-    use rand::Rng;
+    use rand::RngExt;
     for _ in msg.read() {
         if game_rng.0.random_range(1..=100) == 1 {
             do_unlock(&mut res, &mut events);

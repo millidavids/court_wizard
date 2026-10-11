@@ -4,7 +4,7 @@
 //! infantry down as readily as the wave. Placement is the cost.
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 use rand::seq::SliceRandom;
 
 use super::super::constants::*;

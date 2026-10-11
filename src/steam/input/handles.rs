@@ -8,10 +8,10 @@
 use std::collections::HashMap;
 
 use bevy::prelude::*;
-use bevy_steamworks::Client;
 use steamworks::Input;
 
 use crate::game::input::action_state::{AnalogAction, GamepadAction};
+use crate::steam::Client;
 
 /// The real (non-zero) connected controllers. `Input::get_connected_controllers`
 /// pads its return to `STEAM_INPUT_MAX_COUNT` with zero handles (steamworks-rs

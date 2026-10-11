@@ -48,7 +48,7 @@ A few Rust features do heavy lifting throughout this codebase:
 
 ### Bevy
 
-[Bevy](https://bevy.org/) (we're on **0.18**) is a free, open-source game engine written in Rust. Unlike Unity or Unreal, there's no editor application — the engine is a library, and your game is a Rust program that uses it. Bevy's defining idea is that *everything* is built on an **Entity-Component-System (ECS)** architecture:
+[Bevy](https://bevy.org/) (we're on **0.20**) is a free, open-source game engine written in Rust. Unlike Unity or Unreal, there's no editor application — the engine is a library, and your game is a Rust program that uses it. Bevy's defining idea is that *everything* is built on an **Entity-Component-System (ECS)** architecture:
 
 - An **Entity** is just an ID — a soldier, a fireball, a UI button.
 - **Components** are plain data structs attached to entities: `Health`, `Team`, `MovementSpeed`, `Transform` (position). An "archer" is nothing more than an entity that happens to have archer-ish components.

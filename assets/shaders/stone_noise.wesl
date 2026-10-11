@@ -1,4 +1,4 @@
-#import bevy_pbr::forward_io::VertexOutput
+import bevy_pbr::render::forward_io::VertexOutput;
 
 struct StoneUniforms {
     dark_color: vec4<f32>,
@@ -10,7 +10,7 @@ struct StoneUniforms {
     blend_mode: vec4<f32>,
 };
 
-@group(3) @binding(0)
+@group(constants::MATERIAL_BIND_GROUP) @binding(0)
 var<uniform> material: StoneUniforms;
 
 fn hash2(p: vec2<f32>) -> f32 {

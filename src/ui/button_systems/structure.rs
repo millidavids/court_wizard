@@ -3,7 +3,7 @@ use bevy::ui::ShadowStyle;
 
 use super::super::color_utils::border_bright;
 use super::super::components::{
-    ButtonActive, ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront,
+    ButtonActive, ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, UiButton,
 };
 use super::super::constants::{
     BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_EDGE_DARKEN, BUTTON_PRESS_GLOW_INNER,
@@ -30,7 +30,11 @@ pub fn apply_3d_button_structure(
             Option<&Children>,
             Has<ButtonActive>,
         ),
-        (Added<ButtonColors>, With<Button>, Without<ButtonAnimState>),
+        (
+            Added<ButtonColors>,
+            With<UiButton>,
+            Without<ButtonAnimState>,
+        ),
     >,
 ) {
     let depth = -BUTTON_3D_OFFSET_REST;

@@ -88,7 +88,6 @@ pub(super) fn spawn_rune_text_node(
             ..default()
         },
         Pickable::IGNORE,
-        bevy::ui::FocusPolicy::Pass,
         UiTransform::default(),
         ArcaneRuneText {
             angle,

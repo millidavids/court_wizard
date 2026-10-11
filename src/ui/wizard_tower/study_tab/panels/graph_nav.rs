@@ -1,8 +1,11 @@
 use bevy::input::mouse::{MouseButton, MouseScrollUnit, MouseWheel};
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::ui::Pressed;
 
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseClicked;
+use crate::ui::systems::DragTrack;
 
 use super::super::super::components::*;
 use super::super::super::constants::*;
@@ -107,17 +110,15 @@ pub(crate) fn handle_graph_pan(
     bounds: Option<Res<GraphBounds>>,
     mut selected: ResMut<SelectedStudySpell>,
     mut selected_insight: ResMut<SelectedInsightBonus>,
-    node_interactions: Query<&Interaction, Or<(With<SpellGraphNode>, With<InsightBonusNode>)>>,
-    graph_area_interaction: Query<&Interaction, With<SpellGraphArea>>,
-    slider_interactions: Query<
-        &Interaction,
-        Or<(
-            With<StudyAllocationSlider>,
-            With<StudyAllocationHandle>,
-            With<InsightBonusSlider>,
-            With<InsightBonusSliderHandle>,
-        )>,
+    pressed_nodes: Query<
+        (),
+        (
+            Or<(With<SpellGraphNode>, With<InsightBonusNode>)>,
+            With<Pressed>,
+        ),
     >,
+    graph_area: Query<&Hovered, With<SpellGraphArea>>,
+    sliders: Query<(&Hovered, Has<Pressed>), With<DragTrack>>,
 ) {
     let Some(cursor_pos) = corrected_cursor.0 else {
         if drag.dragging {
@@ -131,15 +132,15 @@ pub(crate) fn handle_graph_pan(
     // Only interact with pan/deselect when cursor is over the graph area.
     // Clicks on the left panel (detail panel, talents, etc.) must not affect
     // the right panel's graph state.
-    let cursor_over_graph = graph_area_interaction
-        .iter()
-        .any(|interaction| *interaction != Interaction::None);
+    let cursor_over_graph = graph_area.iter().any(Hovered::get);
 
     if buttons.just_pressed(MouseButton::Left) {
         // Don't start dragging if a node or slider is being pressed,
         // or if the cursor isn't over the graph area
-        let any_node_pressed = node_interactions.iter().any(|i| *i == Interaction::Pressed);
-        let slider_pressed = slider_interactions.iter().any(|i| *i != Interaction::None);
+        let any_node_pressed = !pressed_nodes.is_empty();
+        let slider_pressed = sliders
+            .iter()
+            .any(|(hovered, pressed)| hovered.get() || pressed);
         if !any_node_pressed && cursor_over_graph && !slider_pressed {
             drag.dragging = true;
             drag.last_cursor = cursor_ui;

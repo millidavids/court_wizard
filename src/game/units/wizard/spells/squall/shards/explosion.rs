@@ -1,7 +1,7 @@
 //! Ice explosion updates, frozen ground ticking, and storm-ring reticle.
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::casting::apply_frost_accumulation;
 use super::super::components::{FrozenGround, IceExplosion, SquallStorm, SquallStormRing};

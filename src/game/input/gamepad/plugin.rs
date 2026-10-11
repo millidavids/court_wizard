@@ -53,13 +53,10 @@ impl Plugin for GamepadInputPlugin {
                 )
                     .chain(),
             )
-            // Virtual cursor runs AFTER barrel correction so it overrides that output
-            // when gamepad is active.
+            // Overrides the mouse position the barrel corrector wrote in `First`.
             .add_systems(
                 PreUpdate,
-                update_virtual_cursor
-                    .after(crate::game::crt_effect::correct_cursor_for_barrel_distortion)
-                    .after(toggle_cursor_visibility),
+                update_virtual_cursor.after(toggle_cursor_visibility),
             )
             // Core gameplay translation: triggers → mouse messages, stick → radial slot.
             .add_systems(

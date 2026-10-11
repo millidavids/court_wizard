@@ -3,11 +3,13 @@
 //! A flat spatial navigation model: any button tagged with [`Focusable`] is a
 //! candidate. The currently focused entity is tracked in [`FocusedEntity`];
 //! D-pad / left-stick presses move focus to the nearest `Focusable` in the
-//! pressed direction. `A` emits a `MouseClicked` on the focused entity,
-//! reusing the existing button-action pipeline.
+//! pressed direction. `A` presses and activates the focused button, reusing
+//! the mouse's `Pressed` + `Activate` → `MouseClicked` pipeline.
 
 pub(crate) mod components;
+mod confirm;
 pub(crate) mod constants;
+mod memory;
 pub(super) mod navigation;
 mod plugin;
 pub(crate) mod resources;

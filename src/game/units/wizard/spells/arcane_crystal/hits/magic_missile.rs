@@ -5,7 +5,7 @@ use super::super::setup::{
     AbsorptionBookkeeping, absorb_into_crystal, crystal_target_teams, find_random_enemies_in_range,
 };
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::components::*;
 use super::super::constants::*;

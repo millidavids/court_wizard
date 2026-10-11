@@ -36,7 +36,7 @@ pub(crate) fn abandon_run_for_steam_invite(
     mut channel_change: MessageWriter<ChannelChangeMessage>,
     // Multiplayer abandon (the `do_mp_disconnect` param set).
     transport: Option<Res<crate::networking::transport::TransportHandle>>,
-    steam_client: Option<Res<bevy_steamworks::Client>>,
+    steam_client: Option<Res<crate::steam::Client>>,
     mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
     mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
     // `MultiplayerLobby` is init_resource (always present), so a non-Option binding

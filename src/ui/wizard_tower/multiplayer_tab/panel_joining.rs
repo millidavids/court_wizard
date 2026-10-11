@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+use crate::ui::components::UiButton;
 use crate::ui::constants::{TEXT_MUTED, TEXT_PRIMARY};
 use crate::ui::systems::spawn_button;
 
@@ -69,7 +70,7 @@ pub(super) fn build_joining(commands: &mut Commands, entity: Entity, lobby: &Mul
                 });
 
                 row.spawn((
-                    Button,
+                    UiButton,
                     Node {
                         flex_grow: 1.0,
                         min_height: Val::Px(40.0),

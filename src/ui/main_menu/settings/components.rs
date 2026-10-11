@@ -261,8 +261,6 @@ pub struct SliderFill {
 pub struct SliderHandle {
     /// Which value this handle controls
     pub value: SliderValue,
-    /// Whether this handle is currently being dragged
-    pub is_dragging: bool,
 }
 
 /// Marker for the confirmation popup overlay.
@@ -330,6 +328,7 @@ pub(crate) struct SettingsTabButton(pub SettingsTab);
 
 /// Marker for the settings content container that gets rebuilt on tab switch.
 #[derive(Component)]
+#[require(Pickable = crate::ui::components::NON_BLOCKING)]
 pub(crate) struct SettingsContentContainer;
 
 /// Identifies a resolution preset button.

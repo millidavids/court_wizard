@@ -1,9 +1,11 @@
 use bevy::prelude::*;
+use bevy::ui::Pressed;
 
 use crate::config::save_data::{get_insight, get_spell_research_progress};
 use crate::game::input::messages::MouseClicked;
 use crate::game::insight_bonuses::InsightBonusStat;
 use crate::game::units::wizard::components::Spell;
+use crate::ui::button_systems::{PointerState, PointerVisual};
 use crate::ui::systems::spawn_button;
 
 use super::super::super::components::*;
@@ -119,11 +121,11 @@ pub(crate) fn handle_alloc_adjust_buttons(
 /// so the slider ramps up while the user holds it down. The interval starts
 /// slow and accelerates to a cap over ~1.5 s of holding.
 ///
-/// The initial single-press click still comes from `button_click_detection`
-/// on release — this system only drives auto-repeats past an initial delay.
+/// The initial single-press click still comes from the normal click on
+/// release — this system only drives auto-repeats past an initial delay.
 pub(crate) fn handle_alloc_adjust_buttons_hold(
     time: Res<Time>,
-    buttons: Query<(Entity, &Interaction), With<StudyAllocAdjustButton>>,
+    buttons: Query<(Entity, PointerState), (With<StudyAllocAdjustButton>, With<Pressed>)>,
     mut hold: Local<Option<AllocHoldState>>,
     mut clicks: MessageWriter<MouseClicked>,
 ) {
@@ -132,9 +134,10 @@ pub(crate) fn handle_alloc_adjust_buttons_hold(
     const END_INTERVAL: std::time::Duration = std::time::Duration::from_millis(10);
     const RAMP_DURATION: std::time::Duration = std::time::Duration::from_millis(1500);
 
+    // Holding but dragged off the button pauses the repeat.
     let pressed = buttons
         .iter()
-        .find(|(_, i)| **i == Interaction::Pressed)
+        .find(|(_, state)| PointerVisual::of(*state) == PointerVisual::Press)
         .map(|(e, _)| e);
 
     let Some(entity) = pressed else {

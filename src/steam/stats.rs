@@ -1,7 +1,7 @@
 use bevy::prelude::*;
-use bevy_steamworks::Client;
 
 use crate::config::save_data::lifetime_stat_totals;
+use crate::steam::Client;
 
 // Steam stat API names — must match the Steamworks partner-site definitions exactly.
 const STAT_TOTAL_VICTORIES: &str = "STAT_TOTAL_VICTORIES";

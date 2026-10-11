@@ -1,7 +1,7 @@
 use bevy::prelude::*;
-use bevy::ui::RelativeCursorPosition;
 
 use crate::config::GameConfig;
+use crate::ui::systems::DragTrack;
 
 use super::super::components::{
     SliderAdjusted, SliderDownButton, SliderFill, SliderHandle, SliderText, SliderTrack,
@@ -79,68 +79,26 @@ pub fn update_sliders(
     }
 }
 
-/// Handles dragging slider handles and clicking on tracks.
+/// Sets a slider's value when its track is clicked or dragged.
 ///
-/// Uses the track's `RelativeCursorPosition` for both click-to-jump and drag
-/// tracking. This is immune to scale factor, viewport, and CRT distortion
-/// differences between mouse motion units and logical UI pixels.
+/// `DragTrack::fraction` follows the barrel-corrected pointer, so it is immune
+/// to scale factor, viewport, and CRT distortion.
 pub fn slider_interaction(
-    buttons: Res<ButtonInput<bevy::input::mouse::MouseButton>>,
-    mut slider_handles: Query<(&Interaction, &mut SliderHandle)>,
-    slider_tracks: Query<(&Interaction, &RelativeCursorPosition, &SliderTrack)>,
+    slider_tracks: Query<(Ref<DragTrack>, &SliderTrack)>,
     mut game_config: ResMut<GameConfig>,
     mut slider_adjusted: MessageWriter<SliderAdjusted>,
 ) {
-    // Stop dragging when mouse is released
-    if !buttons.pressed(bevy::input::mouse::MouseButton::Left) {
-        for (_interaction, mut slider_handle) in &mut slider_handles {
-            slider_handle.is_dragging = false;
-        }
-        return;
-    }
+    for (drag, track) in &slider_tracks {
+        let Some(fraction) = DragTrack::moved(&drag) else {
+            continue;
+        };
+        let min = track.value.min_value();
+        let max = track.value.max_value();
+        let new_value = (min + fraction * (max - min)).clamp(min, max);
 
-    // Check if track was clicked (start dragging)
-    if buttons.just_pressed(bevy::input::mouse::MouseButton::Left) {
-        for (interaction, _cursor_pos, track) in &slider_tracks {
-            if matches!(*interaction, Interaction::Pressed | Interaction::Hovered) {
-                // Start dragging the corresponding handle
-                for (_handle_interaction, mut slider_handle) in &mut slider_handles {
-                    if slider_handle.value == track.value {
-                        slider_handle.is_dragging = true;
-                    }
-                }
-            }
-        }
-
-        // Also start dragging if the handle itself was clicked
-        for (interaction, mut slider_handle) in &mut slider_handles {
-            if *interaction == Interaction::Pressed {
-                slider_handle.is_dragging = true;
-            }
-        }
-    }
-
-    // While dragging, use the track's RelativeCursorPosition to set the value.
-    // This gives pixel-perfect tracking regardless of scale factor or viewport.
-    for (_interaction, cursor_pos, track) in &slider_tracks {
-        let is_dragging = slider_handles
-            .iter()
-            .any(|(_, h)| h.value == track.value && h.is_dragging);
-
-        if is_dragging && let Some(pos) = cursor_pos.normalized {
-            // RelativeCursorPosition.normalized: center at (0,0),
-            // left edge = -0.5, right edge = 0.5
-            let normalized = (pos.x + 0.5).clamp(0.0, 1.0);
-
-            let min = track.value.min_value();
-            let max = track.value.max_value();
-            let range = max - min;
-            let new_value = (min + normalized * range).clamp(min, max);
-
-            if (track.value.get(&game_config) - new_value).abs() > f32::EPSILON {
-                track.value.set(&mut game_config, new_value);
-                slider_adjusted.write(SliderAdjusted);
-            }
+        if (track.value.get(&game_config) - new_value).abs() > f32::EPSILON {
+            track.value.set(&mut game_config, new_value);
+            slider_adjusted.write(SliderAdjusted);
         }
     }
 }

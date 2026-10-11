@@ -5,7 +5,8 @@
 //! poll producer are already in place — controllers never go dead between phases.
 
 use bevy::prelude::*;
-use bevy_steamworks::Client;
+
+use crate::steam::Client;
 
 /// Points Steam Input at the bundled action manifest for the app Steam launched
 /// us with, then initializes it. `explicitly_call_run_frame = true` so

@@ -4,6 +4,8 @@ use super::components::*;
 use super::constants::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::input::messages::MouseClicked;
+use crate::ui::button_systems::{PointerState, PointerVisual, PointerVisualChanges};
+use crate::ui::components::UiButton;
 
 /// Manages the concentration UI: spawns/despawns the root container and
 /// individual per-spell cancel buttons as concentration spells come and go.
@@ -77,7 +79,7 @@ pub(super) fn spawn_concentration_ui(
 
         let button = commands
             .spawn((
-                Button,
+                UiButton,
                 Node {
                     height: Val::Px(CONCENTRATION_UI_HEIGHT),
                     padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
@@ -113,15 +115,16 @@ pub(super) fn spawn_concentration_ui(
 
 /// Handles hover effects for concentration spell buttons.
 pub(super) fn update_button_hover(
-    mut button_query: Query<
-        (&Interaction, &mut BackgroundColor),
-        (With<ConcentrationSpellButton>, Changed<Interaction>),
-    >,
+    mut changes: PointerVisualChanges,
+    mut button_query: Query<(PointerState, &mut BackgroundColor), With<ConcentrationSpellButton>>,
 ) {
-    for (interaction, mut background) in button_query.iter_mut() {
-        *background = match interaction {
-            Interaction::Hovered | Interaction::Pressed => BackgroundColor(BUTTON_HOVER),
-            Interaction::None => BackgroundColor(BUTTON_BACKGROUND),
+    for entity in changes.entities() {
+        let Ok((state, mut background)) = button_query.get_mut(entity) else {
+            continue;
+        };
+        *background = match PointerVisual::of(state) {
+            PointerVisual::Hover | PointerVisual::Press => BackgroundColor(BUTTON_HOVER),
+            PointerVisual::Rest => BackgroundColor(BUTTON_BACKGROUND),
         };
     }
 }

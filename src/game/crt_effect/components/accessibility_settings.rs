@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::render::RenderApp;
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::ShaderType;
 
@@ -10,6 +11,7 @@ use crate::game::crt_effect::constants::*;
 /// Attach this to the same camera entity as `CrtEffectSettings` to enable
 /// daltonization-based color correction. Runs as a separate render pass after CRT.
 #[derive(Component, Clone, Copy, ExtractComponent, ShaderType)]
+#[extract_app(RenderApp)]
 pub struct ColorblindCorrectionSettings {
     /// Simulation matrix row 0 (xyz used, w padding).
     pub sim_row0: Vec4,
@@ -77,6 +79,7 @@ impl ColorblindCorrectionSettings {
 /// Attach this to the same camera entity as `CrtEffectSettings` to enable
 /// sigmoidal contrast + saturation boost. Runs as a separate render pass after CRT.
 #[derive(Component, Clone, Copy, ExtractComponent, ShaderType)]
+#[extract_app(RenderApp)]
 pub struct HighContrastSettings {
     /// Effect strength (0.0 = off, 1.0 = full).
     pub strength: f32,

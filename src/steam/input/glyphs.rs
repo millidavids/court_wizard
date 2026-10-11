@@ -16,11 +16,11 @@ use std::ffi::CStr;
 use bevy::asset::RenderAssetUsages;
 use bevy::image::{CompressedImageFormats, ImageSampler, ImageType};
 use bevy::prelude::*;
-use bevy_steamworks::Client;
 
 use super::handles::SteamInputHandles;
 use crate::game::input::action_state::{GamepadAction, GamepadActionState};
 use crate::state::{InGameState, MultiplayerGameState};
+use crate::steam::Client;
 use crate::ui::focus::components::ModalOverlay;
 use crate::ui::gamepad_glyphs::SteamGlyphs;
 

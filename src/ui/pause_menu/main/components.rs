@@ -8,6 +8,7 @@ pub(super) struct OnPauseMainScreen;
 
 /// Marker for the scrollable left panel in the pause menu.
 #[derive(Component)]
+#[require(Pickable = crate::ui::components::NON_BLOCKING)]
 pub(super) struct ScrollablePauseStats;
 
 /// Actions that can be triggered by pause menu buttons.

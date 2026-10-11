@@ -7,6 +7,7 @@
 use bevy::prelude::*;
 
 use crate::config::WizardType;
+use crate::game::seeded_rng::resources::{insert_game_seed, random_seed};
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{NetworkConnection, PeerRole};
 use crate::networking::session::{MultiplayerSession, SessionMode};
@@ -43,7 +44,7 @@ pub(crate) fn process_lobby_messages(
     // Only used to tear the session down on a version mismatch — see below.
     mut host_selection: ResMut<CoopHostSelection>,
     transport: Option<Res<crate::networking::transport::TransportHandle>>,
-    steam_client: Option<Res<bevy_steamworks::Client>>,
+    steam_client: Option<Res<crate::steam::Client>>,
     mut steam_lobby: Option<ResMut<crate::steam::multiplayer::SteamLobbyState>>,
     mut steam_socket: Option<ResMut<crate::steam::multiplayer::SteamP2pSocket>>,
     session: Option<Res<MultiplayerSession>>,
@@ -180,8 +181,9 @@ pub(crate) fn process_lobby_messages(
                         };
                         commands.insert_resource(session);
                         // Seed the shared RNG from the host's seed so both
-                        // peers produce identical randomness.
-                        insert_game_rng(&mut commands, seed);
+                        // peers produce identical randomness. Multiplayer skips
+                        // `AppState::Loading`, where single-player seeds it.
+                        insert_game_seed(&mut commands, seed);
                         // Co-op: remember the host's level so `init_mp_loading`
                         // generates matching seeded terrain.
                         if mode != SessionMode::Versus {
@@ -284,8 +286,8 @@ pub(super) fn commit_host_start(
         commands.insert_resource(session);
 
         // Pick the shared run seed, seed our own RNG, and send it to the guest.
-        let seed = rand::random::<u64>();
-        insert_game_rng(commands, seed);
+        let seed = random_seed();
+        insert_game_seed(commands, seed);
         connection
             .outgoing_messages
             .push(NetworkMessage::StartGame {
@@ -296,14 +298,4 @@ pub(super) fn commit_host_start(
             });
         next_app_state.set(AppState::MultiplayerLoading);
     }
-}
-
-/// Inserts the `GameSeed` and `GameRng` resources. Multiplayer doesn't go
-/// through `AppState::Loading` (where single-player seeds its RNG), so the
-/// lobby seeds it here from the host-chosen seed shared over the network.
-fn insert_game_rng(commands: &mut Commands, seed: u64) {
-    use crate::game::seeded_rng::resources::{GameRng, GameSeed};
-    let game_seed = GameSeed(seed);
-    commands.insert_resource(GameRng::new(&game_seed));
-    commands.insert_resource(game_seed);
 }

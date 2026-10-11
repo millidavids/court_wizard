@@ -54,7 +54,7 @@ pub fn receive_crdt_snapshot(
         return;
     };
 
-    let Ok(snapshot) = bincode::deserialize::<CrdtSnapshot>(crdt_bytes) else {
+    let Ok(snapshot) = crate::networking::wire::decode::<CrdtSnapshot>(crdt_bytes) else {
         warn!(
             "Failed to deserialize CRDT snapshot ({} bytes)",
             crdt_bytes.len()

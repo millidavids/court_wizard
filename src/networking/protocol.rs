@@ -19,7 +19,7 @@ use crate::game::units::wizard::components::Spell;
 ///
 /// The exchange is done as a SEPARATE message (rather than embedded in
 /// `PlayerInfo`) so peers on a previous binary that don't know about
-/// `HandshakeVersion` decode it as an unknown enum variant → bincode error
+/// `HandshakeVersion` decode it as an unknown enum variant → decode error
 /// → message dropped with a warning. The new binary then never receives a
 /// `HandshakeVersion` from the old peer, detects the mismatch via the
 /// "first message must be HandshakeVersion" invariant, and disconnects.
@@ -79,7 +79,10 @@ use crate::game::units::wizard::components::Spell;
 ///   binary built against the old engine and one built against the new must not
 ///   share a session on the chance that float math differs. Bumped so they
 ///   refuse each other through the existing version-mismatch path instead.
-pub const PROTOCOL_VERSION: u32 = 15;
+/// - 16: wire encoding switches from bincode 1.x to postcard (varint, same
+///   positional rules), iroh 0.98 → 1.3 (ALPN `court-wizard/2`), and Bevy
+///   0.19 → 0.20 (glam 0.32 → 0.33, same float-drift reasoning as 15).
+pub const PROTOCOL_VERSION: u32 = 16;
 
 /// Messages sent over the reliable iroh/QUIC channel between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -241,10 +244,10 @@ pub enum NetworkMessage {
     /// `Failed` with a clear message.
     ///
     /// **Placement matters**: `HandshakeVersion`'s wire index is FROZEN.
-    /// bincode 1.x encodes an enum variant by its POSITIONAL INDEX in
-    /// declaration order, so this variant's index must never change —
-    /// older binaries (which don't know about it) decode it as an unknown
-    /// variant index → bincode returns `Err` → message dropped with a warn,
+    /// postcard (like bincode before it) encodes an enum variant by its
+    /// POSITIONAL INDEX in declaration order, so this variant's index must
+    /// never change — older binaries (which don't know about it) decode it as
+    /// an unknown variant index → `Err` → message dropped with a warn,
     /// and a peer on a different protocol version decodes the wrong variant
     /// unless every prior variant keeps its index. The new binary then
     /// detects the mismatch via the "first message must be HandshakeVersion"

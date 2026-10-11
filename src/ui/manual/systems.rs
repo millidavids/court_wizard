@@ -7,7 +7,7 @@ use super::components::{
     ScrollableManualContainer,
 };
 use super::constants::*;
-use crate::ui::components::{ButtonActive, ButtonColors};
+use crate::ui::components::{ButtonActive, ButtonColors, UiButton};
 use crate::ui::constants::{
     ACTIVE_TAB_BG, ACTIVE_TAB_BORDER, BACK_BUTTON_STYLE, INACTIVE_TAB_BG, TAB_BORDER,
     TAB_FONT_SIZE, TAB_HEIGHT, TAB_PADDING_H, TEXT_BODY,
@@ -120,7 +120,7 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
                     };
 
                     let mut tab_btn = tab_row.spawn((
-                        Button,
+                        UiButton,
                         Node {
                             height: Val::Px(TAB_HEIGHT),
                             padding: UiRect::horizontal(Val::Px(TAB_PADDING_H)),

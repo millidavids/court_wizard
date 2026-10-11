@@ -99,7 +99,7 @@ pub(crate) fn from_base64(s: &str) -> Option<Vec<u8>> {
 /// Generate a simple unique identifier.
 /// Format: "{timestamp}-{random_hex}" (e.g., "1704067200-a3f9c2")
 pub(crate) fn generate_id() -> String {
-    use rand::Rng;
+    use rand::RngExt;
     let mut rng = rand::rng();
     let timestamp = current_timestamp();
     let random: u32 = rng.random();

@@ -1,14 +1,10 @@
 use bevy::prelude::*;
-use rand::Rng;
 
 use crate::config::GameConfig;
 use crate::game::game_mode::components::{ActiveToggles, RogueliteModifiers};
+use crate::game::seeded_rng::resources::random_seed;
 
 use super::components::{ExpandedToggles, PendingToggles, SeedInputState};
-
-fn random_seed() -> u64 {
-    rand::rng().random_range(0..super::constants::MAX_SEED)
-}
 
 /// Initializes roguelite tab resources when the tab is first shown.
 /// Call this when entering the roguelite tab (no active run).

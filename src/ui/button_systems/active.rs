@@ -3,7 +3,7 @@ use bevy::ui::ShadowStyle;
 
 use super::super::color_utils::border_bright;
 use super::super::components::{
-    ButtonActive, ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront,
+    ButtonActive, ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, UiButton,
 };
 use super::super::constants::{
     BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_PRESS_GLOW_INNER,
@@ -20,7 +20,7 @@ pub fn enforce_active_button_state(
             Option<&mut ButtonAnimState>,
             Option<&mut BoxShadow>,
         ),
-        (Added<ButtonActive>, With<Button>),
+        (Added<ButtonActive>, With<UiButton>),
     >,
     mut front_query: Query<&mut BorderColor, (With<ButtonFront>, Without<ButtonEdge>)>,
     mut edge_query: Query<&mut Outline, With<ButtonEdge>>,
@@ -70,7 +70,7 @@ pub fn reset_deactivated_buttons(
             Option<&mut ButtonAnimState>,
             Option<&mut BoxShadow>,
         ),
-        With<Button>,
+        With<UiButton>,
     >,
     mut front_query: Query<&mut BorderColor, (With<ButtonFront>, Without<ButtonEdge>)>,
     mut edge_query: Query<&mut Outline, With<ButtonEdge>>,

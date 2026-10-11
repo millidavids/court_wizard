@@ -6,7 +6,9 @@
 //! earliest signal we get that a session is over.
 
 use bevy::prelude::*;
-use bevy_steamworks::{ChatMemberStateChange, Client};
+use steamworks::ChatMemberStateChange;
+
+use crate::steam::Client;
 
 use crate::networking::resources::{ConnectionState, NetworkConnection};
 

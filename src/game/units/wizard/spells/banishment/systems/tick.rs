@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::components::{DimensionalShunt, Displacement, OneWayTrip, PainfulReturn};
 use crate::game::constants::BATTLEFIELD_SIZE;

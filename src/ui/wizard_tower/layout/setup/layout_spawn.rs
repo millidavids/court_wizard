@@ -10,7 +10,7 @@ use super::resources::{
     MpConnectedIndicator, RightPanelView, WizardTowerLeftPanel, WizardTowerRightPanel,
     WizardTowerTab, WizardTowerTabButton, WizardTowerTabRow, get_unlocked_spells,
 };
-use crate::ui::components::ButtonColors;
+use crate::ui::components::{ButtonColors, UiButton};
 
 /// Spawns the full wizard tower tabbed layout. Tab row:
 /// `[Endless] [Roguelite] [VS] [Multiplayer] ........... [Study]   [<- Back]`
@@ -102,7 +102,6 @@ pub(crate) fn setup_wizard_tower_layout(
                     ..default()
                 },
                 Pickable::IGNORE,
-                bevy::ui::FocusPolicy::Pass,
                 super::super::super::components::ArcaneRuneBackground,
             ));
 
@@ -188,7 +187,6 @@ pub(crate) fn setup_wizard_tower_layout(
                     },
                     ScrollPosition::default(),
                     crate::ui::focus::GamepadScrollTarget,
-                    Interaction::None,
                     BackgroundColor(DETAIL_BG),
                     BorderColor::all(DETAIL_BORDER),
                     GlobalZIndex(1),
@@ -246,7 +244,7 @@ pub(crate) fn setup_wizard_tower_layout(
                                     };
 
                                     let mut tab_btn = tab_row.spawn((
-                                        Button,
+                                        UiButton,
                                         Node {
                                             height: Val::Px(TAB_HEIGHT),
                                             padding: UiRect::horizontal(Val::Px(TAB_PADDING_H)),
@@ -294,7 +292,6 @@ pub(crate) fn setup_wizard_tower_layout(
                             },
                             ScrollPosition::default(),
                             crate::ui::focus::GamepadScrollTarget,
-                            Interaction::None,
                             BackgroundColor(SECTION_BG),
                             BorderColor::all(DETAIL_BORDER),
                             GlobalZIndex(1),

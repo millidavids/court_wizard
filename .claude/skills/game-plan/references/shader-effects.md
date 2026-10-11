@@ -4,7 +4,7 @@ Guide for adding new screen-space shader effects (post-processing) to Court Wiza
 
 ## Architecture Overview
 
-All shader effects are integrated into the existing **CRT post-processing pipeline** (`src/game/crt_effect/`). There is a single fullscreen shader pass that runs after the UI pass and before upscaling. New effects are added as additional fields on the `CrtEffectSettings` uniform and additional steps in `assets/shaders/crt_effect.wgsl`.
+All shader effects are integrated into the existing **CRT post-processing pipeline** (`src/game/crt_effect/`). There is a single fullscreen shader pass that runs after the UI pass and before upscaling. New effects are added as additional fields on the `CrtEffectSettings` uniform and additional steps in `assets/shaders/crt_effect.wesl`.
 
 **Key principle:** All game shader effects (lensing, distortion, color grading, etc.) MUST render **underneath** the CRT TV effects (scanlines, RGB grid, vignette, barrel distortion, rounded corners). The CRT filter is the final visual layer — it simulates the player looking at a CRT monitor, so everything the player sees should appear filtered through it.
 
@@ -14,23 +14,23 @@ The `src/game/crt_effect/` module is feature-sliced (post-Phase-8c):
 
 | File | Purpose |
 |------|---------|
-| `src/game/crt_effect/components.rs` | `CrtEffectSettings` struct (Rust ↔ GPU uniform) |
+| `src/game/crt_effect/components/effect_settings.rs` | `CrtEffectSettings` and the distortion settings structs (Rust ↔ GPU uniforms) |
+| `src/game/crt_effect/components/accessibility_settings.rs` | Colorblind / high-contrast settings |
 | `src/game/crt_effect/constants.rs` | Default values and tuning constants |
-| `src/game/crt_effect/barrel_correction.rs` | Cursor barrel-correction + UI hit-test override |
-| `src/game/crt_effect/settings.rs` | Per-frame uniform-update systems |
-| `src/game/crt_effect/messages_handlers.rs` | Flash, vignette pulse, channel-change handlers |
-| `src/game/crt_effect/render_node.rs` | View-node impl for the post-process pass |
-| `src/game/crt_effect/pipeline.rs` | Pipeline cache, bind-group layout, shader binding |
+| `src/game/crt_effect/cursor.rs` | Barrel-corrected cursor: feeds UI picking and `CorrectedCursorPosition` |
+| `src/game/crt_effect/config_sync.rs` | Per-frame / on-config-change uniform updates |
+| `src/game/crt_effect/systems.rs` | Flash, vignette pulse, channel-change, desaturation handlers |
+| `src/game/crt_effect/pipeline/` | Generic fullscreen pass (`fullscreen.rs`) + per-effect shader paths (`effects.rs`) |
 | `src/game/crt_effect/plugin.rs` | Plugin registration only |
-| `assets/shaders/crt_effect.wgsl` | The WGSL fragment shader |
+| `assets/shaders/crt_effect.wesl` | The fragment shader (WESL; plain WGSL is valid WESL) |
 
-When adding a new effect, place its uniform-update system in `settings.rs` (or a new feature file if the effect is large).
+When adding a new effect, place its uniform-update system in `config_sync.rs` (or a new feature file if the effect is large).
 
 ## Adding a New Effect — Step by Step
 
 ### 1. Add uniform fields to `CrtEffectSettings`
 
-Add new `f32` fields to the struct in `components.rs`. This struct derives `ShaderType` (from encase) and `ExtractComponent`, so it's automatically sent to the GPU each frame.
+Add new `f32` fields to the struct in `components/effect_settings.rs`. This struct derives `ShaderType` (from encase) and `ExtractComponent` with `#[extract_app(RenderApp)]`, so it's automatically sent to the GPU each frame.
 
 ```rust
 // In CrtEffectSettings struct:
@@ -47,7 +47,7 @@ Also add matching defaults in the `Default` impl.
 
 ### 2. Mirror the struct in the WGSL shader
 
-Add the same fields in the same order to the `CrtSettings` struct in `crt_effect.wgsl`:
+Add the same fields in the same order to the `CrtSettings` struct in `crt_effect.wesl`:
 
 ```wgsl
 struct CrtSettings {

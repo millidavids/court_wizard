@@ -6,7 +6,7 @@ use super::super::setup::{
     find_random_targets_in_range, scaled_count,
 };
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::components::*;
 use super::super::constants::*;

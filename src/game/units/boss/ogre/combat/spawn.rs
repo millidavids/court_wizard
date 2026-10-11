@@ -1,6 +1,6 @@
 use crate::game::units::components::Health;
 use bevy::prelude::*;
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 use super::super::components::*;
 use super::super::constants::*;

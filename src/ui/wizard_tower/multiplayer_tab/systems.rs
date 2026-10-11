@@ -117,7 +117,7 @@ pub(super) fn reset_lobby_on_exit(
     mut connection: ResMut<NetworkConnection>,
     transport: Option<Res<TransportHandle>>,
     app_state: Res<State<AppState>>,
-    steam_client: Option<Res<bevy_steamworks::Client>>,
+    steam_client: Option<Res<crate::steam::Client>>,
     mut steam_lobby_state: Option<ResMut<SteamLobbyState>>,
     mut steam_socket: Option<ResMut<SteamP2pSocket>>,
     coop_pending: Option<Res<crate::game::multiplayer::coop::CoopPendingSession>>,

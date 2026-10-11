@@ -5,8 +5,6 @@ use crate::ui::constants::{TEXT_MUTED, TEXT_PRIMARY};
 
 use super::super::constants::SWITCH_WIZARD_BUTTON_STYLE;
 
-/// Maximum seed value (10 digits, fits in the text box).
-pub(crate) const MAX_SEED: u64 = 10_000_000_000;
 /// Maximum number of characters in the seed input field.
 pub(crate) const MAX_SEED_CHARS: usize = 10;
 

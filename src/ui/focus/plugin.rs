@@ -6,7 +6,7 @@ use super::resources::{FocusedEntity, PreModalFocus, ScreenFocusMemory};
 use super::run_conditions::{focus_enabled, gamepad_active, nav_enabled, no_active_tutorial};
 use super::systems::{
     ScrollAnimation, animate_scroll, auto_refocus, autoscroll_to_focused, clear_focus_on_back,
-    clear_focus_on_device_switch, focus_navigation, override_focused_interaction,
+    clear_focus_on_device_switch, drive_gamepad_focus, focus_navigation,
     restore_focus_on_screen_change, right_stick_scroll, tab_cycle, track_modal_focus_restore,
     update_focus_memory,
 };
@@ -76,15 +76,13 @@ impl Plugin for FocusPlugin {
                 Update,
                 animate_scroll.run_if(any_with_component::<ScrollAnimation>),
             )
-            // The Interaction override must run in PreUpdate AFTER
-            // `correct_ui_interaction_for_barrel`. Running in Update causes
-            // a per-frame REST↔HOVER oscillation because `button_interaction`
-            // only re-reads `Interaction` in PreUpdate.
+            // Also runs on the frame the device changes, so leaving controller
+            // mode drops `GamepadFocused` and any press A was holding.
             .add_systems(
-                PreUpdate,
-                override_focused_interaction
-                    .after(crate::game::crt_effect::correct_ui_interaction_for_barrel)
-                    .run_if(gamepad_active)
+                Update,
+                drive_gamepad_focus
+                    .after(focus_navigation)
+                    .run_if(gamepad_active.or_else(resource_changed::<ActiveInputDevice>))
                     .run_if(focus_enabled)
                     .run_if(nav_enabled),
             )

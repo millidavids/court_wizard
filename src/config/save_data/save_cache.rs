@@ -117,9 +117,13 @@ pub(crate) fn save_cache_is_dirty() -> bool {
 /// Load the unified save file directly from disk.
 fn load_from_disk() -> Option<UnifiedSaveFile> {
     let encoded = storage::load_unified_save().ok()?;
-    let obfuscated = from_base64(&encoded)?;
-    let deobfuscated = deobfuscate(&obfuscated);
-    let toml_string = String::from_utf8(deobfuscated).ok()?;
+    let Some(toml_string) =
+        from_base64(&encoded).and_then(|bytes| String::from_utf8(deobfuscate(&bytes)).ok())
+    else {
+        warn!("Failed to decode unified save file");
+        keep_unreadable_save(&encoded);
+        return None;
+    };
 
     match toml::from_str::<UnifiedSaveFile>(&toml_string) {
         Ok(mut data) => {
@@ -149,8 +153,16 @@ fn load_from_disk() -> Option<UnifiedSaveFile> {
         }
         Err(e) => {
             warn!("Failed to parse unified save file: {}", e);
+            keep_unreadable_save(&encoded);
             None
         }
+    }
+}
+
+/// Callers fall back to a fresh save and overwrite the file, so keep a copy first.
+fn keep_unreadable_save(encoded: &str) {
+    if let Err(e) = storage::preserve_unreadable_unified_save(encoded) {
+        error!("Failed to keep a copy of the unreadable save file: {}", e);
     }
 }
 
@@ -174,7 +186,7 @@ fn write_to_disk(mut save_file: UnifiedSaveFile) {
 
 /// Compute an integrity signature over the player and wizard data.
 /// Uses the existing keyed_hash (SipHash-style) from progress.rs.
-fn compute_save_signature(save: &UnifiedSaveFile) -> String {
+pub(super) fn compute_save_signature(save: &UnifiedSaveFile) -> String {
     let player_toml = toml::to_string(&save.player).unwrap_or_default();
     let wizards_toml = toml::to_string(&save.wizards).unwrap_or_default();
     let combined = format!("{}{}", player_toml, wizards_toml);

@@ -7,7 +7,6 @@
 //! producer fills the state per frame.
 
 use bevy::prelude::*;
-use bevy_steamworks::Client;
 use steamworks::InputType;
 
 use super::handles::{SteamInputHandles, connected_controllers};
@@ -18,6 +17,7 @@ use crate::game::input::action_state::{
 use crate::game::input::gamepad::arbiter::InputDeviceArbiter;
 use crate::game::input::gamepad::resources::ActiveInputDevice;
 use crate::game::multiplayer::pause_request::RequestGamePauseMessage;
+use crate::steam::Client;
 
 /// Trigger pull that counts as deliberate activity.
 const ACTIVITY_TRIGGER: f32 = 0.5;

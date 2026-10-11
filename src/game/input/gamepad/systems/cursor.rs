@@ -9,12 +9,11 @@ use crate::game::input::action_state::GamepadActionState;
 /// `CorrectedCursorPosition` during gameplay.
 ///
 /// In menu contexts (`InGameState != Running`, or outside `InGame`), the
-/// cursor is parked (`None`) so stick motion drives only the focus system and
-/// doesn't incidentally hover buttons via `correct_ui_interaction_for_barrel`.
+/// cursor is parked (`None`) so stick motion drives only the focus system.
+/// World-only: UI picking never sees the virtual cursor.
 ///
-/// Runs in PreUpdate after `correct_cursor_for_barrel_distortion`, so the
-/// barrel corrector's mouse-mode output remains authoritative while gamepad
-/// gameplay overrides with the virtual cursor.
+/// Runs in PreUpdate, after the barrel corrector wrote the mouse position in
+/// `First`, so gamepad gameplay overrides it.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn update_virtual_cursor(
     time: Res<Time>,

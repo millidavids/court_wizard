@@ -43,7 +43,7 @@ pub(crate) fn update_rune_button_press_visuals(
         let pressed = key.is_some_and(|k| keyboard.pressed(k));
 
         // Re-assert the depress target EVERY frame (not just on the press edge) so
-        // the global `button_interaction` (mouse hover/leave) can't reset a button
+        // the global `update_button_visuals` (mouse hover/leave) can't reset a button
         // back to rest while its key is still held.
         if let Some(mut anim) = anim {
             anim.target = if pressed {

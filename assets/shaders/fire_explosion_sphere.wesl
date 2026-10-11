@@ -1,5 +1,5 @@
-#import bevy_pbr::forward_io::VertexOutput
-#import bevy_pbr::mesh_view_bindings::view
+import bevy_pbr::render::forward_io::VertexOutput;
+import bevy_pbr::render::mesh_view_bindings::view;
 
 struct FireExplosionMaterial {
     inner_color: vec4<f32>,
@@ -7,7 +7,7 @@ struct FireExplosionMaterial {
     opacity: f32,
 };
 
-@group(3) @binding(0)
+@group(constants::MATERIAL_BIND_GROUP) @binding(0)
 var<uniform> material: FireExplosionMaterial;
 
 @fragment

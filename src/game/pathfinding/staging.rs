@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 
 use crate::game::seeded_rng::resources::{SEED_PURPOSE_STAGING, derive_seed};
 

@@ -21,7 +21,7 @@ pub(super) fn rebuild_multiplayer_on_lobby_change(
     right_panel: Query<Entity, With<WizardTowerRightPanel>>,
     lobby: Res<MultiplayerLobby>,
     connection: Res<NetworkConnection>,
-    steam_client: Option<Res<bevy_steamworks::Client>>,
+    steam_client: Option<Res<crate::steam::Client>>,
     tab: Option<Res<WizardTowerTab>>,
     host_selection: Option<Res<CoopHostSelection>>,
 ) {

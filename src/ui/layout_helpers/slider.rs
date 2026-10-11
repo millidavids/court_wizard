@@ -1,12 +1,12 @@
 use bevy::prelude::*;
-use bevy::ui::RelativeCursorPosition;
 
-use super::super::components::ButtonColors;
+use super::super::components::{ButtonColors, NON_BLOCKING, UiButton};
 use super::super::constants::{
     DOT_LEADER_COLOR, SLIDER_BORDER_WIDTH, SLIDER_BUTTON_BG, SLIDER_BUTTON_BORDER_COLOR,
     SLIDER_BUTTON_FONT_SIZE, SLIDER_BUTTON_SIZE, SLIDER_GAP, SLIDER_LABEL_FONT_SIZE,
     SLIDER_TRACK_BG, SLIDER_TRACK_WIDTH, TEXT_PRIMARY,
 };
+use super::slider_drag::DragTrack;
 
 /// Configuration for spawning a slider row.
 pub(crate) struct SliderRowConfig<
@@ -121,7 +121,7 @@ pub(crate) fn spawn_slider_row<
                 // Decrease button
                 controls
                     .spawn((
-                        Button,
+                        UiButton,
                         Node {
                             width: Val::Px(SLIDER_BUTTON_SIZE),
                             height: Val::Px(SLIDER_BUTTON_SIZE),
@@ -163,8 +163,7 @@ pub(crate) fn spawn_slider_row<
                         },
                         BorderColor::all(SLIDER_BUTTON_BORDER_COLOR),
                         BackgroundColor(SLIDER_TRACK_BG),
-                        Interaction::default(),
-                        RelativeCursorPosition::default(),
+                        DragTrack::default(),
                         slider_track,
                     ))
                     .with_children(|track| {
@@ -173,12 +172,7 @@ pub(crate) fn spawn_slider_row<
                             Node {
                                 width: Val::Percent(normalized * 100.0),
                                 height: Val::Percent(100.0),
-                                border_radius: BorderRadius {
-                                    top_left: Val::Px(6.0),
-                                    bottom_left: Val::Px(6.0),
-                                    top_right: Val::Px(0.0),
-                                    bottom_right: Val::Px(0.0),
-                                },
+                                border_radius: BorderRadius::left(Val::Px(6.0)),
                                 ..default()
                             },
                             BackgroundColor(SLIDER_BUTTON_BORDER_COLOR),
@@ -198,8 +192,9 @@ pub(crate) fn spawn_slider_row<
                             },
                             BackgroundColor(Color::WHITE),
                             BorderColor::all(SLIDER_BUTTON_BORDER_COLOR),
-                            Interaction::default(),
-                            RelativeCursorPosition::default(),
+                            // Pickable so pressing the part that overhangs the
+                            // track still reaches it (presses bubble up).
+                            NON_BLOCKING,
                             slider_handle,
                         ));
                     });
@@ -207,7 +202,7 @@ pub(crate) fn spawn_slider_row<
                 // Increase button
                 controls
                     .spawn((
-                        Button,
+                        UiButton,
                         Node {
                             width: Val::Px(SLIDER_BUTTON_SIZE),
                             height: Val::Px(SLIDER_BUTTON_SIZE),

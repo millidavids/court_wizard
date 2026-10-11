@@ -164,7 +164,7 @@ pub(crate) fn spawn_enter_fray_button(mut commands: Commands) {
         .with_children(|parent| {
             parent
                 .spawn((
-                    Button,
+                    crate::ui::components::UiButton,
                     Node {
                         padding: UiRect::axes(Val::Px(24.0), Val::Px(12.0)),
                         border: UiRect::all(Val::Px(2.0)),

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::beams::find_units_in_cone;
 use super::super::beams::{find_nearest_defender_direction_from, find_nearest_defender_position};

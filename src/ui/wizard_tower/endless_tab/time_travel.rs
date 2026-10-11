@@ -3,6 +3,8 @@ use bevy::prelude::*;
 use crate::config::GameConfig;
 use crate::game::constants::boss_name_for_level;
 use crate::game::input::messages::MouseClicked;
+use crate::ui::button_systems::{PointerState, PointerVisual, PointerVisualChanges};
+use crate::ui::components::UiButton;
 use crate::ui::systems::spawn_button;
 
 use super::super::components::*;
@@ -76,7 +78,7 @@ pub(super) fn spawn_time_travel_section(parent: &mut ChildSpawnerCommands, confi
                         };
 
                         list.spawn((
-                            Button,
+                            UiButton,
                             Node {
                                 height: Val::Px(TIME_TRAVEL_LEVEL_HEIGHT),
                                 padding: UiRect::horizontal(Val::Px(8.0)),
@@ -182,17 +184,18 @@ pub(crate) fn handle_time_travel_level_clicks(
 
 /// Handles hover effects on time travel level buttons.
 pub(crate) fn handle_time_travel_level_hover(
-    mut level_buttons: Query<
-        (&Interaction, &TimeTravelLevelButton, &mut BackgroundColor),
-        Changed<Interaction>,
-    >,
+    mut changes: PointerVisualChanges,
+    mut level_buttons: Query<(PointerState, &TimeTravelLevelButton, &mut BackgroundColor)>,
     selected: Option<Res<SelectedTimeTravelLevel>>,
 ) {
     let selected_level = selected.and_then(|s| s.0);
-    for (interaction, btn, mut bg) in &mut level_buttons {
+    for entity in changes.entities() {
+        let Ok((state, btn, mut bg)) = level_buttons.get_mut(entity) else {
+            continue;
+        };
         let is_selected = selected_level == Some(btn.0);
-        bg.0 = match *interaction {
-            Interaction::Hovered | Interaction::Pressed if !is_selected => TIME_TRAVEL_HOVER_BG,
+        bg.0 = match PointerVisual::of(state) {
+            PointerVisual::Hover | PointerVisual::Press if !is_selected => TIME_TRAVEL_HOVER_BG,
             _ if is_selected => TIME_TRAVEL_SELECTED_BG,
             _ => Color::NONE,
         };

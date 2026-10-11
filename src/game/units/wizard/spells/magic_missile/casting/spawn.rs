@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 use super::super::components::*;
 use super::super::constants;

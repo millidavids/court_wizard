@@ -1,5 +1,6 @@
 //! In-game wave display, flashes, buff tracker.
 
+use bevy::picking::hover::DirectlyHovered;
 use bevy::prelude::*;
 
 use super::components::*;
@@ -13,6 +14,7 @@ use crate::game::resources::WaveState;
 use crate::game::units::components::{Corpse, Team};
 use crate::game::units::king::components::{King, SpellShield};
 use crate::state::{InGameState, MultiplayerGameState};
+use crate::ui::components::UiButton;
 
 /// Updates the wave display text when the wave state changes.
 pub(super) fn update_wave_display(
@@ -270,7 +272,7 @@ pub(super) fn update_buff_tracker(
         commands.entity(container).with_children(|parent| {
             parent
                 .spawn((
-                    Button,
+                    UiButton,
                     Node {
                         width: Val::Px(BUFF_BOX_SIZE),
                         height: Val::Px(BUFF_BOX_SIZE),
@@ -321,63 +323,54 @@ pub(super) fn update_buff_timers(
 pub(super) fn show_buff_tooltip(
     mut commands: Commands,
     cauldron_buffs: Res<CauldronBuffs>,
-    box_query: Query<(&Interaction, &BuffTrackerBox), Changed<Interaction>>,
+    box_query: Query<(&DirectlyHovered, &BuffTrackerBox), Changed<DirectlyHovered>>,
     existing_tooltips: Query<Entity, With<BuffTooltip>>,
 ) {
-    for (interaction, buff_box) in &box_query {
-        match interaction {
-            Interaction::Hovered => {
-                // Despawn any existing tooltip
-                for entity in &existing_tooltips {
-                    commands.entity(entity).try_despawn();
-                }
-
-                let Some(buff) = cauldron_buffs.active_buffs.get(buff_box.0) else {
-                    continue;
-                };
-
-                // Build tooltip text
-                let tooltip_lines: Vec<String> =
-                    buff.effects.iter().map(|e| e.display_text()).collect();
-                let tooltip_text = tooltip_lines.join("\n");
-
-                // Spawn tooltip as absolute-positioned node
-                commands
-                    .spawn((
-                        Node {
-                            position_type: PositionType::Absolute,
-                            // BUFF_BOX_SIZE = box height, BUFF_BOX_GAP = gap below box,
-                            // 20.0 = HUD top margin, 10.0 = extra padding above tooltip.
-                            top: Val::Px(BUFF_BOX_SIZE + BUFF_BOX_GAP + 20.0 + 10.0),
-                            left: Val::Px(20.0),
-                            max_width: Val::Px(BUFF_TOOLTIP_MAX_WIDTH),
-                            padding: UiRect::all(Val::Px(BUFF_TOOLTIP_PADDING)),
-                            border: UiRect::all(Val::Px(1.0)),
-                            border_radius: BorderRadius::all(Val::Px(4.0)),
-                            ..default()
-                        },
-                        BackgroundColor(BUFF_TOOLTIP_BG),
-                        BorderColor::all(BUFF_TOOLTIP_BORDER),
-                        GlobalZIndex(101),
-                        BuffTooltip,
-                        Pickable::IGNORE,
-                        OnGameplayScreen,
-                    ))
-                    .with_children(|tooltip| {
-                        tooltip.spawn((
-                            Text::new(tooltip_text),
-                            TextFont::from_font_size(BUFF_TOOLTIP_FONT_SIZE),
-                            TextColor(Color::WHITE),
-                        ));
-                    });
-            }
-            Interaction::None => {
-                // Despawn tooltip when hover ends
-                for entity in &existing_tooltips {
-                    commands.entity(entity).try_despawn();
-                }
-            }
-            Interaction::Pressed => {}
+    for (hovered, buff_box) in &box_query {
+        // Hover start replaces any open tooltip; hover end just closes it.
+        for entity in &existing_tooltips {
+            commands.entity(entity).try_despawn();
         }
+        if !hovered.get() {
+            continue;
+        }
+
+        let Some(buff) = cauldron_buffs.active_buffs.get(buff_box.0) else {
+            continue;
+        };
+
+        // Build tooltip text
+        let tooltip_lines: Vec<String> = buff.effects.iter().map(|e| e.display_text()).collect();
+        let tooltip_text = tooltip_lines.join("\n");
+
+        // Spawn tooltip as absolute-positioned node
+        commands
+            .spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    // BUFF_BOX_SIZE = box height, BUFF_BOX_GAP = gap below box,
+                    // 20.0 = HUD top margin, 10.0 = extra padding above tooltip.
+                    top: Val::Px(BUFF_BOX_SIZE + BUFF_BOX_GAP + 20.0 + 10.0),
+                    left: Val::Px(20.0),
+                    max_width: Val::Px(BUFF_TOOLTIP_MAX_WIDTH),
+                    padding: UiRect::all(Val::Px(BUFF_TOOLTIP_PADDING)),
+                    border: UiRect::all(Val::Px(1.0)),
+                    border_radius: BorderRadius::all(Val::Px(4.0)),
+                    ..default()
+                },
+                BackgroundColor(BUFF_TOOLTIP_BG),
+                BorderColor::all(BUFF_TOOLTIP_BORDER),
+                GlobalZIndex(101),
+                BuffTooltip,
+                Pickable::IGNORE,
+                OnGameplayScreen,
+            ))
+            .with_children(|tooltip| {
+                tooltip.spawn((
+                    Text::new(tooltip_text),
+                    TextFont::from_font_size(BUFF_TOOLTIP_FONT_SIZE),
+                    TextColor(Color::WHITE),
+                ));
+            });
     }
 }

@@ -1,16 +1,12 @@
 use bevy::prelude::*;
-use rand::Rng;
 
 use crate::config::GameConfig;
 use crate::game::input::messages::MouseClicked;
-use crate::ui::components::ButtonColors;
+use crate::game::seeded_rng::resources::random_seed;
+use crate::ui::components::{ButtonColors, UiButton};
 
 use super::components::{SeedInputBox, SeedInputState, SeedInputText, SeedRandomButton};
 use super::constants::{LABEL_COLOR, MAX_SEED_CHARS, SEED_BORDER_FOCUSED, SEED_BORDER_UNFOCUSED};
-
-fn random_seed() -> u64 {
-    rand::rng().random_range(0..super::constants::MAX_SEED)
-}
 
 /// Assigns a fresh random seed to both the UI state and the game config, then
 /// updates the visible seed text.  Shared by the click handler and the keyboard
@@ -55,7 +51,7 @@ pub(super) fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text:
             // Input text field
             let seed_bg = Color::hsla(270.0, 0.08, 0.08, 1.0);
             row.spawn((
-                Button,
+                UiButton,
                 Node {
                     width: Val::Px(280.0),
                     height: Val::Px(32.0),
@@ -82,7 +78,7 @@ pub(super) fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text:
 
             // Random button
             row.spawn((
-                Button,
+                UiButton,
                 Node {
                     height: Val::Px(32.0),
                     border: UiRect::all(Val::Px(1.0)),

@@ -107,6 +107,7 @@ pub(super) struct CardExpandSection;
 /// `handle_scroll` system can find it on mouse wheel events. Re-exported
 /// `pub(crate)` so the tutorial system can also tag it for highlighting.
 #[derive(Component)]
+#[require(Pickable = crate::ui::components::NON_BLOCKING)]
 pub(crate) struct WizardCardScrollContainer;
 
 pub(super) fn build_wizard_card_grid(

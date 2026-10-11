@@ -4,7 +4,6 @@
 //! handshake live in `lobby_messages.rs`.
 
 use bevy::prelude::*;
-use bevy_steamworks::Client;
 
 use crate::game::input::messages::MouseClicked;
 use crate::game::multiplayer::session_reset::reset_multiplayer_to_baseline;
@@ -13,6 +12,7 @@ use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConne
 use crate::networking::session::MultiplayerSession;
 use crate::networking::transport::{TransportCommand, TransportHandle};
 use crate::state::AppState;
+use crate::steam::Client;
 use crate::steam::multiplayer::{
     SteamLobbyBridge, SteamLobbyState, SteamP2pSocket, request_steam_invite,
 };

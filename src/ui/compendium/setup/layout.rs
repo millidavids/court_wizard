@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::ui::components::UiButton;
 use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
 
 use super::super::components::*;
@@ -198,7 +199,7 @@ pub(super) fn spawn_right_panel(parent: &mut ChildSpawnerCommands) {
                         };
 
                         tabs.spawn((
-                            Button,
+                            UiButton,
                             Node {
                                 height: Val::Px(TAB_HEIGHT),
                                 padding: UiRect::horizontal(Val::Px(TAB_PADDING_H)),

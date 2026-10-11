@@ -1,4 +1,4 @@
-use bevy_steamworks::{LeaderboardDisplayType, LeaderboardSortMethod};
+use steamworks::{LeaderboardDisplayType, LeaderboardSortMethod};
 
 /// Identifies which Steam leaderboard a submission targets.
 ///

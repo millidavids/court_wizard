@@ -1,10 +1,10 @@
 //! Action-set activation based on game context.
 
 use bevy::prelude::*;
-use bevy_steamworks::Client;
 
 use super::handles::{SteamInputHandles, connected_controllers};
 use crate::state::{InGameState, MultiplayerGameState};
+use crate::steam::Client;
 use crate::ui::focus::components::ModalOverlay;
 
 /// Frames after handle resolution during which we force the active set to win

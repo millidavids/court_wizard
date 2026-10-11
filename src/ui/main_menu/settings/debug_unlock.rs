@@ -20,7 +20,7 @@ use crate::ui::systems::spawn_button;
 pub(crate) struct UnlockEverythingButton;
 
 /// Marker on the inner clickable button — what the click handler matches against.
-/// `MouseClicked.button` is the entity that owns `Button`/`Interaction` (the one
+/// `MouseClicked.button` is the entity that owns `UiButton` (the one
 /// `spawn_button` spawns), so the click marker must live there, not on the wrapper.
 #[derive(Component)]
 pub(crate) struct UnlockEverythingAction;

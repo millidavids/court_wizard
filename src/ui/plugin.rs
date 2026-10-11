@@ -2,8 +2,10 @@
 //!
 //! Aggregates all UI sub-plugins (main menu, pause menu, etc.)
 
+use bevy::picking::PickingSystems;
 use bevy::prelude::UiMaterialPlugin;
 use bevy::prelude::*;
+use bevy::ui::Pressed;
 
 use super::scale::update_ui_scale;
 use super::systems::{FrostedGlassMaterial, ParchmentMaterial};
@@ -12,7 +14,7 @@ use super::action_bar::ActionBarPlugin;
 use super::arcanorouter_display::ArcanoRouterDisplayPlugin;
 use super::cauldron_menu::CauldronMenuPlugin;
 use super::components::{
-    load_gun_icon_assets, load_spell_icon_assets, load_unit_compendium_sprite_assets,
+    UiButton, load_gun_icon_assets, load_spell_icon_assets, load_unit_compendium_sprite_assets,
     set_default_font,
 };
 use super::concentration::ConcentrationUIPlugin;
@@ -76,9 +78,21 @@ impl Plugin for UiPlugin {
         ))
         .add_plugins(UiMaterialPlugin::<ParchmentMaterial>::default())
         .add_plugins(UiMaterialPlugin::<FrostedGlassMaterial>::default())
-        .configure_sets(
-            Update,
-            ButtonActionSet.run_if(systems::on_message::<MouseClicked>),
+        .configure_sets(Update, ButtonActionSet.run_if(on_message::<MouseClicked>))
+        // Picking is opt-in: only buttons, sliders, scroll areas and modal
+        // blockers take part. With everything pickable, full-screen layout
+        // roots would block one another depending on UI stack order.
+        .insert_resource(UiPickingSettings {
+            require_markers: true,
+        })
+        .add_observer(systems::forward_activate_as_mouse_clicked)
+        .add_observer(systems::begin_track_drag)
+        .add_observer(systems::follow_track_drag)
+        .add_systems(
+            PreUpdate,
+            systems::clear_stale_presses
+                .after(PickingSystems::Last)
+                .run_if(any_with_component::<Pressed>),
         )
         .add_systems(
             Startup,
@@ -93,9 +107,8 @@ impl Plugin for UiPlugin {
             Update,
             (
                 update_ui_scale,
-                systems::button_click_detection,
                 handle_link_click.in_set(ButtonActionSet),
-                systems::button_interaction,
+                systems::update_button_visuals.run_if(any_with_component::<UiButton>),
                 systems::reset_deactivated_buttons,
                 systems::sync_front_face_colors,
                 systems::apply_gamepad_focus_tint.after(systems::sync_front_face_colors),

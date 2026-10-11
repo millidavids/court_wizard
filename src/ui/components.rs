@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use bevy::asset::AssetId;
+use bevy::picking::hover::DirectlyHovered;
 use bevy::prelude::*;
 
 use crate::game::units::UnitType;
@@ -26,10 +27,26 @@ pub fn set_default_font(mut fonts: ResMut<Assets<Font>>) {
         .expect("Failed to insert default font");
 }
 
+/// Every clickable UI button.
+///
+/// Bevy's headless button inserts `Pressed` and triggers `Activate` (forwarded
+/// as `MouseClicked`). `DirectlyHovered`, not `Hovered`, so a nested button
+/// doesn't light up its parent. Picking is opt-in (`require_markers`), hence
+/// the explicit `Pickable`.
+#[derive(Component, Default)]
+#[require(bevy::ui_widgets::Button, DirectlyHovered, Pickable, Node)]
+pub(crate) struct UiButton;
+
+/// Hoverable but doesn't hide what's beneath: scroll areas, slider tracks.
+pub(crate) const NON_BLOCKING: Pickable = Pickable {
+    should_block_lower: false,
+    is_hoverable: true,
+};
+
 /// Stores the original colors for a button, used to compute hover/pressed states.
 ///
-/// Attach this to any `Button` entity to enable shared hover/pressed visual feedback
-/// via the `button_interaction` system.
+/// Attach this to any `UiButton` entity to enable shared hover/pressed visual
+/// feedback via the `update_button_visuals` system.
 #[derive(Component)]
 pub struct ButtonColors {
     /// The button's background color in its default state.

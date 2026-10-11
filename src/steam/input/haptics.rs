@@ -5,11 +5,11 @@
 //! flat accessor. The binding panel is available on the safe wrapper.
 
 use bevy::prelude::*;
-use bevy_steamworks::Client;
 
 use crate::game::input::action_state::GamepadActionState;
 use crate::game::input::gamepad::messages::ControllerRumbleMessage;
 use crate::game::input::messages::MouseClicked;
+use crate::steam::Client;
 use crate::ui::main_menu::settings::components::ConfigureControllerButton;
 
 /// Sets the vibration motors on a Steam Input controller. `left`/`right` are motor

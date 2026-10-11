@@ -1,13 +1,14 @@
+use bevy::ecs::message::MessageUpdateSystems;
 use bevy::ecs::schedule::common_conditions::on_message;
 use bevy::prelude::*;
-use bevy_steamworks::{Client, SteamworksEvent};
 
 use crate::game::achievements::systems::send_battle_ended;
 use crate::state::{AppState, InGameState};
 
 use super::achievements::sync_achievements_to_steam;
+use super::client::{Client, SteamCallbackMessage, run_steam_callbacks};
 use super::cloud_save::{restore_save_from_steam_cloud, sync_save_to_steam_cloud};
-use super::init::init_steam_plugin;
+use super::init::init_steam_client;
 use super::input::SteamInputPlugin;
 use super::leaderboards::LeaderboardsPlugin;
 use super::multiplayer::SteamMultiplayerPlugin;
@@ -22,19 +23,18 @@ pub(crate) struct SteamPlugin;
 
 impl Plugin for SteamPlugin {
     fn build(&self, app: &mut App) {
-        match init_steam_plugin() {
-            Ok(steamworks_plugin) => {
-                app.add_plugins(steamworks_plugin);
+        match init_steam_client() {
+            Ok(client) => {
                 // Log the app id Steam ACTUALLY initialized under, not the
                 // constant — this is the line to check when diagnosing licensing
                 // or "why do I have no Steam features" reports.
-                match app.world().get_resource::<Client>() {
-                    Some(client) => info!(
-                        "Steam initialized successfully (App ID: {})",
-                        client.utils().app_id().0
-                    ),
-                    None => info!("Steam initialized successfully"),
-                }
+                info!(
+                    "Steam initialized successfully (App ID: {})",
+                    client.utils().app_id().0
+                );
+                app.insert_resource(Client::new(client))
+                    .add_message::<SteamCallbackMessage>()
+                    .add_systems(First, run_steam_callbacks.before(MessageUpdateSystems));
                 app.add_plugins(LeaderboardsPlugin);
                 app.add_plugins(SteamMultiplayerPlugin);
                 app.add_plugins(SteamInputPlugin);
@@ -51,7 +51,7 @@ impl Plugin for SteamPlugin {
                 // callback bus when an event is actually waiting.
                 app.add_systems(
                     Update,
-                    pause_on_steam_overlay.run_if(on_message::<SteamworksEvent>),
+                    pause_on_steam_overlay.run_if(on_message::<SteamCallbackMessage>),
                 );
 
                 // Sync save file to Steam Cloud at natural save checkpoints.

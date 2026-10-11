@@ -4,7 +4,7 @@ use crate::config::save_data::AchievementId;
 ///
 /// This is ONLY used as a debug-build fallback when the game is launched outside
 /// Steam with no `steam_appid.txt` in the working directory (see
-/// `init_steam_plugin` in `init.rs`). The real app id for shipped builds is
+/// `init_steam_client` in `init.rs`). The real app id for shipped builds is
 /// whatever Steam supplies at launch, so one binary serves every app id the game
 /// is published under. Do NOT use this constant as the source of truth for
 /// "which app are we"; read `client.utils().app_id()` instead.

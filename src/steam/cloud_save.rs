@@ -2,9 +2,9 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 
 use bevy::prelude::*;
-use bevy_steamworks::Client;
 
 use crate::config::storage::UNIFIED_SAVE_FILENAME;
+use crate::steam::Client;
 
 /// Returns the local save path if Steam Cloud is enabled, or None otherwise.
 fn cloud_save_path(client: &Client) -> Option<PathBuf> {

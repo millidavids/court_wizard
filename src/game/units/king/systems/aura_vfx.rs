@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use crate::game::components::OnGameplayScreen;
 use crate::game::units::commander::{Commander, CommanderAuraParticle};

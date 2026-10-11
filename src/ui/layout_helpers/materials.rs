@@ -31,7 +31,7 @@ pub(crate) struct ParchmentData {
 
 impl UiMaterial for ParchmentMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/parchment.wgsl".into()
+        "shaders/parchment.wesl".into()
     }
 }
 
@@ -67,7 +67,7 @@ pub(crate) struct FrostedGlassData {
 
 impl UiMaterial for FrostedGlassMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/frosted_glass.wgsl".into()
+        "shaders/frosted_glass.wesl".into()
     }
 }
 

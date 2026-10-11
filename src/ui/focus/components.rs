@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 /// Marks a UI entity as a candidate for gamepad focus navigation.
 ///
-/// Any `Button` entity with this component is reachable via D-pad / stick
+/// Any `UiButton` entity with this component is reachable via D-pad / stick
 /// navigation when the gamepad is the active input device. Nearest-neighbor
 /// navigation uses screen-space node centers.
 #[derive(Component, Debug, Clone, Copy)]

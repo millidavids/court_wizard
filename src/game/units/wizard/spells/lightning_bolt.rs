@@ -16,7 +16,7 @@
 //! `chain_lightning::chain` and `lightning_rod::lifecycle`.
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 use crate::game::components::OnGameplayScreen;
 

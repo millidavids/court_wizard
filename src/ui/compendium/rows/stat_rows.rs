@@ -1,3 +1,4 @@
+use crate::ui::components::UiButton;
 use crate::ui::constants::efficiency_color;
 use bevy::prelude::*;
 
@@ -18,7 +19,7 @@ pub(crate) fn spawn_item_button(
     let is_selected = *selected == Some(item_id.clone());
     parent
         .spawn((
-            Button,
+            UiButton,
             Node {
                 width: Val::Percent(100.0),
                 padding: UiRect::new(Val::Px(10.0), Val::Px(10.0), Val::Px(6.0), Val::Px(6.0)),

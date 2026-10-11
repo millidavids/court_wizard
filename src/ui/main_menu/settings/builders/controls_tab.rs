@@ -12,6 +12,7 @@ use super::super::constants::{
 };
 use super::setup::spawn_dot_leader;
 use crate::config::input_bindings::{BindingAction, BindingContext, key_display_name};
+use crate::ui::components::UiButton;
 
 /// Spawns Controls tab content: key binding subsections + Reset Controls button.
 /// Locked wizard archetypes show joke text instead of keybindings.
@@ -226,7 +227,7 @@ pub(super) fn spawn_controls_tab(
                     ));
                     spawn_dot_leader(row);
                     row.spawn((
-                        Button,
+                        UiButton,
                         Node {
                             width: Val::Px(OPTION_BUTTON_WIDTH),
                             height: Val::Px(OPTION_BUTTON_HEIGHT),
@@ -329,7 +330,7 @@ pub(super) fn spawn_key_binding_row(
             ));
             spawn_dot_leader(row);
             row.spawn((
-                Button,
+                UiButton,
                 Node {
                     width: Val::Px(OPTION_BUTTON_WIDTH),
                     height: Val::Px(OPTION_BUTTON_HEIGHT),

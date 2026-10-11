@@ -83,7 +83,7 @@ pub fn start_coop_host(
     urgent: bool,
 ) {
     use crate::networking::protocol::NetworkMessage;
-    let seed = rand::random::<u64>();
+    let seed = crate::game::seeded_rng::resources::random_seed();
     config.seed = Some(seed);
     commands.insert_resource(CoopPendingSession {
         guest_wizard,

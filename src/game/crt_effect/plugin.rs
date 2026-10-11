@@ -1,5 +1,6 @@
 use bevy::{
     core_pipeline::schedule::Core3d,
+    picking::{PickingSystems, input::PointerInputSettings},
     prelude::*,
     render::{
         GpuResourceAppExt, RenderApp, RenderStartup,
@@ -13,6 +14,7 @@ use super::components::{
     HeatDistortionSettings, HighContrastSettings, LensingSettings, ScreenFlashTimer,
     TeleportDistortionSettings, VignettePulseTimer,
 };
+use super::cursor::{CorrectedCursorPosition, drive_mouse_pointer};
 use super::distortion::{
     update_heat_distortion_positions, update_lensing_positions,
     update_teleport_distortion_positions,
@@ -21,10 +23,9 @@ use super::messages::{
     ChannelChangeMessage, ScreenDesaturateMessage, ScreenFlashMessage, VignettePulseMessage,
 };
 use super::systems::{
-    CorrectedCursorPosition, RawCursorPosition, animate_channel_change, animate_desaturation,
-    animate_screen_flash, animate_vignette_pulse, correct_cursor_for_barrel_distortion,
-    correct_ui_interaction_for_barrel, handle_channel_change_message, handle_desaturation_message,
-    handle_screen_flash_message, handle_vignette_pulse_message,
+    animate_channel_change, animate_desaturation, animate_screen_flash, animate_vignette_pulse,
+    handle_channel_change_message, handle_desaturation_message, handle_screen_flash_message,
+    handle_vignette_pulse_message,
 };
 use crate::config::GameConfig;
 use crate::game::run_conditions::is_spell_effects_active;
@@ -54,8 +55,14 @@ impl Plugin for CrtEffectPlugin {
             UniformComponentPlugin::<HighContrastSettings>::default(),
         ));
 
-        app.init_resource::<RawCursorPosition>();
         app.init_resource::<CorrectedCursorPosition>();
+        // Bevy's own mouse/touch input reads the raw OS cursor; the game feeds
+        // picking from the barrel-corrected one instead.
+        app.insert_resource(PointerInputSettings {
+            is_mouse_enabled: false,
+            is_touch_enabled: false,
+        });
+        app.add_systems(First, drive_mouse_pointer.in_set(PickingSystems::Input));
         app.add_message::<ChannelChangeMessage>();
         app.add_message::<ScreenDesaturateMessage>();
         app.add_message::<ScreenFlashMessage>();
@@ -124,24 +131,6 @@ impl Plugin for CrtEffectPlugin {
                 .run_if(resource_changed::<GameConfig>),
         );
 
-        // Correct cursor position for barrel distortion before any game systems read it.
-        // Runs in PreUpdate so all downstream systems (spells, UI picking, input)
-        // automatically get the corrected position.
-        app.add_systems(PreUpdate, correct_cursor_for_barrel_distortion);
-
-        // Correct UI Interaction components after Bevy's ui_focus_system has run.
-        // ui_focus_system reads window.physical_cursor_position() (raw OS cursor),
-        // so we re-do the hit testing with barrel-corrected coordinates and override
-        // the Interaction values it set.
-        app.add_systems(
-            PreUpdate,
-            correct_ui_interaction_for_barrel
-                .after(bevy::ui::UiSystems::Focus)
-                .run_if(|q: Query<&CrtEffectSettings>| {
-                    q.single().is_ok_and(|s| s.is_barrel_active())
-                }),
-        );
-
         let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             return;
         };
@@ -168,8 +157,8 @@ impl Plugin for CrtEffectPlugin {
 
         // The chain runs AFTER the UI pass and before upscaling, so the UI is
         // warped and tinted along with the scene rather than pasted flat on top
-        // — that is the whole look, and `correct_ui_interaction_for_barrel`
-        // above exists to undo the barrel warp for cursor hit-testing.
+        // — that is the whole look, and `drive_mouse_pointer` undoes the barrel
+        // warp for cursor hit-testing.
         //
         // Note this is deliberately NOT `Core3dSystems::PostProcess`: bevy
         // registers `ui_pass` as `.after(Core3dSystems::PostProcess)`, so

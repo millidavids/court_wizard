@@ -5,7 +5,7 @@
 //! lifecycle (listen / dial / tear down) lives in `sockets.rs`.
 
 use bevy::prelude::*;
-use bevy_steamworks::networking_types::SendFlags;
+use steamworks::networking_types::SendFlags;
 
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection};
@@ -46,7 +46,7 @@ pub(super) fn steam_transport_bridge_system(
     if !connection.outgoing_messages.is_empty() {
         let outgoing_msgs: Vec<NetworkMessage> = std::mem::take(&mut connection.outgoing_messages);
         for msg in outgoing_msgs {
-            match bincode::serialize(&msg) {
+            match crate::networking::wire::encode(&msg) {
                 Ok(payload) => {
                     let mut framed = Vec::with_capacity(payload.len() + 1);
                     framed.push(TAG_RELIABLE);
@@ -102,13 +102,14 @@ pub(super) fn steam_transport_bridge_system(
                 let tag = bytes[0];
                 let payload = &bytes[1..];
                 match tag {
-                    t if t == TAG_RELIABLE => match bincode::deserialize::<NetworkMessage>(payload)
-                    {
-                        Ok(decoded) => connection.incoming_messages.push(decoded),
-                        Err(err) => {
-                            warn!("[Steam MP] Failed to deserialize incoming message: {err}");
+                    t if t == TAG_RELIABLE => {
+                        match crate::networking::wire::decode::<NetworkMessage>(payload) {
+                            Ok(decoded) => connection.incoming_messages.push(decoded),
+                            Err(err) => {
+                                warn!("[Steam MP] Failed to deserialize incoming message: {err}");
+                            }
                         }
-                    },
+                    }
                     t if t == TAG_UNRELIABLE => {
                         connection.incoming_unreliable.push(payload.to_vec());
                     }

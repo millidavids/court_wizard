@@ -55,7 +55,7 @@ pub fn send_crdt_snapshot(
         });
     }
 
-    if let Ok(data) = bincode::serialize(&snapshot) {
+    if let Ok(data) = crate::networking::wire::encode(&snapshot) {
         let mut prefixed = Vec::with_capacity(1 + data.len());
         prefixed.push(UNRELIABLE_CRDT_SNAPSHOT);
         prefixed.extend_from_slice(&data);

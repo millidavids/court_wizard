@@ -1,7 +1,7 @@
 //! Infusions that move or remove units rather than damaging them.
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 use rand::seq::SliceRandom;
 
 use super::super::components::ArcaneCrystal;

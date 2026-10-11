@@ -1,4 +1,4 @@
-#import bevy_pbr::forward_io::VertexOutput
+import bevy_pbr::render::forward_io::VertexOutput;
 
 struct WindSwayUniforms {
     base_color: vec4<f32>,
@@ -6,13 +6,13 @@ struct WindSwayUniforms {
     sway_params: vec4<f32>,   // x = time, y = amplitude, z = speed, w = phase
 };
 
-@group(3) @binding(0)
+@group(constants::MATERIAL_BIND_GROUP) @binding(0)
 var<uniform> material: WindSwayUniforms;
 
-@group(3) @binding(1)
+@group(constants::MATERIAL_BIND_GROUP) @binding(1)
 var base_texture: texture_2d<f32>;
 
-@group(3) @binding(2)
+@group(constants::MATERIAL_BIND_GROUP) @binding(2)
 var base_sampler: sampler;
 
 @fragment

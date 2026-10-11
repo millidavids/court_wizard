@@ -131,7 +131,7 @@ pub(super) fn spawn_controller_diagram_section(
             },
             BackgroundColor(CONTENT_BG),
             BorderColor::all(DETAIL_BORDER),
-            // Focusable (deliberately NOT a `Button`, so A/South is a no-op) so
+            // Focusable (deliberately NOT a `UiButton`, so A/South is a no-op) so
             // controller focus nav can reach it and scroll it into view. The
             // flat-background marker gives the standard gamepad focus tint, and
             // `ConsumeHorizontalNav` lets Left/Right cycle vendor schemes instead

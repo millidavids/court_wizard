@@ -1,6 +1,6 @@
 //! Shared spawn helpers for unit cell positioning.
 
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 /// Generates a random position within a tight spread around a cell center.
 /// Used for spawning units randomly within their assigned grid cell.

@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::super::attack_cycle::GlobalAttackCycle;
 use super::super::super::cauldron::components::{CauldronDamageBonus, CauldronDamageResistance};

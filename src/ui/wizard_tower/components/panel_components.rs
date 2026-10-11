@@ -126,7 +126,6 @@ pub(crate) struct InsightBonusAllocationFill {
 #[derive(Component)]
 pub(crate) struct InsightBonusSliderHandle {
     pub stat: InsightBonusStat,
-    pub is_dragging: bool,
 }
 
 /// Text showing allocation progress for an insight bonus.

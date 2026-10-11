@@ -12,7 +12,7 @@ use crate::config::GameConfig;
 use crate::game::units::wizard::components::Spell;
 use crate::networking::session::MultiplayerSession;
 use crate::ui::action_bar::systems::slot_icon;
-use crate::ui::components::{ButtonColors, SpellIconAssets};
+use crate::ui::components::{ButtonColors, SpellIconAssets, UiButton};
 
 /// Number of assignable action bar slots.
 pub(super) const SLOT_COUNT: u8 = 5;
@@ -95,7 +95,7 @@ fn spawn_hotkey_box(
     };
 
     let mut hotkey_btn = row.spawn((
-        Button,
+        UiButton,
         Node {
             width: Val::Px(HOTKEY_BOX_SIZE),
             height: Val::Px(HOTKEY_BOX_SIZE),

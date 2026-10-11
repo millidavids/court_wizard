@@ -6,7 +6,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::game_mode::components::ArchetypeUI;
 use crate::game::units::wizard::archetypes::runes::resources::Rune;
 use crate::ui::button_systems::{edge_color, opaque};
-use crate::ui::components::{ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront};
+use crate::ui::components::{ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, UiButton};
 use crate::ui::constants::{BUTTON_3D_OFFSET_REST, BUTTON_SHADOW_COLOR};
 use crate::ui::focus::Focusable;
 use crate::ui::gamepad_glyphs::{ButtonPrompt, ButtonPromptImage, PromptKey};
@@ -128,7 +128,7 @@ fn spawn_rune_button(row: &mut ChildSpawnerCommands, rune: Rune) {
     use crate::ui::constants::BUTTON_REST_OUTLINE;
     let depth = -BUTTON_3D_OFFSET_REST; // positive: edge visible at the bottom
     row.spawn((
-        Button,
+        UiButton,
         Node {
             width: Val::Px(RUNE_BUTTON_STYLE.width),
             height: Val::Px(RUNE_BUTTON_STYLE.height + depth),

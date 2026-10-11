@@ -1,6 +1,6 @@
 [package]
 name = "court_wizard"
-version = "1.0.41"
+version = "1.0.42"
 edition = "2024"
 default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"
@@ -13,7 +13,7 @@ default = []
 benchmarking = ["bevy/sysinfo_plugin"]
 
 [dependencies]
-bevy = { version = "0.19.1", default-features = false, features = [
+bevy = { version = "0.20.0", default-features = false, features = [
     # Core rendering and 2D
     "bevy_render",
     "bevy_core_pipeline",
@@ -30,18 +30,17 @@ bevy = { version = "0.19.1", default-features = false, features = [
     "default_font",     # Embedded default font - REQUIRED for text!
     "bevy_ui",
     "bevy_ui_render",
+    # Headless `Button` (`Pressed` + `Activate`), replacing the deprecated
+    # `Interaction`. Implies `bevy_input_focus`; all of it consumes picking
+    # pointer events, which `crt_effect::drive_mouse_pointer` feeds
+    # barrel-corrected. Game buttons have no `TabIndex`, so click-to-focus never
+    # focuses them; controller focus stays in `src/ui/focus/`.
+    "bevy_ui_widgets",
     "bevy_picking",
     "ui_picking",
     "sprite_picking",
 
     # Window and input
-    #
-    # `bevy_input_focus` is deliberately absent. Enabling it puts
-    # `InputFocusPlugin` + `InputDispatchPlugin` into `DefaultPlugins` and wires
-    # click-to-focus into `ui_picking`, none of which this game uses — it has its
-    # own focus system in `src/ui/focus/`, and bevy's would run off the
-    # *uncorrected* cursor while `correct_ui_interaction_for_barrel` corrects
-    # everything else for CRT barrel distortion.
     "bevy_window",
     "bevy_winit",
     "bevy_gilrs",       # Gamepad/controller support via gilrs
@@ -52,9 +51,8 @@ bevy = { version = "0.19.1", default-features = false, features = [
 
     # Assets
     #
-    # No scene feature: the game never spawns a scene. In 0.19 `bevy_scene` is
-    # the new BSN crate and `bevy_world_serialization` is the old one; we need
-    # neither.
+    # No scene feature: the game never spawns a scene. `bevy_scene` is the BSN
+    # crate and `bevy_world_serialization` the old one; we need neither.
     "bevy_asset",
     "bevy_state",
 
@@ -76,21 +74,20 @@ bevy = { version = "0.19.1", default-features = false, features = [
     "debug",
 ] }
 serde = { version = "1.0", features = ["derive"] }
-bincode = "1.3"
-toml = "0.8"
+postcard = { version = "1", default-features = false, features = ["use-std"] }
+toml = "1"
 thiserror = "2.0"
-rand = "0.9"
+rand = "0.10"
 tracing = { version = "0.1", features = ["max_level_debug", "release_max_level_warn"] }
-dirs = "6.0"
-bevy-steamworks = "0.17"
-# Direct handles to the exact versions bevy-steamworks 0.17 already resolves, so
-# we can name `steamworks::InputType` and call the Steam Input haptics FFI
-# (`steamworks-sys`) the safe `Input` wrapper doesn't expose. Exact-pinned so the
+dirs = "7"
+# The Bevy wrapper lives in `src/steam/client.rs` (vendored from bevy-steamworks,
+# which has no Bevy 0.20 release). `steamworks-sys` is for the Steam Input
+# haptics/glyph FFI the safe `Input` wrapper doesn't expose. Exact-pinned so the
 # FFI surface can't drift.
 steamworks = "=0.13.1"
 steamworks-sys = "=0.13.0"
-iroh = "0.98"
-tokio = { version = "1", features = ["rt", "sync", "time"] }
+iroh = "1.3"
+tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }
 # `CancellationToken` only. Already in the tree via iroh, and `tokio_util::sync`
 # is not feature-gated, so this adds no compile units. We need it because
 # `Notify::notify_waiters()` stores no permit: a task that is woken by its OTHER
@@ -106,7 +103,12 @@ winit = { version = "0.30", default-features = false }
 webbrowser = "1.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-bevy = { version = "0.19.1", default-features = false, features = ["x11", "wayland"] }
+bevy = { version = "0.20.0", default-features = false, features = ["x11", "wayland"] }
+
+[dev-dependencies]
+# Rollback tests: older builds read saves with toml 0.8, so this build's output
+# must stay parseable by it (`src/config/save_data/save_format_compat.rs`).
+toml_legacy = { package = "toml", version = "0.8" }
 
 [profile.dev]
 opt-level = 1

@@ -2,7 +2,7 @@
 
 use bevy::math::Affine2;
 use bevy::prelude::*;
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 /// Which direction a unit faces, determining which sprite texture to show.
 #[derive(Component, Clone, Copy, PartialEq, Eq, Default)]

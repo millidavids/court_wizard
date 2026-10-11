@@ -11,5 +11,6 @@ pub(crate) mod resources;
 pub(crate) mod session;
 pub(crate) mod snapshot;
 pub(crate) mod transport;
+pub(crate) mod wire;
 
 pub use plugin::NetworkingPlugin;

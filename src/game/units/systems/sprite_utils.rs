@@ -1,6 +1,6 @@
 use bevy::math::Affine2;
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::components::{
     CORPSE_MATERIAL_VARIANTS, Corpse, FacingDirection, FlockingVelocity, RoughTerrain,

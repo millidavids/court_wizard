@@ -1,8 +1,9 @@
 use bevy::prelude::*;
-use bevy::ui::RelativeCursorPosition;
 
 use crate::game::insight_bonuses::InsightBonusStat;
 use crate::game::units::wizard::components::Spell;
+use crate::ui::components::NON_BLOCKING;
+use crate::ui::systems::DragTrack;
 
 use super::super::super::super::components::*;
 use super::super::super::super::constants::*;
@@ -36,8 +37,7 @@ pub(crate) fn spawn_detail_unified_slider(
             },
             BorderColor::all(SLIDER_TRACK_BORDER),
             BackgroundColor(SLIDER_TRACK_BG),
-            Interaction::default(),
-            RelativeCursorPosition::default(),
+            DragTrack::default(),
             StudyAllocationSlider { spell },
         ))
         .with_children(|track| {
@@ -49,12 +49,7 @@ pub(crate) fn spawn_detail_unified_slider(
                     position_type: PositionType::Absolute,
                     left: Val::Px(0.0),
                     top: Val::Px(0.0),
-                    border_radius: BorderRadius {
-                        top_left: Val::Px(8.0),
-                        bottom_left: Val::Px(8.0),
-                        top_right: Val::Px(0.0),
-                        bottom_right: Val::Px(0.0),
-                    },
+                    border_radius: BorderRadius::left(Val::Px(8.0)),
                     ..default()
                 },
                 BackgroundColor(PROGRESS_BAR_FILL),
@@ -87,12 +82,10 @@ pub(crate) fn spawn_detail_unified_slider(
                     ..default()
                 },
                 BackgroundColor(SLIDER_HANDLE_COLOR),
-                Interaction::default(),
-                RelativeCursorPosition::default(),
-                StudyAllocationHandle {
-                    spell,
-                    is_dragging: false,
-                },
+                // Pickable so pressing the part that overhangs the track still
+                // reaches it (presses bubble up).
+                NON_BLOCKING,
+                StudyAllocationHandle { spell },
             ));
         });
 }
@@ -122,8 +115,7 @@ pub(crate) fn spawn_insight_bonus_slider(
             },
             BorderColor::all(INSIGHT_NODE_BORDER),
             BackgroundColor(SLIDER_TRACK_BG),
-            Interaction::default(),
-            RelativeCursorPosition::default(),
+            DragTrack::default(),
             InsightBonusSlider { stat },
         ))
         .with_children(|track| {
@@ -134,12 +126,7 @@ pub(crate) fn spawn_insight_bonus_slider(
                     position_type: PositionType::Absolute,
                     left: Val::Px(0.0),
                     top: Val::Px(0.0),
-                    border_radius: BorderRadius {
-                        top_left: Val::Px(8.0),
-                        bottom_left: Val::Px(8.0),
-                        top_right: Val::Px(0.0),
-                        bottom_right: Val::Px(0.0),
-                    },
+                    border_radius: BorderRadius::left(Val::Px(8.0)),
                     ..default()
                 },
                 BackgroundColor(INSIGHT_PROGRESS_FILL),
@@ -170,12 +157,10 @@ pub(crate) fn spawn_insight_bonus_slider(
                     ..default()
                 },
                 BackgroundColor(SLIDER_HANDLE_COLOR),
-                Interaction::default(),
-                RelativeCursorPosition::default(),
-                InsightBonusSliderHandle {
-                    stat,
-                    is_dragging: false,
-                },
+                // Pickable so pressing the part that overhangs the track still
+                // reaches it (presses bubble up).
+                NON_BLOCKING,
+                InsightBonusSliderHandle { stat },
             ));
         });
 }

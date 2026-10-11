@@ -31,6 +31,6 @@ pub struct WallOfStoneMaterial {
 
 impl Material for WallOfStoneMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/wall_of_stone.wgsl".into()
+        "shaders/wall_of_stone.wesl".into()
     }
 }

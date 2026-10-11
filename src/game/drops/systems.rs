@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use rand::Rng;
+use rand::RngExt;
 use rand::seq::IndexedRandom;
 
 use crate::config::save_data::{load_unified_save, unlock_ingredient};

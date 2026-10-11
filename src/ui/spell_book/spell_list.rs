@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use crate::game::units::wizard::components::{Spell, SpellCategory};
-use crate::ui::components::{ButtonColors, SpellIconAssets};
+use crate::ui::components::{ButtonColors, SpellIconAssets, UiButton};
 
 /// Moves the selection border to the previewed spell's row.
 pub(super) fn refresh_spell_list_selection(
@@ -111,7 +111,7 @@ fn spawn_spell_button(
 
     column
         .spawn((
-            Button,
+            UiButton,
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Px(SPELL_BUTTON_HEIGHT),

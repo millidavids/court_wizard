@@ -2,6 +2,8 @@
 
 use bevy::prelude::*;
 
+use crate::ui::button_systems::{PointerState, PointerVisual, PointerVisualChanges};
+use crate::ui::components::UiButton;
 use crate::ui::link_button::{LinkButton, link_glow_for};
 
 use super::components::OnLandingScreen;
@@ -20,7 +22,7 @@ pub(super) struct StudioLinkButton;
 
 pub(super) fn setup_studio_link(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
-        Button,
+        UiButton,
         ImageNode::new(asset_server.load(STUDIO_LOGO_PATH)).with_color(TINT_REST),
         Node {
             position_type: PositionType::Absolute,
@@ -38,17 +40,19 @@ pub(super) fn setup_studio_link(mut commands: Commands, asset_server: Res<AssetS
 }
 
 pub(super) fn update_studio_link_visuals(
-    mut q: Query<
-        (&Interaction, &mut ImageNode, &mut BoxShadow),
-        (Changed<Interaction>, With<StudioLinkButton>),
-    >,
+    mut changes: PointerVisualChanges,
+    mut q: Query<(PointerState, &mut ImageNode, &mut BoxShadow), With<StudioLinkButton>>,
 ) {
-    for (interaction, mut image, mut shadow) in &mut q {
-        image.color = match *interaction {
-            Interaction::Pressed => TINT_PRESSED,
-            Interaction::Hovered => TINT_HOVER,
-            Interaction::None => TINT_REST,
+    for entity in changes.entities() {
+        let Ok((state, mut image, mut shadow)) = q.get_mut(entity) else {
+            continue;
         };
-        shadow.0 = link_glow_for(*interaction);
+        let visual = PointerVisual::of(state);
+        image.color = match visual {
+            PointerVisual::Press => TINT_PRESSED,
+            PointerVisual::Hover => TINT_HOVER,
+            PointerVisual::Rest => TINT_REST,
+        };
+        shadow.0 = link_glow_for(visual);
     }
 }

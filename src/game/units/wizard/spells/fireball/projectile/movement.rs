@@ -55,7 +55,7 @@ pub fn check_fireball_collisions(
     for (fireball_entity, fireball_transform, fireball, crystal_spawn) in &fireballs {
         let fireball_pos = fireball_transform.translation;
 
-        let explode_at = |rng: &mut dyn rand::RngCore,
+        let explode_at = |rng: &mut dyn rand::Rng,
                           commands: &mut Commands,
                           mats: &mut Assets<FireExplosionSphereMaterial>,
                           pos: Vec3| {

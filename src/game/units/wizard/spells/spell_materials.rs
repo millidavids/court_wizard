@@ -28,7 +28,7 @@ pub struct FireExplosionSphereMaterial {
 
 impl Material for FireExplosionSphereMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/fire_explosion_sphere.wgsl".into()
+        "shaders/fire_explosion_sphere.wesl".into()
     }
 
     fn alpha_mode(&self) -> AlphaMode {
@@ -53,7 +53,7 @@ pub struct AuraSphereMaterial {
 
 impl Material for AuraSphereMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/aura_sphere.wgsl".into()
+        "shaders/aura_sphere.wesl".into()
     }
 
     fn alpha_mode(&self) -> AlphaMode {

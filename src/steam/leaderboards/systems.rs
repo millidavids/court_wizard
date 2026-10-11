@@ -1,5 +1,7 @@
 use bevy::prelude::*;
-use bevy_steamworks::{Client, UploadScoreMethod};
+use steamworks::UploadScoreMethod;
+
+use crate::steam::Client;
 
 use crate::config::{GameConfig, WizardType};
 use crate::game::game_mode::components::{

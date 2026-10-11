@@ -4,6 +4,7 @@ mod navigation;
 mod panels;
 mod scroll;
 mod slider;
+mod slider_drag;
 
 // pub items
 pub use buttons::{cleanup_screen, spawn_button, spawn_page_header, spawn_title_with_shadow};
@@ -22,3 +23,4 @@ pub(crate) use materials::{FrostedGlassMaterial, ParchmentMaterial};
 pub(crate) use navigation::{handle_main_menu_back_button, handle_pause_menu_back_button};
 pub(crate) use panels::scroll_area_style;
 pub(crate) use slider::{SliderRowConfig, spawn_dot_leader, spawn_slider_row};
+pub(crate) use slider_drag::{DragTrack, begin_track_drag, follow_track_drag};

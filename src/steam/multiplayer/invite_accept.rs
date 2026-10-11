@@ -1,4 +1,4 @@
-//! Accepting an inbound invite: the two `SteamworksEvent` callbacks that record a
+//! Accepting an inbound invite: the two Steam callbacks that record a
 //! join intent, and the shared entry point that dispatches `join_lobby`.
 //!
 //! Both callbacks only record a `PendingSteamJoin`; the routing pipeline
@@ -6,7 +6,9 @@
 //! is safe to act on it, so an invite works from any game state.
 
 use bevy::prelude::*;
-use bevy_steamworks::{CallbackResult, Client, LobbyId, SteamworksEvent};
+use steamworks::{CallbackResult, LobbyId};
+
+use crate::steam::{Client, SteamCallbackMessage};
 
 use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection, PeerRole};
 
@@ -15,12 +17,11 @@ use super::lobby_state::{SteamLobbyBridge, SteamLobbyState};
 /// Friend clicked "Join Game" on a lobby invite (or accepted an invite overlay)
 /// while our game is already running. Steam delivers the lobby ID directly.
 pub(super) fn process_game_lobby_join_requested(
-    mut events: MessageReader<SteamworksEvent>,
+    mut events: MessageReader<SteamCallbackMessage>,
     mut commands: Commands,
 ) {
-    for evt in events.read() {
-        let SteamworksEvent::CallbackResult(CallbackResult::GameLobbyJoinRequested(req)) = evt
-        else {
+    for SteamCallbackMessage(callback) in events.read() {
+        let CallbackResult::GameLobbyJoinRequested(req) = callback else {
             continue;
         };
         info!(
@@ -39,13 +40,11 @@ pub(super) fn process_game_lobby_join_requested(
 /// rich presence (`+connect_lobby <id>`); we parse the lobby ID back out with the
 /// same helper used for cold-start launches, then record the intent.
 pub(super) fn process_game_rich_presence_join_requested(
-    mut events: MessageReader<SteamworksEvent>,
+    mut events: MessageReader<SteamCallbackMessage>,
     mut commands: Commands,
 ) {
-    for evt in events.read() {
-        let SteamworksEvent::CallbackResult(CallbackResult::GameRichPresenceJoinRequested(req)) =
-            evt
-        else {
+    for SteamCallbackMessage(callback) in events.read() {
+        let CallbackResult::GameRichPresenceJoinRequested(req) = callback else {
             continue;
         };
         let Some(lobby_id) = super::join_requests::parse_connect_lobby(&req.connect) else {

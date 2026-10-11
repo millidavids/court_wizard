@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use super::super::components::{MeteorExplosion, MeteorFallStorm, MeteorProjectile};
 use super::super::constants::*;

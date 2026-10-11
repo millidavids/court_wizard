@@ -14,10 +14,10 @@
 //! invite from being offered at all.
 
 use bevy::prelude::*;
-use bevy_steamworks::Client;
 
 use super::lobby_state::{SteamLobbyState, shutdown_steam_session};
 use super::sockets::SteamP2pSocket;
+use crate::steam::Client;
 
 /// `Last`, inside `PreExitCleanupSet`: leave the lobby and clear rich presence.
 ///

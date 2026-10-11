@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::config::save_data;
 use crate::game::game_mode::components::ToggleModifier;
-use crate::ui::components::{ButtonActive, ButtonColors};
+use crate::ui::components::{ButtonActive, ButtonColors, UiButton};
 use crate::ui::constants::{TEXT_DISABLED, TEXT_MUTED};
 use crate::ui::systems::spawn_button;
 
@@ -44,7 +44,7 @@ pub(super) fn spawn_toggle_row(
         .with_children(|row| {
             // Toggle button (takes remaining space)
             row.spawn((
-                Button,
+                UiButton,
                 Node {
                     flex_grow: 1.0,
                     flex_direction: FlexDirection::Column,
@@ -119,7 +119,7 @@ pub(super) fn spawn_toggle_row(
             let expand_bg = Color::hsla(270.0, 0.10, 0.10, 0.6);
             let expand_border = Color::hsla(270.0, 0.10, 0.20, 0.5);
             row.spawn((
-                Button,
+                UiButton,
                 Node {
                     width: Val::Px(36.0),
                     min_height: Val::Px(36.0),

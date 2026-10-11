@@ -22,7 +22,7 @@ pub struct GroundMaterial {
 
 impl Material for GroundMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/ground_noise.wgsl".into()
+        "shaders/ground_noise.wesl".into()
     }
 
     fn alpha_mode(&self) -> AlphaMode {
@@ -52,7 +52,7 @@ pub struct StoneNoiseMaterial {
 
 impl Material for StoneNoiseMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/stone_noise.wgsl".into()
+        "shaders/stone_noise.wesl".into()
     }
 
     fn alpha_mode(&self) -> AlphaMode {

@@ -1,4 +1,4 @@
-#import bevy_pbr::forward_io::VertexOutput
+import bevy_pbr::render::forward_io::VertexOutput;
 
 struct WallUniforms {
     // x = tile_world_size, y = tile_count, z = tile_index, w = noise_intensity
@@ -11,13 +11,13 @@ struct WallUniforms {
     side_light: vec4<f32>,
 };
 
-@group(3) @binding(0)
+@group(constants::MATERIAL_BIND_GROUP) @binding(0)
 var<uniform> material: WallUniforms;
 
-@group(3) @binding(1)
+@group(constants::MATERIAL_BIND_GROUP) @binding(1)
 var base_texture: texture_2d<f32>;
 
-@group(3) @binding(2)
+@group(constants::MATERIAL_BIND_GROUP) @binding(2)
 var base_sampler: sampler;
 
 // --- Hash-based 2D noise (same as ground_noise.wgsl) ---

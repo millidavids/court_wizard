@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::super::button_systems::{edge_color, opaque};
 use super::super::components::{
-    ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, ButtonStyle,
+    ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, ButtonStyle, UiButton,
 };
 use super::super::constants::{
     BUTTON_3D_OFFSET_REST, BUTTON_REST_OUTLINE, BUTTON_SHADOW_COLOR, TEXT_SHADOW_COLOR,
@@ -75,7 +75,7 @@ pub fn spawn_button(
 
     parent
         .spawn((
-            Button,
+            UiButton,
             Node {
                 width: Val::Px(style.width),
                 height: Val::Px(style.height + depth),

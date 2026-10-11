@@ -10,7 +10,7 @@ use crate::game::units::components::AttackTiming;
 /// units one-shot a defender in a single frame. By seeding the cycle
 /// offset, first-contact damage is naturally distributed over ~2s.
 pub(super) fn staggered_attack_timing() -> AttackTiming {
-    use rand::Rng;
+    use rand::RngExt;
     let mut rng = rand::rng();
     // `f32::EPSILON..` excludes exactly 0.0 — combined with
     // `can_attack`'s strict `attack_time > last_time`, a recorded slot of

@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy::ui::ShadowStyle;
 
 use crate::game::input::messages::MouseClicked;
+use crate::ui::button_systems::PointerVisual;
 
 #[derive(Component)]
 pub(crate) struct LinkButton(pub &'static str);
@@ -11,23 +12,23 @@ pub(crate) struct LinkButton(pub &'static str);
 const LINK_GLOW_HOVER: Color = Color::srgba(1.0, 0.95, 0.7, 0.55);
 const LINK_GLOW_PRESSED: Color = Color::srgba(1.0, 0.95, 0.6, 0.95);
 
-pub(crate) fn link_glow_for(interaction: Interaction) -> Vec<ShadowStyle> {
-    match interaction {
-        Interaction::Pressed => vec![ShadowStyle {
+pub(crate) fn link_glow_for(visual: PointerVisual) -> Vec<ShadowStyle> {
+    match visual {
+        PointerVisual::Press => vec![ShadowStyle {
             color: LINK_GLOW_PRESSED,
             x_offset: Val::Px(0.0),
             y_offset: Val::Px(0.0),
             spread_radius: Val::Px(6.0),
             blur_radius: Val::Px(20.0),
         }],
-        Interaction::Hovered => vec![ShadowStyle {
+        PointerVisual::Hover => vec![ShadowStyle {
             color: LINK_GLOW_HOVER,
             x_offset: Val::Px(0.0),
             y_offset: Val::Px(0.0),
             spread_radius: Val::Px(4.0),
             blur_radius: Val::Px(14.0),
         }],
-        Interaction::None => vec![],
+        PointerVisual::Rest => vec![],
     }
 }
 

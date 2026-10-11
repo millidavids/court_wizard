@@ -54,6 +54,7 @@ pub(crate) struct TimeTravelContainer;
 
 /// Marker for the scrollable time travel level list (used by handle_scroll).
 #[derive(Component)]
+#[require(Pickable = crate::ui::components::NON_BLOCKING)]
 pub(crate) struct TimeTravelSection;
 
 /// Clickable level entry in the time travel list.
@@ -124,7 +125,6 @@ pub(crate) struct StudyAllocationFill {
 #[derive(Component)]
 pub(crate) struct StudyAllocationHandle {
     pub spell: Spell,
-    pub is_dragging: bool,
 }
 
 /// Text showing allocation progress in the detail panel.

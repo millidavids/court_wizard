@@ -61,7 +61,7 @@ pub(in crate::game) fn generate_terrain(
     let seed = config
         .seed
         .map(|s| derive_seed(s, level, SEED_PURPOSE_TERRAIN));
-    let mut rng: Box<dyn RngCore> = match seed {
+    let mut rng: Box<dyn Rng> = match seed {
         Some(s) => Box::new(StdRng::seed_from_u64(s)),
         None => Box::new(rand::rng()),
     };
@@ -120,7 +120,7 @@ pub(in crate::game) fn generate_terrain(
         (base as f32 * terrain_density).round() as u32
     };
 
-    let random_scale = |rng: &mut dyn RngCore| -> f32 { rng.random_range(SCALE_MIN..=SCALE_MAX) };
+    let random_scale = |rng: &mut dyn Rng| -> f32 { rng.random_range(SCALE_MIN..=SCALE_MAX) };
 
     // Generate boulders
     let boulder_count = scale_count(BOULDER_BASE_COUNT_MIN, BOULDER_BASE_COUNT_MAX);
@@ -407,7 +407,7 @@ pub(in crate::game) fn generate_terrain(
 
 #[allow(clippy::too_many_arguments)]
 fn try_place(
-    rng: &mut dyn RngCore,
+    rng: &mut dyn Rng,
     radius: f32,
     placed: &[(Vec2, f32)],
     is_valid: &dyn Fn(Vec2, f32, &[(Vec2, f32)]) -> bool,

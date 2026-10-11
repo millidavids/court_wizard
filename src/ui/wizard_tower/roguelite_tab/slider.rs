@@ -1,10 +1,9 @@
 use bevy::prelude::*;
-use bevy::ui::RelativeCursorPosition;
 
 use crate::game::game_mode::components::RogueliteModifiers;
 use crate::game::input::messages::MouseClicked;
 use crate::ui::constants::SLIDER_TRACK_WIDTH;
-use crate::ui::systems::{SliderRowConfig, spawn_slider_row};
+use crate::ui::systems::{DragTrack, SliderRowConfig, spawn_slider_row};
 
 use super::components::{
     ModifierSliderDownButton, ModifierSliderFill, ModifierSliderHandle, ModifierSliderText,
@@ -43,7 +42,6 @@ pub(super) fn spawn_modifier_slider(
             },
             slider_handle: ModifierSliderHandle {
                 value: slider_value,
-                is_dragging: false,
             },
         },
     );
@@ -73,62 +71,26 @@ pub(crate) fn slider_button_action(
     }
 }
 
+/// Sets a modifier when its track is clicked or dragged, snapped to its step.
 pub(crate) fn slider_interaction(
-    buttons: Res<ButtonInput<bevy::input::mouse::MouseButton>>,
-    mut slider_handles: Query<(&Interaction, &mut ModifierSliderHandle)>,
-    slider_tracks: Query<(&Interaction, &RelativeCursorPosition, &ModifierSliderTrack)>,
+    slider_tracks: Query<(Ref<DragTrack>, &ModifierSliderTrack)>,
     mut modifiers: ResMut<RogueliteModifiers>,
 ) {
-    // Stop dragging when mouse is released
-    if !buttons.pressed(bevy::input::mouse::MouseButton::Left) {
-        for (_interaction, mut slider_handle) in &mut slider_handles {
-            slider_handle.is_dragging = false;
-        }
-        return;
-    }
+    for (drag, track) in &slider_tracks {
+        let Some(fraction) = DragTrack::moved(&drag) else {
+            continue;
+        };
+        let min = track.value.min_value();
+        let max = track.value.max_value();
+        let new_value = (min + fraction * (max - min)).clamp(min, max);
 
-    // Check if track was clicked (start dragging)
-    if buttons.just_pressed(bevy::input::mouse::MouseButton::Left) {
-        for (interaction, _cursor_pos, track) in &slider_tracks {
-            if matches!(*interaction, Interaction::Pressed | Interaction::Hovered) {
-                for (_handle_interaction, mut slider_handle) in &mut slider_handles {
-                    if slider_handle.value == track.value {
-                        slider_handle.is_dragging = true;
-                    }
-                }
-            }
-        }
+        // Snap to nearest step
+        let step = track.value.step();
+        let snapped = (new_value / step).round() * step;
+        let snapped = snapped.clamp(min, max);
 
-        // Also start dragging if the handle itself was clicked
-        for (interaction, mut slider_handle) in &mut slider_handles {
-            if *interaction == Interaction::Pressed {
-                slider_handle.is_dragging = true;
-            }
-        }
-    }
-
-    // While dragging, use the track's RelativeCursorPosition to set the value.
-    for (_interaction, cursor_pos, track) in &slider_tracks {
-        let is_dragging = slider_handles
-            .iter()
-            .any(|(_, h)| h.value == track.value && h.is_dragging);
-
-        if is_dragging && let Some(pos) = cursor_pos.normalized {
-            let normalized = (pos.x + 0.5).clamp(0.0, 1.0);
-
-            let min = track.value.min_value();
-            let max = track.value.max_value();
-            let range = max - min;
-            let new_value = (min + normalized * range).clamp(min, max);
-
-            // Snap to nearest step
-            let step = track.value.step();
-            let snapped = (new_value / step).round() * step;
-            let snapped = snapped.clamp(min, max);
-
-            if (track.value.get(&modifiers) - snapped).abs() > f32::EPSILON {
-                track.value.set(&mut modifiers, snapped);
-            }
+        if (track.value.get(&modifiers) - snapped).abs() > f32::EPSILON {
+            track.value.set(&mut modifiers, snapped);
         }
     }
 }

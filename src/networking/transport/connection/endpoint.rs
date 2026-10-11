@@ -18,7 +18,9 @@ pub(super) const KEEP_ALIVE_INTERVAL: Duration = Duration::from_secs(2);
 pub(super) const QUIC_IDLE_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Application-Layer Protocol Negotiation identifier for Court Wizard P2P.
-pub(super) const ALPN: &[u8] = b"court-wizard/1";
+/// Bumped with incompatible transport changes so mismatched builds fail the
+/// QUIC handshake instead of exchanging undecodable messages.
+pub(super) const ALPN: &[u8] = b"court-wizard/2";
 
 /// Default max datagram payload size if the connection doesn't report one.
 pub(super) const DEFAULT_MAX_DATAGRAM: usize = 1200;

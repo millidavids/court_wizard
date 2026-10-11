@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::ui::button_systems::{PointerState, PointerVisual, PointerVisualChanges};
+
 use super::super::super::components::*;
 use super::super::super::constants::*;
 
@@ -56,66 +58,55 @@ pub(crate) fn handle_talent_card_clicks(
     }
 }
 
-/// Updates the talent description text when hovering over talent cards.
+/// Shows the description of the hovered (or controller-focused) talent card,
+/// and clears it once no card is hovered.
 pub(crate) fn update_talent_hover_description(
-    interaction_query: Query<(&Interaction, &TalentCard), Changed<Interaction>>,
+    mut changes: PointerVisualChanges,
+    cards: Query<(PointerState, &TalentCard)>,
     mut desc_query: Query<(&mut Text, &mut TextFont, &mut TextColor), With<TalentDescriptionText>>,
 ) {
     use crate::config::save_data::get_spell_talent_progress;
     use crate::game::units::wizard::talents::{constants as talent_consts, definitions};
 
-    for (interaction, card) in &interaction_query {
-        if *interaction != Interaction::Hovered && *interaction != Interaction::Pressed {
-            continue;
-        }
-
-        let talent_progress = get_spell_talent_progress(card.spell);
-        let thresholds = talent_consts::tier_thresholds(card.spell);
-        let tier_unlocked = talent_progress >= thresholds[card.tier as usize];
-        let defs = definitions::talent_definitions(card.spell);
-        let def = &defs[card.tier as usize][card.choice as usize];
-
-        for (mut text, mut font, mut color) in &mut desc_query {
-            if tier_unlocked {
-                let desc = format!("{}: {}", def.name, def.description);
-                let font_size = if desc.len() > DESC_SHRINK_THRESHOLD {
-                    TALENT_DESC_FONT_SMALL
-                } else {
-                    TALENT_DESC_FONT
-                };
-                *text = Text::new(desc);
-                *font = TextFont::from_font_size(font_size);
-                *color = TextColor(TEXT_COLOR);
-            } else {
-                let font_size = if def.locked_text.len() > DESC_SHRINK_THRESHOLD {
-                    TALENT_DESC_FONT_SMALL
-                } else {
-                    TALENT_DESC_FONT
-                };
-                *text = Text::new(def.locked_text);
-                *font = TextFont::from_font_size(font_size);
-                *color = TextColor(LOCKED_TEXT_COLOR);
-            }
-        }
+    if !changes.entities().iter().any(|&e| cards.contains(e)) {
+        return;
     }
-}
+    let Some((_, card)) = cards
+        .iter()
+        .find(|(state, _)| PointerVisual::of(*state) != PointerVisual::Rest)
+    else {
+        for (mut text, _, _) in &mut desc_query {
+            *text = Text::new("");
+        }
+        return;
+    };
 
-/// Clears the talent description text when not hovering any talent card.
-pub(crate) fn clear_talent_hover_description(
-    interaction_query: Query<&Interaction, (With<TalentCard>, Changed<Interaction>)>,
-    mut desc_query: Query<&mut Text, With<TalentDescriptionText>>,
-) {
-    for interaction in &interaction_query {
-        if *interaction == Interaction::None {
-            // Only clear if no other card is hovered
-            let any_hovered = interaction_query
-                .iter()
-                .any(|i| *i == Interaction::Hovered || *i == Interaction::Pressed);
-            if !any_hovered {
-                for mut text in &mut desc_query {
-                    *text = Text::new("");
-                }
-            }
+    let talent_progress = get_spell_talent_progress(card.spell);
+    let thresholds = talent_consts::tier_thresholds(card.spell);
+    let tier_unlocked = talent_progress >= thresholds[card.tier as usize];
+    let defs = definitions::talent_definitions(card.spell);
+    let def = &defs[card.tier as usize][card.choice as usize];
+
+    for (mut text, mut font, mut color) in &mut desc_query {
+        if tier_unlocked {
+            let desc = format!("{}: {}", def.name, def.description);
+            let font_size = if desc.len() > DESC_SHRINK_THRESHOLD {
+                TALENT_DESC_FONT_SMALL
+            } else {
+                TALENT_DESC_FONT
+            };
+            *text = Text::new(desc);
+            *font = TextFont::from_font_size(font_size);
+            *color = TextColor(TEXT_COLOR);
+        } else {
+            let font_size = if def.locked_text.len() > DESC_SHRINK_THRESHOLD {
+                TALENT_DESC_FONT_SMALL
+            } else {
+                TALENT_DESC_FONT
+            };
+            *text = Text::new(def.locked_text);
+            *font = TextFont::from_font_size(font_size);
+            *color = TextColor(LOCKED_TEXT_COLOR);
         }
     }
 }

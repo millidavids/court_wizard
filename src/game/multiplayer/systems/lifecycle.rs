@@ -256,7 +256,7 @@ pub(crate) fn cleanup_mp_game(
 pub(crate) fn do_mp_disconnect(
     connection: &mut NetworkConnection,
     transport: Option<&TransportHandle>,
-    steam_client: Option<&bevy_steamworks::Client>,
+    steam_client: Option<&crate::steam::Client>,
     steam_lobby: Option<&mut crate::steam::multiplayer::SteamLobbyState>,
     steam_socket: Option<&mut crate::steam::multiplayer::SteamP2pSocket>,
     lobby: &mut MultiplayerLobby,

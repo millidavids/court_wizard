@@ -127,7 +127,25 @@ fn main() {
                 }),
                 ..default()
             })
-            .set(ImagePlugin::default_nearest()),
+            .set(ImagePlugin::default_nearest())
+            // Only the headless `Button` is used. The other widgets add systems
+            // and global pointer/keyboard observers that would run every frame;
+            // input dispatch and click-to-focus serve `TabIndex` focus, which the
+            // game replaces with its own controller focus.
+            .disable::<bevy::ui_widgets::CheckboxPlugin>()
+            .disable::<bevy::ui_widgets::TextInputPlugin>()
+            .disable::<bevy::ui_widgets::ListBoxPlugin>()
+            .disable::<bevy::ui_widgets::MenuPlugin>()
+            .disable::<bevy::ui_widgets::DialogPlugin>()
+            .disable::<bevy::ui_widgets::ModalDialogPlugin>()
+            .disable::<bevy::ui_widgets::popover::PopoverPlugin>()
+            .disable::<bevy::ui_widgets::RadioGroupPlugin>()
+            .disable::<bevy::ui_widgets::ScrollAreaPlugin>()
+            .disable::<bevy::ui_widgets::ScrollbarPlugin>()
+            .disable::<bevy::ui_widgets::SliderPlugin>()
+            .disable::<bevy::ui_widgets::TabPlugin>()
+            .disable::<bevy::input_focus::pointer_focus::PointerFocusPlugin>()
+            .disable::<bevy::input_focus::InputDispatchPlugin>(),
     )
     .add_plugins((
         ConfigPlugin,
@@ -288,6 +306,8 @@ fn setup(
         TeleportDistortionSettings::default(),
         HighContrastSettings::default(),
         ColorblindCorrectionSettings::default(),
+        // UI picking is opt-in (`require_markers`), cameras included.
+        UiPickingCamera,
     ));
 
     // Spawn brightness overlay (a fullscreen node that adjusts screen brightness)

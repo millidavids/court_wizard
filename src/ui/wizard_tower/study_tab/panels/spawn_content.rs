@@ -5,6 +5,7 @@ use crate::config::save_data::{
 };
 use crate::game::insight_bonuses::InsightBonusStat;
 use crate::game::resources::BattleInsightData;
+use crate::ui::components::UiButton;
 #[cfg(debug_assertions)]
 use crate::ui::systems::spawn_button;
 
@@ -76,7 +77,10 @@ pub(crate) fn spawn_study_panels(
                     overflow: Overflow::clip(),
                     ..default()
                 },
-                Interaction::None,
+                // Hovered counts descendants, so being over a node is still
+                // "over the graph" for panning.
+                bevy::picking::hover::Hovered::default(),
+                crate::ui::components::NON_BLOCKING,
                 SpellGraphArea,
             ))
             .with_children(|graph_area| {
@@ -167,7 +171,7 @@ pub(crate) fn spawn_study_panels(
 
                     graph_area
                         .spawn((
-                            Button,
+                            UiButton,
                             Node {
                                 width: Val::Px(GRAPH_NODE_SIZE),
                                 height: Val::Px(GRAPH_NODE_SIZE),
@@ -297,7 +301,7 @@ pub(crate) fn spawn_study_panels(
 
                     graph_area
                         .spawn((
-                            Button,
+                            UiButton,
                             Node {
                                 width: Val::Px(INSIGHT_NODE_SIZE),
                                 height: Val::Px(INSIGHT_NODE_SIZE),

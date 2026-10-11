@@ -142,9 +142,32 @@ pub(crate) fn to_hex(value: u128) -> String {
     hex
 }
 
+/// `ProgressData` as toml 0.8 serialized it when existing `progress.dat` files
+/// were signed: it widened `f32` to `f64`, toml 1.x doesn't. Iterating the same
+/// map keeps the key order too.
+#[derive(Serialize)]
+struct LegacySigningForm<'a> {
+    current_level: u32,
+    highest_level_achieved: u32,
+    #[serde(serialize_with = "serialize_widened")]
+    efficiency_ratios: &'a HashMap<String, f32>,
+}
+
+fn serialize_widened<S: serde::Serializer>(
+    ratios: &&HashMap<String, f32>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.collect_map(ratios.iter().map(|(k, v)| (k, f64::from(*v))))
+}
+
 /// Computes the signature for the given progress data.
 fn compute_signature(data: &ProgressData) -> String {
-    let canonical = toml::to_string(data).unwrap_or_default();
+    let form = LegacySigningForm {
+        current_level: data.current_level,
+        highest_level_achieved: data.highest_level_achieved,
+        efficiency_ratios: &data.efficiency_ratios,
+    };
+    let canonical = toml::to_string(&form).unwrap_or_default();
     let hash = keyed_hash(canonical.as_bytes());
     to_hex(hash)
 }
@@ -161,5 +184,22 @@ pub(crate) fn load_verified_progress() -> Option<ProgressData> {
     } else {
         warn!("Progress signature mismatch — progress has been tampered with, resetting");
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // A drifted signature discards the player's legacy progress on migration.
+    // One map entry only: HashMap order isn't stable across runs.
+    #[test]
+    fn legacy_progress_signature_is_pinned() {
+        let data = ProgressData {
+            current_level: 3,
+            highest_level_achieved: 4,
+            efficiency_ratios: HashMap::from([("1".to_string(), 0.3)]),
+        };
+        assert_eq!(compute_signature(&data), "108854169d52b7c07fa4b7bb77499408");
     }
 }

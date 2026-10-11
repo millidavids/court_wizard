@@ -1,14 +1,26 @@
-//! UI button systems: interaction, 3D structure, gamepad focus, color sync.
+//! UI button systems: hover/press visuals, clicks, 3D structure, gamepad focus, color sync.
 
+pub(crate) mod activate;
 pub(crate) mod active;
 pub(crate) mod button_animation;
-pub(crate) mod click;
 pub(crate) mod focus_tint;
+pub(crate) mod pointer_visual;
+pub(crate) mod release;
 pub(crate) mod structure;
 pub(crate) mod sync;
+pub(crate) mod visuals;
 
-// click
-pub use click::{button_click_detection, button_interaction, on_message};
+// activate
+pub(crate) use activate::forward_activate_as_mouse_clicked;
+
+// pointer_visual
+pub(crate) use pointer_visual::{PointerState, PointerVisual, PointerVisualChanges};
+
+// release
+pub(crate) use release::clear_stale_presses;
+
+// visuals
+pub(crate) use visuals::update_button_visuals;
 
 // structure
 pub use structure::apply_3d_button_structure;

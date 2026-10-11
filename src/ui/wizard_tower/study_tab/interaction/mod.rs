@@ -27,6 +27,4 @@ pub(crate) use slider_interaction::{
     update_insight_bonus_allocation_text, update_insight_bonus_rings, update_insight_bonus_sliders,
     update_pending_insight_display, update_star_sky_time,
 };
-pub(crate) use talent_interaction::{
-    clear_talent_hover_description, handle_talent_card_clicks, update_talent_hover_description,
-};
+pub(crate) use talent_interaction::{handle_talent_card_clicks, update_talent_hover_description};

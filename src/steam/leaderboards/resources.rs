@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use bevy::prelude::*;
-use bevy_steamworks::Leaderboard;
 use crossbeam_channel::{Receiver, Sender, unbounded};
+use steamworks::Leaderboard;
 
 use super::constants::LeaderboardId;
 
