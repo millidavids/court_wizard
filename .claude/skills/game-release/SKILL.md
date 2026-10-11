@@ -269,12 +269,45 @@ Tell the user:
 - that **one** run is in flight — `release.yml` — plus the dev build it is reusing if that is still running. Give the URL (`gh run list --limit 5`, otherwise the Actions tab);
 - **that promotion finishes only after they approve the prompt in their Steam Mobile app.** Setting a build live on the default branch of a released app always requires that confirmation — CI picks the right build id and requests it, nothing more. Do not describe the release as live, shipped, or out;
 - **that Discord and Bluesky post themselves once they approve.** `steam-promote.yml` runs every six hours, notices the build has gone live on `default`, and posts. So they land on the next scheduled pass after the phone tap, not immediately, and not at all until then;
-- **that the Steam hub event is theirs to post, and the fields are waiting on that run's summary** — title, summary and BBCode body, one block per form field. Steam has no supported events API, so this step stays manual by design; `steam/README.md` records why. Steamworks → Court Wizard → Hub Admin → Post Event/Announcement → *A Game Update* → *Small Update / Patch Notes*, and untick "Use visual editor" before pasting the body;
+- **that the Steam hub event is theirs to post** — see B5 below, and print those commands as part of this report;
 - whether the website sync produced a commit.
 
 If Discord or Bluesky hasn't appeared some hours after the approval, check *Actions → Steam Promote* — the `announced/v<version>` tag makes them exactly-once, so a missing post means the run has not fired yet or failed.
 
 If `release.yml` fails at the promotion step, the retry is *Actions → Release → Run workflow* with **`force: true`** — the tag already exists by then, so a plain re-run would skip everything.
+
+### B5. Print the Steam event fields
+
+Steam has no supported events API, so the hub announcement is posted by hand;
+`steam/README.md` records why the attempts to automate it were abandoned.
+`steam-promote.yml` renders these fields to its run summary, but that only
+happens *after* the phone tap — so render them locally too and put them in the
+report. The user should not have to wait for a cron pass, or go digging, just to
+copy three fields.
+
+Run all three and include their output verbatim, each labelled with the form
+field it goes in:
+
+```bash
+scripts/changelog_to_bbcode.sh --version <version> --headline   # Title
+scripts/changelog_to_bbcode.sh --version <version> --summary    # Summary (180 char cap)
+scripts/changelog_to_bbcode.sh --version <version> --body       # Body (BBCode)
+```
+
+These read `docs/CHANGELOG.md` and need no credentials and no network, so they
+work the moment `main` is pushed. `--version` takes `1.0.41` or `v1.0.41`.
+
+Then give the posting path:
+
+> Steamworks → Court Wizard → Hub Admin → Post Event/Announcement →
+> *A Game Update* → *Small Update / Patch Notes*
+
+and the one setting that is easy to miss: **untick "Use visual editor" before
+pasting the body**, or the BBCode is inserted as literal text.
+
+Never invoke the script with no arguments here — that form emits the whole
+section including an `[h2]` title line, which duplicates the Title field. It
+exists for `release.yml`'s artifact and is load-bearing; leave it alone.
 
 ---
 
